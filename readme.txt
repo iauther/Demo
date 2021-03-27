@@ -1,0 +1,5 @@
+Preprocessor Symbols：
+OS_KERNEL：
+OS_KERNEL=1:  RTX
+OS_KERNEL=2:  UCOS
+OS_KERNEL=3:  FREERTOS
