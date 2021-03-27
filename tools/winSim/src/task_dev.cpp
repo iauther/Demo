@@ -184,20 +184,48 @@ static DWORD WINAPI dev_rx_thread(LPVOID lpParam)
         rlen = dev_recv(dev_rx_buf, sizeof(dev_rx_buf));
         if (rlen > 0) {
             r = dev_data_proc(dev_rx_buf, rlen);
-            if (dev_exit_flag) {
-                break;
-            }
+        }
+
+        if (dev_exit_flag) {
+            break;
         }
     }
 
     return 0;
 }
+
+
+#define WM_DEV_QUIT   (WM_USER+1)
+static HANDLE devRxThreadHandle, devTxThreadHandle;
+static void inline send_evt(UINT evt)
+{
+    PostThreadMessage(GetThreadId(devTxThreadHandle), evt, 0, 0);
+}
+
+
+
 static DWORD WINAPI dev_tx_thread(LPVOID lpParam)
 {
     int r;
-    int rlen;
+    MSG msg;
     
-    while (1) {
+    SetTimer(NULL, 1, 100, NULL);
+    while (GetMessage(&msg, NULL, 0, 0)) {
+
+        switch (msg.message) {
+            case WM_TIMER:
+            {
+                dev_send_stat();
+            }
+            break;
+
+            case WM_DEV_QUIT:
+            {
+                break;
+            }
+            break;
+        }
+
         if (dev_exit_flag) {
             break;
         }
@@ -208,7 +236,7 @@ static DWORD WINAPI dev_tx_thread(LPVOID lpParam)
 
 
 
-static HANDLE devRxThreadHandle, devTxThreadHandle;
+
 int task_dev_start(void)
 {
     dev_exit_flag = 0;
@@ -221,6 +249,8 @@ int task_dev_start(void)
 int task_dev_stop(void)
 {
     dev_exit_flag = 1;
+    send_evt(WM_DEV_QUIT);
+
     if (devRxThreadHandle) {
         WaitForSingleObject(devRxThreadHandle, INFINITE);
         CloseHandle(devRxThreadHandle);

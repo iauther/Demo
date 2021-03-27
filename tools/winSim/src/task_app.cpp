@@ -104,25 +104,12 @@ static DWORD WINAPI app_rx_thread(LPVOID lpParam)
     int r;
     int rlen;
     
-    //data_thread_run = 1;
     while (1) {
         rlen = dev_recv(app_rx_buf, sizeof(app_rx_buf));
         if (rlen > 0) {
             r = app_data_proc(app_rx_buf, rlen);
-            if (app_exit_flag) {
-                break;
-            }
         }
-    }
 
-    return 0;
-}
-static DWORD WINAPI app_tx_thread(LPVOID lpParam)
-{
-    int r;
-    int rlen;
-    
-    while (1) {
         if (app_exit_flag) {
             break;
         }
@@ -132,7 +119,50 @@ static DWORD WINAPI app_tx_thread(LPVOID lpParam)
 }
 
 
-static HANDLE appThreadHandle,appRxThreadHandle,appTxThreadHandle;
+#define WM_APP_QUIT   (WM_USER+1)
+static HANDLE appRxThreadHandle, appTxThreadHandle;
+static void inline send_evt(UINT evt)
+{
+    PostThreadMessage(GetThreadId(appTxThreadHandle), evt, 0, 0);
+}
+
+
+
+
+static DWORD WINAPI app_tx_thread(LPVOID lpParam)
+{
+    int r;
+    int rlen;
+    MSG msg;
+
+    //SetTimer(NULL, 1, 1000, appTimerProc);
+    while (GetMessage(&msg, NULL, 0, 0)) {
+
+        switch (msg.message) {
+
+            case WM_TIMER:
+            {
+
+            }
+            break;
+
+            case WM_APP_QUIT:
+            {
+                break;
+            }
+            break;
+        }
+
+        if (app_exit_flag) {
+            break;
+        }
+    }
+
+    return 0;
+}
+
+
+
 int task_app_start(void)
 {
     app_exit_flag = 0;
@@ -145,6 +175,7 @@ int task_app_start(void)
 int task_app_stop(void)
 {
     app_exit_flag = 1;
+    send_evt(WM_APP_QUIT);
 
     if (appRxThreadHandle) {
         WaitForSingleObject(appRxThreadHandle, INFINITE);

@@ -5,29 +5,32 @@
 
 int exit_flag=0;
 static DWORD mainThreadId;
-#define WM_MYTIMER     WM_USER+1 
-#define WM_MYLOOP      WM_USER+2 
-static void CALLBACK timer_callback(HWND hwnd, UINT message, UINT_PTR iTimerID, DWORD dwTime)
-{
-    //PostThreadMessage(mainThreadId, WM_MYLOOP, NULL, NULL);
-}
-
 int main(void)
 {
     MSG msg;
 
-    win_init();
+    mainThreadId = GetCurrentThreadId();
+
+    win_init(1);
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
 
         if (exit_flag) {
-            task_dev_stop();
-            task_app_stop();
             break;
         }
     }
+    task_dev_stop();
+    task_app_stop();
 
     return 0;
 }
 
+
+
+int task_quit(void)
+{
+    exit_flag = 1;
+    PostThreadMessage(mainThreadId, WM_TIMER, 0, 0);
+    return 0;
+}

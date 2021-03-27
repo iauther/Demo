@@ -2,11 +2,13 @@
 #include "win.h"
 #include "dev.h"
 #include "log.h"
+#include "task.h"
 
 extern setts_t  curSetts;
 extern sett_t* pCurSett;
 extern int exit_flag;
 static grp_t     grp;
+static int       mcuSim = 0;
 uiMultilineEntry* logEntry = NULL;
 
 static int onClosing(uiWindow* w, void* data)
@@ -87,9 +89,9 @@ static label_input_t* label_input_new(const char* label, const char *value, cons
 	li->entry = uiNewEntry();			uiEntrySetText(li->entry, value);
 	li->unit = uiNewLabel(unit);
 
-	uiGridAppend(li->grid, uiControl(li->label),  0, 0, 1, 1, 1, uiAlignStart, 0, uiAlignFill);
-	uiGridAppend(li->grid, uiControl(li->entry),  1, 0, 1, 1, 1, uiAlignCenter, 0, uiAlignFill);
-	uiGridAppend(li->grid, uiControl(li->unit),   2, 0, 1, 1, 1, uiAlignEnd, 0, uiAlignFill);
+	uiGridAppend(li->grid, uiControl(li->label),  0, 0, 1, 1, 0, uiAlignEnd, 0, uiAlignFill);
+	uiGridAppend(li->grid, uiControl(li->entry),  1, 0, 1, 1, 0, uiAlignEnd, 0, uiAlignFill);
+	uiGridAppend(li->grid, uiControl(li->unit),   2, 0, 1, 1, 0, uiAlignEnd, 0, uiAlignFill);
 
 	return li;
 }
@@ -122,7 +124,12 @@ static void on_port_open_btn_fn(uiButton* b, void* data)
 static void on_port_chkbox_fn(uiCheckbox* c, void* data)
 {
 	if (uiCheckboxChecked(c)) {
-
+		task_app_stop();
+		task_dev_start();
+	}
+	else {
+		task_dev_stop();
+		task_app_start();
 	}
 }
 static int port_grp_init(uiWindow* win, port_grp_t* port)
@@ -144,7 +151,13 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 	uiComboboxSetSelected(port->port, 0);
 
 	port->open = uiNewButton("Open");			uiButtonOnClicked(port->open, on_port_open_btn_fn, port->port);
-	port->mode = uiNewCheckbox("Mcu Simulate"); uiCheckboxOnToggled(port->mode, on_port_chkbox_fn, NULL); uiCheckboxSetChecked(port->mode, 1);
+	port->mode = uiNewCheckbox("MCU Simulate"); uiCheckboxOnToggled(port->mode, on_port_chkbox_fn, NULL); uiCheckboxSetChecked(port->mode, mcuSim);
+	if (mcuSim) {
+		task_dev_start();
+	}
+	else {
+		task_app_start();
+	}
 	                                            
 	uiGridAppend(port->g, uiControl(port->port), 0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
 	uiGridAppend(port->g, uiControl(port->open), 1, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
@@ -186,16 +199,16 @@ static int para_grp_init(uiWindow* win, para_grp_t* para)
 	const char* modStr[] = {
 		"CONTINUS",
 		"INTERVAL",
-		"FIXED_TIME",
-		"FIXED_VOLUME",
+		"FIXED TIME",
+		"FIXED VOLUME",
 		NULL
 	};
 	para->sett.mode = label_comb_new("Mode", NULL, NULL, modStr, 0);
 	para->sett.w_time = label_input_new("wTime", "0", "s");
 	para->sett.s_time = label_input_new("sTime", "0", "s");
 	para->sett.t_time = label_input_new("tTime", "0", "s");
-	para->sett.vacuum = label_input_new("Pres", "93", "kpa");
-	para->sett.maxVol = label_input_new("Vol", "200", "ml");
+	para->sett.vacuum = label_input_new("Pres ", "93", "kpa");
+	para->sett.maxVol = label_input_new("Vol  ", "200", "ml");
 	para->sett.set    = uiNewButton("Set");   uiButtonOnClicked(para->sett.set, on_sett_set_fn, NULL);
 	para->sett.start  = uiNewButton("Start"); uiButtonOnClicked(para->sett.start, on_sett_start_btn_fn, NULL);
 
@@ -206,10 +219,10 @@ static int para_grp_init(uiWindow* win, para_grp_t* para)
 	uiGridAppend(para->sett.grid, uiControl(para->sett.vacuum->grid), 0, 4, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
 	uiGridAppend(para->sett.grid, uiControl(para->sett.maxVol->grid), 0, 5, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
 
-	uiGridAppend(para->sett.grid, uiControl(para->sett.set),   3, 3, 1, 1, 0, uiAlignEnd, 0, uiAlignFill);
-	uiGridAppend(para->sett.grid, uiControl(para->sett.start), 0, 6, 1, 1, 0, uiAlignCenter, 0, uiAlignFill);
+	uiGridAppend(para->sett.grid, uiControl(para->sett.set),		  3, 3, 1, 1, 1, uiAlignCenter, 0, uiAlignFill);
+	uiGridAppend(para->sett.grid, uiControl(para->sett.start),        0, 6, 4, 1, 1, uiAlignFill, 0, uiAlignFill);
 
-	uiBoxAppend(para->sett.vbox, uiControl(para->sett.grid), 1);
+	uiBoxAppend(para->sett.vbox, uiControl(para->sett.grid), 0);
 	uiGroupSetChild(para->sett.grp, uiControl(para->sett.vbox));
 
 	////////////////////////////////////////////////////////////
@@ -374,14 +387,17 @@ static DWORD WINAPI uiThread(LPVOID lpParam)
 	ui_init();
 	uiMain();
 	uiUninit();
+
+	dev_close();
 	logEntry = NULL;
-	exit_flag = 1;
+	task_quit();
 
 	return 0;
 }
 
-void win_init(void)
+void win_init(int mcu)
 {
+	mcuSim = mcu;
 	CreateThread(NULL, 0, uiThread, NULL, 0, NULL);
 }
 

@@ -108,7 +108,8 @@ typedef struct {
 	log_grp_t			log;
 }grp_t;
 
-void win_init(void);
+
+void win_init(int mcu);
 void win_stat_update(stat_t* stat);
 
 #endif
