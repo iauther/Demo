@@ -361,7 +361,7 @@ static void ui_init(void)
 		return;
 	}
 
-	grp.win = uiNewWindow("winSim", 800, 600, 1);
+	grp.win = uiNewWindow("winSim", 600, 800, 1);
 	uiWindowOnClosing(grp.win, onClosing, grp.win);
 	uiOnShouldQuit(onShouldQuit, grp.win);
 

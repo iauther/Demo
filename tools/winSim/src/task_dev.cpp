@@ -215,7 +215,9 @@ static DWORD WINAPI dev_tx_thread(LPVOID lpParam)
         switch (msg.message) {
             case WM_TIMER:
             {
-                dev_send_stat();
+                //dev_send_stat();
+                static int cnt = 0;
+                log("__________________________ log cnt: %d\n", cnt++);
             }
             break;
 
