@@ -4,6 +4,10 @@
 #include "log.h"
 #include "task.h"
 
+#pragma comment  (lib, "libui.lib")
+
+
+
 extern setts_t  curSetts;
 extern sett_t* pCurSett;
 extern int exit_flag;

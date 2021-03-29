@@ -3,6 +3,8 @@
 #include "task.h"
 
 
+#pragma comment  (lib, "User32.lib")
+
 int exit_flag=0;
 static DWORD mainThreadId;
 int main(void)
