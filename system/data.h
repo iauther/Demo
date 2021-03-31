@@ -5,6 +5,7 @@
 #include "n950.h"
 #include "ms4525.h"
 #include "valve.h"
+#include "bmp280/bmp280.h"
 
 #define FW_MAGIC            0xFACEBEAD
 #define PKT_MAGIC           0xDEADBEEF
@@ -25,8 +26,9 @@ enum {
     TYPE_STAT,
     TYPE_ACK,
     TYPE_SETT,
+    TYPE_PARAS,
+    TYPE_ERROR,
     TYPE_UPGRADE,
-    TYPE_FWINFO,           //firmware infomation
     
     TYPE_MAX
 };
@@ -74,7 +76,13 @@ typedef struct {
 }stat_t;
 
 typedef struct {
-    U8              error;      //
+    U8              type;
+    U8              error;      //refer to error.h
+}error_t;
+
+typedef struct {
+    U8              type;
+    U8              error;      //refer to error.h
 }ack_t;
 
 typedef struct {
@@ -90,9 +98,8 @@ typedef struct {
 /////////////upgrade define////////////////////
 typedef struct {
     U32             magic;          //FW_MAGIC
-    U8              version[20];
-    U8              bldtime[20];
-    U32             totalLen;
+    U8              version[20];    //v1.0.0
+    U8              bldtime[20];    //2021.02.06
 }fw_info_t;
 
 typedef struct {
@@ -110,19 +117,20 @@ typedef struct {
 
 typedef struct {
     U8              md5[32];
-    fw_info_t       fwInfo;
     upgrade_ctl_t   upgCtl;
+    fw_info_t       fwInfo;
     U8*             data[];
 }upgrade_file_hdr_t;
 
 typedef struct {
     fw_info_t       fwInfo;
-    U32             fwMagic;
-}upgrade_store_t;
+    setts_t         setts;
+}paras_t;
+
 
 #define PKT_HDR_LENGTH      sizeof(pkt_hdr_t)
 
-extern setts_t curSetts;
+extern paras_t curParas;
 
 #pragma pack ()
 
