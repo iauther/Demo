@@ -4,6 +4,7 @@
 
 
 #pragma comment  (lib, "User32.lib")
+//#pragma comment  (linker, "/subsystem: "windows" /entry:"mainCRTStartup" ")
 
 int exit_flag=0;
 static DWORD mainThreadId;
@@ -13,7 +14,7 @@ int main(void)
 
     mainThreadId = GetCurrentThreadId();
 
-    win_init(1);
+    win_init(0);
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
@@ -33,6 +34,6 @@ int main(void)
 int task_quit(void)
 {
     exit_flag = 1;
-    PostThreadMessage(mainThreadId, WM_TIMER, 0, 0);
+    PostQuitMessage(0xff);
     return 0;
 }

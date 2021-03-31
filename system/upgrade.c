@@ -37,7 +37,7 @@ static upg_rw_t upg_rw=NULL;
 int upgrade_get_fwmagic(U32 *fwmagic)
 {
     int r=-1;
-    U32 addr=offsetof(upgrade_store_t,fwMagic)+UPGRADE_STORE_ADDR;
+    U32 addr=offsetof(paras_t,fwInfo)+offsetof(fw_info_t,magic)+UPGRADE_STORE_ADDR;
 
     if(!upg_rw) {
         return -1;
@@ -52,7 +52,7 @@ int upgrade_get_fwmagic(U32 *fwmagic)
 int upgrade_set_fwmagic(U32 *fwmagic)
 {
     int r=-1;
-    U32 addr=offsetof(upgrade_store_t,fwMagic)+UPGRADE_STORE_ADDR;
+    U32 addr=offsetof(paras_t,fwInfo)+offsetof(fw_info_t,magic)+UPGRADE_STORE_ADDR;
 
     if(!upg_rw) {
         return -1;
@@ -67,7 +67,7 @@ int upgrade_set_fwmagic(U32 *fwmagic)
 int upgrade_get_fwinfo(fw_info_t *fwinfo)
 {
     int r=-1;
-    U32 addr=offsetof(upgrade_store_t,fwMagic)+UPGRADE_STORE_ADDR;
+    U32 addr=offsetof(paras_t,fwInfo)+UPGRADE_STORE_ADDR;
     
     if(!upg_rw) {
         return -1;
@@ -82,7 +82,7 @@ int upgrade_get_fwinfo(fw_info_t *fwinfo)
 int upgrade_set_fwinfo(fw_info_t *fwinfo)
 {
     int r=-1;
-    U32 addr=offsetof(upgrade_store_t,fwMagic)+UPGRADE_STORE_ADDR;
+    U32 addr=offsetof(paras_t,fwInfo)+UPGRADE_STORE_ADDR;
 
     if(!upg_rw) {
         return -1;
@@ -108,13 +108,13 @@ int upgrade_prep(U8 obj, U32 fwlen)
     return r;
 }
 
-extern fw_info_t FW_INFO;
+extern paras_t DEFAULT_PARAS;
 int upgrade_check(void)
 {
     fw_info_t fwInfo;
     upgrade_get_fwinfo(&fwInfo);
-    if(fwInfo.magic!=FW_INFO.magic) {
-        upgrade_set_fwinfo(&FW_INFO);
+    if(fwInfo.magic!=DEFAULT_PARAS.fwInfo.magic) {
+        upgrade_set_fwinfo(&DEFAULT_PARAS.fwInfo);
     }
     
     return 0;

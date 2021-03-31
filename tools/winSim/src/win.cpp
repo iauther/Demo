@@ -3,9 +3,9 @@
 #include "dev.h"
 #include "log.h"
 #include "task.h"
+#include "icfg.h"
 
 #pragma comment  (lib, "libui.lib")
-
 
 
 extern setts_t  curSetts;
@@ -147,12 +147,12 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 	////////////////
 	port->g = uiNewGrid();					uiGridSetPadded(port->g, 1);
 	port->port = uiNewCombobox();
-	for (i = 1; i <= 10; i++) {
+	for (i = 1; i <= MAX_PORT; i++) {
 		sprintf(tmp, "COM%d", i);
 		uiComboboxAppend(port->port, tmp);
 		uiComboboxOnSelected(port->port, on_port_combo_sel_fn, NULL);
 	}
-	uiComboboxSetSelected(port->port, 0);
+	uiComboboxSetSelected(port->port, DEFAULT_PORT-1);
 
 	port->open = uiNewButton("Open");			uiButtonOnClicked(port->open, on_port_open_btn_fn, port->port);
 	port->mode = uiNewCheckbox("MCU Simulate"); uiCheckboxOnToggled(port->mode, on_port_chkbox_fn, NULL); uiCheckboxSetChecked(port->mode, mcuSim);

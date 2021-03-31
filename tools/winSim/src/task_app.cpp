@@ -2,14 +2,92 @@
 #include "dev.h"
 #include "win.h"
 #include "log.h"
+#include "error.h"
 #include "data.h"
 #include "task.h"
 
+#define TIMER_MS            100
+#define TIMEOUT             500
+#define RETRIES             (TIMEOUT/TIMER_MS)
+
+typedef struct {
+    U8              askAck;
+    U16             retries;
+    U16             dataLen;
+    union {
+        cmd_t       cmd;
+        stat_t      stat;
+        ack_t       ack;
+        sett_t      sett;
+        error_t     err;
+        upgrade_pkt_t upg;
+        setts_t     setts;
+        fw_info_t   fwinfo;
+    }data;
+}send_data_t;
+
+
+static int sett_rx_flag = 0;
+static int app_exit_flag=0;
+static send_data_t prevSendData[TYPE_MAX] = { 0 };
+
 static BYTE app_rx_buf[1000];
 static BYTE app_tx_buf[1000];
-static int app_exit_flag;
 setts_t  curSetts;
 sett_t   *pCurSett;
+
+
+static void send_cache_fill(void)
+{
+    pkt_hdr_t* p = (pkt_hdr_t*)app_tx_buf;
+    send_data_t* sd = &prevSendData[p->type];
+    sd->askAck = p->askAck;
+    sd->retries = 0;
+    sd->dataLen = 0;
+    if (p->dataLen <= sizeof(sd->data)) {
+        memcpy(&sd->data, p->data, p->dataLen);
+        sd->dataLen = p->dataLen;
+    }
+}
+static void ack_update(U8 type)
+{
+    send_data_t* sd = &prevSendData[type];
+
+    sd->askAck = 0;
+    sd->retries = 0;
+}
+static U8 wait_ack_timeout(U8 type)
+{
+    if (prevSendData[type].askAck && prevSendData[type].retries < RETRIES) {
+        return 0;
+    }
+
+    return 1;
+}
+static void ack_check(U8 type)
+{
+    send_data_t* sd = &prevSendData[type];
+
+    if (sd->askAck && sd->retries < RETRIES) {
+        dev_send_pkt(type, 1, &sd->data, sd->dataLen);
+        sd->retries++;
+    }
+}
+int com_send(U8 type, U8 askAck, void* data, U16 len)
+{
+    int r;
+
+    if (!wait_ack_timeout(type)) {
+        r = dev_send_pkt(type, askAck, data, len);
+        if (r == 0) {
+            send_cache_fill();
+        }
+    }
+
+    return r;
+}
+
+
 
 static int stat_proc(pkt_hdr_t* p)
 {
@@ -25,7 +103,7 @@ static int ack_proc(pkt_hdr_t* p)
     stat_t* st = (stat_t*)p->data;
 
 }
-static U8 get_checksum(U8* data, U16 len)
+static U8 get_sum(U8* data, U16 len)
 {
     U8 sum = 0;
     for (int i = 0; i < len; i++) {
@@ -35,67 +113,98 @@ static U8 get_checksum(U8* data, U16 len)
 }
 
 
-static int app_data_proc(void *data, int len)
+static int app_data_proc(void* data, int len)
 {
-    U8  checksum;
+    U8 sum, ack = 0, err = ERROR_NONE;
     U8* buf = (U8*)data;
     pkt_hdr_t* p = (pkt_hdr_t*)data;
 
     if (p->magic != PKT_MAGIC) {
         log("___ pkt magic is 0x%04x, magic is wrong!\n", p->magic);
-        return -1;
+        err = ERROR_PKT_MAGIC;
     }
 
     if (len != p->dataLen + PKT_HDR_LENGTH + 1) {
-        log("___ pkt length is wrong\n");
-        return -1;
+        log("___ pkt length is wrong, %d, %d\n", len, p->dataLen + PKT_HDR_LENGTH + 1);
+        err = ERROR_PKT_LENGTH;
     }
 
-    checksum = get_checksum(buf, len - 1);
-    if (checksum != buf[len - 1]) {
-        log("___ pkt checksum is wrong!\n", checksum);
-        return -1;
+    sum = get_sum(buf, len - 1);
+    if (sum != buf[len - 1]) {
+        log("___ pkt checksum is wrong, 0x%02x, 0x%02x, \n", sum, buf[len - 1]);
+        err = ERROR_PKT_CHECKSUM;
     }
 
-    switch (p->type) {
-        case TYPE_STAT:
-        {
-            log("___ TYPE_STAT\n");
-            stat_t* stat = (stat_t*)p->data;
-            win_stat_update(stat);
-        }
-        break;
-
-        case TYPE_ACK:
-        {
-            log("___ TYPE_ACK\n");
-        }
-        break;
-
-        case TYPE_SETT:
-        {
-            log("___ TYPE_SETT\n");
-            memcpy(&curSetts, p->data, sizeof(curSetts));
-        }
-        break;
-
-        case TYPE_UPGRADE:
-        {
-            log("___ TYPE_UPGRADE\n");
-        }
-        break;
-
-        case TYPE_FWINFO:
-        {
-            log("___ TYPE_FWINFO\n");
-        }
-        break;
-
-        default:
+    if (p->askAck)  ack = 1;
+    if (err == ERROR_NONE) {
+        switch (p->type) {
+            case TYPE_STAT:
+            {
+                //log("___ TYPE_STAT\n");
+                stat_t* stat = (stat_t*)p->data;
+                win_stat_update(stat);
+            }
             break;
+
+            case TYPE_ACK:
+            {
+                log("___ TYPE_ACK\n");
+                ack_t* ack = (ack_t*)p->data;
+                ack_update(ack->type);
+            }
+            break;
+
+            case TYPE_SETT:
+            {
+                if (p->dataLen ==sizeof(curSetts)) {
+                    log("___ TYPE_SETT\n");
+                    memcpy(&curSetts, p->data, sizeof(curSetts));
+                    sett_rx_flag = 1;
+                }
+                else {
+                    log("___ TYPE_SETT length error\n");
+                    err = ERROR_PKT_LENGTH;
+                }
+            }
+            break;
+
+            case TYPE_FWINFO:
+            {
+                fw_info_t fwInfo;
+
+                if (p->dataLen > 0) {
+                    //win_update_fwinfo
+                }
+            }
+            break;
+
+            default:
+            {
+                err = ERROR_PKT_TYPE;
+            }
+            break;
+        }
+    }
+
+    if (ack || (err && !ack)) {
+        dev_send_ack(p->type, err);
     }
 
     return 0;
+}
+
+static void timer_proc(void)
+{
+    U8 i;
+
+    if (!sett_rx_flag) {
+        dev_send_pkt(TYPE_SETT, 0, NULL, 0);
+        sett_rx_flag = 1;
+    }
+
+    for (i = 0; i < TYPE_MAX; i++) {
+        ack_check(i);
+    }
 }
 
 
@@ -107,7 +216,7 @@ static DWORD WINAPI app_rx_thread(LPVOID lpParam)
     while (1) {
         rlen = dev_recv(app_rx_buf, sizeof(app_rx_buf));
         if (rlen > 0) {
-            r = app_data_proc(app_rx_buf, rlen);
+            app_data_proc(app_rx_buf, rlen);
         }
 
         if (app_exit_flag) {
@@ -135,14 +244,14 @@ static DWORD WINAPI app_tx_thread(LPVOID lpParam)
     int rlen;
     MSG msg;
 
-    //SetTimer(NULL, 1, 1000, appTimerProc);
+    SetTimer(NULL, 1, 1000, NULL);
     while (GetMessage(&msg, NULL, 0, 0)) {
 
         switch (msg.message) {
 
             case WM_TIMER:
             {
-
+                timer_proc();
             }
             break;
 

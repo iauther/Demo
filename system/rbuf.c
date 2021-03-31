@@ -4,154 +4,189 @@
 #include "rbuf.h"
 #include "lock.h"
 
+typedef struct {
+	int     pr;
+	int     pw;
+	int     dlen;
+	int     size;
+    U8      *buf;
+    
+    handle_t lock;
+}rbuf_handle_t;
 
-int rbuf_init(rbuf_t *rb, void *buf, int size)
+
+
+handle_t rbuf_init(void *buf, int size)
 {
-    if(!rb) {
-        return -1;
+    rbuf_handle_t *h=calloc(1, sizeof(rbuf_handle_t));
+    
+    if(!h) {
+        return NULL;
     }
     
-	rb->pr   = 0;
-	rb->pw   = 0;
-	rb->dlen = 0;
-	rb->size = size;
-	rb->buf  = buf;
+	h->pr   = 0;
+	h->pw   = 0;
+	h->dlen = 0;
+	h->size = size;
+	h->buf  = buf;
+    h->lock = lock_dynamic_new();
 	
-	return 0;
+	return h;
 }
 
 
-int rbuf_free(rbuf_t *rb)
+int rbuf_free(handle_t *h)
 {
-	if(!rb) {
+    rbuf_handle_t **rh=(rbuf_handle_t**)h;
+    
+	if(!rh || !(*rh)) {
         return -1;
     }
     
-    rb->buf = NULL;
-    rb->dlen = 0;
+    lock_dynamic_free(&(*rh)->lock);
+    free(*rh);
     
     return 0;
 }
 
 
-int rbuf_read(rbuf_t *rb, U8 *buf, int len)
+int rbuf_read(handle_t h, U8 *buf, int len)
 {
     int rlen;
+    rbuf_handle_t *rh=(rbuf_handle_t*)h;
     
-	if(!rb || !buf || !len) {
+	if(!rh || !buf || !len) {
         return -1;
     }
     
     //buffer is null
-    if(rb->dlen==0) {
+    if(rh->dlen==0) {
         return 0;
     }
     
-    if(len<=rb->dlen) {     //数据有余，读取长度等于要求的长度
-        
+    lock_dynamic_hold(rh->lock);
+    if(len<=rh->dlen) {     //数据有余，读取长度等于要求的长度
         rlen = len;
-        if(rb->pr <= rb->pw) {
-            memcpy(buf, rb->buf+rb->pr, rlen);
+        if(rh->pr <= rh->pw) {
+            memcpy(buf, rh->buf+rh->pr, rlen);
         }
         else {
-            int l = rb->size-rb->pr;
+            int l = rh->size-rh->pr;
             if(rlen<=l) {
-                memcpy(buf, rb->buf+rb->pr, rlen);
+                memcpy(buf, rh->buf+rh->pr, rlen);
             }
             else {
-                memcpy(buf, rb->buf+rb->pr, l);
-                memcpy(buf+l, rb->buf, rlen-l);
+                memcpy(buf, rh->buf+rh->pr, l);
+                memcpy(buf+l, rh->buf, rlen-l);
             }
         } 
     }
     else {      //数据不足, 将全部读出，但读出长度小于要求长度
-        rlen = rb->dlen;
-        if(rb->pr < rb->pw) {
-            memcpy(buf, rb->buf+rb->pr, rlen);
+        rlen = rh->dlen;
+        if(rh->pr < rh->pw) {
+            memcpy(buf, rh->buf+rh->pr, rlen);
         }
         else {
-            int l = rb->size-rb->pr;
+            int l = rh->size-rh->pr;
             if(rlen<=l) {
-                memcpy(buf, rb->buf+rb->pr, rlen);
+                memcpy(buf, rh->buf+rh->pr, rlen);
             }
             else {
-                memcpy(buf, rb->buf+rb->pr, l);
-                memcpy(buf+l, rb->buf, rlen-l);
+                memcpy(buf, rh->buf+rh->pr, l);
+                memcpy(buf+l, rh->buf, rlen-l);
             }
         }
     }
-    rb->pr = (rb->pr+rlen)%rb->size;        //更新读指针
-    rb->dlen -= rlen;
+    rh->pr = (rh->pr+rlen)%rh->size;        //更新读指针
+    rh->dlen -= rlen;
+    lock_dynamic_release(rh->lock);
 
 	return rlen;
 }
 
 
 
-int rbuf_write(rbuf_t *rb, U8 *buf, int len)
+int rbuf_write(handle_t h, U8 *buf, int len)
 {
     int wlen;
+    rbuf_handle_t *rh=(rbuf_handle_t*)h;
     
-	if(!rb || !buf || !len) {
+	if(!rh || !buf || !len) {
         return -1;
     }
-
+    
     //buffer is full
-    if(rb->dlen==rb->size) {
+    if(rh->dlen==rh->size) {
         return 0;
     }
 
-    if(len <= (rb->size-rb->dlen)) {    //可全部写入
+    lock_dynamic_hold(rh->lock);
+    if(len <= (rh->size-rh->dlen)) {    //可全部写入
         wlen = len;
-        if(rb->pw <= rb->pr) {      //写指针在前，只用写1次
-            memcpy(rb->buf+rb->pw, buf, wlen);
+        if(rh->pw <= rh->pr) {      //写指针在前，只用写1次
+            memcpy(rh->buf+rh->pw, buf, wlen);
         }
         else {
-            int l = rb->size-rb->pw;
+            int l = rh->size-rh->pw;
             if(wlen<=l) {   //写指针在后，后续足够，只需写1次
-                memcpy(rb->buf+rb->pw, buf, wlen);
+                memcpy(rh->buf+rh->pw, buf, wlen);
             }
             else {  //写指针在后，后续剩余空间不足，需写2次
-                memcpy(rb->buf+rb->pw, buf, l);
-                memcpy(rb->buf, buf+l, wlen-l);
+                memcpy(rh->buf+rh->pw, buf, l);
+                memcpy(rh->buf, buf+l, wlen-l);
             }
         }
     }
     else {  //只能部分写入，即写满buffer
-        wlen = rb->size-rb->dlen;
-        if(rb->pw <= rb->pr) {
-            memcpy(rb->buf+rb->pw, buf, wlen);
+        wlen = rh->size-rh->dlen;
+        if(rh->pw <= rh->pr) {
+            memcpy(rh->buf+rh->pw, buf, wlen);
         }
         else {
-            int l = rb->size-rb->pw;
-            memcpy(rb->buf+rb->pw, buf, l);
-            memcpy(rb->buf, buf+l, wlen-l);
+            int l = rh->size-rh->pw;
+            memcpy(rh->buf+rh->pw, buf, l);
+            memcpy(rh->buf, buf+l, wlen-l);
         } 
     }
-    rb->pw = (rb->pw+wlen)%rb->size;        //更新写指针
-    rb->dlen += wlen;
+    rh->pw = (rh->pw+wlen)%rh->size;        //更新写指针
+    rh->dlen += wlen;
+    lock_dynamic_release(rh->lock);
 
 	return wlen;
 }
 
 
-int rbuf_get_size(rbuf_t *rb)
+int rbuf_get_size(handle_t h)
 {
-	if(!rb) {
+    int size;
+    rbuf_handle_t *rh=(rbuf_handle_t*)h;
+    
+	if(!rh) {
         return -1;
     }
+    
+    lock_dynamic_hold(rh->lock);
+    size = rh->size;
+    lock_dynamic_release(rh->lock);
 
-	return rb->size;
+	return size;
 }
 
 
-int rbuf_get_dlen(rbuf_t *rb)
+int rbuf_get_dlen(handle_t h)
 {
-	if(!rb) {
+    int dlen;
+    rbuf_handle_t *rh=(rbuf_handle_t*)h;
+    
+	if(!rh) {
         return -1;
     }
+    
+    lock_dynamic_hold(rh->lock);
+    dlen = rh->dlen;
+    lock_dynamic_release(rh->lock);
 
-	return rb->dlen;
+	return dlen;
 }
 
 

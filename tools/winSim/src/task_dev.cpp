@@ -209,15 +209,14 @@ static DWORD WINAPI dev_tx_thread(LPVOID lpParam)
     int r;
     MSG msg;
     
-    SetTimer(NULL, 1, 100, NULL);
+    SetTimer(NULL, 1, 500, NULL);
     while (GetMessage(&msg, NULL, 0, 0)) {
 
         switch (msg.message) {
             case WM_TIMER:
             {
-                //dev_send_stat();
-                static int cnt = 0;
-                log("__________________________ log cnt: %d\n", cnt++);
+                dev_send_stat();
+
             }
             break;
 

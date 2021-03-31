@@ -10,7 +10,7 @@ int dev_is_opened(void);
 int dev_send(void* data, U16 len);
 int dev_recv(void* data, U16 len);
 int dev_send_pkt(U8 type, U8 nAck, void* data, U16 len);
-int dev_send_ack(U8 error);
+int dev_send_ack(U8 type, U8 error);
 
 
 #endif

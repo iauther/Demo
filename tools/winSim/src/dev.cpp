@@ -1,7 +1,7 @@
 #include <windows.h>
 #include "serial.h"
 #include "data.h"
-
+#include "dev.h"
 
 CSerial mSerial;
 
@@ -34,7 +34,7 @@ int dev_recv(void* data, U16 len)
 }
 
 
-static U8 get_checksum(U8* data, U16 len)
+static U8 get_sum(U8* data, U16 len)
 {
     U8 sum = 0;
     for (int i = 0; i < len; i++) {
@@ -57,13 +57,13 @@ int dev_send_pkt(U8 type, U8 nAck, void* data, U16 len)
     p->askAck = nAck;
     p->dataLen = len;
     memcpy(p->data, data, len);
-    buf[totalLen] = get_checksum(buf, totalLen);
+    buf[totalLen] = get_sum(buf, totalLen);
 
     return dev_send(buf, totalLen + 1);
 }
 
 
-int dev_send_ack(U8 error)
+int dev_send_ack(U8 type, U8 error)
 {
     U8* buf = dev_tx_buf;
     pkt_hdr_t* p = (pkt_hdr_t*)buf;
@@ -76,8 +76,9 @@ int dev_send_ack(U8 error)
     p->askAck = 0;
     p->dataLen = sizeof(ack_t);
 
+    ack->type = type;
     ack->error = error;
-    buf[totalLen] = get_checksum(buf, totalLen);
+    buf[totalLen] = get_sum(buf, totalLen);
 
     return dev_send(buf, totalLen + 1);
 }

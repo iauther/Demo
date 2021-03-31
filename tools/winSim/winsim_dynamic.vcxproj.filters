@@ -59,5 +59,8 @@
     <ClInclude Include="src\task.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\system\error.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

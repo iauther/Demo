@@ -3,25 +3,17 @@
 
 #include "types.h"
 
-typedef struct {
-	int     pr;
-	int     pw;
-	int     dlen;
-	int     size;
-    U8      *buf;
-}rbuf_t;
 
+handle_t rbuf_init(void *buf, int size);
 
-int rbuf_init(rbuf_t *rb, void *buf, int size);
+int rbuf_free(handle_t *h);
 
-int rbuf_free(rbuf_t *rb);
+int rbuf_read(handle_t h, U8 *buf, int len);
 
-int rbuf_read(rbuf_t *rb, U8 *buf, int len);
+int rbuf_write(handle_t h, U8 *buf, int len);
 
-int rbuf_write(rbuf_t *rb, U8 *buf, int len);
+int rbuf_get_size(handle_t h);
 
-int rbuf_get_size(rbuf_t *rb);
-
-int rbuf_get_dlen(rbuf_t *rb);
+int rbuf_get_dlen(handle_t h);
 
 #endif

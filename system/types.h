@@ -7,6 +7,8 @@
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
+#include "error.h"
+
 
 
 typedef int8_t          S8;
