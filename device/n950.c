@@ -205,10 +205,10 @@ int n950_send_cmd(U8 cmd, U32 speed)
 
 int n950_get(n950_stat_t *st)
 {
-    int r,ms;
+    int r;
     
     r = uart_send_cmd(CMD_GET_STAT, 0);
-    ms = uart_wait(20);
+    uart_wait(20);
     //rx_buf[0~5]       min speed;       r/min
     //rx_buf[6~11]      operate current; mA
     //rx_buf[12~19]     temperature of controller; 

@@ -1,8 +1,7 @@
 #include "drv/uart.h"
 #include "pkt.h"
 #include "data.h"
-#include "cfg.h"
-
+#include "log.h"
 
 typedef struct {
     U8              askAck;
@@ -20,7 +19,8 @@ typedef struct {
     }data;
 }cache_t;
 
-static U8 myBuf[1000];
+#define BUFLEN      1000
+static U8 myBuf[BUFLEN];
 static pkt_cfg_t myCfg;
 static cache_t myCache[TYPE_MAX]={0};
 
@@ -41,6 +41,11 @@ static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
     U8* buf = myBuf;
     pkt_hdr_t* p = (pkt_hdr_t*)buf;
     U32 totalLen = PKT_HDR_LENGTH + len;
+
+    if (totalLen>BUFLEN-1) {
+        //log("_____ send_pkt len is wrong, %d, max: %d\n", totalLen+1, BUFLEN);
+        return -1;
+    }
 
     p->magic = PKT_MAGIC;
     p->type = type;
@@ -93,13 +98,16 @@ U8 pkt_hdr_check(void *data, U16 len)
     if (p->magic != PKT_MAGIC) {
         err = ERROR_PKT_MAGIC;
     }
-    if (p->dataLen + PKT_HDR_LENGTH+1 != len) {
+
+    if (p->dataLen + PKT_HDR_LENGTH+1 != len || p->dataLen + PKT_HDR_LENGTH + 1>BUFLEN) {
         err = ERROR_PKT_LENGTH;
     }
 
-    sum = get_sum(p, p->dataLen+PKT_HDR_LENGTH);
-    if (sum != ((U8*)p)[p->dataLen + PKT_HDR_LENGTH]) {
-        err = ERROR_PKT_CHECKSUM;
+    if (err==ERROR_NONE) {
+        sum = get_sum(p, p->dataLen + PKT_HDR_LENGTH);
+        if (sum != ((U8*)p)[p->dataLen + PKT_HDR_LENGTH]) {
+            err = ERROR_PKT_CHECKSUM;
+        }
     }
     
     return err;
@@ -115,13 +123,13 @@ void pkt_cache_reset(void)
 static void cache_fill(void)
 {
     pkt_hdr_t *p=(pkt_hdr_t*)myBuf;
-    cache_t *sd=&myCache[p->type];
-    sd->askAck = p->askAck;
-    sd->retries = 0;
-    sd->dataLen = 0;
-    if(p->dataLen<=sizeof(sd->data)) {
-        memcpy(&sd->data, p->data, p->dataLen);
-        sd->dataLen = p->dataLen;
+    cache_t *c=&myCache[p->type];
+    c->askAck = p->askAck;
+    c->retries = 0;
+    c->dataLen = 0;
+    if(p->dataLen<=sizeof(c->data)) {
+        memcpy(&c->data, p->data, p->dataLen);
+        c->dataLen = p->dataLen;
     }
 }
 
@@ -147,11 +155,11 @@ static U8 ack_timeout(U8 type)
 
 void pkt_ack_check(U8 type)
 {
-    cache_t *sd=&myCache[type];
+    cache_t *c=&myCache[type];
     
-    if(sd->askAck && sd->retries<myCfg.retries) {
-        send_pkt(type, 1, &sd->data, sd->dataLen);
-        sd->retries++;
+    if(c->askAck && c->retries<myCfg.retries) {
+        send_pkt(type, 1, &c->data, c->dataLen);
+        c->retries++;
     }
 }
 
