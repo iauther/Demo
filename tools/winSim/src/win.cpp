@@ -12,7 +12,7 @@ extern setts_t  curSetts;
 extern sett_t* pCurSett;
 extern int exit_flag;
 static grp_t     grp;
-static int       mcuSim = 0;
+static int       mcuSim;
 uiMultilineEntry* logEntry = NULL;
 
 static int onClosing(uiWindow* w, void* data)
@@ -152,7 +152,7 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 		uiComboboxAppend(port->port, tmp);
 		uiComboboxOnSelected(port->port, on_port_combo_sel_fn, NULL);
 	}
-	uiComboboxSetSelected(port->port, DEFAULT_PORT-1);
+	uiComboboxSetSelected(port->port, DEF_PORT-1);
 
 	port->open = uiNewButton("Open");			uiButtonOnClicked(port->open, on_port_open_btn_fn, port->port);
 	port->mode = uiNewCheckbox("MCU Simulate"); uiCheckboxOnToggled(port->mode, on_port_chkbox_fn, NULL); uiCheckboxSetChecked(port->mode, mcuSim);
@@ -391,7 +391,6 @@ static DWORD WINAPI uiThread(LPVOID lpParam)
 	ui_init();
 	uiMain();
 	uiUninit();
-
 	dev_close();
 	logEntry = NULL;
 	task_quit();

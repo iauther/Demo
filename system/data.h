@@ -131,6 +131,7 @@ typedef struct {
 #define PKT_HDR_LENGTH      sizeof(pkt_hdr_t)
 
 extern paras_t curParas;
+extern paras_t DEFAULT_PARAS;
 
 #pragma pack ()
 

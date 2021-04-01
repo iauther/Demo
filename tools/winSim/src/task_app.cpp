@@ -1,222 +1,181 @@
 #include <windows.h>
 #include "dev.h"
 #include "win.h"
+#include "pkt.h"
 #include "log.h"
-#include "error.h"
 #include "data.h"
 #include "task.h"
+
 
 #define TIMER_MS            100
 #define TIMEOUT             500
 #define RETRIES             (TIMEOUT/TIMER_MS)
 
-typedef struct {
-    U8              askAck;
-    U16             retries;
-    U16             dataLen;
-    union {
-        cmd_t       cmd;
-        stat_t      stat;
-        ack_t       ack;
-        sett_t      sett;
-        error_t     err;
-        upgrade_pkt_t upg;
-        setts_t     setts;
-        fw_info_t   fwinfo;
-    }data;
-}send_data_t;
-
-
-static int sett_rx_flag = 0;
-static int app_exit_flag=0;
-static send_data_t prevSendData[TYPE_MAX] = { 0 };
 
 static BYTE app_rx_buf[1000];
-static BYTE app_tx_buf[1000];
-setts_t  curSetts;
-sett_t   *pCurSett;
+static int app_exit_flag;
+static int paras_rx_flag = 0;
+static UINT_PTR timerId;
+static HANDLE appThreadHandle, appRxThreadHandle;
 
-
-static void send_cache_fill(void)
+static void com_init(void)
 {
-    pkt_hdr_t* p = (pkt_hdr_t*)app_tx_buf;
-    send_data_t* sd = &prevSendData[p->type];
-    sd->askAck = p->askAck;
-    sd->retries = 0;
-    sd->dataLen = 0;
-    if (p->dataLen <= sizeof(sd->data)) {
-        memcpy(&sd->data, p->data, p->dataLen);
-        sd->dataLen = p->dataLen;
-    }
+    pkt_cfg_t cfg;
+
+    curParas = DEFAULT_PARAS;
+
+    cfg.retries = RETRIES;
+    pkt_init(&cfg);
 }
-static void ack_update(U8 type)
-{
-    send_data_t* sd = &prevSendData[type];
 
-    sd->askAck = 0;
-    sd->retries = 0;
-}
-static U8 wait_ack_timeout(U8 type)
+static U8 upgrade_proc(void* data)
 {
-    if (prevSendData[type].askAck && prevSendData[type].retries < RETRIES) {
-        return 0;
+    int r = 0;
+    static U16 upg_pid = 0;
+    upgrade_pkt_t* upg = (upgrade_pkt_t*)data;
+
+    if (upg->pid == 0) {
+        upg_pid = 0;
     }
 
-    return 1;
-}
-static void ack_check(U8 type)
-{
-    send_data_t* sd = &prevSendData[type];
-
-    if (sd->askAck && sd->retries < RETRIES) {
-        dev_send_pkt(type, 1, &sd->data, sd->dataLen);
-        sd->retries++;
+    if (upg->pid != upg_pid) {
+        return ERROR_FW_PKT_ID;
     }
-}
-int com_send(U8 type, U8 askAck, void* data, U16 len)
-{
-    int r;
 
-    if (!wait_ack_timeout(type)) {
-        r = dev_send_pkt(type, askAck, data, len);
-        if (r == 0) {
-            send_cache_fill();
-        }
+    if (upg->pid == upg->pkts - 1) {
+        //upgrade finished
+    }
+    else {
+        upg_pid++;
     }
 
     return r;
 }
-
-
-
-static int stat_proc(pkt_hdr_t* p)
+static U8 com_proc(pkt_hdr_t* p, U16 len)
 {
-    int r = 0;
-    static U16 upg_pid = 0;
-    stat_t* st = (stat_t*)p->data;
-
-}
-static int ack_proc(pkt_hdr_t* p)
-{
-    int r = 0;
-    static U16 upg_pid = 0;
-    stat_t* st = (stat_t*)p->data;
-
-}
-static U8 get_sum(U8* data, U16 len)
-{
-    U8 sum = 0;
-    for (int i = 0; i < len; i++) {
-        sum += data[i];
-    }
-    return sum;
-}
-
-
-static int app_data_proc(void* data, int len)
-{
-    U8 sum, ack = 0, err = ERROR_NONE;
-    U8* buf = (U8*)data;
-    pkt_hdr_t* p = (pkt_hdr_t*)data;
-
-    if (p->magic != PKT_MAGIC) {
-        log("___ pkt magic is 0x%04x, magic is wrong!\n", p->magic);
-        err = ERROR_PKT_MAGIC;
-    }
-
-    if (len != p->dataLen + PKT_HDR_LENGTH + 1) {
-        log("___ pkt length is wrong, %d, %d\n", len, p->dataLen + PKT_HDR_LENGTH + 1);
-        err = ERROR_PKT_LENGTH;
-    }
-
-    sum = get_sum(buf, len - 1);
-    if (sum != buf[len - 1]) {
-        log("___ pkt checksum is wrong, 0x%02x, 0x%02x, \n", sum, buf[len - 1]);
-        err = ERROR_PKT_CHECKSUM;
-    }
+    U8 ack = 0, err;
 
     if (p->askAck)  ack = 1;
+
+    err = pkt_hdr_check(p, len);
     if (err == ERROR_NONE) {
         switch (p->type) {
-            case TYPE_STAT:
-            {
-                //log("___ TYPE_STAT\n");
-                stat_t* stat = (stat_t*)p->data;
-                win_stat_update(stat);
-            }
-            break;
 
-            case TYPE_ACK:
-            {
-                log("___ TYPE_ACK\n");
-                ack_t* ack = (ack_t*)p->data;
-                ack_update(ack->type);
-            }
-            break;
+        case TYPE_STAT:
+        {
+            stat_t* stat = (stat_t*)p->data;
 
-            case TYPE_SETT:
-            {
-                if (p->dataLen ==sizeof(curSetts)) {
-                    log("___ TYPE_SETT\n");
-                    memcpy(&curSetts, p->data, sizeof(curSetts));
-                    sett_rx_flag = 1;
+            log("_____ stat temp: %d, aPres: %dkpa, dPres: %dkpa\n", stat->temp, stat->aPres, stat->dPres);
+            win_stat_update(stat);
+        }
+        break;
+
+        case TYPE_ACK:
+        {
+            ack_t* ack = (ack_t*)p->data;
+
+            log("___ ack recived, type: %d\n", ack->type);
+            pkt_ack_update(ack->type);
+        }
+        break;
+
+        case TYPE_SETT:
+        {
+            if (p->dataLen > 0) {
+                if (p->dataLen == sizeof(sett_t)) {
+                    sett_t* sett = (sett_t*)p->data;
+                    curParas.setts.sett[sett->mode] = *sett;
+                }
+                else if (p->dataLen == sizeof(curParas.setts.mode)) {
+                    U8* m = (U8*)p->data;
+                    curParas.setts.mode = *m;
                 }
                 else {
-                    log("___ TYPE_SETT length error\n");
+                    memcpy(&curParas.setts.sett, p->data, sizeof(curParas.setts.sett));
+                }
+            }
+            else {
+                if (p->askAck) {
+                    pkt_send_ack(p->type, 0); ack = 0;
+                }
+                pkt_send(TYPE_SETT, 0, &curParas.setts, sizeof(curParas.setts));
+            }
+        }
+        break;
+
+        case TYPE_PARAS:
+        {
+            log("___ paras recived\n");
+            if (p->dataLen > 0) {
+                if (p->dataLen == sizeof(paras_t)) {
+                    paras_t* paras = (paras_t*)p->data;
+                    curParas = *paras;
+                }
+                else {
                     err = ERROR_PKT_LENGTH;
+                    log("___ paras length is wrong\n");
                 }
             }
-            break;
-
-            case TYPE_FWINFO:
-            {
-                fw_info_t fwInfo;
-
-                if (p->dataLen > 0) {
-                    //win_update_fwinfo
+            else {
+                if (p->askAck) {
+                    pkt_send_ack(p->type, 0); ack = 0;
                 }
+                pkt_send(TYPE_PARAS, 0, &curParas, sizeof(curParas));
+                paras_rx_flag = 1;
             }
-            break;
+        }
+        break;
 
-            default:
-            {
-                err = ERROR_PKT_TYPE;
+        case TYPE_UPGRADE:
+        {
+            if (p->askAck) {
+                pkt_send_ack(p->type, 0); ack = 0;
             }
-            break;
+            //err = upgrade_proc(p->data);
+        }
+        break;
+
+        default:
+        {
+            err = ERROR_PKT_TYPE;
+        }
+        break;
         }
     }
 
     if (ack || (err && !ack)) {
-        dev_send_ack(p->type, err);
+        pkt_send_ack(p->type, err);
     }
 
-    return 0;
+    return err;
 }
-
 static void timer_proc(void)
 {
     U8 i;
 
-    if (!sett_rx_flag) {
-        dev_send_pkt(TYPE_SETT, 0, NULL, 0);
-        sett_rx_flag = 1;
+    if (!dev_is_opened()) {
+        return;
+    }
+
+    if (!paras_rx_flag) {
+        pkt_send(TYPE_PARAS, 0, NULL, 0);
+        paras_rx_flag = 1;
     }
 
     for (i = 0; i < TYPE_MAX; i++) {
-        ack_check(i);
+        pkt_ack_check(i);
     }
 }
 
-
 static DWORD WINAPI app_rx_thread(LPVOID lpParam)
 {
-    int r;
     int rlen;
+    pkt_hdr_t* p = (pkt_hdr_t*)app_rx_buf;
     
     while (1) {
-        rlen = dev_recv(app_rx_buf, sizeof(app_rx_buf));
+        rlen = dev_recv(p, sizeof(app_rx_buf));
         if (rlen > 0) {
-            app_data_proc(app_rx_buf, rlen);
+            com_proc(p, rlen); 
         }
 
         if (app_exit_flag) {
@@ -227,44 +186,34 @@ static DWORD WINAPI app_rx_thread(LPVOID lpParam)
     return 0;
 }
 
-
-#define WM_APP_QUIT   (WM_USER+1)
-static HANDLE appRxThreadHandle, appTxThreadHandle;
-static void inline send_evt(UINT evt)
+static void send_evt(int evt)
 {
-    PostThreadMessage(GetThreadId(appTxThreadHandle), evt, 0, 0);
+    PostThreadMessage(GetThreadId(appThreadHandle), evt, NULL, NULL);
 }
-
-
-
-
-static DWORD WINAPI app_tx_thread(LPVOID lpParam)
+static void CALLBACK timer_callback(HWND hwnd, UINT message, UINT_PTR iTimerID, DWORD dwTime)
 {
-    int r;
-    int rlen;
+    send_evt(WM_USER);
+}
+static DWORD WINAPI app_thread(LPVOID lpParam)
+{
     MSG msg;
 
-    SetTimer(NULL, 1, 1000, NULL);
     while (GetMessage(&msg, NULL, 0, 0)) {
-
-        switch (msg.message) {
-
-            case WM_TIMER:
-            {
-                timer_proc();
-            }
-            break;
-
-            case WM_APP_QUIT:
-            {
-                break;
-            }
-            break;
-        }
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
 
         if (app_exit_flag) {
             break;
         }
+
+        switch (msg.message) {
+
+            case WM_USER:
+            {
+                timer_proc();
+            }
+            break;
+        } 
     }
 
     return 0;
@@ -275,8 +224,10 @@ static DWORD WINAPI app_tx_thread(LPVOID lpParam)
 int task_app_start(void)
 {
     app_exit_flag = 0;
+
+    timerId = SetTimer(NULL, 1, 100, timer_callback);
     appRxThreadHandle = CreateThread(NULL, 0, app_rx_thread, NULL, 0, NULL);
-    appTxThreadHandle = CreateThread(NULL, 0, app_tx_thread, NULL, 0, NULL);
+    appThreadHandle = CreateThread(NULL, 0, app_thread, NULL, 0, NULL);
     
     return 0;
 }
@@ -284,18 +235,19 @@ int task_app_start(void)
 int task_app_stop(void)
 {
     app_exit_flag = 1;
-    send_evt(WM_APP_QUIT);
 
+    KillTimer(NULL, timerId);
     if (appRxThreadHandle) {
         WaitForSingleObject(appRxThreadHandle, INFINITE);
         CloseHandle(appRxThreadHandle);
         appRxThreadHandle = NULL;
     }
 
-    if (appTxThreadHandle) {
-        WaitForSingleObject(appTxThreadHandle, INFINITE);
-        CloseHandle(appTxThreadHandle);
-        appTxThreadHandle = NULL;
+    if (appThreadHandle) {
+        send_evt(WM_USER);
+        WaitForSingleObject(appThreadHandle, INFINITE);
+        CloseHandle(appThreadHandle);
+        appThreadHandle = NULL;
     }
 
     return 0;

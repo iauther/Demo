@@ -1,20 +1,23 @@
 ﻿#include <windows.h>
 #include "win.h"
 #include "task.h"
-
+#include "icfg.h"
 
 #pragma comment  (lib, "User32.lib")
-//#pragma comment  (linker, "/subsystem: "windows" /entry:"mainCRTStartup" ")
-
 int exit_flag=0;
 static DWORD mainThreadId;
+#define WM_MYTIMER     WM_USER+1 
+#define WM_MYLOOP      WM_USER+2 
+static void CALLBACK timer_callback(HWND hwnd, UINT message, UINT_PTR iTimerID, DWORD dwTime)
+{
+    //PostThreadMessage(mainThreadId, WM_MYLOOP, NULL, NULL);
+}
+
 int main(void)
 {
     MSG msg;
 
-    mainThreadId = GetCurrentThreadId();
-
-    win_init(0);
+    win_init(MCU_SIM);
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);

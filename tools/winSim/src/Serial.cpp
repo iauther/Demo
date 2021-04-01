@@ -149,6 +149,10 @@ int CSerial::Write(void* lpBuffer, DWORD len)
 
 CSerial::~CSerial(void)
 {
+    CloseHandle(hMutex);
+    CloseHandle(rol.hEvent);
+    CloseHandle(wol.hEvent);
+
     Close();
 }
     
@@ -162,8 +166,7 @@ int CSerial::isOpened(void)
 int CSerial::myClose(void)
 {
     CloseHandle(hComm);
-    CloseHandle(rol.hEvent);
-    CloseHandle(wol.hEvent);
+    
     hComm = NULL;
     rol.hEvent = NULL;
     wol.hEvent = NULL;

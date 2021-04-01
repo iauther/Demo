@@ -42,6 +42,7 @@ int log_en(int flag)
 	}
 
 	log_en_flag = flag;
+	return 0;
 }
 
 int log_save(char* path)
