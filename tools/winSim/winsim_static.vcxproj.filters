@@ -39,6 +39,12 @@
     <ClCompile Include="src\task_dev.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\pkt.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\paras.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Buffer.h">
@@ -57,6 +63,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\task.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\icfg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pkt.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

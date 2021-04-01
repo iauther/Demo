@@ -16,6 +16,7 @@ static int paras_tx_flag=0;
 static UINT_PTR timerId;
 static HANDLE devRxThreadHandle, devThreadHandle;
 
+
 static void com_init(void)
 {
     pkt_cfg_t cfg;

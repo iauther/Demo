@@ -168,6 +168,8 @@
     <ClCompile Include="src\dev.cpp" />
     <ClCompile Include="src\log.cpp" />
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\paras.cpp" />
+    <ClCompile Include="src\pkt.cpp" />
     <ClCompile Include="src\Serial.cpp" />
     <ClCompile Include="src\task_app.cpp" />
     <ClCompile Include="src\task_dev.cpp" />
@@ -176,7 +178,9 @@
   <ItemGroup>
     <ClInclude Include="src\Buffer.h" />
     <ClInclude Include="src\dev.h" />
+    <ClInclude Include="src\icfg.h" />
     <ClInclude Include="src\log.h" />
+    <ClInclude Include="src\pkt.h" />
     <ClInclude Include="src\Serial.h" />
     <ClInclude Include="src\task.h" />
     <ClInclude Include="src\win.h" />
