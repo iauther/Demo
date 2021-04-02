@@ -25,7 +25,6 @@ enum {
     //firmware
     ERROR_FW_INFO_VERSION=0x40,
     ERROR_FW_INFO_BLDTIME,
-    ERROR_FW_INFO_LENGTH,
     ERROR_FW_PKT_ID,
     ERROR_FW_PKT_LENGTH,
     

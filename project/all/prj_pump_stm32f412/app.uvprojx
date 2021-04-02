@@ -424,9 +424,14 @@
               <FilePath>..\..\..\system\main_app.c</FilePath>
             </File>
             <File>
-              <FileName>setting.c</FileName>
+              <FileName>paras.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\system\setting.c</FilePath>
+              <FilePath>..\..\..\system\paras.c</FilePath>
+            </File>
+            <File>
+              <FileName>pkt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\pkt.c</FilePath>
             </File>
           </Files>
         </Group>

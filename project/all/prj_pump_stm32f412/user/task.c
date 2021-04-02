@@ -36,12 +36,12 @@ handle_t task_create(int id, osThreadFunc_t task, U32 stack_size)
 }
 
 
-
 static int msg_tx(int task_id, U8 evt, U8 type, void *data, U16 len, U8 bPost)
 {
     int r;
     evt_t e;
     task_handle_t *h=task_handle[task_id];
+    
     if(!h || len>MAXLEN) {
         return -1;
     }
@@ -79,7 +79,7 @@ static void task_main(void *arg)
 {
     task_create(TASK_COM,  task_com_fn,  1024);
     task_create(TASK_DEV,  task_dev_fn,  1024);
-    //task_create(TASK_MISC, task_misc_fn, 512);
+    task_create(TASK_MISC, task_misc_fn, 1024);
     
     while(1){
         delay_ms(500);

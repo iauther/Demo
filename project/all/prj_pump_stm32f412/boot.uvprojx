@@ -48,7 +48,7 @@
             <NotGenerated>0</NotGenerated>
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
-          <OutputDirectory>.\</OutputDirectory>
+          <OutputDirectory>.\boot\</OutputDirectory>
           <OutputName>boot</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
@@ -381,6 +381,26 @@
       </TargetOption>
       <Groups>
         <Group>
+          <GroupName>device</GroupName>
+          <Files>
+            <File>
+              <FileName>at24cxx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\device\at24cxx.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>board</GroupName>
+          <Files>
+            <File>
+              <FileName>board.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\board.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
           <GroupName>sys</GroupName>
           <Files>
             <File>
@@ -403,15 +423,20 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\system\main_boot.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>board</GroupName>
-          <Files>
             <File>
-              <FileName>board.c</FileName>
+              <FileName>pkt.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\user\board.c</FilePath>
+              <FilePath>..\..\..\system\pkt.c</FilePath>
+            </File>
+            <File>
+              <FileName>paras.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\paras.c</FilePath>
+            </File>
+            <File>
+              <FileName>lock.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\lock.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -422,11 +447,6 @@
               <FileName>delay.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\st\drv\delay.c</FilePath>
-            </File>
-            <File>
-              <FileName>e2p.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\drv\e2p.c</FilePath>
             </File>
             <File>
               <FileName>flash.c</FileName>

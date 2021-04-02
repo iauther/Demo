@@ -15,51 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Buffer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Serial.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Main.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\log.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\win.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\dev.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\task_app.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\task_dev.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\paras.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\pkt.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\Buffer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\log.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\win.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Serial.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\dev.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\task.h">
@@ -77,5 +36,40 @@
     <ClInclude Include="src\ui.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\serial.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\port.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\log.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\paras.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pkt.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\serial.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\task_app.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\task_dev.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\win.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\port.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

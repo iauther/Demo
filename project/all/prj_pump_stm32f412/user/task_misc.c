@@ -13,9 +13,9 @@ void task_misc_fn(void *arg)
         if(r==0) {
             
             switch(e.evt) {
-                case EVT_COM:
+                case EVT_EEPROM:
                 {
-                    
+                    //
                 }
                 break;
                 

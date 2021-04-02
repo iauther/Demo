@@ -2,7 +2,7 @@
 #include "cfg.h"
 
 
-const paras_t DEFAULT_PARAS={
+paras_t DEFAULT_PARAS={
     
     .fwInfo={
         .magic=FW_MAGIC,
@@ -44,6 +44,22 @@ const paras_t DEFAULT_PARAS={
     }
 };
 
+
+ack_timeout_t ackTimeout={
+    {
+        {1, 5},     //TYPE_CMD
+        {1, 5},     //TYPE_STAT
+        {1, 5},     //TYPE_ACK
+        {1, 5},     //TYPE_SETT
+        {1, 5},     //TYPE_PARAS
+        {1, 5},     //TYPE_ERROR
+        {1, 5},     //TYPE_UPGRADE
+        {1, 5},     //TYPE_LEAP
+    }
+};
+
+
+U8 curState=STAT_AUTO;
 paras_t curParas;
 
 

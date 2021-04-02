@@ -164,28 +164,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\Buffer.cpp" />
-    <ClCompile Include="src\dev.cpp" />
-    <ClCompile Include="src\log.cpp" />
-    <ClCompile Include="src\Main.cpp" />
-    <ClCompile Include="src\paras.cpp" />
-    <ClCompile Include="src\pkt.cpp" />
-    <ClCompile Include="src\Serial.cpp" />
-    <ClCompile Include="src\task_app.cpp" />
-    <ClCompile Include="src\task_dev.cpp" />
-    <ClCompile Include="src\win.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\..\system\error.h" />
-    <ClInclude Include="src\Buffer.h" />
-    <ClInclude Include="src\dev.h" />
     <ClInclude Include="src\icfg.h" />
     <ClInclude Include="src\log.h" />
     <ClInclude Include="src\pkt.h" />
-    <ClInclude Include="src\Serial.h" />
+    <ClInclude Include="src\port.h" />
+    <ClInclude Include="src\serial.h" />
     <ClInclude Include="src\task.h" />
     <ClInclude Include="src\ui.h" />
     <ClInclude Include="src\win.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\log.c" />
+    <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\paras.c" />
+    <ClCompile Include="src\pkt.c" />
+    <ClCompile Include="src\port.c" />
+    <ClCompile Include="src\serial.c" />
+    <ClCompile Include="src\task_app.c" />
+    <ClCompile Include="src\task_dev.c" />
+    <ClCompile Include="src\win.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

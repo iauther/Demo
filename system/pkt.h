@@ -6,7 +6,6 @@
 
 typedef struct {
     handle_t    handle;
-    U16         retries;
 }pkt_cfg_t;
 
 
@@ -18,7 +17,7 @@ void pkt_cache_reset(void);
 
 void pkt_ack_update(U8 type);
 
-void pkt_ack_check(U8 type);
+int pkt_ack_timeout_check(U8 type);
 
 int pkt_send(U8 type, U8 nAck, void* data, U16 len);
 

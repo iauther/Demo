@@ -3,6 +3,7 @@
 #include "n950.h"
 #include "valve.h"
 #include "ms4525.h"
+#include "pkt.h"
 #include "bmp280/bmp280.h"
 #include "drv/delay.h"
 
@@ -11,7 +12,11 @@
 
 #define VMIN(v)             (v-ACC)
 #define VMAX(v)             (v+ACC)
+
+
 #define TIMER_MS            50         //ms
+#define STAT_MS             100
+#define STAT_CNT            (STAT_MS/TIMER_MS)
 
 
 enum {
@@ -20,25 +25,18 @@ enum {
     PRES_KEEP,
 };
 
-extern setts_t DEFAULT_SETTS;
+
 
 static U8 presMode=PRES_RAISE;
 static U8 vacuum_ever_reached=0;
 static stat_t curStat;
 static U16 prevSpeed=0;
-extern int com_send(U8 type, U8 nAck, void *data, U16 len);
 
-
-static void load_setting(void)
-{
-    //read_flash and load settings
-    curSetts = DEFAULT_SETTS;
-}
 
 static void auto_pres(stat_t *st)
 {
     U16 speed=0;
-    sett_t *set=&curSetts.sett[curSetts.mode];
+    sett_t *set=&curParas.setts.sett[curParas.setts.mode];
     F32 setPres=set->pres;
     F32 curPres=st->dPres;
     
@@ -107,22 +105,27 @@ static int get_stat(stat_t *st)
 {
     ms4525_t ms;
     bmp280_t bmp;
+    static U32 cnt=0;
     
     ms4525_get(&ms);
     bmp280_get(&bmp);
     n950_get(&st->pump);
     
+    st->stat = curState;
     st->dPres = ms.pres;
     st->aPres = bmp.pres;
     st->temp  = bmp.temp;
     
-    com_send(TYPE_STAT, 0, st, sizeof(stat_t));
+    cnt++;
+    if(cnt%STAT_CNT==0) {
+        pkt_send(TYPE_STAT, 0, st, sizeof(stat_t));
+    }
     
     return 0;
 }
 
 
-static void tmr_callback(void *arg)
+static void dev_tmr_callback(void *arg)
 {
     task_msg_post(TASK_DEV, EVT_TIMER, 0, NULL, 0);
 }
@@ -144,20 +147,6 @@ static int timer_proc(void)
 }
 
 
-
-
-
-static void dev_init(void)
-{
-    load_setting();
-    
-    n950_init();
-    ms4525_init();
-    bmp280_init();
-    valve_init();
-}
-
-
 void task_dev_fn(void *arg)
 {
     int r;
@@ -165,8 +154,7 @@ void task_dev_fn(void *arg)
     osTimerId_t tmrId;
     task_handle_t *h=(task_handle_t*)arg;
     
-    dev_init();
-    tmrId = osTimerNew(tmr_callback, osTimerPeriodic, NULL, NULL);
+    tmrId = osTimerNew(dev_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, TIMER_MS);
     h->running = 1;
     

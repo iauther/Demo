@@ -5,7 +5,7 @@
 
 typedef struct {
     U8              askAck;
-    U16             retries;
+    int             retries;
     U16             dataLen;
     union {
         cmd_t       cmd;
@@ -136,31 +136,49 @@ static void cache_fill(void)
 
 void pkt_ack_update(U8 type)
 {
-    cache_t *sd=&myCache[type];
+    cache_t *c=&myCache[type];
     
-    sd->askAck = 0;
-    sd->retries = 0;
+    c->askAck = 0;
+    c->retries = 0;
 }
 
 
 static U8 ack_timeout(U8 type)
 {
-    if(myCache[type].askAck && myCache[type].retries<myCfg.retries) {
-        return 0;
+    if(myCache[type].askAck) {
+        if(ackTimeout.set[type].enable) {
+            if(myCache[type].retries<ackTimeout.set[type].retries) {
+                return 0;
+            }
+        }
     }
     
     return 1;
 }
 
 
-void pkt_ack_check(U8 type)
+int pkt_ack_timeout_check(U8 type)
 {
     cache_t *c=&myCache[type];
     
-    if(c->askAck && c->retries<myCfg.retries) {
-        send_pkt(type, 1, &c->data, c->dataLen);
-        c->retries++;
+    if(c->askAck) {
+        if(ackTimeout.set[type].enable) {
+            if(ackTimeout.set[type].retries>0) {
+                if (c->retries < ackTimeout.set[type].retries) {
+                    send_pkt(type, 1, &c->data, c->dataLen);
+                    c->retries++;
+                }
+                else {
+                    return 1;
+                }
+            }
+        }
+        else {
+            return 1;
+        }
     }
+
+    return 0;
 }
 
 

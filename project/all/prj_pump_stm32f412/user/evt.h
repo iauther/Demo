@@ -3,14 +3,15 @@
 
 #include "types.h"
 
-#define MAXLEN  128
+#define MAXLEN  0xFF
 
 enum {
     EVT_COM,
     EVT_N950,
     EVT_MS4525,
-
+    
     EVT_TIMER,
+    EVT_EEPROM,
 };
 
 typedef struct {

@@ -1,5 +1,6 @@
 ﻿#include <windows.h>
 #include "win.h"
+#include "port.h"
 #include "task.h"
 #include "icfg.h"
 
@@ -17,7 +18,9 @@ int main(void)
 {
     MSG msg;
 
+    port_init();
     win_init(MCU_SIM);
+
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
@@ -26,8 +29,10 @@ int main(void)
             break;
         }
     }
+
     task_dev_stop();
     task_app_stop();
+    port_free();
 
     return 0;
 }

@@ -34,7 +34,21 @@ static U32 sector_size[SECTOR_MAX]={
     128*1024,
     128*1024, 
 };
-#else   //STM32F103xE
+#elif defined STM32F412Rx
+#define SECTOR_MAX  8
+static U32 sector_size[SECTOR_MAX]={
+    16*1024,
+    16*1024,
+    16*1024,
+    16*1024,
+    64*1024,
+    
+    128*1024,
+    128*1024,
+    128*1024,
+};
+
+#else    //STM32F103xE
 #define SECTOR_MAX  12
 static U32 sector_size[SECTOR_MAX]={
     16*1024,
@@ -175,7 +189,7 @@ int flash_read(U32 offset, U8 *data, U32 len)
 
 int flash_write(U32 offset, U8 *data, U32 len)
 {
-    U32 i,n=0,dlen,wlen=0,ss;
+    U32 dlen,wlen=0,ss;
     int r,sec=0,remain=len;
 
     if(!data || !len) {

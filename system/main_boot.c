@@ -4,11 +4,11 @@
 #include "drv/uart.h"
 #include "data.h"
 #include "cfg.h"
+#include "pkt.h"
 
 
-
-static U8 rxBuf[200];
-static U8 txBuf[200];
+#define BUFLEN 1000
+static U8 rxBuf[BUFLEN];
 static U8  upgrade_flag=0;
 static U8  data_ready_flag=0;
 static U16 data_recved_len=0;
@@ -28,7 +28,6 @@ static int need_upgrade(void)
     U32 fwMagic;
     
     upgrade_get_fwmagic(&fwMagic);
-    
     if(fwMagic!=FW_MAGIC) {
         r = 1;
     }
@@ -36,72 +35,77 @@ static int need_upgrade(void)
     return r;
 }
 
-static void send_ack(pkt_hdr_t *h, int r)
+
+static U8 upgrade_proc(void *data)
 {
-    pkt_hdr_t *hdr=(pkt_hdr_t*)txBuf;
-    ack_t *pAck=(ack_t*)hdr->data;
+    int r=0;
+    static U16 upg_pid=0;
+    upgrade_pkt_t *upg=(upgrade_pkt_t*)data;
     
-    *hdr = *h;
-    hdr->askAck = 0;
-    hdr->dataLen = sizeof(ack_t);
-    pAck->error = r;
-    
-
-    //usart_write();
-}
-
-
-static int com_data_proc(U8 *rx, U8 *tx, U16 len)
-{
-    int r=0, ack=0;
-    pkt_hdr_t *h1=(pkt_hdr_t*)rx;
-    pkt_hdr_t *h2=(pkt_hdr_t*)tx;
-    ack_t *pAck=(ack_t*)h2->data;
-    
-    if(!len || h1->dataLen+sizeof(pkt_hdr_t)!=len) {
-        return -1;
+    if(upg->pid==0) {
+        upg_pid = 0;
     }
     
-    if(h1->magic!=PKT_MAGIC) {
-        return -1;
+    if(upg->pid!=upg_pid) {
+        return ERROR_FW_PKT_ID;
     }
     
-    switch(h1->type) {
-        case TYPE_CMD:
-        {
-            cmd_t *cmd=(cmd_t*)h1->data;
-            
-        }
-        break;
-        
-        case TYPE_UPGRADE:
-        {
-            upgrade_t *upg=(upgrade_t*)h1->data;
-            
-        }
-        break;
-        
-        case TYPE_FW_INFO:
-        {
-            fw_info_t *info=(fw_info_t*)h1->data;
-            
-        }
-        break;
-    }
-    
-    
-    if(h1->askAck) {
-        ack = 1;
+    if(upg->pid==upg->pkts-1) {
+        //upgrade finished
     }
     else {
-        if(r) ack = 1;
+        upg_pid++;
     }
     
-    if(ack) {
-        send_ack(h1, r);
+    return r;
+}
+static U8 com_proc(pkt_hdr_t *p, U16 len)
+{
+    U8 ack=0,err;
+    
+    if(p->askAck)  ack = 1;
+    
+    err = pkt_hdr_check(p, len);
+    if(err==ERROR_NONE) {
+        switch(p->type) {
+            
+            case TYPE_ACK:
+            {
+                ack_t *ack=(ack_t*)p->data;
+                pkt_ack_update(ack->type);
+            }
+            break;
+            
+            case TYPE_UPGRADE:
+            {
+                if(p->askAck) {
+                    pkt_send_ack(p->type, 0); ack = 0;
+                }
+                err = upgrade_proc(p->data);
+            }
+            break;
+            
+            default:
+            {
+                err = ERROR_PKT_TYPE;
+            }
+            break;
+        }
     }
     
-    return 0;
+    if(ack || (err && !ack)) {
+        pkt_send_ack(p->type, err);
+    }
+    
+    return err;
+}
+static void timer_proc(void)
+{
+    U8 i;
+    
+    for(i=0; i<TYPE_MAX; i++) {
+        pkt_ack_timeout_check(i);
+    }
 }
 
 
@@ -110,6 +114,7 @@ static int com_data_proc(U8 *rx, U8 *tx, U16 len)
 int main(void)
 {
     int upgrade_flag;
+    pkt_hdr_t *p=(pkt_hdr_t*)rxBuf;
     
     board_init();
     
@@ -119,8 +124,7 @@ int main(void)
     
     while(1) {
         if(data_ready_flag>0) {
-            
-            com_data_proc(rxBuf, txBuf, data_recved_len);
+            com_proc(p, data_recved_len);
             data_ready_flag = 0;
         }
     }

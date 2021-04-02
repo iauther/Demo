@@ -272,7 +272,7 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)   // Êä³ö±È½ÏÖĞ¶Ï»
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)        // ÊäÈë²¶»ñÖĞ¶Ï»Øµ÷º¯Êı
 {
-    int r,flag=0;
+    int r;
     U8 ch,pwm_pin;
     U32 v,polarity,al;
     U32 period,htime,ltime;

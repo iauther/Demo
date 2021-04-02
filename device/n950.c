@@ -221,7 +221,7 @@ int n950_get(n950_stat_t *st)
     st->current = atof((char*)(rx_buf+6));
     st->temp = atof((char*)(rx_buf+12));
     st->fault = atoi((char*)(rx_buf+20));
-    st->cmdAck = rx_buf[25];
+    st->cmdAck = (rx_buf[25]=='?')?2:rx_buf[25];
 #endif
     
     return r;

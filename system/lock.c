@@ -1,12 +1,13 @@
 #include "lock.h"
 #include "task.h"
 
+#ifdef OS_KERNEL
 osMutexId_t mutex[LOCK_MAX];
 
 typedef struct {
     osMutexId_t mutex_id;
 }lock_handle_t;
-
+#endif
 
 
 
@@ -66,14 +67,17 @@ int lock_static_release(int id)
 /////////////////////////////////////////////////////
 handle_t lock_dynamic_new(void)
 {
-    lock_handle_t *h=NULL;
+    handle_t h=NULL;
     
 #ifdef OS_KERNEL
-    h = calloc(1, sizeof(lock_handle_t));
-    if(!h) {
+    lock_handle_t *lh=NULL;
+
+    lh = calloc(1, sizeof(lock_handle_t));
+    if(!lh) {
         return NULL;
     }
-    h->mutex_id = osMutexNew(NULL);
+    lh->mutex_id = osMutexNew(NULL);
+    h = lh;
 #endif
 
     return h;
@@ -114,10 +118,11 @@ int lock_dynamic_release(handle_t h)
 
 int lock_dynamic_free(handle_t *h)
 {
-    int r;
+    int r=0;
+    
+#ifdef OS_KERNEL
     lock_handle_t **lh=(lock_handle_t**)h;
 
-#ifdef OS_KERNEL
     if(!h || !(*lh)) {
         return -1;
     }

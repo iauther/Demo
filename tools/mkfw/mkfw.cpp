@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "data.h"
+#include "date.h"
 #include "md5.h"
+#include "cfg.h"
 
 typedef struct {
 	U8  *data;
@@ -47,6 +49,11 @@ static int file_read(char* path, data_t* dat)
 	return 0;
 }
 
+static fw_info_t fwInfo = {
+	 FW_MAGIC,
+	 VERSION,
+	__DATE__,
+};
 
 int main(char argc, char *argv[])
 {
@@ -80,12 +87,14 @@ int main(char argc, char *argv[])
 	}
 
 	md5_calc((char*)dat.data, dat.dlen, (char*)hdr.md5);
-	strcpy((char*)hdr.fwInfo.bldtime,  __DATE__);
+
+	hdr.fwInfo = fwInfo;
+	hdr.upgCtl.force = 1;
+	hdr.upgCtl.action = 1;
 	fwrite(&hdr, 1, sizeof(hdr), fp);
 	fwrite(dat.data, dat.dlen, sizeof(hdr), fp);
 	free(dat.data);
 	fclose(fp);
-	
 
 	return 0;
 }

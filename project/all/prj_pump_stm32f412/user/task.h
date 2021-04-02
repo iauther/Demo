@@ -1,8 +1,10 @@
 #ifndef __TASK_Hx__
 #define __TASK_Hx__
 
+#ifdef OS_KERNEL
 #include "RTE_Components.h"
 #include "cmsis_os2.h"
+
 #include "msg.h"
 
 enum {
@@ -15,7 +17,6 @@ enum {
 };
 
 typedef struct {
-    
     msg_t           *msg;
     
     osTimerId_t     tmr_id;
@@ -34,6 +35,8 @@ int task_msg_send(int task_id, U8 evt, U8 type, void *data, U16 len);
 int task_msg_post(int task_id, U8 evt, U8 type, void *data, U16 len);
 
 int task_start(void);
+int task_new(osThreadFunc_t fn, void *arg);
+#endif
 
 #endif
 

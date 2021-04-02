@@ -3,7 +3,7 @@
 
 #include <windows.h>
 #include <string> 
-using namespace std;
+#include "types.h"
 
 typedef void(*rxCallback)(int len);
 
@@ -56,33 +56,18 @@ enum StopBits
 
 
 
-class CSerial
-{
-public:
+handle_t serial_init(void);
+int serial_free(handle_t *h);
 
-	CSerial();
-    ~CSerial(void);
+int serial_open(handle_t h, int port, int baudrate, int async);
+int serial_close(handle_t h);
 
-	int Open(int port, int baudrate, int async);
-	int Close(void);
+int serial_setup(handle_t h, int baudrate, int bytesize, int parity, int stopbits);
 
-	int Setup(DWORD baudrate, BYTE bytesize, BYTE parity, BYTE stopbits);
+int  serial_getLength(handle_t h);
+int  serial_read(handle_t h, void* data, int len);
+int  serial_write(handle_t h, void* data, int len);
+int  serial_is_opened(handle_t h);
 
-	int  GetLength(void);
-	int  Read(void* lpBuffer, DWORD len);
-    int  Write(void* lpBuffer, DWORD len);
-	int  isOpened(void);
-
-protected:
-    HANDLE        hComm;
-	HANDLE        hMutex;
-    OVERLAPPED    rol;
-    OVERLAPPED    wol;
-
-	int			  bOpened;
-	int           bAsync;
-
-	int	myClose(void);
-};
 
 #endif

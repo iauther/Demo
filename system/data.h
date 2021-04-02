@@ -22,6 +22,15 @@ enum {
 };
 
 enum {
+    STAT_AUTO=0,
+    STAT_MANUAL,
+    STAT_UPGRADE,
+    
+    STAT_MAX
+};
+
+
+enum {
     TYPE_CMD=0,
     TYPE_STAT,
     TYPE_ACK,
@@ -29,17 +38,14 @@ enum {
     TYPE_PARAS,
     TYPE_ERROR,
     TYPE_UPGRADE,
+    TYPE_LEAP,
     
     TYPE_MAX
 };
 
 enum {
-    CMD_PUMP_START=0,
-    CMD_PUMP_STOP,
-    CMD_PUMP_SPEED,
-    
-    CMD_VALVE_OPEN,
-    CMD_VALVE_CLOSE,
+    CMD_PUMP_SPEED=0,
+    CMD_VALVE_SET,
     
     CMD_SYS_RESTART,
     CMD_SET_FACTORY,
@@ -68,6 +74,7 @@ typedef struct {
 }setts_t;
 
 typedef struct {
+    U8              stat;
     F32             temp;        //environment temperature,   unit: degree celsius
     F32             aPres;       //outside absolute pressure, unit: kpa
     F32             dPres;       //differential pressure,     unit: kPa
@@ -112,6 +119,7 @@ typedef struct {
 
 typedef struct {
     U8              force;
+    U8              erase;          //0: not erase   1: do erase
     U8              action;         //0: do nothing  1: restart   0x3f: run app
 }upgrade_ctl_t;
 
@@ -127,13 +135,23 @@ typedef struct {
     setts_t         setts;
 }paras_t;
 
+#pragma pack ()
+
 
 #define PKT_HDR_LENGTH      sizeof(pkt_hdr_t)
 
-extern paras_t curParas;
-extern paras_t DEFAULT_PARAS;
+typedef struct {
+    struct {
+        int         enable;     //timeout enable
+        int         retries;
+    }set[TYPE_MAX];
+}ack_timeout_t;
 
-#pragma pack ()
+extern U8 curState;
+extern paras_t curParas;
+extern ack_timeout_t ackTimeout;
+
+
 
 #endif
 

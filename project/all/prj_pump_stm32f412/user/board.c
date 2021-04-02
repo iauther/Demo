@@ -1,4 +1,5 @@
 #include "board.h"
+#include "data.h"
 #include "drv/clk.h"
 #include "drv/gpio.h"
 #include "drv/delay.h"
@@ -7,7 +8,6 @@
 #include "drv/clk.h"
 
 
-U8   data_flag=0;
 U32  sys_freq = 0;
 handle_t i2cHandle;
 
@@ -30,6 +30,27 @@ static void bus_init(void)
     i2cHandle = i2c_init(&ic);
 }
 
+static void load_setting(void)
+{
+    extern paras_t DEFAULT_PARAS;
+    
+    //read_flash and load settings
+    curParas = DEFAULT_PARAS;
+}
+static void dev_init(void)
+{
+    load_setting();
+
+#ifdef OS_KERNEL
+    n950_init();
+    ms4525_init();
+    bmp280_init();
+    valve_init();
+#endif
+}
+
+
+
 
 
 void HAL_MspInit(void)
@@ -45,6 +66,7 @@ int board_init(void)
     sys_freq = clk2_get_freq();
     
     bus_init();
+    dev_init();
    
     return 0;
 }
