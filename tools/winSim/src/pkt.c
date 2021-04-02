@@ -1,4 +1,4 @@
-#include "drv/uart.h"
+#include "dev.h"
 #include "pkt.h"
 #include "data.h"
 #include "log.h"
@@ -55,7 +55,7 @@ static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
     memcpy(p->data, data, len);
     buf[totalLen] = get_sum(buf, totalLen);
 
-    return uart_write(myCfg.handle, buf, totalLen + 1);
+    return dev_send(buf, totalLen + 1);
 }
 static int send_ack(U8 type, U8 error)
 {
@@ -74,7 +74,7 @@ static int send_ack(U8 type, U8 error)
     ack->error = error;
     buf[totalLen] = get_sum(buf, totalLen);
 
-    return uart_write(myCfg.handle, buf, totalLen + 1);
+    return dev_recv(buf, totalLen + 1);
 }
 
 

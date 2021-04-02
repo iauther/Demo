@@ -17,6 +17,7 @@ static int app_exit_flag;
 static int paras_rx_flag = 0;
 static UINT_PTR timerId;
 static HANDLE appThreadHandle, appRxThreadHandle;
+extern paras_t DEFAULT_PARAS;
 
 static void com_init(void)
 {

@@ -15,7 +15,7 @@ static int dev_exit_flag=0;
 static int paras_tx_flag=0;
 static UINT_PTR timerId;
 static HANDLE devRxThreadHandle, devThreadHandle;
-
+extern paras_t DEFAULT_PARAS;
 
 static void com_init(void)
 {
