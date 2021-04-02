@@ -1,8 +1,3 @@
-#include <windows.h>
-#include "win.h"
-#include "log.h"
-#include "pkt.h"
-#include "data.h"
 #include "task.h"
 
 #define TIMER_MS            100
@@ -323,7 +318,7 @@ static void timer_proc(void)
     }
 
     for (i = 0; i < TYPE_MAX; i++) {
-        r = pkt_ack_check(i);
+        r = pkt_ack_timeout_check(i);
         if (r) {
             error_print(i, ERROR_ACK_TIMEOUT);
         }
@@ -356,7 +351,7 @@ static DWORD WINAPI dev_rx_thread(LPVOID lpParam)
 
 static void send_evt(int evt)
 {
-    PostThreadMessage(GetThreadId(devThreadHandle), evt, NULL, NULL);
+    PostThreadMessage(GetThreadId(devThreadHandle), evt, 0, 0);
 }
 static void CALLBACK timer_callback(HWND hwnd, UINT message, UINT_PTR iTimerID, DWORD dwTime)
 {

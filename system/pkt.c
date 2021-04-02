@@ -1,7 +1,12 @@
-#include "drv/uart.h"
 #include "pkt.h"
 #include "data.h"
 #include "log.h"
+
+#ifdef _WIN32
+#include "port.h"
+#else
+#include "drv/uart.h"
+#endif
 
 typedef struct {
     U8              askAck;
@@ -55,7 +60,11 @@ static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
     memcpy(p->data, data, len);
     buf[totalLen] = get_sum(buf, totalLen);
 
+#ifdef _WIN32
+    return port_send(buf, totalLen + 1);
+#else
     return uart_write(myCfg.handle, buf, totalLen + 1);
+#endif
 }
 static int send_ack(U8 type, U8 error)
 {
@@ -73,8 +82,11 @@ static int send_ack(U8 type, U8 error)
     ack->type = type;
     ack->error = error;
     buf[totalLen] = get_sum(buf, totalLen);
-
+#ifdef _WIN32
+    return port_send(buf, totalLen + 1);
+#else
     return uart_write(myCfg.handle, buf, totalLen + 1);
+#endif
 }
 
 

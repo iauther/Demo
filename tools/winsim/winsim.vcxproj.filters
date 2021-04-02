@@ -59,12 +59,6 @@
     <ClCompile Include="src\log.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\paras.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\pkt.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="src\port.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -78,6 +72,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\win.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\system\paras.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\system\pkt.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

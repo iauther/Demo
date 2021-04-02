@@ -12,7 +12,7 @@ static DWORD mThreadId;
 
 static void send_evt(void)
 {
-    PostThreadMessage(mThreadId, WM_USER, NULL, NULL);
+    PostThreadMessage(mThreadId, WM_USER, 0, 0);
 }
 
 
