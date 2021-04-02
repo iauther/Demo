@@ -1,4 +1,4 @@
-#include "dev.h"
+#include "drv/uart.h"
 #include "pkt.h"
 #include "data.h"
 #include "log.h"
@@ -43,7 +43,7 @@ static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
     U32 totalLen = PKT_HDR_LENGTH + len;
 
     if (totalLen>BUFLEN-1) {
-        log("_____ send_pkt len is wrong, %d, max: %d\n", totalLen+1, BUFLEN);
+        //log("_____ send_pkt len is wrong, %d, max: %d\n", totalLen+1, BUFLEN);
         return -1;
     }
 
@@ -55,7 +55,7 @@ static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
     memcpy(p->data, data, len);
     buf[totalLen] = get_sum(buf, totalLen);
 
-    return dev_send(buf, totalLen + 1);
+    return uart_write(myCfg.handle, buf, totalLen + 1);
 }
 static int send_ack(U8 type, U8 error)
 {
@@ -74,7 +74,7 @@ static int send_ack(U8 type, U8 error)
     ack->error = error;
     buf[totalLen] = get_sum(buf, totalLen);
 
-    return dev_send(buf, totalLen + 1);
+    return uart_write(myCfg.handle, buf, totalLen + 1);
 }
 
 
@@ -153,14 +153,21 @@ static U8 ack_timeout(U8 type)
 }
 
 
-void pkt_ack_check(U8 type)
+int pkt_ack_check(U8 type)
 {
     cache_t *c=&myCache[type];
     
-    if(c->askAck && c->retries<myCfg.retries) {
-        send_pkt(type, 1, &c->data, c->dataLen);
-        c->retries++;
+    if(c->askAck) {
+        if (c->retries < myCfg.retries) {
+            send_pkt(type, 1, &c->data, c->dataLen);
+            c->retries++;
+        }
+        else {
+            return 1;
+        }
     }
+
+    return 0;
 }
 
 
