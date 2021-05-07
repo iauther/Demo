@@ -13,9 +13,8 @@ typedef struct {
 #pragma pack () 
 
 int ms4525_init(void);
-
+int ms4525_deinit(void);
 int ms4525_get(ms4525_t *m);
-
 void ms4525_test(void);
 
 #endif

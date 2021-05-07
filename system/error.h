@@ -28,17 +28,20 @@ enum {
     ERROR_FW_PKT_ID,
     ERROR_FW_PKT_LENGTH,
     
+    ERROR_FW_OLD_VERSION,
+    ERROR_FW_OLD_BLDTIME,
+    ERROR_FW_MAGIC_WRONG,
+    ERROR_FW_FLASH_WRITE,
+    ERROR_FW_EEPROM_WRITE,
+    
     //communication
     ERROR_ACK_TIMEOUT=0x50,
-    ERROR_UPG_FAILED,
     
     //system
     ERROR_SYS_I2C1=0x60,
     ERROR_SYS_I2C2,
     ERROR_SYS_UART1,
     ERROR_SYS_UART2,
-    
-     
 };
 
 

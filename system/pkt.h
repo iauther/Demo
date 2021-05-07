@@ -6,6 +6,7 @@
 
 typedef struct {
     handle_t    handle;
+    U16         retries;
 }pkt_cfg_t;
 
 

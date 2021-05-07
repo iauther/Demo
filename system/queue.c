@@ -1,12 +1,24 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "queue.h"
 
-static int do_iterate(queue_t *q, void *p, qiterater iter)
+typedef struct {
+	node_t     *nodes;		// array to store queue elements
+	int         max;	    // maximum capacity of the queue
+	int         size;		// element counter in the queue
+	int         head;		// head points to head element in the queue (if any)
+	int         tail;		// tail points to last element in the queue
+
+    int         quit;
+    int         locked;
+    int         bsz;
+}queue_handle_t;
+
+
+
+static int do_iterate(handle_t h, void *p, qiterater iter)
 {
     int i,o,r=-1;
     node_t *n;
+    queue_handle_t *q=(queue_handle_t*)h;
 
     for(i=0; i<q->size; i++) {
         o = (q->head+i)%q->max;
@@ -19,70 +31,90 @@ static int do_iterate(queue_t *q, void *p, qiterater iter)
 
     return r;
 }
-queue_t* queue_init(int max, int bsz)
+
+
+handle_t queue_init(int max, int bsz)
 {
     int i;
     node_t n;
-    u8 *p,*ptr;
+    U8 *p,*ptr;
+    queue_handle_t *h;
 
-	queue_t *q = (queue_t*)malloc(sizeof(queue_t));
-	if(!q) {
+	h = (queue_handle_t*)malloc(sizeof(queue_handle_t));
+	if(!h) {
         return NULL;
     }
     
-    p = (u8*)malloc(max*(sizeof(node_t)+bsz));
+    p = (U8*)malloc(max*(sizeof(node_t)+bsz));
     if(!p) {
+        free(h);
         return NULL;
     }
 
     ptr = p+max*sizeof(node_t);
-    q->nodes = (node_t*)p;
+    h->nodes = (node_t*)p;
     for(i=0; i<max; i++) {
-        q->nodes[i].ptr = ptr+i*bsz;
-        q->nodes[i].len = bsz;
+        h->nodes[i].ptr = ptr+i*bsz;
+        h->nodes[i].len = bsz;
     }
-	q->max  = max;
-	q->size = 0;
-	q->head = 0;
-	q->tail = 0;
+	h->max  = max;
+	h->size = 0;
+	h->head = 0;
+	h->tail = 0;
+    
+    h->quit = 0;
+    h->locked = 0;
+    h->bsz = bsz;
 
-    q->quit = 0;
-    q->locked = 0;
-    q->bsz = bsz;
-
-	return q;
+	return h;
 }
 
 
-int queue_free(queue_t **q)
+int queue_free(handle_t *h)
 {
-    if(!q) {
+    queue_handle_t **q=(queue_handle_t**)h;
+    
+    if(!q || !(*q)) {
         return -1;
     }
 
-    free(*q);
     free((*q)->nodes);
+    free(*q);
     
     return 0;
 }
 
 
-int queue_size(queue_t *q)
+int queue_size(handle_t h)
 {
+    queue_handle_t *q=(queue_handle_t*)h;
+    
+    if(!q ) {
+        return -1;
+    }
+    
 	return q?q->size:-1;
 }
 
 
-int queue_capacity(queue_t *q)
+int queue_capacity(handle_t h)
 {
+    queue_handle_t *q=(queue_handle_t*)h;
+    
+    if(!q ) {
+        return -1;
+    }
+    
 	return q?q->max:-1;
 }
 
 
-int queue_put(queue_t *q, node_t *n, qiterater iter)
+int queue_put(handle_t h, node_t *n, qiterater iter)
 {
     int i=-1;
     node_t *n2;
+    queue_handle_t *q=(queue_handle_t*)h;
+    
 
 	if (!q || !n || q->size==q->max || q->locked) {
 		return -1;      //queue full
@@ -109,9 +141,10 @@ int queue_put(queue_t *q, node_t *n, qiterater iter)
 }
 
  
-int queue_get(queue_t *q, node_t *n, qiterater iter)
+int queue_get(handle_t h, node_t *n, qiterater iter)
 {
     int i=-1;
+    queue_handle_t *q=(queue_handle_t*)h;
 
 	if (!q || !n || q->size==0 || q->locked) {
 		return -1;
@@ -143,9 +176,10 @@ int queue_get(queue_t *q, node_t *n, qiterater iter)
 }
 
 
-int queue_pop(queue_t *q)
+int queue_pop(handle_t h)
 {
     int i=-1;
+    queue_handle_t *q=(queue_handle_t*)h;
 
 	if (!q || q->size==0 || q->locked) {
 		return -1;
@@ -164,9 +198,10 @@ int queue_pop(queue_t *q)
 }
 
 
-int queue_peer(queue_t *q, node_t *n)
+int queue_peer(handle_t h, node_t *n)
 {
     int i=-1;
+    queue_handle_t *q=(queue_handle_t*)h;
 
 	if (!q || !n || q->size==0 || q->locked) {
 		return -1;
@@ -182,9 +217,10 @@ int queue_peer(queue_t *q, node_t *n)
 }
 
 
-int queue_iterate(queue_t *q, node_t *n, qiterater iter)
+int queue_iterate(handle_t h, node_t *n, qiterater iter)
 {
     int r;
+    queue_handle_t *q=(queue_handle_t*)h;
 
     if (!q || !iter || q->size==0 || q->locked) {
 		return -1;
@@ -200,8 +236,10 @@ int queue_iterate(queue_t *q, node_t *n, qiterater iter)
 }
 
 
-int queue_clear(queue_t *q)
+int queue_clear(handle_t h)
 {
+    queue_handle_t *q=(queue_handle_t*)h;
+    
     if (!q) {
 		return -1;
 	}

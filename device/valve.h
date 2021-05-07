@@ -9,9 +9,8 @@ enum {
 };
 
 int valve_init(void);
-
+int valve_deinit(void);
 int valve_set(U8 v);
-
 int valve_get(U8 *v);
 
 #endif

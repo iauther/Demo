@@ -5,6 +5,7 @@
 #include "n950.h"
 #include "ms4525.h"
 #include "valve.h"
+#include "ft32xx.h"
 #include "bmp280/bmp280.h"
 
 #define FW_MAGIC            0xFACEBEAD
@@ -128,7 +129,7 @@ typedef struct {
     upgrade_ctl_t   upgCtl;
     fw_info_t       fwInfo;
     U8*             data[];
-}upgrade_file_hdr_t;
+}upgrade_hdr_t;
 
 typedef struct {
     fw_info_t       fwInfo;

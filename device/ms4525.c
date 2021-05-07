@@ -64,6 +64,11 @@ int ms4525_init(void)
 }
 
 
+int ms4525_deinit(void)
+{
+    return 0;
+}
+
 
 int ms4525_get(ms4525_t *m)
 {

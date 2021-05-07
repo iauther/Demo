@@ -94,6 +94,12 @@ int bmp280_init(void)
 }
 
 
+int bmp280_deinit(void)
+{
+    return 0;
+}
+
+
 int bmp280_get(bmp280_t *bmp)
 {
     struct bmp280_uncomp_data ucomp_data;

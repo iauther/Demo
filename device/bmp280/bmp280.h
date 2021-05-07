@@ -10,7 +10,7 @@ typedef struct {
 }bmp280_t;
 
 int bmp280_init(void);
-
+int bmp280_deinit(void);
 int bmp280_get(bmp280_t *bmp);
 
 #endif

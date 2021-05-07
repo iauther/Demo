@@ -486,6 +486,21 @@ failed:
 }
 
 
+int pwm_deinit(handle_t *h)
+{
+    pwm_handle_t **ph=(pwm_handle_t**)h;
+    
+    if(!ph || !(*ph)) {
+        return -1;
+    }
+    
+    HAL_TIM_Base_DeInit(&(*ph)->htim);
+    HAL_TIM_Base_DeInit(&(*ph)->htim);
+    
+    return 0;
+}
+
+
 int pwm_start(handle_t h, U8 pwm_pin)
 {
     U8 type;

@@ -145,105 +145,25 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>ST-LINKIII-KEIL_SWO</Key>
-          <Name>-U0671FF495252717267204747 -O10446 -SF5000 -C0 -A0 -I0 -HNlocalhost -HP7184 -P2 -N00("ARM CoreSight SW-DP (ARM Core") -D00(2BA01477) -L00(0) -TO131090 -TC10000000 -TT10000000 -TP21 -TDS8000 -TDT0 -TDC1F -TIEFFFFFFFF -TIP8 -FO7 -FD20000000 -FC800 -FN1 -FF0STM32F4xx_1024.FLM -FS08000000 -FL0100000 -FP0($$Device:STM32F412ZGTx$CMSIS\Flash\STM32F4xx_1024.FLM)</Name>
+          <Name>-U0671FF495252717267204747 -O10446 -SF5000 -C0 -A0 -I0 -HNlocalhost -HP7184 -P2 -N00("ARM CoreSight SW-DP (ARM Core") -D00(2BA01477) -L00(0) -TO131090 -TC10000000 -TT10000000 -TP21 -TDS8000 -TDT0 -TDC1F -TIEFFFFFFFF -TIP8 -FO7 -FD20000000 -FC800 -FN1 -FF0STM32F4xx_1024.FLM -FS08000000 -FL080000 -FP0($$Device:STM32F412ZGTx$CMSIS\Flash\STM32F4xx_1024.FLM)</Name>
         </SetRegEntry>
       </TargetDriverDllRegistry>
       <Breakpoint>
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>1188</LineNumber>
+          <LineNumber>146</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134222496</Address>
+          <Address>134234578</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>E:\projects\EVM\DEMO\project\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_i2c.c</Filename>
+          <Filename>&lt;2&gt;..\..\..\system\main_boot.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\app\../../platform/chip/st/stm32f4xx/src/stm32f4xx_hal_i2c.c\1188</Expression>
-        </Bp>
-        <Bp>
-          <Number>1</Number>
-          <Type>0</Type>
-          <LineNumber>1232</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134222698</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>E:\projects\EVM\DEMO\project\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_i2c.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\../../platform/chip/st/stm32f4xx/src/stm32f4xx_hal_i2c.c\1232</Expression>
-        </Bp>
-        <Bp>
-          <Number>2</Number>
-          <Type>0</Type>
-          <LineNumber>1232</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134223074</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>E:\projects\EVM\DEMO\project\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_i2c.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\../../platform/chip/st/stm32f4xx/src/stm32f4xx_hal_i2c.c\1232</Expression>
-        </Bp>
-        <Bp>
-          <Number>3</Number>
-          <Type>0</Type>
-          <LineNumber>1357</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134223038</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>E:\projects\EVM\DEMO\project\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_i2c.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\../../platform/chip/st/stm32f4xx/src/stm32f4xx_hal_i2c.c\1357</Expression>
-        </Bp>
-        <Bp>
-          <Number>4</Number>
-          <Type>0</Type>
-          <LineNumber>1240</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134222712</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>E:\projects\EVM\DEMO\project\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_i2c.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\../../platform/chip/st/stm32f4xx/src/stm32f4xx_hal_i2c.c\1240</Expression>
-        </Bp>
-        <Bp>
-          <Number>5</Number>
-          <Type>0</Type>
-          <LineNumber>70</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134231860</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>E:\projects\EVM\DEMO\project\device\ms4525.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\../../device/ms4525.c\70</Expression>
+          <Expression>\\boot\../../../system/main_boot.c\146</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -350,7 +270,7 @@
 
   <Group>
     <GroupName>board</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>

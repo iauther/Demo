@@ -160,7 +160,7 @@ void md5_transform(unsigned int state[4],unsigned char block[64])
     state[3] += d;  
 }
 
-#define get_chr(b) (b<=9)?(b+0x30):(b-10+0x61);
+#define CHAR(b) (b<=9)?(b+0x30):(b-10+0x61);
 static void byte2char(char *chr, unsigned char b)
 {
     char h,l;
@@ -168,8 +168,8 @@ static void byte2char(char *chr, unsigned char b)
     l = b&0x0f;
     h = (b>>4)&0x0f;
     
-    chr[0] = get_chr(h);
-    chr[1] = get_chr(l);
+    chr[0] = CHAR(h);
+    chr[1] = CHAR(l);
 }
 
 int md5_calc(char *p, int len, char *md5)
@@ -180,7 +180,7 @@ int md5_calc(char *p, int len, char *md5)
     
     md5_init(&ctx);
     md5_update(&ctx, (const void *)p, len);
-    md5_final(tmp, &ctx);
+    md5_final(&ctx, tmp);
     
     for (i=0; i<16; i++) {
         byte2char(md5+i*2, tmp[i]);

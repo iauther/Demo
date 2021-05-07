@@ -8,18 +8,36 @@
 
 
 #define BUFLEN 1000
-static U8 rxBuf[BUFLEN];
+static U8 rx_buf[BUFLEN];
 static U8  upgrade_flag=0;
-static U8  data_ready_flag=0;
 static U16 data_recved_len=0;
+static handle_t comHandle=NULL;
 static void rx_callback(U8 *data, U16 len);
-
 
 static void rx_callback(U8 *data, U16 len)
 {
-    data_ready_flag = 1;
     data_recved_len = len;
 }
+
+static void com_init(void)
+{
+    uart_cfg_t uc;
+    
+    uc.mode = MODE_DMA;
+    uc.port = UART_2;               //PA2: TX   PA3: RX
+    uc.baudrate = COM_BAUDRATE;
+    uc.para.rx = rx_callback;
+    uc.para.buf = rx_buf;
+    uc.para.blen = sizeof(rx_buf);
+    uc.para.dlen = 0;
+    comHandle = uart_init(&uc);
+}
+static void com_deinit(void)
+{
+    uart_deinit(&comHandle);
+}
+
+
 
 
 static int need_upgrade(void)
@@ -44,6 +62,7 @@ static U8 upgrade_proc(void *data)
     
     if(upg->pid==0) {
         upg_pid = 0;
+        //upgrade_init();
     }
     
     if(upg->pid!=upg_pid) {
@@ -51,7 +70,7 @@ static U8 upgrade_proc(void *data)
     }
     
     if(upg->pid==upg->pkts-1) {
-        //upgrade finished
+        upgrade_write(upg->data, upg->dataLen);
     }
     else {
         upg_pid++;
@@ -114,21 +133,25 @@ static void timer_proc(void)
 int main(void)
 {
     int upgrade_flag;
-    pkt_hdr_t *p=(pkt_hdr_t*)rxBuf;
+    pkt_hdr_t *p=(pkt_hdr_t*)rx_buf;
     
     board_init();
+    com_init();
     
-    if(!need_upgrade()) {
+    //if(!need_upgrade()) {
+    if(1) {
+        board_deinit();
+        com_deinit();
+        
         jump_to_app();
     }
     
     while(1) {
-        if(data_ready_flag>0) {
+        if(data_recved_len>0) {
             com_proc(p, data_recved_len);
-            data_ready_flag = 0;
+            data_recved_len = 0;
         }
     }
-
 }
 
 

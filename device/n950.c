@@ -195,6 +195,14 @@ int n950_init(void)
 }
 
 
+int n950_deinit(void)
+{
+    uart_deinit(&uartHandle);
+    pwm_deinit(&pwmHandle);
+    
+    return 0;
+}
+
 
 int n950_send_cmd(U8 cmd, U32 speed)
 {

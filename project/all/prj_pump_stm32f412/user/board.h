@@ -4,6 +4,7 @@
 #include "platform.h"
 
 int board_init(void);
+int board_deinit(void);
 
 #endif
 

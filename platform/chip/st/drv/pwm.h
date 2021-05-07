@@ -67,6 +67,8 @@ typedef struct {
 
 
 handle_t pwm_init(pwm_cfg_t *cfg);
+int pwm_deinit(handle_t *h);
+
 int pwm_start(handle_t h, U8 pwm_pin);
 int pwm_stop(handle_t h, U8 pwm_pin);
 int pwm_set(handle_t h, U8 pwm_pin, U32 freq, F32 dr);

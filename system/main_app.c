@@ -1,5 +1,5 @@
 #include "sys.h"
-
+#include "cfg.h"
 
 int main(void)
 {

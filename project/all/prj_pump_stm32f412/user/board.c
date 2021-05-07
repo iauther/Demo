@@ -6,7 +6,8 @@
 #include "drv/uart.h"
 #include "drv/i2c.h"
 #include "drv/clk.h"
-
+#include "paras.h"
+#include "cfg.h"
 
 U32  sys_freq = 0;
 handle_t i2cHandle;
@@ -30,25 +31,29 @@ static void bus_init(void)
     i2cHandle = i2c_init(&ic);
 }
 
-static void load_setting(void)
-{
-    extern paras_t DEFAULT_PARAS;
-    
-    //read_flash and load settings
-    curParas = DEFAULT_PARAS;
-}
+
 static void dev_init(void)
 {
-    load_setting();
+    //ft32xx_init();
+    
+    paras_load();
 
 #ifdef OS_KERNEL
-    n950_init();
+    //n950_init();
     ms4525_init();
     bmp280_init();
     valve_init();
 #endif
 }
-
+static void dev_deinit(void)
+{
+#ifdef OS_KERNEL
+    //n950_deinit();
+    ms4525_deinit();
+    bmp280_deinit();
+    valve_deinit();
+#endif
+}
 
 
 
@@ -61,6 +66,9 @@ void HAL_MspInit(void)
 
 int board_init(void)
 {
+    SCB->VTOR = FLASH_BASE | APP_OFFSET;
+    __enable_irq();
+    
     HAL_Init();
     clk2_init();
     sys_freq = clk2_get_freq();
@@ -72,7 +80,16 @@ int board_init(void)
 }
 
 
-
+int board_deinit(void)
+{
+    HAL_DeInit();
+    HAL_RCC_DeInit();
+    i2c_deinit(&i2cHandle);
+    
+    dev_deinit();
+   
+    return 0;
+}
 
 
 

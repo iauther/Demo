@@ -19,6 +19,15 @@ int valve_init(void)
 }
 
 
+int valve_deinit(void)
+{
+    gpio_pin_t pin=VALVE_PIN;
+    
+    gpio_deinit(&pin);
+    
+    return 0;
+}
+
 
 int valve_set(U8 v)
 {

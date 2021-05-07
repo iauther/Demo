@@ -6,9 +6,8 @@
 #include "error.h"
 #include "upgrade.h" 
 #include "drv/uart.h" 
-
-
-#define COM_BAUDRATE        115200
+#include "drv/jump.h" 
+#include "cfg.h"
 
 #define TIMER_MS            100
 #define TIMEOUT             500
@@ -235,6 +234,8 @@ void task_com_fn(void *arg)
     tmrId = osTimerNew(com_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, TIMER_MS);
     h->running = 1;
+    
+    //jump_to_boot();
     
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));

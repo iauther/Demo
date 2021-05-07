@@ -80,10 +80,10 @@
             <nStopB2X>0</nStopB2X>
           </BeforeMake>
           <AfterMake>
-            <RunUserProg1>0</RunUserProg1>
-            <RunUserProg2>0</RunUserProg2>
+            <RunUserProg1>1</RunUserProg1>
+            <RunUserProg2>1</RunUserProg2>
             <UserProg1Name>fromelf.exe --bin -o "$L@L.bin" "$L@L.axf"</UserProg1Name>
-            <UserProg2Name></UserProg2Name>
+            <UserProg2Name>mk.bat 2</UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopA1X>0</nStopA1X>
@@ -134,12 +134,12 @@
             <RunIndependent>0</RunIndependent>
             <UpdateFlashBeforeDebugging>1</UpdateFlashBeforeDebugging>
             <Capability>1</Capability>
-            <DriverSelection>4107</DriverSelection>
+            <DriverSelection>4101</DriverSelection>
           </Flash1>
           <bUseTDR>1</bUseTDR>
           <Flash2>STLink\ST-LINKIII-KEIL_SWO.dll</Flash2>
-          <Flash3></Flash3>
-          <Flash4></Flash4>
+          <Flash3>"" ()</Flash3>
+          <Flash4>.\cfg\flash.ini</Flash4>
           <pFcarmOut></pFcarmOut>
           <pFcarmGrp></pFcarmGrp>
           <pFcArmRoot></pFcArmRoot>
@@ -275,8 +275,8 @@
               </OCR_RVCT3>
               <OCR_RVCT4>
                 <Type>1</Type>
-                <StartAddress>0x8000000</StartAddress>
-                <Size>0x100000</Size>
+                <StartAddress>0x8008000</StartAddress>
+                <Size>0x7ffff</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
@@ -433,6 +433,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\system\pkt.c</FilePath>
             </File>
+            <File>
+              <FileName>date.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\date.c</FilePath>
+            </File>
+            <File>
+              <FileName>queue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\queue.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -497,6 +507,11 @@
               <FileName>at24cxx.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\device\at24cxx.c</FilePath>
+            </File>
+            <File>
+              <FileName>ft32xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\device\ft32xx.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -1,5 +1,6 @@
 #include <string.h>
 #include "drv/flash.h"
+#include "cfg.h"
 
 #define FLASH_CACHE_SIZE 1000
 
@@ -90,7 +91,7 @@ static int get_sector(U32 addr)
     
     for(i=0; i<SECTOR_MAX; i++) {
         
-        s0 += sector_size[i];
+        s1 += sector_size[i];
         if(addr>=s0 && addr<s1) {
             return i;
         }
@@ -124,7 +125,6 @@ static int __write_data(U32 offset, U8 *data, U32 len)
     HAL_FLASH_Unlock();
 	for(i=0; i<len;) {
 		if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_BYTE, addr+i, data[i])!= HAL_OK) {
-            ;
             if(++n>3) {
                 err = -1;
                 break;
@@ -177,6 +177,30 @@ static void __reset_cache(void)
     __HAL_FLASH_DATA_CACHE_ENABLE();
 }
 
+
+static U8 erase_flag[SECTOR_MAX]={0};
+static void set_erase_flag(U32 from, U32 to)
+{
+    int i;
+    int s1=get_sector(from);
+    int s2=get_sector(to);
+    for(i=s1; i<=s2; i++) {
+        if(i>=SECTOR_MAX) {
+            return;
+        }
+        
+        erase_flag[i] = 1;
+    }
+}
+
+
+int flash_init(void)
+{
+    memset(erase_flag, 0, sizeof(erase_flag));
+    return 0;
+}
+
+
 int flash_read(U32 offset, U8 *data, U32 len)
 {
     int r;
@@ -213,6 +237,7 @@ int flash_write(U32 offset, U8 *data, U32 len)
         remain = len - wlen;
         sec++;
     }
+    set_erase_flag(offset, offset+len-1);
 
     return 0;
 }
@@ -223,13 +248,44 @@ int flash_erase(U32 from, U32 to)
     int i,r=-1;
     int s1=get_sector(from);
     int s2=get_sector(to);
+    
     for(i=s1; i<=s2; i++) {
-        r = __erase_sector(i);
-        if(r!=HAL_OK) {
+        if(i>=SECTOR_MAX) {
             return -1;
+        }
+        
+        if(!erase_flag[i]) {
+            r = __erase_sector(i);
+            if(r!=HAL_OK) {
+                return -1;
+            }
+            erase_flag[i] = 1;
+            r = 0;
         }
     }
 
-    return 0;
+    return r;
 }
+
+
+
+int flash_test(void)
+{
+    int r,i;
+    U32 xtmp[100];
+    
+    #define TEST_ADDR       (1024*200)
+    
+    for(i=0; i<sizeof(xtmp); i++) {
+        xtmp[i] = i;
+    }
+    
+    flash_init();
+    r = flash_write(TEST_ADDR, (U8*)xtmp, sizeof(xtmp));
+    memset(xtmp, 0, sizeof(xtmp));
+    r = flash_read(TEST_ADDR, (U8*)xtmp, sizeof(xtmp));
+    
+    return r;
+}
+
 

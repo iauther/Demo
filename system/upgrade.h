@@ -14,10 +14,10 @@ int upgrade_set_fwmagic(U32 *fwmagic);
 int upgrade_get_fwinfo(fw_info_t *fwinfo);
 int upgrade_set_fwinfo(fw_info_t *fwinfo);
 
-int upgrade_prep(U8 obj, U32 fwlen);
+int upgrade_init(U8 obj);
 int upgrade_check(void);
 int upgrade_write(U8 *data, U32 len);
-
+int upgrade_refresh(void);
 #endif
 
 

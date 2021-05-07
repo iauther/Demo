@@ -4,7 +4,7 @@
 #ifdef OS_KERNEL
 #include "RTE_Components.h"
 #include "cmsis_os2.h"
-
+#include "drv/delay.h"
 #include "msg.h"
 
 enum {

@@ -1,11 +1,6 @@
 #include "task.h"                          // CMSIS RTOS header file
 #include "data.h" 
-#include "n950.h"
-#include "valve.h"
-#include "ms4525.h"
 #include "pkt.h"
-#include "bmp280/bmp280.h"
-#include "drv/delay.h"
 
 
 #define ACC                 1.0F        //accuracy, 1kpa
@@ -109,7 +104,7 @@ static int get_stat(stat_t *st)
     
     ms4525_get(&ms);
     bmp280_get(&bmp);
-    n950_get(&st->pump);
+    //n950_get(&st->pump);
     
     st->stat = curState;
     st->dPres = ms.pres;

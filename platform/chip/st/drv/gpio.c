@@ -77,6 +77,18 @@ int gpio_init(gpio_pin_t *pin, U8 mode)
 }
 
 
+int gpio_deinit(gpio_pin_t *pin)
+{
+    if(!pin) {
+        return -1;
+    }
+    
+    HAL_GPIO_DeInit(pin->grp, pin->pin);
+    return 0;
+}
+
+
+
 int gpio_set_dir(gpio_pin_t *pin, U8 dir)
 {
     GPIO_InitTypeDef init;

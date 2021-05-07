@@ -3,41 +3,28 @@
 
 #include "types.h"
 
-typedef struct {
-	node_t     *nodes;		// array to store queue elements
-	int         max;	    // maximum capacity of the queue
-	int         size;		// element counter in the queue
-	int         head;		// head points to head element in the queue (if any)
-	int         tail;		// tail points to last element in the queue
 
-    int         quit;
-    int         locked;
-    int         bsz;
-    
-}queue_t;
+typedef int (*qiterater)(handle_t h, int index, void *p1, void *p2);
 
 
-typedef int (*qiterater)(queue_t *q, int index, void *p1, void *p2);
+handle_t queue_init(int max, int bsz);
 
+int queue_free(handle_t *h);
 
-queue_t* queue_init(int max, int bsz);
+int queue_size(handle_t h);
 
-int queue_free(queue_t **q);
+int queue_capacity(handle_t h);
 
-int queue_size(queue_t *q);
+int queue_get(handle_t h, node_t *n, qiterater iter);
 
-int queue_capacity(queue_t *q);
+int queue_put(handle_t h, node_t *n, qiterater iter);
 
-int queue_get(queue_t *q, node_t *n, qiterater iter);
+int queue_pop(handle_t h);
 
-int queue_put(queue_t *q, node_t *n, qiterater iter);
+int queue_peer(handle_t h, node_t *n);
 
-int queue_pop(queue_t *q);
+int queue_iterate(handle_t h, node_t *n, qiterater iter);
 
-int queue_peer(queue_t *q, node_t *n);
-
-int queue_iterate(queue_t *q, node_t *n, qiterater iter);
-
-int queue_clear(queue_t *q);
+int queue_clear(handle_t h);
 
 #endif
