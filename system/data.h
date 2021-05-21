@@ -63,9 +63,9 @@ typedef struct {
 typedef struct {
     U8              mode;
     struct {
-        U16         work_time;      //ms
-        U16         stop_time;      //ms
-        U16         total_time;     //ms
+        U32         work_time;      //ms
+        U32         stop_time;      //ms
+        U32         total_time;     //ms
     }time;
     F32             pres;           //differential pressure, unit: kPa
     F32             maxVol;         //the max volume, unit: ml
