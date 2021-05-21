@@ -65,12 +65,6 @@
     <ClCompile Include="src\serial.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\task_app.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\task_dev.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="src\win.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -78,6 +72,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\..\system\pkt.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\myApp.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\myDev.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

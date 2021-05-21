@@ -14,11 +14,11 @@ typedef struct {
     U8  min;
     U8  sec;
     
-}time_t;
+}time2_t;
 
 
 int get_date(char *__date__, date_t *date);
-int get_time(char *__time__, time_t *time);
+int get_time(char *__time__, time2_t *time);
 
 int get_date_string(char *__date__, void *str);
 int get_time_string(char *__time__, void *str);

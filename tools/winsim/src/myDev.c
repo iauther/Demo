@@ -113,9 +113,6 @@ static void error_print(U8 type, U8 error)
     case ERROR_ACK_TIMEOUT:
         LOG("___ %s, ack is timeout\n", typeString[type]);
         break;
-    case ERROR_UPG_FAILED:
-        LOG("___ upgrade failed\n");
-        break;
     default:
         break;
     }
@@ -133,8 +130,7 @@ static void pkt_print(pkt_hdr_t* p)
         {
             if (p->dataLen==sizeof(cmd_t)) {
                 cmd_t* cmd = (cmd_t*)p->data;
-                LOG("_____ cmd.cmd: 0x%08x\n", cmd->cmd);
-                LOG("_____ cmd.para: %d\n", cmd->para);
+                LOG("_____ cmd.cmd: 0x%08x, cmd.para: %d\n", cmd->cmd, cmd->para);
             }
         }
         break;
@@ -142,8 +138,7 @@ static void pkt_print(pkt_hdr_t* p)
         {
             if (p->dataLen == sizeof(ack_t)) {
                 ack_t* ack = (ack_t*)p->data;
-                LOG("_____ ack.type: %d\n", ack->type);
-                LOG("_____ ack.error: %d\n", ack->error);
+                LOG("_____ ack.type: %d, ack.error: %d\n", ack->type, ack->error);
             }
         }
         break;
@@ -303,10 +298,12 @@ static int send_stat(void)
     
     return 0;
 }
+
+
 static void timer_proc(void)
 {
     U8  i;
-    int r;
+    int r;   
 
     if (!port_is_opened()) {
         return;

@@ -82,7 +82,7 @@ int get_date(char *__date__, date_t *date)
 }
 
 
-int get_time(char *__time__, time_t *time)
+int get_time(char *__time__, time2_t *time)
 {
     if(!time) {
         return -1;

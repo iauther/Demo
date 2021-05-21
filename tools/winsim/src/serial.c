@@ -80,7 +80,7 @@ int serial_open(handle_t h, int port, int baudrate, int async)
     TCHAR portName[100];
     serial_handle_t* sh = (serial_handle_t*)h;
 
-    if (!sh || !sh->hComm) {
+    if (!sh) {
         return -1;
     }
 
@@ -207,7 +207,7 @@ int  serial_is_opened(handle_t h)
 {
     serial_handle_t* sh = (serial_handle_t*)h;
 
-    if (!sh || !sh->hComm) {
+    if (!sh) {
         return -1;
     }
 

@@ -155,11 +155,11 @@ void pkt_ack_update(U8 type)
 }
 
 
-static U8 ack_timeout(U8 type)
+static U8 ack_is_timeout(U8 type)
 {
     if(myCache[type].askAck) {
-        if(ackTimeout.set[type].enable) {
-            if(myCache[type].retries<ackTimeout.set[type].retries) {
+        if(ackData.set[type].enable) {
+            if(myCache[type].retries< ackData.set[type].retries) {
                 return 0;
             }
         }
@@ -171,26 +171,32 @@ static U8 ack_timeout(U8 type)
 
 int pkt_ack_timeout_check(U8 type)
 {
+    int r = 0;
+    U8 sendflag = 0;
     cache_t *c=&myCache[type];
     
     if(c->askAck) {
-        if(ackTimeout.set[type].enable) {
-            if(ackTimeout.set[type].retries>0) {
-                if (c->retries < ackTimeout.set[type].retries) {
-                    send_pkt(type, 1, &c->data, c->dataLen);
+        if(ackData.set[type].enable) {
+            if(ackData.set[type].retries>0) {
+                if (c->retries < ackData.set[type].retries) {
+                    sendflag = 1;
                     c->retries++;
                 }
                 else {
-                    return 1;
+                    r = 1;
                 }
             }
         }
         else {
-            return 1;
+            sendflag = 1;
+        }
+
+        if (sendflag) {
+            send_pkt(type, 1, &c->data, c->dataLen);
         }
     }
 
-    return 0;
+    return r;
 }
 
 
@@ -198,7 +204,7 @@ int pkt_send(U8 type, U8 nAck, void* data, U16 len)
 {
     int r=0;
     
-    if(ack_timeout(type)) {
+    if(ack_is_timeout(type)) {
         r = send_pkt(type, nAck, data, len);
         if(r==0) {
             cache_fill();

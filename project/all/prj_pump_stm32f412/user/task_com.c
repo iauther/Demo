@@ -4,9 +4,12 @@
 #include "rbuf.h"
 #include "pkt.h"
 #include "error.h"
-#include "upgrade.h" 
+#include "upgrade.h"
+#include "evt.h"
+#ifndef _WIN32
 #include "drv/uart.h" 
-#include "drv/jump.h" 
+#include "drv/jump.h"
+#endif
 #include "cfg.h"
 
 #define TIMER_MS            100

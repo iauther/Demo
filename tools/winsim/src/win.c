@@ -253,6 +253,7 @@ static int para_grp_init(uiWindow* win, para_grp_t* para)
 	return 0;
 }
 
+extern node_t upg_node;
 static void on_upg_open_btn_fn(uiButton* b, void* data)
 {
 	char* filename;
@@ -264,6 +265,7 @@ static void on_upg_open_btn_fn(uiButton* b, void* data)
 		return;
 	}
 }
+
 static void on_upg_start_btn_fn(uiButton* b, void* data)
 {
 

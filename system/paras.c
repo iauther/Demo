@@ -1,9 +1,10 @@
 #include "paras.h"
 #include "cfg.h"
 #include "date.h"
-#include "drv/flash.h"
 #include "at24cxx.h"
-
+#ifndef _WIN32
+#include "drv/flash.h"
+#endif
 
 paras_t DEFAULT_PARAS={
     
@@ -48,23 +49,25 @@ paras_t DEFAULT_PARAS={
 };
 
 
-ack_timeout_t ackTimeout={
+ack_data_t ackData={
     {
-        {1, 5},     //TYPE_CMD
-        {1, 5},     //TYPE_STAT
-        {1, 5},     //TYPE_ACK
-        {1, 5},     //TYPE_SETT
-        {1, 5},     //TYPE_PARAS
-        {1, 5},     //TYPE_ERROR
-        {1, 5},     //TYPE_UPGRADE
-        {1, 5},     //TYPE_LEAP
+        {1, 5, 0},    //TYPE_CMD
+        {1, 5, 0},    //TYPE_STAT
+        {1, 5, 0},    //TYPE_ACK
+        {1, 5, 0},    //TYPE_SETT
+        {0, 5, 0},    //TYPE_PARAS
+        {1, 5, 0},    //TYPE_ERROR
+        {1, 5, 0},    //TYPE_UPGRADE
+        {1, 5, 0},    //TYPE_LEAP
     }
 };
 
 
 U8 curState=STAT_AUTO;
 paras_t curParas;
-
+#ifdef _WIN32
+static FILE* paras_fp;
+#endif
 
 ////////////////////////////////////////////////////////
 typedef int (*upg_rw_t)(U8 rw, U32 addr, U8 *data, U32 len);
@@ -87,24 +90,22 @@ static int at24_rw(U8 rw, U32 addr, U8 *data, U32 len)
     }
 }
 
-#ifdef USE_EEPROM
-static upg_rw_t upg_rw=at24_rw;
-#else
-static upg_rw_t upg_rw=flash_rw;
-#endif
-
 ////////////////////////////////////////////////////////////
 int paras_load(void)
 {
     int r;
     date_t date;
-    
-#ifdef USE_EEPROM
-    at24cxx_init();
+
+#ifndef _WIN32
+    #ifdef USE_EEPROM
+        at24cxx_init();
+    #else
+        flash_init();
+    #endif
 #else
-    flash_init();
+    paras_fp = fopen("paras.dat", "wb");
 #endif
-    
+
     r = paras_read(0, (U8*)&curParas, sizeof(curParas));
     if(r==0) {
         if(memcmp(&curParas, &DEFAULT_PARAS, sizeof(curParas))) {
@@ -119,12 +120,18 @@ int paras_load(void)
 int paras_read(U32 addr, void *data, U32 len)
 {
     int r;
-    
-#ifdef USE_EEPROM
-    r = at24cxx_read(addr, (U8*)&curParas, sizeof(curParas));
+
+#ifndef _WIN32
+    #ifdef USE_EEPROM
+        r = at24cxx_read(addr, (U8*)data, len);
+    #else
+        r = flash_read(addr, (U8*)data, len);
+    #endif
 #else
-    r = flash_read(addr, (U8*)&curParas, sizeof(curParas));
+    fseek(paras_fp, addr, SEEK_SET);
+    r = fread(data, 1, len, paras_fp);
 #endif
+
     
     return r;
 }
@@ -132,11 +139,16 @@ int paras_read(U32 addr, void *data, U32 len)
 int paras_write(U32 addr, void *data, U32 len)
 {
     int r;
-    
-#ifdef USE_EEPROM
-    r = at24cxx_write(addr, (U8*)&curParas, sizeof(curParas));
+
+#ifndef _WIN32
+    #ifdef USE_EEPROM
+        r = at24cxx_write(addr, (U8*)&curParas, sizeof(curParas));
+    #else
+        r = flash_write(addr, (U8*)&curParas, sizeof(curParas));
+    #endif
 #else
-    r = flash_write(addr, (U8*)&curParas, sizeof(curParas));
+    fseek(paras_fp, addr, SEEK_SET);
+    r = fwrite(data, 1, len, paras_fp);
 #endif
     
     return r;
@@ -160,11 +172,11 @@ int paras_get_fwmagic(U32 *fwmagic)
 {
     int r=-1;
     U32 addr=offsetof(paras_t,fwInfo)+offsetof(fw_info_t,magic)+UPGRADE_INFO_ADDR;
-
-    if(!upg_rw) {
+    
+    if (!fwmagic) {
         return -1;
     }
-    
+
     r = paras_read(addr, (U8*)fwmagic, sizeof(U32));
     
     return r;
@@ -175,11 +187,11 @@ int paras_set_fwmagic(U32 *fwmagic)
 {
     int r=-1;
     U32 addr=offsetof(paras_t,fwInfo)+offsetof(fw_info_t,magic)+UPGRADE_INFO_ADDR;
-
-    if(!upg_rw) {
+    
+    if (!fwmagic) {
         return -1;
     }
-    
+
     r = paras_write(addr, (U8*)fwmagic, sizeof(U32));
     
     return r;
@@ -191,10 +203,10 @@ int paras_get_fwinfo(fw_info_t *fwinfo)
     int r=-1;
     U32 addr=offsetof(paras_t,fwInfo)+UPGRADE_INFO_ADDR;
     
-    if(!upg_rw) {
+    if (!fwinfo) {
         return -1;
     }
-    
+
     r = paras_read(addr, (U8*)fwinfo, sizeof(fw_info_t));
     
     return r;
@@ -206,10 +218,10 @@ int paras_set_fwinfo(fw_info_t *fwinfo)
     int r=-1;
     U32 addr=offsetof(paras_t,fwInfo)+UPGRADE_INFO_ADDR;
 
-    if(!upg_rw) {
+    if (!fwinfo) {
         return -1;
     }
-    
+
     r = paras_write(addr, (U8*)fwinfo, sizeof(fw_info_t));
     
     return r;

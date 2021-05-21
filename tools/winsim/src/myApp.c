@@ -23,6 +23,12 @@ static void com_init(void)
     pkt_init(&cfg);
 }
 
+node_t upg_node;
+static U8 upgrade_init(void)
+{
+    //
+
+}
 static U8 upgrade_proc(void* data)
 {
     int r = 0;

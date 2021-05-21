@@ -145,12 +145,13 @@ typedef struct {
     struct {
         int         enable;     //timeout enable
         int         retries;
+        U8          acked;
     }set[TYPE_MAX];
-}ack_timeout_t;
+}ack_data_t;
 
 extern U8 curState;
 extern paras_t curParas;
-extern ack_timeout_t ackTimeout;
+extern ack_data_t ackData;
 
 
 
