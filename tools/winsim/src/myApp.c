@@ -52,11 +52,160 @@ static U8 upgrade_proc(void* data)
 
     return r;
 }
+const char* typeString2[TYPE_MAX] = {
+    "TYPE_CMD",
+    "TYPE_STAT",
+    "TYPE_ACK",
+    "TYPE_SETT",
+    "TYPE_PARAS",
+    "TYPE_ERROR",
+    "TYPE_UPGRADE",
+};
+static void err_print(U8 type, U8 err)
+{
+    switch (err) {
+    case ERROR_NONE:
+        LOG("___ pkt is ok\n");
+        break;
+    case ERROR_DEV_PUMP_RW:
+        LOG("___ pump read/write error\n");
+        break;
+    case ERROR_DEV_MS4525_RW:
+        LOG("___ ms4525 read/write error\n");
+        break;
+    case ERROR_DEV_E2PROM_RW:
+        LOG("___ eeprom read/write error\n");
+        break;
+    case ERROR_PKT_TYPE:
+        LOG("___ pkt type is wrong\n");
+        break;
+    case ERROR_PKT_MAGIC:
+        LOG("___ pkt magic is wrong\n");
+        break;
+    case ERROR_PKT_LENGTH:
+        LOG("___ pkt length is wrong\n");
+        break;
+    case ERROR_PKT_CHECKSUM:
+        LOG("___ pkt checksum is wrong\n");
+        break;
+    case ERROR_DAT_TIMESET:
+        LOG("___ para timeset is wrong\n");
+        break;
+    case ERROR_DAT_VACUUM:
+        LOG("___ para vacuum is wrong\n");
+        break;
+    case ERROR_DAT_VOLUME:
+        LOG("___ para volume is wrong\n");
+        break;
+    case ERROR_FW_INFO_VERSION:
+        LOG("___ fw version is wrong\n");
+        break;
+    case ERROR_FW_INFO_BLDTIME:
+        LOG("___ fw buildtime is wrong\n");
+        break;
+    case ERROR_FW_PKT_ID:
+        LOG("___ fw pkt id is wrong\n");
+        break;
+    case ERROR_FW_PKT_LENGTH:
+        LOG("___ fw pkt length is wrong\n");
+        break;
+    case ERROR_ACK_TIMEOUT:
+        LOG("___ %s, ack is timeout\n", typeString2[type]);
+        break;
+    default:
+        break;
+    }
+}
+static void pkt_print(pkt_hdr_t* p, U16 len)
+{
+    LOG("_____ pkt length:   %d\n", len);
+
+    LOG("_____ pkt.magic: 0x%08x\n", p->magic);
+    LOG("_____ pkt.type:  0x%02x\n", p->type);
+    LOG("_____ pkt.flag:  0x%02x\n", p->flag);
+    LOG("_____ pkt.dataLen: %d\n", p->dataLen);
+
+    if (p->dataLen > 0) {
+        switch (p->type) {
+        case TYPE_CMD:
+        {
+            if (p->dataLen == sizeof(cmd_t)) {
+                cmd_t* cmd = (cmd_t*)p->data;
+                LOG("_____ cmd.cmd: 0x%08x, cmd.para: %d\n", cmd->cmd, cmd->para);
+            }
+        }
+        break;
+        case TYPE_ACK:
+        {
+            if (p->dataLen == sizeof(ack_t)) {
+                ack_t* ack = (ack_t*)p->data;
+                LOG("_____ ack.type: %d\n", ack->type);
+            }
+        }
+        break;
+        case TYPE_SETT:
+        {
+            if (p->dataLen == sizeof(setts_t)) {
+                setts_t* setts = (setts_t*)p->data;
+                LOG("_____ setts data\n");
+            }
+            else if (p->dataLen == sizeof(sett_t)) {
+                sett_t* set = (sett_t*)p->data;
+                LOG("_____ sett data\n");
+            }
+            else if (p->dataLen == sizeof(U8)) {
+                U8* mode = (U8*)p->data;
+                LOG("_____ mode: 0x%08x\n", *mode);
+            }
+        }
+        break;
+        case TYPE_PARAS:
+        {
+            if (p->dataLen == sizeof(paras_t)) {
+                paras_t* paras = (paras_t*)p->data;
+                LOG("_____ PARAS DATA\n");
+            }
+        }
+        break;
+        case TYPE_ERROR:
+        {
+            if (p->dataLen == sizeof(error_t)) {
+                error_t* err = (error_t*)p->data;
+                LOG("_____ err.error: %d\n", err->error);
+            }
+        }
+        break;
+        case TYPE_UPGRADE:
+        {
+            if (p->dataLen == sizeof(upgrade_pkt_t)) {
+                upgrade_pkt_t* up = (upgrade_pkt_t*)p->data;
+                LOG("_____ pkt.obj:  %d\n", up->obj);
+                LOG("_____ pkt.pkts: %d\n", up->pkts);
+                LOG("_____ pkt.pid:  %d\n", up->pid);
+                LOG("_____ pkt.dataLen: %d\n", up->dataLen);
+            }
+        }
+        break;
+        case TYPE_LEAP:
+        {
+            if (p->dataLen == 0) {
+                LOG("_____ pkt leap\n");
+            }
+        }
+        break;
+        }
+    }
+}
+
 static U8 com_proc(pkt_hdr_t* p, U16 len)
 {
-    U8 ack = 0, err;
+    U8 err;
 
-    if (p->askAck)  ack = 1;
+    pkt_print(p, len);
+
+    if (p->askAck) {
+        pkt_send_ack(p->type);
+    }
 
     err = pkt_hdr_check(p, len);
     if (err == ERROR_NONE) {
@@ -66,7 +215,7 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
         {
             stat_t* stat = (stat_t*)p->data;
 
-            LOG("_____ stat temp: %d, aPres: %dkpa, dPres: %dkpa\n", stat->temp, stat->aPres, stat->dPres);
+            LOG("_____ stat temp: %f, aPres: %fkpa, dPres: %fkpa\n", stat->temp, stat->aPres, stat->dPres);
             win_stat_update(stat);
         }
         break;
@@ -96,9 +245,6 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
                 }
             }
             else {
-                if (p->askAck) {
-                    pkt_send_ack(p->type, 0); ack = 0;
-                }
                 pkt_send(TYPE_SETT, 0, &curParas.setts, sizeof(curParas.setts));
             }
         }
@@ -118,9 +264,6 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
                 }
             }
             else {
-                if (p->askAck) {
-                    pkt_send_ack(p->type, 0); ack = 0;
-                }
                 pkt_send(TYPE_PARAS, 0, &curParas, sizeof(curParas));
                 paras_rx_flag = 1;
             }
@@ -129,10 +272,13 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
 
         case TYPE_UPGRADE:
         {
-            if (p->askAck) {
-                pkt_send_ack(p->type, 0); ack = 0;
-            }
             //err = upgrade_proc(p->data);
+        }
+        break;
+
+        case TYPE_LEAP:
+        {
+
         }
         break;
 
@@ -144,8 +290,9 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
         }
     }
 
-    if (ack || (err && !ack)) {
-        pkt_send_ack(p->type, err);
+    if (err) {
+        err_print(p->type, err);
+        pkt_send_err(p->type, err);
     }
 
     return err;
@@ -153,6 +300,7 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
 static void timer_proc(void)
 {
     U8 i;
+    int r;
 
     if (!port_is_opened()) {
         return;
@@ -164,7 +312,10 @@ static void timer_proc(void)
     }
 
     for (i = 0; i < TYPE_MAX; i++) {
-        pkt_ack_timeout_check(i);
+        r = pkt_ack_timeout_check(i);
+        if (r) {
+            err_print(i, ERROR_ACK_TIMEOUT);
+        }
     }
 }
 

@@ -45,7 +45,9 @@ enum {
 };
 
 enum {
-    CMD_PUMP_SPEED=0,
+    CMD_PUMP_START=0,
+    CMD_PUMP_STOP,
+    CMD_PUMP_SPEED,
     CMD_VALVE_SET,
     
     CMD_SYS_RESTART,
@@ -90,7 +92,6 @@ typedef struct {
 
 typedef struct {
     U8              type;
-    U8              error;      //refer to error.h
 }ack_t;
 
 typedef struct {
@@ -145,13 +146,12 @@ typedef struct {
     struct {
         int         enable;     //timeout enable
         int         retries;
-        U8          acked;
     }set[TYPE_MAX];
-}ack_data_t;
+}ack_timeout_t;
 
 extern U8 curState;
 extern paras_t curParas;
-extern ack_data_t ackData;
+extern ack_timeout_t ackTimeout;
 
 
 

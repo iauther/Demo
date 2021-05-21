@@ -102,7 +102,7 @@ int get_date_string(char *__date__, void *str)
         return -1;
     }
     
-    sprintf(str, "%d%d%d", get_year(__date__), get_month(__date__), get_day(__date__));
+    sprintf(str, "%d%02d%02d", get_year(__date__), get_month(__date__), get_day(__date__));
     
     return 0;
 }

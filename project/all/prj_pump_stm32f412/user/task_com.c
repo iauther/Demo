@@ -4,12 +4,9 @@
 #include "rbuf.h"
 #include "pkt.h"
 #include "error.h"
-#include "upgrade.h"
-#include "evt.h"
-#ifndef _WIN32
+#include "upgrade.h" 
 #include "drv/uart.h" 
-#include "drv/jump.h"
-#endif
+#include "drv/jump.h" 
 #include "cfg.h"
 
 #define TIMER_MS            100
@@ -52,6 +49,7 @@ static void com_init(void)
     port_init();
     
     cfg.handle  = comHandle;
+    cfg.retries = RETRIES;
     pkt_init(&cfg);
 }
 
@@ -121,90 +119,89 @@ static U8 upgrade_proc(void *data)
 }
 static U8 com_proc(pkt_hdr_t *p, U16 len)
 {
-    U8 ack=0,err;
-    
-    if(p->askAck)  ack = 1;
-    
+    U8 err=0;
+
+    if (p->askAck) {
+        pkt_send_ack(p->type);
+    }
+
     err = pkt_hdr_check(p, len);
-    if(err==ERROR_NONE) {
-        switch(p->type) {
-            case TYPE_CMD:
-            {
-                err = cmd_proc(p);
-            }
-            break;
-            
-            case TYPE_ACK:
-            {
-                ack_t *ack=(ack_t*)p->data;
-                pkt_ack_update(ack->type);
-            }
-            break;
-            
-            case TYPE_SETT:
-            {
-                if(p->dataLen>0) {
-                    if(p->dataLen==sizeof(sett_t)) {
-                        sett_t *sett=(sett_t*)p->data;
-                        curParas.setts.sett[sett->mode] = *sett;
-                    }
-                    else if(p->dataLen==sizeof(curParas.setts.mode)) {
-                        U8 *m=(U8*)p->data;
-                        curParas.setts.mode = *m;
-                    }
-                    else {
-                        memcpy(&curParas.setts.sett, p->data, sizeof(curParas.setts));
-                    }
+    if (err == ERROR_NONE) {
+        switch (p->type) {
+        case TYPE_CMD:
+        {
+            err = cmd_proc(p);
+        }
+        break;
+
+        case TYPE_ACK:
+        {
+            ack_t* ack = (ack_t*)p->data;
+            pkt_ack_update(ack->type);
+        }
+        break;
+
+        case TYPE_SETT:
+        {
+            if (p->dataLen > 0) {
+                if (p->dataLen == sizeof(sett_t)) {
+                    sett_t* sett = (sett_t*)p->data;
+                    curParas.setts.sett[sett->mode] = *sett;
+                }
+                else if (p->dataLen == sizeof(curParas.setts.mode)) {
+                    U8* m = (U8*)p->data;
+                    curParas.setts.mode = *m;
                 }
                 else {
-                    if(p->askAck) {
-                        pkt_send_ack(p->type, 0); ack = 0;
-                    }
-                    pkt_send(TYPE_SETT, 0, &curParas.setts, sizeof(curParas.setts));
+                    memcpy(&curParas.setts.sett, p->data, sizeof(curParas.setts));
                 }
             }
-            break;
-            
-            case TYPE_PARAS:
-            {
-                if(p->dataLen>0) {
-                    if(p->dataLen==sizeof(paras_t)) {
-                        paras_t *paras=(paras_t*)p->data;
-                        curParas = *paras;
-                    }
-                    else {
-                        err = ERROR_PKT_LENGTH;
-                    }
+            else {
+                pkt_send(TYPE_SETT, 0, &curParas.setts, sizeof(curParas.setts));
+            }
+        }
+        break;
+
+        case TYPE_PARAS:
+        {
+            if (p->dataLen > 0) {
+                if (p->dataLen == sizeof(paras_t)) {
+                    paras_t* paras = (paras_t*)p->data;
+                    curParas = *paras;
                 }
                 else {
-                    if(p->askAck) {
-                        pkt_send_ack(p->type, 0); ack = 0;
-                    }
-                    pkt_send(TYPE_PARAS, 0, &curParas, sizeof(curParas));
-                    paras_tx_flag = 1;
+                    err = ERROR_PKT_LENGTH;
                 }
             }
-            break;
-            
-            case TYPE_UPGRADE:
-            {
-                if(p->askAck) {
-                    pkt_send_ack(p->type, 0); ack = 0;
-                }
-                err = upgrade_proc(p->data);
+            else {
+                pkt_send(TYPE_PARAS, 0, &curParas, sizeof(curParas));
+                paras_tx_flag = 1;
             }
-            break;
-            
-            default:
-            {
-                err = ERROR_PKT_TYPE;
-            }
-            break;
+        }
+        break;
+
+        case TYPE_UPGRADE:
+        {
+            err = upgrade_proc(p->data);
+        }
+        break;
+
+        case TYPE_LEAP:
+        {
+
+        }
+        break;
+
+        default:
+        {
+            err = ERROR_PKT_TYPE;
+        }
+        break;
         }
     }
-    
-    if(ack || (err && !ack)) {
-        pkt_send_ack(p->type, err);
+
+    if (err) {
+        pkt_send_err(p->type, err);
     }
     
     return err;

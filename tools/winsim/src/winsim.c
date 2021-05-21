@@ -15,7 +15,10 @@ static void send_evt(void)
     PostThreadMessage(mThreadId, WM_USER, 0, 0);
 }
 
+static void load_paras(void)
+{
 
+}
 
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,

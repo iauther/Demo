@@ -1,4 +1,5 @@
 #include "task.h"
+#include "date.h"
 
 #define TIMER_MS            100
 #define TIMEOUT             500
@@ -16,6 +17,8 @@ static void com_init(void)
     pkt_cfg_t cfg;
 
     curParas = DEFAULT_PARAS;
+    get_date_string(DEFAULT_PARAS.fwInfo.bldtime, curParas.fwInfo.bldtime);
+
     cfg.retries = RETRIES;
     pkt_init(&cfg);
 }
@@ -62,9 +65,9 @@ const char* typeString[TYPE_MAX] = {
     "TYPE_ERROR",
     "TYPE_UPGRADE",
 };
-static void error_print(U8 type, U8 error)
+static void err_print(U8 type, U8 err)
 {
-    switch (error) {
+    switch (err) {
     case ERROR_NONE:
         LOG("___ pkt is ok\n");
         break;
@@ -117,8 +120,10 @@ static void error_print(U8 type, U8 error)
         break;
     }
 }
-static void pkt_print(pkt_hdr_t* p)
+static void pkt_print(pkt_hdr_t* p, U16 len)
 {
+    LOG("_____ pkt length:   %d\n", len);
+
     LOG("_____ pkt.magic: 0x%08x\n", p->magic);
     LOG("_____ pkt.type:  0x%02x\n", p->type);
     LOG("_____ pkt.flag:  0x%02x\n", p->flag);
@@ -138,7 +143,7 @@ static void pkt_print(pkt_hdr_t* p)
         {
             if (p->dataLen == sizeof(ack_t)) {
                 ack_t* ack = (ack_t*)p->data;
-                LOG("_____ ack.type: %d, ack.error: %d\n", ack->type, ack->error);
+                LOG("_____ ack.type: %d\n", ack->type);
             }
         }
         break;
@@ -185,6 +190,13 @@ static void pkt_print(pkt_hdr_t* p)
             }
         }
         break;
+        case TYPE_LEAP:
+        {
+            if (p->dataLen == 0) {
+                LOG("_____ pkt leap\n");
+            }
+        }
+        break;
         }
     }
 }
@@ -192,10 +204,13 @@ static void pkt_print(pkt_hdr_t* p)
 
 static U8 com_proc(pkt_hdr_t* p, U16 len)
 {
-    U8 ack = 0, err;
+    U8 err=0;
 
-    if (p->askAck)  ack = 1;
+    if (p->askAck) {
+        pkt_send_ack(p->type);
+    }
 
+    pkt_print(p, len);
     err = pkt_hdr_check(p, len);
     if (err == ERROR_NONE) {
         switch (p->type) {
@@ -228,9 +243,6 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
                 }
             }
             else {
-                if (p->askAck) {
-                    pkt_send_ack(p->type, 0); ack = 0;
-                }
                 pkt_send(TYPE_SETT, 0, &curParas.setts, sizeof(curParas.setts));
             }
         }
@@ -248,9 +260,6 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
                 }
             }
             else {
-                if (p->askAck) {
-                    pkt_send_ack(p->type, 0); ack = 0;
-                }
                 pkt_send(TYPE_PARAS, 0, &curParas, sizeof(curParas));
                 paras_tx_flag = 1;
             }
@@ -259,10 +268,13 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
 
         case TYPE_UPGRADE:
         {
-            if (p->askAck) {
-                pkt_send_ack(p->type, 0); ack = 0;
-            }
             err = upgrade_proc(p->data);
+        }
+        break;
+
+        case TYPE_LEAP:
+        {
+
         }
         break;
 
@@ -274,23 +286,24 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
         }
     }
 
-    if (ack || (err && !ack)) {
-        error_print(p->type, err);
-        pkt_send_ack(p->type, err);
+    if (err) {
+        err_print(p->type, err);
+        pkt_send_err(p->type, err);
     }
 
     return err;
 }
 
-static int send_stat(void)
+static int send_stat(U8 st)
 {
     stat_t stat;
-                
-    stat.temp = 88.9F;
-    stat.aPres = 88.9F;
-    stat.dPres = 88.9F;
+            
+    stat.stat = st;
+    stat.temp = 22.34F;
+    stat.aPres = 93.6F;
+    stat.dPres = 77.2F;
     stat.pump.speed = 500;
-    stat.pump.current = 650.0F;
+    stat.pump.current = 450.0F;
     stat.pump.temp = 44.9F;
     stat.pump.fault = 0;
     stat.pump.cmdAck = 1;
@@ -309,19 +322,20 @@ static void timer_proc(void)
         return;
     }
 
-    if (!paras_tx_flag) {
+    //if (!paras_tx_flag) {
         pkt_send(TYPE_PARAS, 1, &curParas, sizeof(curParas));
         paras_tx_flag = 1;
-    }
-
+    //}
+#if 0
     for (i = 0; i < TYPE_MAX; i++) {
         r = pkt_ack_timeout_check(i);
         if (r) {
-            error_print(i, ERROR_ACK_TIMEOUT);
+            err_print(i, ERROR_ACK_TIMEOUT);
         }
     }
+#endif
 
-    send_stat();
+    send_stat(STAT_AUTO);
 }
 
 
@@ -390,6 +404,8 @@ static DWORD WINAPI dev_thread(LPVOID lpParam)
 int task_dev_start(void)
 {
     dev_exit_flag = 0;
+
+    com_init();
 
     timerId = SetTimer(NULL, 1, 100, timer_callback);
     devRxThreadHandle = CreateThread(NULL, 0, dev_rx_thread, NULL, 0, NULL);

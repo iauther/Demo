@@ -1,7 +1,6 @@
 #ifndef __ICFG_Hx__
 #define __ICFG_Hx__
 
-#define VERSION			"V1.0.0"
 #define SCR_WIDTH		700
 #define SCR_HEIGHT		800
 

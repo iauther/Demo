@@ -49,16 +49,16 @@ paras_t DEFAULT_PARAS={
 };
 
 
-ack_data_t ackData={
+ack_timeout_t ackTimeout={
     {
-        {1, 5, 0},    //TYPE_CMD
-        {1, 5, 0},    //TYPE_STAT
-        {1, 5, 0},    //TYPE_ACK
-        {1, 5, 0},    //TYPE_SETT
-        {0, 5, 0},    //TYPE_PARAS
-        {1, 5, 0},    //TYPE_ERROR
-        {1, 5, 0},    //TYPE_UPGRADE
-        {1, 5, 0},    //TYPE_LEAP
+        {1, 5},     //TYPE_CMD
+        {1, 5},     //TYPE_STAT
+        {1, 5},     //TYPE_ACK
+        {1, 5},     //TYPE_SETT
+        {0, 5},     //TYPE_PARAS
+        {1, 5},     //TYPE_ERROR
+        {1, 5},     //TYPE_UPGRADE
+        {0, 5},     //TYPE_LEAP
     }
 };
 
@@ -69,32 +69,10 @@ paras_t curParas;
 static FILE* paras_fp;
 #endif
 
-////////////////////////////////////////////////////////
-typedef int (*upg_rw_t)(U8 rw, U32 addr, U8 *data, U32 len);
-static int flash_rw(U8 rw, U32 addr, U8 *data, U32 len)
-{
-    if(rw==0) {
-        return flash_read(addr, data, len);
-    }
-    else {
-        return flash_write(addr, data, len);
-    }
-}
-static int at24_rw(U8 rw, U32 addr, U8 *data, U32 len)
-{
-    if(rw==0) {
-        return at24cxx_read(addr, data, len);
-    }
-    else {
-        return at24cxx_write(addr, data, len);
-    }
-}
-
 ////////////////////////////////////////////////////////////
 int paras_load(void)
 {
     int r;
-    date_t date;
 
 #ifndef _WIN32
     #ifdef USE_EEPROM
@@ -112,6 +90,8 @@ int paras_load(void)
             curParas = DEFAULT_PARAS;
             paras_write(0, &curParas, sizeof(curParas));
         }
+        
+        get_date_string((char*)DEFAULT_PARAS.fwInfo.bldtime, curParas.fwInfo.bldtime);
     }
     
     return r;
