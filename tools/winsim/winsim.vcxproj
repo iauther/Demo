@@ -19,10 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\system\date.h" />
+    <ClInclude Include="..\..\system\pkt.h" />
     <ClInclude Include="inc\framework.h" />
     <ClInclude Include="inc\icfg.h" />
     <ClInclude Include="inc\log.h" />
-    <ClInclude Include="inc\pkt.h" />
     <ClInclude Include="inc\port.h" />
     <ClInclude Include="inc\Resource.h" />
     <ClInclude Include="inc\serial.h" />
@@ -33,6 +34,7 @@
     <ClInclude Include="inc\winsim.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\system\date.c" />
     <ClCompile Include="..\..\system\paras.c" />
     <ClCompile Include="..\..\system\pkt.c" />
     <ClCompile Include="src\log.c" />

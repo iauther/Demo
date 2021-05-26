@@ -24,9 +24,6 @@
     <ClInclude Include="inc\log.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="inc\pkt.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="inc\port.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -49,6 +46,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="inc\winsim.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\system\pkt.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\system\date.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -78,6 +81,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\myDev.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\system\date.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

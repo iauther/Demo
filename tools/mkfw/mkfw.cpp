@@ -1,12 +1,14 @@
 ﻿// mkfw.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
 //
-
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "data.h"
 #include "date.h"
 #include "md5.h"
 #include "cfg.h"
+
 
 typedef struct {
 	U8  *data;
@@ -49,6 +51,35 @@ static int file_read(char* path, data_t* dat)
 	return 0;
 }
 
+static int get_build_date(char *path, char *date)
+{
+	FILETIME IpCreationTime;                 //文件的创建时间
+	FILETIME IpLastAccessTime;               //对文件的最近访问时间
+	FILETIME IpLastWriteTime;                //文件的最近修改时间
+	FILETIME ltime;
+	SYSTEMTIME rtime;
+
+	HANDLE hFile = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (hFile == INVALID_HANDLE_VALUE)
+	{
+		printf("Get the dictionary failed!\n");
+		CloseHandle(hFile);
+		return -1;
+	}
+	if (!GetFileTime(hFile, &IpCreationTime, &IpLastAccessTime, &IpLastWriteTime)) {
+		return -1;
+	}
+	CloseHandle(hFile);
+
+	FileTimeToLocalFileTime(&IpLastWriteTime, &ltime);
+	FileTimeToSystemTime(&ltime, &rtime);        //将文件时间转化为系统时间
+	sprintf(date, "%04u%02u%02u", rtime.wYear, rtime.wMonth, rtime.wDay);
+
+	return 0;
+}
+
+
+
 static fw_info_t fwInfo = {
 	 FW_MAGIC,
 	 VERSION,
@@ -62,13 +93,18 @@ int main(char argc, char *argv[])
 	data_t dat;
 	char md5[40];
 	char newPath[1000];
-	upgrade_file_hdr_t hdr;
+	upgrade_hdr_t hdr;
 	char* path = argv[1];
     
 	if(argc<2) {
 		printf("input the firmware file, please!\n");
 		return -1;
 	}
+
+	get_build_date(path, (char*)fwInfo.bldtime);
+	hdr.fwInfo = fwInfo;
+	hdr.upgCtl.force = 1;
+	hdr.upgCtl.action = 1;
 
 	strcpy(newPath, path);
 	char* dot = strrchr(newPath, '.');
@@ -88,11 +124,8 @@ int main(char argc, char *argv[])
 
 	md5_calc((char*)dat.data, dat.dlen, (char*)hdr.md5);
 
-	hdr.fwInfo = fwInfo;
-	hdr.upgCtl.force = 1;
-	hdr.upgCtl.action = 1;
 	fwrite(&hdr, 1, sizeof(hdr), fp);
-	fwrite(dat.data, dat.dlen, sizeof(hdr), fp);
+	fwrite(dat.data, 1, dat.dlen, fp);
 	free(dat.data);
 	fclose(fp);
 

@@ -1,0 +1,40 @@
+#ifndef __AS62XX_Hx__
+#define __AS62XX_Hx__
+
+#include "types.h"
+
+
+/* AS62XX_ registers */
+#define AS62XX_AS62XX__REG_TVAL		0x00
+#define AS62XX__REG_CONFIG	0x01
+#define AS62XX__REG_TLOW		0x02
+#define AS62XX__REG_THIGH	0x03
+#define AS62XX__MAX_REGISTER	0x03
+
+#define AS62XX__CONFIG_AL_MASK	BIT(5)
+#define AS62XX__CONFIG_AL_SHIFT	5
+#define AS62XX__CONFIG_CR_MASK	GENMASK(7, 6)
+#define AS62XX__CONFIG_CR_SHIFT	6
+#define AS62XX__CONFIG_SM_MASK   BIT(8)
+#define AS62XX__CONFIG_SM_SHIFT  8
+#define AS62XX__CONFIG_IM_MASK	BIT(9)
+#define AS62XX__CONFIG_IM_SHIFT	9
+#define AS62XX__CONFIG_POL_MASK	BIT(10)
+#define AS62XX__CONFIG_POL_SHIFT	10
+#define AS62XX__CONFIG_CF_MASK	GENMASK(12, 11)
+#define AS62XX__CONFIG_CF_SHIFT	11
+
+/* AS62XX_ init configuration values */
+#define AS62XX__CONFIG_INIT_IM		0x0
+#define AS62XX__CONFIG_INIT_POL	0x0
+#define AS62XX__CONFIG_INIT_CF		0x2
+
+#define AS62XX_16BIT_DEFAULT_TLOW	0x2580
+
+
+
+
+
+
+#endif
+

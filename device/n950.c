@@ -1,11 +1,13 @@
 #include "drv/uart.h"
 #include "drv/delay.h"
 #include "drv/pwm.h"
+#include "data.h"
 #include "n950.h"
 #include "log.h"
 #include "msg.h"
 
-//KNF±Ã
+//KNF±Ã  ×î´ó¸ºÑ¹: 2mbar=2*100pa=0.2kpa
+
 
 //#define N950_USE_UART
 #define PWM_FREQ            100
@@ -15,7 +17,7 @@
 handle_t uartHandle=NULL;
 handle_t pwmHandle=NULL;
 static U16 rx_length=0;
-static U16 n950_speed=0;
+static U16 n950_speed=N950_SPEED_MAX;
 char *cmd_str[CMD_MAX] = {
     "dB",
     "dE",
@@ -206,7 +208,15 @@ int n950_deinit(void)
 
 int n950_send_cmd(U8 cmd, U32 speed)
 {
-    return send_cmd(cmd, speed);
+    U8 c=cmd;
+    U32 sp=speed;
+    
+    if(cmd==CMD_PUMP_START || cmd==CMD_PUMP_STOP) {
+        c = CMD_PUMP_SPEED;
+        sp = n950_speed;
+    }
+    
+    return send_cmd(c, sp);
 }
 
 
