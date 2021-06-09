@@ -126,8 +126,9 @@ static U8 get_ack(si2c_handle_t *h)
     
 	set_scl(h, 1);
     while(t++<h->count) {
-        if(r==0) {
-            r = (get_sda(h)==0);
+        if(get_sda(h)==0) {
+            r = 1;
+            break;
         }
 	}
     

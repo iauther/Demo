@@ -58,7 +58,7 @@ void md5_transform(unsigned int state[4], unsigned char block[64]);
 void md5_encode(unsigned char* output, unsigned int* input, unsigned int len);
 void md5_decode(unsigned int* output, unsigned char* input, unsigned int len);
 
-int md5_calc(char* p, int len, char* md5);
+int md5_calc(void* p1, int len1, void* p2, int len2, char* md5);
 
 #ifdef __cplusplus
 }

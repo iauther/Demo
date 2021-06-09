@@ -106,7 +106,7 @@ void EXTI5_IRQHandler(void)
 }
 
 extern void uart_handler(int uart);
-extern void uart_dma_handler(int uart);
+extern void uart_dma_handler(char rxtx, int uart);
 void USART1_IRQHandler(void)
 {
     uart_handler(UART_1);
@@ -122,25 +122,39 @@ void USART3_IRQHandler(void)
 
 void DMA2_Stream2_IRQHandler(void)
 {
-    uart_dma_handler(UART_1);
+    uart_dma_handler(0, UART_1);    //rx
+}
+void DMA2_Stream5_IRQHandler(void)
+{
+    uart_dma_handler(0, UART_1);    //rx
 }
 void DMA2_Stream7_IRQHandler(void)
 {
-    //uart_dma_handler(UART_1);
+    uart_dma_handler(1, UART_1);    //tx
 }
+
 void DMA1_Stream5_IRQHandler(void)
 {
-    uart_dma_handler(UART_2);
+    uart_dma_handler(0, UART_2);    //rx
+}
+void DMA1_Stream7_IRQHandler(void)
+{
+    uart_dma_handler(0, UART_2);    //rx
 }
 void DMA1_Stream6_IRQHandler(void)
 {
-    //uart_dma_handler(UART_2);
+    uart_dma_handler(1, UART_2);    //tx
 }
+
 void DMA1_Stream1_IRQHandler(void)
 {
-    uart_dma_handler(UART_3);
+    uart_dma_handler(0, UART_3);    //rx
 }
 void DMA1_Stream3_IRQHandler(void)
 {
-    //uart_dma_handler(UART_3);
+    uart_dma_handler(1, UART_3);    //tx
+}
+void DMA1_Stream4_IRQHandler(void)
+{
+    uart_dma_handler(1, UART_3);    //tx
 }

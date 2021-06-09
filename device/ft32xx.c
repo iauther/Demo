@@ -12,16 +12,16 @@ static int ft_read(U8 *cmd, U16 cmdlen, U8 *data, U16 len)
 {
     int r;
     
-    r = i2c_write(ftHandle, FT_ADDR, cmd, cmdlen);
+    r = i2c_write(ftHandle, FT_ADDR, cmd, cmdlen, 1);
     if(r==0) {
-        r = i2c_read(ftHandle, FT_ADDR, data, len);
+        r = i2c_read(ftHandle, FT_ADDR, data, len, 1);
     }
     
     return r;
 }
 static int ft_write(U8 *data, U16 len)
 {
-    return i2c_write(ftHandle, FT_ADDR, data, len);
+    return i2c_write(ftHandle, FT_ADDR, data, len, 1);
 }
 static int ft_read_reg(U8 addr, U8 *value)
 {
@@ -119,7 +119,7 @@ int ft32xx_test(void)
     U8 tmp=0x47;
     
     while(1) {
-        i2c_write(ftHandle, FT_ADDR, &tmp, 1);
+        i2c_write(ftHandle, FT_ADDR, &tmp, 1, 1);
         //delay_ms(50);
     }
 }

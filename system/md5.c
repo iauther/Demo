@@ -172,18 +172,19 @@ static void byte2char(char *chr, unsigned char b)
     chr[1] = CHAR(l);
 }
 
-int md5_calc(char *p, int len, char *md5)
+int md5_calc(void *p1, int len1, void *p2, int len2, char *md5)
 {
     int i;
     unsigned char tmp[16];
     md5_ctx_t ctx;
     
     md5_init(&ctx);
-    md5_update(&ctx, (const void *)p, len);
+    md5_update(&ctx, (unsigned char*)p1, len1);
+    md5_update(&ctx, (unsigned char*)p2, len2);
     md5_final(&ctx, tmp);
     
     for (i=0; i<16; i++) {
-        byte2char(md5+i*2, tmp[i]);
+        byte2char(&md5[i*2], tmp[i]);
     }
     
     return 0;

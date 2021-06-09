@@ -8,6 +8,7 @@
 #define AT_CHECK_VALUE	0X52
 
 
+
 #define A0_PIN_BIT 1 /* Address pin bit in device address */
 #define A1_PIN_BIT 2 /* Address pin bit in device address */
 #define A2_PIN_BIT 3 /* Address pin bit in device address */

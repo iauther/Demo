@@ -438,6 +438,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\system\lock.c</FilePath>
             </File>
+            <File>
+              <FileName>date.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\date.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

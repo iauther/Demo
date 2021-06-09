@@ -169,12 +169,19 @@ static void cache_fill(void)
 }
 
 
-void pkt_ack_update(U8 type)
+int pkt_ack_update(U8 type)
 {
-    cache_t *c=&myCache[type];
+    cache_t *c;
     
+    if(type>=TYPE_MAX) {
+        return -1;
+    }
+    
+    c = &myCache[type];
     c->askAck = 0;
     c->retries = 0;
+    
+    return 0;
 }
 
 

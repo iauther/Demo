@@ -11,11 +11,15 @@
  *  @retval 0 -> Success
  *  @retval >0 -> Failure Info
  */
-extern handle_t i2cHandle;
+extern handle_t i2c1Handle;
+static handle_t bmpHandle=NULL;
+
+
+
 static int8_t i2c_reg_read(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t length)
 {
-    i2c_write(i2cHandle, i2c_addr, &reg_addr, 1);
-    return i2c_read(i2cHandle, i2c_addr, reg_data, length);
+    i2c_write(bmpHandle, i2c_addr, &reg_addr, 1, 1);
+    return i2c_read(bmpHandle, i2c_addr, reg_data, length, 1);
 }
 static int8_t i2c_reg_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t length)
 {
@@ -23,13 +27,12 @@ static int8_t i2c_reg_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_dat
     
     tmp[0] = reg_addr;
     memcpy(tmp+1, reg_data, length);
-    return i2c_write(i2cHandle, i2c_addr, tmp, length+1);
+    return i2c_write(bmpHandle, i2c_addr, tmp, length+1, 1);
 }
 
 
 static void print_rslt(int8_t rslt)
 {
-    return;
     if (rslt != BMP280_OK) {
         if (rslt == BMP280_E_NULL_PTR) {
             LOGE("Error [%d] : Null pointer error\r\n", rslt);
@@ -58,6 +61,8 @@ int bmp280_init(void)
     int8_t rslt;
     struct bmp280_config conf;
 
+    bmpHandle = i2c1Handle;
+    
     bmp280.delay_ms = delay_ms;
 
     /* Assign device I2C address based on the status of SDO pin (GND for PRIMARY(0x76) & VDD for SECONDARY(0x77)) */

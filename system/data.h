@@ -6,7 +6,10 @@
 #include "ms4525.h"
 #include "valve.h"
 #include "ft32xx.h"
+#include "nvm.h"
 #include "bmp280/bmp280.h"
+#include "temp/mlx/mlx90632.h"
+#include "temp/ams/as62xx.h"
 
 #define FW_MAGIC            0xFACEBEAD
 #define PKT_MAGIC           0xDEADBEEF
@@ -120,16 +123,21 @@ typedef struct {
 }upgrade_pkt_t;
 
 typedef struct {
-    U8              force;
     U8              erase;          //0: not erase   1: do erase
     U8              action;         //0: do nothing  1: restart   0x3f: run app
 }upgrade_ctl_t;
 
 typedef struct {
-    U8              md5[32];
+    U8              digit[32];
+}md5_t;
+
+typedef struct {
+    struct {
+        fw_info_t   fwInfo;
+        U8          force;
+    }upgInfo;
     upgrade_ctl_t   upgCtl;
-    fw_info_t       fwInfo;
-    U8*             data[];
+    U8*             data[0];
 }upgrade_hdr_t;
 
 typedef struct {

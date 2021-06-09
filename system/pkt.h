@@ -16,7 +16,7 @@ U8 pkt_hdr_check(void *data, U16 len);
 
 void pkt_cache_reset(void);
 
-void pkt_ack_update(U8 type);
+int pkt_ack_update(U8 type);
 
 int pkt_ack_timeout_check(U8 type);
 

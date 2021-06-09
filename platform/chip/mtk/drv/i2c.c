@@ -316,7 +316,7 @@ static hal_i2c_status_t i2c_mcu_write(i2c_handle_t *h, uint8_t addr, const uint8
 typedef hal_i2c_status_t (*i2c_read_ptr)(i2c_handle_t *h, uint8_t slave_address, uint8_t *buffer, uint32_t size);
 typedef hal_i2c_status_t (*i2c_write_ptr)(i2c_handle_t *h, uint8_t slave_address, const uint8_t *buffer, uint32_t size);
 
-int i2c_read(handle_t h, U16 addr, U8 *data, U32 len)
+int i2c_read(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop)
 {
     int r,i,m,n;
     i2c_handle_t *ih=(i2c_handle_t*)h;
@@ -340,7 +340,7 @@ int i2c_read(handle_t h, U16 addr, U8 *data, U32 len)
     return (int)st;//(st==HAL_I2C_STATUS_OK)?0:-1;
 }
 
-int i2c_write(handle_t h, U16 addr, U8 *data, U32 len)
+int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop)
 {
     int r,i,m,n;
     i2c_handle_t *ih=(i2c_handle_t*)h;

@@ -12,6 +12,7 @@
 #define TIMER_MS            50         //ms
 #define STAT_MS             100
 #define STAT_CNT            (STAT_MS/TIMER_MS)
+#define TEMP_CNT            (300/TIMER_MS)
 
 
 enum {
@@ -21,11 +22,18 @@ enum {
 };
 
 
+typedef struct {
+    F32     as;
+    F32     mlx;
+}temp_t;
+
+
 
 static U8 presMode=PRES_RAISE;
 static U8 vacuum_ever_reached=0;
 static stat_t curStat;
 static U16 prevSpeed=0;
+static temp_t gTemp;
 
 
 static void auto_pres(stat_t *st)
@@ -96,6 +104,19 @@ static void auto_pres(stat_t *st)
         
 }
 
+
+static int get_temp(temp_t *temp)
+{
+    int r;
+    
+    r = as62xx_get(&temp->as);
+    if(r==0) {
+        mlx90632_get(&temp->mlx);
+    }
+    
+    return r;
+}
+
 static int get_stat(stat_t *st)
 {
     ms4525_t ms;
@@ -104,16 +125,20 @@ static int get_stat(stat_t *st)
     
     ms4525_get(&ms);
     bmp280_get(&bmp);
-    //n950_get(&st->pump);
+    n950_get(&st->pump);
     
     st->stat = curState;
-    st->dPres = ms.pres;
+    st->dPres = ABS(ms.pres);
     st->aPres = bmp.pres;
     st->temp  = bmp.temp;
     
     cnt++;
     if(cnt%STAT_CNT==0) {
         pkt_send(TYPE_STAT, 0, st, sizeof(stat_t));
+    }
+    
+    if(cnt%TEMP_CNT==0) {
+        get_temp(&gTemp);
     }
     
     return 0;
@@ -136,7 +161,10 @@ static int timer_proc(void)
     int r;
     
     get_stat(&curStat);
-    auto_pres(&curStat);
+    
+    if(curState==STAT_AUTO) {
+        auto_pres(&curStat);
+    }
               
     return r;
 }

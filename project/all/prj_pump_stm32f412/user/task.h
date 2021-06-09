@@ -34,6 +34,9 @@ handle_t task_create(int id, osThreadFunc_t task, U32 stack_size);
 int task_msg_send(int task_id, U8 evt, U8 type, void *data, U16 len);
 int task_msg_post(int task_id, U8 evt, U8 type, void *data, U16 len);
 
+int task_save_paras(node_t *n);
+void task_erase_paras(void);
+
 int task_start(void);
 int task_new(osThreadFunc_t fn, void *arg);
 #endif

@@ -1,7 +1,7 @@
 #include "clk.h"
 #include "platform.h"
 
-
+U32 sys_freq = 0;
 int clk2_init(void)
 {
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -37,6 +37,14 @@ int clk2_init(void)
         return -1;
     }
     
+    sys_freq = HAL_RCC_GetSysClockFreq();
+    //__HAL_RCC_GPIOC_CLK_ENABLE();
+    //__HAL_RCC_GPIOH_CLK_ENABLE();
+    //__HAL_RCC_GPIOA_CLK_ENABLE();
+    
+    
+    //HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+    
     return 0;
 }
 
@@ -45,14 +53,6 @@ U32 clk2_get_freq(void)
 {
     return HAL_RCC_GetSysClockFreq();
 }
-
-
-
-
-
-
-
-
 
 
 

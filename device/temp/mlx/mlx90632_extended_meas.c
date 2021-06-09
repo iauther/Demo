@@ -2,26 +2,27 @@
 #include <math.h>
 #include <errno.h>
 
-#include "mlx90632.h"
-#include "mlx90632_depends.h"
+#include "temp/mlx/mlx90632.h"
 
 #define POW10 10000000000LL
 
-#ifndef VERSION
-#define VERSION "test"
-#endif
+
+extern int32_t mlx_read(int16_t reg, uint16_t *data);
+extern int32_t mlx_write(int16_t reg, uint16_t data);
+
+
 
 static int32_t mlx90632_read_temp_ambient_raw_extended(int16_t *ambient_new_raw, int16_t *ambient_old_raw)
 {
     int32_t ret;
     uint16_t read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_3(17), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_3(17), &read_tmp);
     if (ret < 0)
         return ret;
     *ambient_new_raw = (int16_t)read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_3(18), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_3(18), &read_tmp);
     if (ret < 0)
         return ret;
     *ambient_old_raw = (int16_t)read_tmp;
@@ -35,37 +36,37 @@ static int32_t mlx90632_read_temp_object_raw_extended(int16_t *object_new_raw)
     uint16_t read_tmp;
     int32_t read;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_1(17), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_1(17), &read_tmp);
     if (ret < 0)
         return ret;
 
     read = (int16_t)read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_2(17), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_2(17), &read_tmp);
     if (ret < 0)
         return ret;
 
     read = read - (int16_t)read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_1(18), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_1(18), &read_tmp);
     if (ret < 0)
         return ret;
 
     read = read - (int16_t)read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_2(18), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_2(18), &read_tmp);
     if (ret < 0)
         return ret;
 
     read = (read + (int16_t)read_tmp) / 2;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_1(19), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_1(19), &read_tmp);
     if (ret < 0)
         return ret;
 
     read = read + (int16_t)read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_2(19), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_2(19), &read_tmp);
     if (ret < 0)
         return ret;
 
@@ -232,18 +233,18 @@ int32_t mlx90632_set_meas_type(uint8_t type)
     if (ret < 0)
         return ret;
 
-    ret = mlx90632_i2c_read(MLX90632_REG_CTRL, &reg_ctrl);
+    ret = mlx_read(MLX90632_REG_CTRL, &reg_ctrl);
     if (ret < 0)
         return ret;
 
     reg_ctrl = reg_ctrl & (~MLX90632_CFG_MTYP_MASK & ~MLX90632_CFG_PWR_MASK);
     reg_ctrl |= (MLX90632_MTYP_STATUS(MLX90632_MEASUREMENT_TYPE_STATUS(type)) | MLX90632_PWR_STATUS_HALT);
 
-    ret = mlx90632_i2c_write(MLX90632_REG_CTRL, reg_ctrl);
+    ret = mlx_write(MLX90632_REG_CTRL, reg_ctrl);
     if (ret < 0)
         return ret;
 
-    ret = mlx90632_i2c_read(MLX90632_REG_CTRL, &reg_ctrl);
+    ret = mlx_read(MLX90632_REG_CTRL, &reg_ctrl);
     if (ret < 0)
         return ret;
 
@@ -257,7 +258,7 @@ int32_t mlx90632_set_meas_type(uint8_t type)
         reg_ctrl |= MLX90632_PWR_STATUS_CONTINUOUS;
     }
 
-    ret = mlx90632_i2c_write(MLX90632_REG_CTRL, reg_ctrl);
+    ret = mlx_write(MLX90632_REG_CTRL, reg_ctrl);
 
     return ret;
 }
@@ -268,7 +269,7 @@ int32_t mlx90632_get_meas_type(void)
     uint16_t reg_ctrl;
     uint16_t reg_temp;
 
-    ret = mlx90632_i2c_read(MLX90632_REG_CTRL, &reg_temp);
+    ret = mlx_read(MLX90632_REG_CTRL, &reg_temp);
     if (ret < 0)
         return ret;
 
@@ -287,3 +288,4 @@ int32_t mlx90632_get_meas_type(void)
 
     return reg_ctrl;
 }
+

@@ -11,7 +11,7 @@
 
 #define TIMER_MS            100
 #define TIMEOUT             500
-#define RETRIES             (TIMEOUT/TIMER_MS)
+#define RETRIES             (TIMEOUT/TIMER_MS-1)
 
 handle_t comHandle;
 static U8 paras_tx_flag=0;
@@ -31,7 +31,7 @@ static void port_init(void)
     uart_cfg_t uc;
     
     uc.mode = MODE_DMA;
-    uc.port = UART_2;               //PA2: TX   PA3: RX
+    uc.port = COM_UART_PORT;               //PA2: TX   PA3: RX
     uc.baudrate = COM_BAUDRATE;
     uc.para.rx = com_rx_callback;
     uc.para.buf = com_rx_buf;
@@ -188,7 +188,7 @@ static U8 com_proc(pkt_hdr_t *p, U16 len)
 
         case TYPE_LEAP:
         {
-
+            err=0;
         }
         break;
 

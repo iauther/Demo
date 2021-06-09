@@ -1,8 +1,9 @@
-#include "led.h"
 #include "bio/bio.h"
 #include "drv/gpio.h"
-#include "drv/timer.h"
+#include "drv/htimer.h"
 #include "drv/delay.h"
+#include "led.h"
+#include "cfg.h"
 
 
 typedef struct {
@@ -22,7 +23,7 @@ typedef struct {
 typedef struct {
     int            cnt;
     led_time_t     time;
-    timer_set_t    set;
+    htimer_set_t   set;
     U8             color;
     handle_t       handle;
 }led_info_t;
@@ -45,7 +46,7 @@ static void led_tmr_callback(void *user_data)
     info->cnt++;
     info->time.cur_time += info->set.ms;
     if(info->time.cur_time>=info->time.total_time) {
-        timer_sw_stop(&info->handle);
+        //timer_sw_stop(&info->handle);
         info->cnt = 0;
     }
 }
@@ -87,6 +88,10 @@ void led_set_color(U8 color)
         break;
     }
 #endif
+
+
+
+
 }
 
 
@@ -103,13 +108,13 @@ void led_blink_start(U8 color, U16 gap_time, S32 total_time)
     
     led_info.time.cur_time = 0;
     led_info.time.total_time = total_time;
-    led_info.handle = timer_sw_start(&led_info.set);
+    //led_info.handle = timer_sw_start(&led_info.set);
 }
 
 
 void led_blink_stop(void)
 {
-    timer_sw_stop(&led_info.handle);
+    //timer_sw_stop(&led_info.handle);
 }
 
 
@@ -124,12 +129,12 @@ void led_test(void)
         //delay_ms(1000);
         
         led_set_color(GREEN);
-        printf("___ led on\r\n");
-        delay_s(2);
+        //printf("___ led on\r\n");
+        //delay_ms(2000);
         
         led_set_color(BLANK);
-        printf("___ led off\r\n");
-        delay_s(2);
+        //printf("___ led off\r\n");
+        delay_ms(2000);
     }
 }
 

@@ -9,18 +9,17 @@
 #include "paras.h"
 #include "cfg.h"
 
-U32  sys_freq = 0;
-handle_t i2cHandle;
+handle_t i2c1Handle=NULL;
+handle_t i2c2Handle=NULL;
 
 ////////////////////////////////////////////
 
-static void bus_init(void)
+static int bus_init(void)
 {
     i2c_cfg_t  ic;
     
     ic.pin.scl.grp = GPIOA;
     ic.pin.scl.pin = GPIO_PIN_8;
-    
     ic.pin.sda.grp = GPIOC;
     ic.pin.sda.pin = GPIO_PIN_9;
     
@@ -28,31 +27,53 @@ static void bus_init(void)
     ic.useDMA = 0;;
     ic.callback = NULL;
     ic.finish_flag=0;
-    i2cHandle = i2c_init(&ic);
-}
-
-
-static void dev_init(void)
-{
-    //ft32xx_init();
+    i2c1Handle = i2c_init(&ic);
     
-    paras_load();
+    
+    ic.pin.scl.grp = GPIOF;
+    ic.pin.scl.pin = GPIO_PIN_1;
+    ic.pin.sda.grp = GPIOF;
+    ic.pin.sda.pin = GPIO_PIN_0;
+    
+    ic.freq = 100000;
+    ic.useDMA = 0;;
+    ic.callback = NULL;
+    ic.finish_flag=0;
+    i2c2Handle = i2c_init(&ic);
+    
+    return (i2c2Handle?-1:0);
+}
+
+
+static int dev_init(void)
+{
+    int r=0;
 
 #ifdef OS_KERNEL
-    //n950_init();
-    ms4525_init();
-    bmp280_init();
-    valve_init();
+    r = nvm_init();
+    r = n950_init();
+    r = ms4525_init();
+    r = bmp280_init();
+    r = valve_init();
+    
+    //r = mlx90632_init();
+    //r = as62xx_init();
 #endif
+    
+    return r;
 }
-static void dev_deinit(void)
+static int dev_deinit(void)
 {
+    int r=0;
+    
 #ifdef OS_KERNEL
-    //n950_deinit();
-    ms4525_deinit();
-    bmp280_deinit();
-    valve_deinit();
+    r = n950_deinit();
+    r = ms4525_deinit();
+    r = bmp280_deinit();
+    r = valve_deinit();
 #endif
+    
+    return r;
 }
 
 
@@ -60,35 +81,42 @@ static void dev_deinit(void)
 
 void HAL_MspInit(void)
 {
-  __HAL_RCC_SYSCFG_CLK_ENABLE();
-  __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_RCC_SYSCFG_CLK_ENABLE();
+    __HAL_RCC_PWR_CLK_ENABLE();
 }
 
 int board_init(void)
 {
+    int r;
+    
+#ifdef OS_KERNEL
     SCB->VTOR = FLASH_BASE | APP_OFFSET;
     __enable_irq();
+#endif
     
-    HAL_Init();
-    clk2_init();
-    sys_freq = clk2_get_freq();
+    r = HAL_Init();
+    r = clk2_init();
     
-    bus_init();
-    dev_init();
+    r = bus_init();
+    r = dev_init();
+    r = paras_load();
    
-    return 0;
+    return r;
 }
 
 
 int board_deinit(void)
 {
-    HAL_DeInit();
-    HAL_RCC_DeInit();
-    i2c_deinit(&i2cHandle);
+    int r;
     
-    dev_deinit();
+    r = HAL_DeInit();
+    r = HAL_RCC_DeInit();
+    r = i2c_deinit(&i2c1Handle);
+    r = i2c_deinit(&i2c2Handle);
+    
+    r = dev_deinit();
    
-    return 0;
+    return r;
 }
 
 

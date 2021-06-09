@@ -1,17 +1,116 @@
 #include <stdint.h>
 #include <math.h>
 #include <errno.h>
+#include "drv/delay.h"
+#include "drv/i2c.h"
+#include "drv/gpio.h"
+#include "temp/mlx/mlx90632.h"
+#include "temp/mlx/mlx90632_extended_meas.h"
 
-#include "mlx90632.h"
-#include "mlx90632_depends.h"
 
+#define MLX_ADDR    0x3A
 #define POW10 10000000000LL
 
-#ifndef VERSION
-#define VERSION "test"
+
+extern handle_t i2c2Handle;
+static handle_t mlxHandle=NULL;
+
+#if defined(__CC_ARM)
+#pragma diag_suppress 177
 #endif
 
-static const char mlx90632version[] __attribute__((used)) = { VERSION };
+
+
+int32_t mlx_read(int16_t reg, uint16_t *data)
+{
+    int r;
+    U8 tmp[2];
+    
+    r = i2c_mem_read(mlxHandle, MLX_ADDR, reg, 2, tmp, sizeof(tmp));
+    if(r==0) {
+        *data = tmp[1]|(tmp[0]<<8);
+    }
+    
+    return 0;
+}
+int32_t mlx_write(int16_t reg, uint16_t data)
+{
+    int r;
+    U8 tmp[3];
+    
+    tmp[0] = reg;
+    tmp[1] = data>>8;
+    tmp[2] = data;
+    r = i2c_mem_write(mlxHandle, MLX_ADDR, reg, 2, tmp, sizeof(tmp));
+    
+    return r;
+}
+int mlx_read32(int16_t reg, uint32_t *value)
+{
+    int r;
+	U8  tmp[4];
+    
+	r = i2c_mem_read(mlxHandle, MLX_ADDR, reg, 2, tmp, sizeof(tmp));
+	if(r==0) {
+        *value = tmp[2]<<24|tmp[3]<<16|tmp[0]<<8|tmp[1];
+    }
+	return r;
+}
+static int mlx_e2p_read(int32_t *PR, int32_t *PG, int32_t *PO, int32_t *PT, int32_t *Ea, int32_t *Eb, int32_t *Fa, int32_t *Fb, int32_t *Ga, int16_t *Gb, int16_t *Ha, int16_t *Hb, int16_t *Ka)
+{
+	int ret;
+	ret = mlx_read32(MLX90632_EE_P_R, (uint32_t *) PR);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read32(MLX90632_EE_P_G, (uint32_t *) PG);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read32(MLX90632_EE_P_O, (uint32_t *) PO);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read32(MLX90632_EE_P_T, (uint32_t *) PT);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read32(MLX90632_EE_Ea, (uint32_t *) Ea);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read32(MLX90632_EE_Eb, (uint32_t *) Eb);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read32(MLX90632_EE_Fa, (uint32_t *) Fa);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read32(MLX90632_EE_Fb, (uint32_t *) Fb);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read32(MLX90632_EE_Ga, (uint32_t *) Ga);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read(MLX90632_EE_Gb, (uint16_t *) Gb);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read(MLX90632_EE_Ha, (uint16_t *) Ha);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read(MLX90632_EE_Hb, (uint16_t *) Hb);
+	if(ret < 0)
+		return ret;
+	ret = mlx_read(MLX90632_EE_Ka, (uint16_t *) Ka);
+	if(ret < 0)
+		return ret;
+	return 0;
+}
+
+static void usleep(int min_range, int max_range)
+{
+    delay_us(max_range);
+}
+static void msleep(int msecs)
+{
+    delay_ms(msecs);
+}
+/////////////////////////////////////////////////////////////////////
+
 
 
 int mlx90632_start_measurement(void)
@@ -19,17 +118,17 @@ int mlx90632_start_measurement(void)
    int ret, tries = MLX90632_MAX_NUMBER_MESUREMENT_READ_TRIES;
    uint16_t reg_status;
  
-   ret = mlx90632_i2c_read(MLX90632_REG_STATUS, &reg_status);
+   ret = mlx_read(MLX90632_REG_STATUS, &reg_status);
    if (ret < 0)
        return ret;
  
-   ret = mlx90632_i2c_write(MLX90632_REG_STATUS, reg_status & (~MLX90632_STAT_DATA_RDY));
+   ret = mlx_write(MLX90632_REG_STATUS, reg_status & (~MLX90632_STAT_DATA_RDY));
    if (ret < 0)
        return ret;
    
    while (tries-- > 0)
    {
-       ret = mlx90632_i2c_read(MLX90632_REG_STATUS, &reg_status);
+       ret = mlx_read(MLX90632_REG_STATUS, &reg_status);
        if (ret < 0)
            return ret;
        if (reg_status & MLX90632_STAT_DATA_RDY)
@@ -75,12 +174,12 @@ static int32_t mlx90632_read_temp_ambient_raw(int16_t *ambient_new_raw, int16_t 
     int32_t ret;
     uint16_t read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_3(1), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_3(1), &read_tmp);
     if (ret < 0)
         return ret;
     *ambient_new_raw = (int16_t)read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_3(2), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_3(2), &read_tmp);
     if (ret < 0)
         return ret;
     *ambient_old_raw = (int16_t)read_tmp;
@@ -100,23 +199,23 @@ static int32_t mlx90632_read_temp_object_raw(int32_t start_measurement_ret,
     if (ret != 0)
         return -EINVAL;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_2(channel), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_2(channel), &read_tmp);
     if (ret < 0)
         return ret;
 
     read = (int16_t)read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_1(channel), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_1(channel), &read_tmp);
     if (ret < 0)
         return ret;
     *object_new_raw = (read + (int16_t)read_tmp) / 2;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_2(channel_old), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_2(channel_old), &read_tmp);
     if (ret < 0)
         return ret;
     read = (int16_t)read_tmp;
 
-    ret = mlx90632_i2c_read(MLX90632_RAM_1(channel_old), &read_tmp);
+    ret = mlx_read(MLX90632_RAM_1(channel_old), &read_tmp);
     if (ret < 0)
         return ret;
     *object_old_raw = (read + (int16_t)read_tmp) / 2;
@@ -124,7 +223,7 @@ static int32_t mlx90632_read_temp_object_raw(int32_t start_measurement_ret,
     return ret;
 }
 
-int32_t mlx90632_read_temp_raw(int16_t *ambient_new_raw, int16_t *ambient_old_raw,
+static int32_t mlx90632_read_temp_raw(int16_t *ambient_new_raw, int16_t *ambient_old_raw,
                                int16_t *object_new_raw, int16_t *object_old_raw)
 {
     int32_t ret, start_measurement_ret;
@@ -143,7 +242,7 @@ int32_t mlx90632_read_temp_raw(int16_t *ambient_new_raw, int16_t *ambient_old_ra
     return ret;
 }
 
-int32_t mlx90632_read_temp_raw_burst(int16_t *ambient_new_raw, int16_t *ambient_old_raw,
+static int32_t mlx90632_read_temp_raw_burst(int16_t *ambient_new_raw, int16_t *ambient_old_raw,
                                      int16_t *object_new_raw, int16_t *object_old_raw)
 {
     int32_t ret, start_measurement_ret;
@@ -164,7 +263,7 @@ int32_t mlx90632_read_temp_raw_burst(int16_t *ambient_new_raw, int16_t *ambient_
 
 
 /* DSPv5 */
-double mlx90632_preprocess_temp_ambient(int16_t ambient_new_raw, int16_t ambient_old_raw, int16_t Gb)
+static double mlx90632_preprocess_temp_ambient(int16_t ambient_new_raw, int16_t ambient_old_raw, int16_t Gb)
 {
     double VR_Ta, kGb;
 
@@ -174,7 +273,7 @@ double mlx90632_preprocess_temp_ambient(int16_t ambient_new_raw, int16_t ambient
     return ((ambient_new_raw / (MLX90632_REF_3)) / VR_Ta) * 524288.0;
 }
 
-double mlx90632_preprocess_temp_object(int16_t object_new_raw, int16_t object_old_raw,
+static double mlx90632_preprocess_temp_object(int16_t object_new_raw, int16_t object_old_raw,
                                        int16_t ambient_new_raw, int16_t ambient_old_raw,
                                        int16_t Ka)
 {
@@ -186,7 +285,7 @@ double mlx90632_preprocess_temp_object(int16_t object_new_raw, int16_t object_ol
     return ((((object_new_raw + object_old_raw) / 2) / (MLX90632_REF_12)) / VR_IR) * 524288.0;
 }
 
-double mlx90632_calc_temp_ambient(int16_t ambient_new_raw, int16_t ambient_old_raw, int32_t P_T,
+static double mlx90632_calc_temp_ambient(int16_t ambient_new_raw, int16_t ambient_old_raw, int32_t P_T,
                                   int32_t P_R, int32_t P_G, int32_t P_O, int16_t Gb)
 {
     double Asub, Bsub, Ablock, Bblock, Cblock, AMB;
@@ -251,7 +350,7 @@ static double mlx90632_calc_temp_object_iteration_reflected(double prev_object_t
 }
 
 static double emissivity = 0.0;
-void mlx90632_set_emissivity(double value)
+static void mlx90632_set_emissivity(double value)
 {
     emissivity = value;
 }
@@ -268,7 +367,7 @@ double mlx90632_get_emissivity(void)
     }
 }
 
-double mlx90632_calc_temp_object(int32_t object, int32_t ambient,
+static double mlx90632_calc_temp_object(int32_t object, int32_t ambient,
                                  int32_t Ea, int32_t Eb, int32_t Ga, int32_t Fa, int32_t Fb,
                                  int16_t Ha, int16_t Hb)
 {
@@ -289,7 +388,7 @@ double mlx90632_calc_temp_object(int32_t object, int32_t ambient,
     return temp;
 }
 
-double mlx90632_calc_temp_object_reflected(int32_t object, int32_t ambient, double reflected,
+static double mlx90632_calc_temp_object_reflected(int32_t object, int32_t ambient, double reflected,
                                            int32_t Ea, int32_t Eb, int32_t Ga, int32_t Fa, int32_t Fb,
                                            int16_t Ha, int16_t Hb)
 {
@@ -320,45 +419,16 @@ double mlx90632_calc_temp_object_reflected(int32_t object, int32_t ambient, doub
     return temp;
 }
 
-int32_t mlx90632_init(void)
-{
-    int32_t ret;
-    uint16_t eeprom_version, reg_status;
 
-    ret = mlx90632_i2c_read(MLX90632_EE_VERSION, &eeprom_version);
-    if (ret < 0)
-    {
-        return ret;
-    }
 
-    if ((eeprom_version & 0x00FF) != MLX90632_DSPv5)
-    {
-        // this here can fail because of big/little endian of cpu/i2c
-        return -EPROTONOSUPPORT;
-    }
 
-    ret = mlx90632_i2c_read(MLX90632_REG_STATUS, &reg_status);
-    if (ret < 0)
-        return ret;
 
-    // Prepare a clean start with setting NEW_DATA to 0
-    ret = mlx90632_i2c_write(MLX90632_REG_STATUS, reg_status & ~(MLX90632_STAT_DATA_RDY));
-    if (ret < 0)
-        return ret;
-
-    if ((eeprom_version & 0x7F00) == MLX90632_XTD_RNG_KEY)
-    {
-        return ERANGE;
-    }
-
-    return 0;
-}
 
 int32_t mlx90632_addressed_reset(void)
 {
     int32_t ret;
 
-    ret = mlx90632_i2c_write(0x3005, MLX90632_RESET_CMD);
+    ret = mlx_write(0x3005, MLX90632_RESET_CMD);
     if (ret < 0)
         return ret;
 
@@ -367,12 +437,12 @@ int32_t mlx90632_addressed_reset(void)
     return 0;
 }
 
-int32_t mlx90632_get_measurement_time(uint16_t meas)
+static int32_t mlx90632_get_measurement_time(uint16_t meas)
 {
     int32_t ret;
     uint16_t reg;
 
-    ret = mlx90632_i2c_read(meas, &reg);
+    ret = mlx_read(meas, &reg);
     if (ret < 0)
         return ret;
 
@@ -382,7 +452,7 @@ int32_t mlx90632_get_measurement_time(uint16_t meas)
     return MLX90632_MEAS_MAX_TIME >> reg;
 }
 
-int32_t mlx90632_calculate_dataset_ready_time(void)
+static int32_t mlx90632_calculate_dataset_ready_time(void)
 {
     int32_t ret;
     int32_t refresh_time;
@@ -438,13 +508,13 @@ int32_t mlx90632_start_measurement_burst(void)
     int tries = MLX90632_MAX_NUMBER_MESUREMENT_READ_TRIES;
     uint16_t reg;
 
-    ret = mlx90632_i2c_read(MLX90632_REG_CTRL, &reg);
+    ret = mlx_read(MLX90632_REG_CTRL, &reg);
     if (ret < 0)
         return ret;
 
     reg |= MLX90632_START_BURST_MEAS;
 
-    ret = mlx90632_i2c_write(MLX90632_REG_CTRL, reg);
+    ret = mlx_write(MLX90632_REG_CTRL, reg);
     if (ret < 0)
         return ret;
 
@@ -455,7 +525,7 @@ int32_t mlx90632_start_measurement_burst(void)
 
     while (tries-- > 0)
     {
-        ret = mlx90632_i2c_read(MLX90632_REG_STATUS, &reg);
+        ret = mlx_read(MLX90632_REG_STATUS, &reg);
         if (ret < 0)
             return ret;
         if ((reg & MLX90632_STAT_BUSY) == 0)
@@ -479,17 +549,17 @@ int32_t mlx90632_start_measurement_burst(void)
 
 static int32_t mlx90632_unlock_eeporm()
 {
-    return mlx90632_i2c_write(0x3005, MLX90632_EEPROM_WRITE_KEY);
+    return mlx_write(0x3005, MLX90632_EEPROM_WRITE_KEY);
 }
 
 static int32_t mlx90632_wait_for_eeprom_not_busy()
 {
     uint16_t reg_status;
-    int32_t ret = mlx90632_i2c_read(MLX90632_REG_STATUS, &reg_status);
+    int32_t ret = mlx_read(MLX90632_REG_STATUS, &reg_status);
 
  while (ret >= 0 && reg_status & MLX90632_STAT_EE_BUSY)
  {
-     ret = mlx90632_i2c_read(MLX90632_REG_STATUS, &reg_status);
+     ret = mlx_read(MLX90632_REG_STATUS, &reg_status);
  }
 
  return ret;
@@ -502,7 +572,7 @@ static int32_t mlx90632_erase_eeprom(uint16_t address)
     if (ret < 0)
         return ret;
 
-    ret = mlx90632_i2c_write(address, 0x00);
+    ret = mlx_write(address, 0x00);
     if (ret < 0)
         return ret;
 
@@ -521,7 +591,7 @@ static int32_t mlx90632_write_eeprom(uint16_t address, uint16_t data)
     if (ret < 0)
         return ret;
 
-    ret = mlx90632_i2c_write(address, data);
+    ret = mlx_write(address, data);
     if (ret < 0)
         return ret;
 
@@ -529,11 +599,11 @@ static int32_t mlx90632_write_eeprom(uint16_t address, uint16_t data)
     return ret;
 }
 
-int32_t mlx90632_set_refresh_rate(mlx90632_meas_t measRate)
+static int32_t mlx90632_set_refresh_rate(mlx90632_meas_t measRate)
 {
     uint16_t meas1, meas2;
 
-    int32_t ret = mlx90632_i2c_read(MLX90632_EE_MEDICAL_MEAS1, &meas1);
+    int32_t ret = mlx_read(MLX90632_EE_MEDICAL_MEAS1, &meas1);
 
     if (ret < 0)
         return ret;
@@ -547,7 +617,7 @@ int32_t mlx90632_set_refresh_rate(mlx90632_meas_t measRate)
             return ret;
     }
 
-    ret = mlx90632_i2c_read(MLX90632_EE_MEDICAL_MEAS2, &meas2);
+    ret = mlx_read(MLX90632_EE_MEDICAL_MEAS2, &meas2);
     if (ret < 0)
         return ret;
 
@@ -560,14 +630,103 @@ int32_t mlx90632_set_refresh_rate(mlx90632_meas_t measRate)
     return ret;
 }
 
-mlx90632_meas_t mlx90632_get_refresh_rate(void)
+static mlx90632_meas_t mlx90632_get_refresh_rate(void)
 {
     int32_t ret;
     uint16_t meas1;
 
-    ret = mlx90632_i2c_read(MLX90632_EE_MEDICAL_MEAS1, &meas1);
+    ret = mlx_read(MLX90632_EE_MEDICAL_MEAS1, &meas1);
     if (ret < 0)
         return MLX90632_MEAS_HZ_ERROR;
 
-    return MLX90632_REFRESH_RATE(meas1);
+    return (mlx90632_meas_t)log2(MLX90632_REFRESH_RATE(meas1));
 }
+
+/////////////////////////////////////////////////////////////////////////
+
+int mlx90632_init(void)
+{
+    int r;
+    uint16_t eeprom_version=0, reg_status=0;
+
+    mlxHandle = i2c2Handle;
+    
+    r = mlx_read(MLX90632_EE_VERSION, &eeprom_version);
+    if (r < 0) {
+        return r;
+    }
+
+    if ((eeprom_version & 0x00FF) != MLX90632_DSPv5)
+    {
+        // this here can fail because of big/little endian of cpu/i2c
+        return -EPROTONOSUPPORT;
+    }
+
+    r = mlx_read(MLX90632_REG_STATUS, &reg_status);
+    if (r < 0)
+        return r;
+
+    // Prepare a clean start with setting NEW_DATA to 0
+    r = mlx_write(MLX90632_REG_STATUS, reg_status & ~(MLX90632_STAT_DATA_RDY));
+    if (r < 0)
+        return r;
+
+    if ((eeprom_version & 0x7F00) == MLX90632_XTD_RNG_KEY)
+    {
+        return ERANGE;
+    }
+
+    //mlx90632_test();
+    
+    return 0;
+}
+
+
+
+void mlx90632_test(void)
+{
+    static U16 reg=0x2405, tmp=0x38;
+    static F32 temp;
+    
+    while(1) {
+        //mlx_read(reg, &tmp);
+        mlx90632_get(&temp);
+        delay_ms(50);
+    }
+    
+}
+
+
+int mlx90632_get(F32 *temp)
+{
+    int32_t ret = 0; 
+    double pre_ambient,pre_object,ambient,object; 
+    int16_t Ha,Hb,Gb,Ka;
+    int32_t PR,PG,PT,PO,Ea,Eb,Fa,Fb,Ga;
+    int16_t ambient_new_raw,ambient_old_raw,object_new_raw,object_old_raw;
+    
+    /* Read sensor EEPROM registers needed for calcualtions */
+    mlx_e2p_read(&PR, &PG, &PO, &PT, &Ea, &Eb, &Fa, &Fb, &Ga, &Gb, &Ha, &Hb, &Ka);
+    
+    /* Now we read current ambient and object temperature */
+    ret = mlx90632_read_temp_raw(&ambient_new_raw, &ambient_old_raw,
+                                 &object_new_raw, &object_old_raw);
+    if(ret < 0)
+        return ret;
+    
+    /* Get preprocessed temperatures needed for object temperature calculation */
+    pre_ambient = mlx90632_preprocess_temp_ambient(ambient_new_raw, ambient_old_raw, Gb);
+    pre_object = mlx90632_preprocess_temp_object(object_new_raw, object_old_raw,
+                                                 ambient_new_raw, ambient_old_raw, Ka);
+    
+    mlx90632_set_emissivity(1.0);
+    ambient = mlx90632_calc_temp_ambient(ambient_new_raw, ambient_old_raw, PT, PR, PG, PO, Gb);
+    object  = mlx90632_calc_temp_object(pre_object, pre_ambient, Ea, Eb, Ga, Fa, Fb, Ha, Hb);
+    if(temp) *temp = object;
+    
+    return 0;
+}
+
+
+
+

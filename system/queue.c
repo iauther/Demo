@@ -85,6 +85,19 @@ int queue_free(handle_t *h)
 }
 
 
+int queue_iterate_quit(handle_t h)
+{
+    queue_handle_t *q=(queue_handle_t*)h;
+    
+    if(!q) {
+        return -1;
+    }
+    q->quit = 1;
+    
+    return 0;
+}
+
+
 int queue_size(handle_t h)
 {
     queue_handle_t *q=(queue_handle_t*)h;

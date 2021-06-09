@@ -14,7 +14,7 @@ typedef struct {
     void                *user_data;
 }htimer_set_t;
 
-int htimer_init(hal_gpt_port_t port);
+int htimer_init(U8 port);
 
 handle_t htimer_new(void);
 

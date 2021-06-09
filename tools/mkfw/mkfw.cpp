@@ -91,7 +91,7 @@ int main(char argc, char *argv[])
 	int r;
 	FILE* fp;
 	data_t dat;
-	char md5[40];
+	md5_t md5;
 	char newPath[1000];
 	upgrade_hdr_t hdr;
 	char* path = argv[1];
@@ -102,8 +102,9 @@ int main(char argc, char *argv[])
 	}
 
 	get_build_date(path, (char*)fwInfo.bldtime);
-	hdr.fwInfo = fwInfo;
-	hdr.upgCtl.force = 1;
+	hdr.upgInfo.fwInfo = fwInfo;
+	hdr.upgInfo.force = 0;
+	hdr.upgCtl.erase  = 0;
 	hdr.upgCtl.action = 1;
 
 	strcpy(newPath, path);
@@ -122,8 +123,9 @@ int main(char argc, char *argv[])
 		return -1;
 	}
 
-	md5_calc((char*)dat.data, dat.dlen, (char*)hdr.md5);
+	md5_calc(&hdr.upgCtl, sizeof(hdr)-sizeof(hdr.upgInfo), dat.data, dat.dlen, (char*)md5.digit);
 
+	fwrite(&md5, 1, sizeof(md5), fp);
 	fwrite(&hdr, 1, sizeof(hdr), fp);
 	fwrite(dat.data, 1, dat.dlen, fp);
 	free(dat.data);

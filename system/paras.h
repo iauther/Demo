@@ -5,6 +5,7 @@
 
 
 int paras_load(void);
+int paras_erase(void);
 int paras_read(U32 addr, void *data, U32 len);
 int paras_write(U32 addr, void *data, U32 len);
 int paras_write_node(node_t *n);

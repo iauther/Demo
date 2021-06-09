@@ -45,7 +45,7 @@
 //   <i> Defines the combined global dynamic memory size.
 //   <i> Default: 32768
 #ifndef OS_DYNAMIC_MEM_SIZE
-#define OS_DYNAMIC_MEM_SIZE         32768
+#define OS_DYNAMIC_MEM_SIZE         65536
 #endif
  
 //   <o>Kernel Tick Frequency [Hz] <1-1000000>
@@ -248,14 +248,14 @@
 //   <e>Object specific Memory allocation
 //   <i> Enables object specific memory allocation.
 #ifndef OS_MUTEX_OBJ_MEM
-#define OS_MUTEX_OBJ_MEM            0
+#define OS_MUTEX_OBJ_MEM            1
 #endif
  
 //     <o>Number of Mutex objects <1-1000>
 //     <i> Defines maximum number of objects that can be active at the same time.
 //     <i> Applies to objects with system provided memory for control blocks.
 #ifndef OS_MUTEX_NUM
-#define OS_MUTEX_NUM                1
+#define OS_MUTEX_NUM                10
 #endif
  
 //   </e>

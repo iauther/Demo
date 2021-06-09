@@ -77,8 +77,8 @@ int task_msg_post(int task_id, U8 evt, U8 type, void *data, U16 len)
 
 static void task_main(void *arg)
 {
-    task_create(TASK_COM,  task_com_fn,  1024);
-    task_create(TASK_DEV,  task_dev_fn,  1024);
+    task_create(TASK_COM,  task_com_fn,  2048);
+    task_create(TASK_DEV,  task_dev_fn,  2048);
     task_create(TASK_MISC, task_misc_fn, 1024);
     
     while(1){

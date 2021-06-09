@@ -1,7 +1,9 @@
 #include "drv/jump.h"
-#include "board.h"
-#include "upgrade.h"
 #include "drv/uart.h"
+#include "drv/delay.h"
+#include "board.h"
+#include "paras.h"
+#include "upgrade.h"
 #include "data.h"
 #include "cfg.h"
 #include "pkt.h"
@@ -17,6 +19,15 @@ static void rx_callback(U8 *data, U16 len);
 static void rx_callback(U8 *data, U16 len)
 {
     data_recved_len = len;
+}
+
+static void com_test(void)
+{
+    U8 tmp[5]={0x11,0x22,0x33,0x44,0x55};
+    while(1) {
+        uart_write(comHandle, tmp, sizeof(tmp));
+        delay_ms(50);
+    }
 }
 
 static void com_init(void)
@@ -45,7 +56,7 @@ static int need_upgrade(void)
     int r=0;
     U32 fwMagic;
     
-    upgrade_get_fwmagic(&fwMagic);
+    paras_get_fwmagic(&fwMagic);
     if(fwMagic!=FW_MAGIC) {
         r = 1;
     }
@@ -80,9 +91,11 @@ static U8 upgrade_proc(void *data)
 }
 static U8 com_proc(pkt_hdr_t *p, U16 len)
 {
-    U8 ack=0,err;
+    U8 err;
     
-    if(p->askAck)  ack = 1;
+    if(p->askAck) {
+        pkt_send_ack(p->type);
+    }
     
     err = pkt_hdr_check(p, len);
     if(err==ERROR_NONE) {
@@ -97,9 +110,6 @@ static U8 com_proc(pkt_hdr_t *p, U16 len)
             
             case TYPE_UPGRADE:
             {
-                if(p->askAck) {
-                    pkt_send_ack(p->type, 0); ack = 0;
-                }
                 err = upgrade_proc(p->data);
             }
             break;
@@ -112,8 +122,8 @@ static U8 com_proc(pkt_hdr_t *p, U16 len)
         }
     }
     
-    if(ack || (err && !ack)) {
-        pkt_send_ack(p->type, err);
+    if(err) {
+        pkt_send_err(p->type, err);
     }
     
     return err;
@@ -137,6 +147,7 @@ int main(void)
     
     board_init();
     com_init();
+    //com_test();
     
     //if(!need_upgrade()) {
     if(1) {

@@ -2,8 +2,7 @@
 #define _MLX90632_LIB_
 
 /* Including CRC calculation functions */
-#include <errno.h>
-#include "mlx90632_extended_meas.h"
+#include "types.h"
 
 /* Solve errno not defined values */
 #ifndef ETIMEDOUT
@@ -29,8 +28,8 @@
 #endif
 #ifndef GENMASK
 #ifndef BITS_PER_LONG
-#warning "Using default BITS_PER_LONG value"
-#define BITS_PER_LONG 64 
+//#warning "Using default BITS_PER_LONG value"
+#define BITS_PER_LONG 32 
 #endif
 #define GENMASK(h, l) \
     (((~0UL) << (l)) & (~0UL >> (BITS_PER_LONG - 1 - (h))))
@@ -95,16 +94,16 @@ typedef enum mlx90632_meas_e {
 #define MLX90632_REG_I2C_ADDR   0x3000 
 /* Control register address - volatile */
 #define MLX90632_REG_CTRL   0x3001 
-#define   MLX90632_CFG_SOC_SHIFT 3 
-#define   MLX90632_CFG_SOC_MASK BIT(MLX90632_CFG_SOC_SHIFT)
-#define   MLX90632_CFG_PWR_MASK GENMASK(2, 1) 
-#define   MLX90632_CFG_PWR(ctrl_val) (ctrl_val & MLX90632_CFG_PWR_MASK) 
-#define   MLX90632_CFG_MTYP_SHIFT 4 
-#define   MLX90632_CFG_MTYP_MASK GENMASK(8, MLX90632_CFG_MTYP_SHIFT) 
-#define   MLX90632_CFG_MTYP(ctrl_val) (ctrl_val & MLX90632_CFG_MTYP_MASK) 
-#define   MLX90632_CFG_SOB_SHIFT 11 
-#define   MLX90632_CFG_SOB_MASK BIT(MLX90632_CFG_SOB_SHIFT)
-#define   MLX90632_CFG_SOB(ctrl_val) (ctrl_val << MLX90632_CFG_SOB_SHIFT)
+#define MLX90632_CFG_SOC_SHIFT 3 
+#define MLX90632_CFG_SOC_MASK BIT(MLX90632_CFG_SOC_SHIFT)
+#define MLX90632_CFG_PWR_MASK GENMASK(2, 1) 
+#define MLX90632_CFG_PWR(ctrl_val) (ctrl_val & MLX90632_CFG_PWR_MASK) 
+#define MLX90632_CFG_MTYP_SHIFT 4 
+#define MLX90632_CFG_MTYP_MASK GENMASK(8, MLX90632_CFG_MTYP_SHIFT) 
+#define MLX90632_CFG_MTYP(ctrl_val) (ctrl_val & MLX90632_CFG_MTYP_MASK) 
+#define MLX90632_CFG_SOB_SHIFT 11 
+#define MLX90632_CFG_SOB_MASK BIT(MLX90632_CFG_SOB_SHIFT)
+#define MLX90632_CFG_SOB(ctrl_val) (ctrl_val << MLX90632_CFG_SOB_SHIFT)
 
 /* PowerModes statuses */
 #define MLX90632_PWR_STATUS(ctrl_val) (ctrl_val << 1)
@@ -123,11 +122,11 @@ typedef enum mlx90632_meas_e {
 
 /* Device status register - volatile */
 #define MLX90632_REG_STATUS 0x3fff 
-#define   MLX90632_STAT_BUSY    BIT(10) 
-#define   MLX90632_STAT_EE_BUSY BIT(9) 
-#define   MLX90632_STAT_BRST    BIT(8) 
-#define   MLX90632_STAT_CYCLE_POS GENMASK(6, 2) 
-#define   MLX90632_STAT_DATA_RDY    BIT(0) 
+#define MLX90632_STAT_BUSY    BIT(10) 
+#define MLX90632_STAT_EE_BUSY BIT(9) 
+#define MLX90632_STAT_BRST    BIT(8) 
+#define MLX90632_STAT_CYCLE_POS GENMASK(6, 2) 
+#define MLX90632_STAT_DATA_RDY    BIT(0) 
 /* RAM_MEAS address-es for each channel */
 #define MLX90632_RAM_1(meas_num)    (MLX90632_ADDR_RAM + 3 * meas_num)
 #define MLX90632_RAM_2(meas_num)    (MLX90632_ADDR_RAM + 3 * meas_num + 1)
@@ -161,55 +160,19 @@ typedef enum mlx90632_meas_e {
 #define MLX90632_NEW_REG_VALUE(old_reg, new_value, h, l) \
     ((old_reg & (0xFFFF ^ GENMASK(h, l))) | (new_value << MLX90632_EE_REFRESH_RATE_SHIFT))
 
-int32_t mlx90632_read_temp_raw(int16_t *ambient_new_raw, int16_t *ambient_old_raw,
-                               int16_t *object_new_raw, int16_t *object_old_raw);
-
-int32_t mlx90632_read_temp_raw_burst(int16_t *ambient_new_raw, int16_t *ambient_old_raw,
-                                     int16_t *object_new_raw, int16_t *object_old_raw);
-
-double mlx90632_preprocess_temp_ambient(int16_t ambient_new_raw, int16_t ambient_old_raw, int16_t Gb);
-
-double mlx90632_preprocess_temp_object(int16_t object_new_raw, int16_t object_old_raw,
-                                       int16_t ambient_new_raw, int16_t ambient_old_raw,
-                                       int16_t Ka);
-
-double mlx90632_calc_temp_ambient(int16_t ambient_new_raw, int16_t ambient_old_raw, int32_t P_T,
-                                  int32_t P_R, int32_t P_G, int32_t P_O, int16_t Gb);
-
-double mlx90632_calc_temp_object(int32_t object, int32_t ambient,
-                                 int32_t Ea, int32_t Eb, int32_t Ga, int32_t Fa, int32_t Fb,
-                                 int16_t Ha, int16_t Hb);
-
-double mlx90632_calc_temp_object_reflected(int32_t object, int32_t ambient, double reflected,
-                                           int32_t Ea, int32_t Eb, int32_t Ga, int32_t Fa, int32_t Fb,
-                                           int16_t Ha, int16_t Hb);
-
-int32_t mlx90632_init(void);
-
-int mlx90632_start_measurement(void);
-
-void mlx90632_set_emissivity(double value);
-
-double mlx90632_get_emissivity(void);
-
-int32_t mlx90632_start_measurement_burst(void);
-
-int32_t mlx90632_get_measurement_time(uint16_t meas);
-
-int32_t mlx90632_calculate_dataset_ready_time(void);
 
 int32_t mlx90632_addressed_reset(void);
+double mlx90632_get_emissivity(void);
+int mlx90632_start_measurement(void);
+int32_t mlx90632_start_measurement_burst(void);
 
-int32_t mlx90632_set_refresh_rate(mlx90632_meas_t measRate);
 
-mlx90632_meas_t mlx90632_get_refresh_rate(void);
+//////////////////////////////////////////////////////////////////////////////////////////////
 
+int mlx90632_init(void);
+void mlx90632_test(void);
+int mlx90632_get(F32 *temp);
 
-#ifdef TEST
-int32_t mlx90632_read_temp_ambient_raw(int16_t *ambient_new_raw, int16_t *ambient_old_raw);
-int32_t mlx90632_read_temp_object_raw(int32_t start_measurement_ret,
-                                      int16_t *object_new_raw, int16_t *object_old_raw);
 
 #endif
 
-#endif

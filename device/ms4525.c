@@ -3,6 +3,7 @@
 #include "drv/si2c.h"
 #include "drv/delay.h"
 #include "ms4525.h"
+#include "cfg.h"
 
 //≤Ó—πº∆
 
@@ -11,7 +12,6 @@
 
 
 #define MS4525_ADDR         (0x4b)
-#define MS4525_INT_PIN      {GPIOA, GPIO_PIN_0}
 
 #define PMAX                (15)        //PSI
 #define PMIN                (-15)       //PSI
@@ -23,7 +23,6 @@
 #define P_ACC               ((PMAX-PMIN)*0.0025F)
 #define T_ACC                (1.5F)
 
-extern handle_t i2cHandle;
 static handle_t msHandle;
 
 
@@ -33,7 +32,7 @@ static int ms_read(ms4525_t *m)
     U8 tmp[4];
     U16 v1,v2;
     
-    r = i2c_read(msHandle, MS4525_ADDR, tmp, sizeof(tmp));
+    r = i2c_read(msHandle, MS4525_ADDR, tmp, sizeof(tmp), 1);
     if(r==0 && m) {
         v1  = ((tmp[0]&0x3f)<<8) | tmp[1];
         v2 = (tmp[2]>>5)<<8 | tmp[2]<<3 | tmp[3]>>5;
@@ -56,7 +55,8 @@ int ms4525_init(void)
     gpio_irq_en(&pin, 1);
 #endif
     
-    msHandle = i2cHandle;
+    extern handle_t i2c1Handle;
+    msHandle = i2c1Handle;
     
     //ms4525_test();
     

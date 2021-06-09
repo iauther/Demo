@@ -1,5 +1,15 @@
 #include "drv/htimer.h"
 
+typedef struct {
+    TIM_HandleTypeDef   htim;
+    DMA_HandleTypeDef   hdma;
+    htimer_callback_t   callback;
+    
+    
+    
+}htimer_handle_t;
+
+
 
 DMA_HandleTypeDef htimerHdma[HTIMER_MAX];
 htimer_callback_t htimerCallback[HTIMER_MAX];

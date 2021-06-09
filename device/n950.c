@@ -5,13 +5,12 @@
 #include "n950.h"
 #include "log.h"
 #include "msg.h"
+#include "cfg.h"
 
 //KNF±Ã  ×î´ó¸ºÑ¹: 2mbar=2*100pa=0.2kpa
 
 
-//#define N950_USE_UART
 #define PWM_FREQ            100
-#define N950_PORT           UART_1
 #define N950_BAUDRATE       57600
 
 handle_t uartHandle=NULL;
@@ -80,15 +79,13 @@ static pwm_cfg_t cfg={
         {
             {//pwm[]
                 {
-                    .pwm_pin  = PWM_PIN_A0,            //set speed
+                    .pwm_pin  = GPIO_PUMP_PWM_PIN,            //set speed
                     .type = TYPE_OC,
                     .mode = MODE_OD,
                 },
                 
                 {
-                    .pwm_pin  = PWM_PIN_A1,            //get speed
                     .type = TYPE_NO,
-                    .mode = MODE_OD,
                 },
                 
                 {
@@ -154,14 +151,14 @@ static int pwm_send_cmd(U8 cmd, U32 speed)
 
 static int send_cmd(U8 cmd, U32 speed)
 {
-#ifdef N950_USE_UART
+#ifdef PUMP_USE_UART
     return uart_send_cmd(cmd, speed);
 #else
     return pwm_send_cmd(cmd, speed);
 #endif
 }
 
-static int uart_wait(int ms)
+static int uart_rx_wait(int ms)
 {
     int n=1;
     while(!rx_length) {
@@ -182,7 +179,7 @@ int n950_init(void)
     uart_cfg_t uc;
 
     uc.mode = MODE_DMA;
-    uc.port = N950_PORT;
+    uc.port = PUMP_UART_PORT;
     uc.baudrate = N950_BAUDRATE;
     uc.para.rx  = rx_callback;
     uc.para.buf = rx_buf;
@@ -191,7 +188,6 @@ int n950_init(void)
     uartHandle = uart_init(&uc);
     
     pwmHandle = pwm_init(&cfg);
-    //n950_start();
     
     return 0;
 }
@@ -226,7 +222,7 @@ int n950_get(n950_stat_t *st)
     int r;
     
     r = uart_send_cmd(CMD_GET_STAT, 0);
-    uart_wait(20);
+    uart_rx_wait(20);
     //rx_buf[0~5]       min speed;       r/min
     //rx_buf[6~11]      operate current; mA
     //rx_buf[12~19]     temperature of controller; 

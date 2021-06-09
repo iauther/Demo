@@ -19,6 +19,8 @@ int queue_get(handle_t h, node_t *n, qiterater iter);
 
 int queue_put(handle_t h, node_t *n, qiterater iter);
 
+int queue_iterate_quit(handle_t h);
+
 int queue_pop(handle_t h);
 
 int queue_peer(handle_t h, node_t *n);

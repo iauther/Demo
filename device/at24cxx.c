@@ -4,28 +4,15 @@
 #include "drv/gpio.h"
 
 
-
-static handle_t i2c2Handle=NULL;
+extern handle_t i2c2Handle;
+static handle_t atHandle=NULL;
 
 
 int at24cxx_init(void)
 {
-    i2c_cfg_t  ic;
     
-    ic.pin.scl.grp = GPIOF;
-    ic.pin.scl.pin = GPIO_PIN_1;
-    
-    ic.pin.sda.grp = GPIOF;
-    ic.pin.sda.pin = GPIO_PIN_0;
-    
-    ic.freq = 100000;
-    ic.useDMA = 0;;
-    ic.callback = NULL;
-    ic.finish_flag=0;
-    
-    i2c2Handle = i2c_init(&ic);
-    
-    at24cxx_test();
+    atHandle = i2c2Handle;
+    //at24cxx_test();
     
     return 0;
 }
@@ -33,13 +20,13 @@ int at24cxx_init(void)
 
 int at24cxx_read_byte(U16 addr, U8 *data)
 {
-    return i2c_mem_read(i2c2Handle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1); 
+    return i2c_mem_read(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1); 
 }
 
 
 int at24cxx_write_byte(U16 addr, U8 *data)
 {
-    return i2c_mem_write(i2c2Handle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1); 
+    return i2c_mem_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1); 
 }
 
 
@@ -53,7 +40,7 @@ int at24cxx_read(U16 addr, U8 *data, U16 len)
         return -1;
     }
     
-    r = i2c_mem_read(i2c2Handle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
+    r = i2c_mem_read(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
     //delay_ms(MEM_STWC); /* Delay for Self Timed Write Cycle */
     
     return r;
@@ -72,11 +59,11 @@ int at24cxx_write(U16 addr, U8 *data, U16 len)
     }
     
     if (page_capacity >= len) {/* Check memory page capacity */
-        r = i2c_mem_write(i2c2Handle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
+        r = i2c_mem_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
         delay_ms(MEM_STWC); /* Delay for Self Timed Write Cycle */
     }
     else {
-        r = i2c_mem_write(i2c2Handle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, page_capacity); /* Write data */
+        r = i2c_mem_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, page_capacity); /* Write data */
         delay_ms(MEM_STWC); /* Delay for Self Timed Write Cycle */
 
         if (r == 0) {/* Check i2c status */
@@ -87,10 +74,10 @@ int at24cxx_write(U16 addr, U8 *data, U16 len)
             
             for (; (start_page <= end_page) && (r == 0) ;start_page++) {/* Loop for write data */
                 if (len < MEM_PAGE_SIZE) {/* Check data length */
-                    r = i2c_mem_write(i2c2Handle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
+                    r = i2c_mem_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
                 }
                 else {
-                    r = i2c_mem_write(i2c2Handle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, MEM_PAGE_SIZE); /* Write data */
+                    r = i2c_mem_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, MEM_PAGE_SIZE); /* Write data */
                     addr    += MEM_PAGE_SIZE; /* Set new address */
                     data    += MEM_PAGE_SIZE; /* Set new data address */
                     len     -= MEM_PAGE_SIZE; /* Set new data length */
@@ -107,25 +94,28 @@ int at24cxx_write(U16 addr, U8 *data, U16 len)
     return r;
 }
 
+
+
+///////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+static U16 gtmp[1000];
 int at24cxx_test(void)
 {
-    int i,r;
-    U8 x,tmp[100];
+    int r;
+    U16 i;
   
-    x = 0x78;
-    r = at24cxx_write_byte(0, &x);
+    for(i=0; i<sizeof(gtmp)/sizeof(U16); i++) {
+        gtmp[i] = i;
+    }    
     
-    x = 0;
-    r = at24cxx_read_byte(0, &x);
+    r = at24cxx_write(0, (U8*)gtmp, sizeof(gtmp));
     
-    for(i=0; i<sizeof(tmp); i++) {
-        tmp[i] = i;
-    }
-    
-    r = at24cxx_write(0, tmp, sizeof(tmp));
-    
-    memset(tmp, 0, sizeof(tmp));
-    r = at24cxx_read(0, tmp, sizeof(tmp));
+    memset(gtmp, 0, sizeof(gtmp));
+    r = at24cxx_read(0, (U8*)gtmp, sizeof(gtmp));
     r = 0;
     
     return r;
