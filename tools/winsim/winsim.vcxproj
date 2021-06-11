@@ -23,6 +23,7 @@
     <ClInclude Include="..\..\system\pkt.h" />
     <ClInclude Include="inc\framework.h" />
     <ClInclude Include="inc\icfg.h" />
+    <ClInclude Include="inc\libserialport.h" />
     <ClInclude Include="inc\log.h" />
     <ClInclude Include="inc\port.h" />
     <ClInclude Include="inc\Resource.h" />
@@ -40,7 +41,10 @@
     <ClCompile Include="src\log.c" />
     <ClCompile Include="src\myApp.c" />
     <ClCompile Include="src\myDev.c" />
-    <ClCompile Include="src\port.c" />
+    <ClCompile Include="src\port.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="src\port2.c" />
     <ClCompile Include="src\serial.c" />
     <ClCompile Include="src\win.c" />
     <ClCompile Include="src\winsim.c" />
@@ -155,7 +159,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>./lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libui.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libui.lib;libserialport.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
