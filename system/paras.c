@@ -98,12 +98,12 @@ int paras_erase(void)
 
 int paras_read(U32 addr, void *data, U32 len)
 {
-    return nvm_read(addr, data, len);
+    return 0;// nvm_read(addr, data, len);
 }
 
 int paras_write(U32 addr, void *data, U32 len)
 {
-    return nvm_write(addr, data, len);
+    return 0;// nvm_write(addr, data, len);
 }
 
 

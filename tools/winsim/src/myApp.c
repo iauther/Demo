@@ -204,7 +204,7 @@ static U8 com_proc(pkt_hdr_t* p, U16 len)
     pkt_print(p, len);
 
     if (p->askAck) {
-        pkt_send_ack(p->type);
+        pkt_send_ack(p->type, 0);
     }
 
     err = pkt_hdr_check(p, len);

@@ -54,6 +54,9 @@
     <ClInclude Include="..\..\system\date.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="inc\libserialport.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\winsim.c">
@@ -84,6 +87,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\..\system\date.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\port2.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
