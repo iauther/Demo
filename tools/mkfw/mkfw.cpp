@@ -102,8 +102,8 @@ int main(char argc, char *argv[])
 	}
 
 	get_build_date(path, (char*)fwInfo.bldtime);
-	hdr.upgInfo.fwInfo = fwInfo;
-	hdr.upgInfo.force = 0;
+	hdr.fwInfo = fwInfo;
+	hdr.upgCtl.force = 0;
 	hdr.upgCtl.erase  = 0;
 	hdr.upgCtl.action = 1;
 
@@ -123,7 +123,7 @@ int main(char argc, char *argv[])
 		return -1;
 	}
 
-	md5_calc(&hdr.upgCtl, sizeof(hdr)-sizeof(hdr.upgInfo), dat.data, dat.dlen, (char*)md5.digit);
+	md5_calc(&hdr.upgCtl, sizeof(hdr)-sizeof(hdr.fwInfo), dat.data, dat.dlen, (char*)md5.digit);
 
 	fwrite(&md5, 1, sizeof(md5), fp);
 	fwrite(&hdr, 1, sizeof(hdr), fp);

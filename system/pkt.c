@@ -3,6 +3,7 @@
 #include "log.h"
 
 #ifdef _WIN32
+#include "logx.h"
 #include "port.h"
 #else
 #include "drv/uart.h"
@@ -10,6 +11,7 @@
 
 typedef struct {
     U8              askAck;
+    int             cnt;
     int             retries;
     U16             dataLen;
     union {
@@ -135,6 +137,9 @@ U8 pkt_hdr_check(void *data, U16 len)
     }
 
     if (p->dataLen + PKT_HDR_LENGTH+1 != len || p->dataLen + PKT_HDR_LENGTH + 1>BUFLEN) {
+        #ifdef _WIN32
+        LOG("____dataLen: %d, PKT_HDR_LEN: %d, len: %d\n", p->dataLen, PKT_HDR_LENGTH, len);
+        #endif
         err = ERROR_PKT_LENGTH;
     }
 
@@ -155,11 +160,12 @@ void pkt_cache_reset(void)
 }
 
 
-static void cache_fill(void)
+static void cache_update(void)
 {
     pkt_hdr_t *p=(pkt_hdr_t*)myBuf;
     cache_t *c=&myCache[p->type];
     c->askAck = p->askAck;
+    c->cnt = 0;
     c->retries = 0;
     c->dataLen = 0;
     if(p->dataLen<=sizeof(c->data)) {
@@ -179,27 +185,30 @@ int pkt_ack_update(U8 type)
     
     c = &myCache[type];
     c->askAck = 0;
+    c->cnt = 0;
     c->retries = 0;
     
     return 0;
 }
 
 
-static U8 ack_timeout(U8 type)
+static int need_wait_ack(U8 type)
 {
+    int r=0;
+    
     if(myCache[type].askAck) {
         if(ackTimeout.set[type].enable) {
-            if(myCache[type].retries<ackTimeout.set[type].retries) {
-                return 0;
+            if(myCache[type].retries<ackTimeout.set[type].retryTimes) {
+                r = 1;
             }
         }
     }
     
-    return 1;
+    return r;
 }
 
 
-int pkt_ack_timeout_check(U8 type)
+int pkt_ack_is_timeout(U8 type)
 {
     int r=0;
     U8 send=0;
@@ -207,10 +216,14 @@ int pkt_ack_timeout_check(U8 type)
     
     if(c->askAck) {
         if(ackTimeout.set[type].enable) {
-            if(ackTimeout.set[type].retries>0) {
-                if (c->retries < ackTimeout.set[type].retries) {
-                    send = 1;
+            if(c->cnt*myCfg.period<ackTimeout.set[type].resendIvl*(c->retries+1)) {
+                c->cnt++;
+            }
+            else {
+                if (c->retries < ackTimeout.set[type].retryTimes) {
+                    c->cnt++;
                     c->retries++;
+                    r = 0; send = 1;
                 }
                 else {
                     r = 1;
@@ -218,8 +231,11 @@ int pkt_ack_timeout_check(U8 type)
             }
         }
         else {
-            send = 1;
+            r = -1; send = 2;
         }
+    }
+    else {
+        r = -2;
     }
     
     if(send) {
@@ -234,10 +250,10 @@ int pkt_send(U8 type, U8 nAck, void* data, U16 len)
 {
     int r=0;
     
-    if(ack_timeout(type)) {
+    if(!need_wait_ack(type)) {
         r = send_pkt(type, nAck, data, len);
         if(r==0) {
-            cache_fill();
+            cache_update();
         }
     }
     

@@ -9,8 +9,8 @@
 #define VMAX(v)             (v+ACC)
 
 
-#define TIMER_MS            50         //ms
-#define STAT_MS             100
+#define TIMER_MS            (50)         //ms
+#define STAT_MS             (TIMER_MS*4)
 #define STAT_CNT            (STAT_MS/TIMER_MS)
 #define TEMP_CNT            (300/TIMER_MS)
 
@@ -31,9 +31,7 @@ typedef struct {
 
 static U8 presMode=PRES_RAISE;
 static U8 vacuum_ever_reached=0;
-static stat_t curStat;
 static U16 prevSpeed=0;
-static temp_t gTemp;
 
 
 static void auto_pres(stat_t *st)
@@ -67,7 +65,6 @@ static void auto_pres(stat_t *st)
             speed = N950_SPEED_MAX;
             vacuum_ever_reached = 0;
             valve_set(VALVE_CLOSE);
-            
         }
         break;
         
@@ -98,7 +95,7 @@ static void auto_pres(stat_t *st)
     }
     
     if(speed!=prevSpeed) {
-        n950_send_cmd(CMD_SET_SPEED, speed);
+        n950_set_speed(speed);
         prevSpeed = speed;
     }
         
@@ -116,30 +113,44 @@ static int get_temp(temp_t *temp)
     
     return r;
 }
+static int stat_cmp(stat_t *prev, stat_t *now)
+{
+    int r=0;
+    
+    if(ABS(prev->dPres-now->dPres)>0.99F) {
+        r = 1;
+    }
+    *prev = *now;
+    
+    return r;
+}
 
 static int get_stat(stat_t *st)
 {
     ms4525_t ms;
     bmp280_t bmp;
     static U32 cnt=0;
+    stat_t tmpStat={0};
     
     ms4525_get(&ms);
     bmp280_get(&bmp);
     n950_get(&st->pump);
     
-    st->stat = curState;
+    st->stat = sysState;
     st->dPres = ABS(ms.pres);
     st->aPres = bmp.pres;
     st->temp  = bmp.temp;
-    
+
+#if 0    
     cnt++;
-    if(cnt%STAT_CNT==0) {
+    if(cnt%STAT_CNT==0 && stat_cmp(&tmpStat, st)) {
         pkt_send(TYPE_STAT, 0, st, sizeof(stat_t));
     }
+#endif
     
-    if(cnt%TEMP_CNT==0) {
-        get_temp(&gTemp);
-    }
+    //if(cnt%TEMP_CNT==0) {
+    //    get_temp(&gTemp);
+    //}
     
     return 0;
 }
@@ -162,7 +173,7 @@ static int timer_proc(void)
     
     get_stat(&curStat);
     
-    if(curState==STAT_AUTO) {
+    if(sysState==STAT_AUTO) {
         auto_pres(&curStat);
     }
               

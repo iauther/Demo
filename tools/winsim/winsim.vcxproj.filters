@@ -21,9 +21,6 @@
     <ClInclude Include="inc\icfg.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="inc\log.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="inc\port.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -54,15 +51,18 @@
     <ClInclude Include="..\..\system\date.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="inc\libserialport.h">
+    <ClInclude Include="inc\logx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\libserialport\libserialport.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\libserialport\libserialport_internal.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\winsim.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\log.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\port.c">
@@ -89,7 +89,25 @@
     <ClCompile Include="..\..\system\date.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\system\com.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\system\upgrade.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\logx.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="src\port2.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\libserialport\serialport.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\libserialport\timing.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\libserialport\windows.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

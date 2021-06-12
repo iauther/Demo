@@ -60,6 +60,10 @@ void task_misc_fn(void *arg)
                     else if(e.type==1) {
                         
                     }
+                    else if(e.type==2) {
+                        
+                    }
+                    
                 }
                 break;
                 
@@ -73,16 +77,12 @@ void task_misc_fn(void *arg)
 }
 
 
-int task_save_paras(node_t *n)
+int task_misc_save_paras(node_t *n)
 {
     node_t node={n, sizeof(node_t)};
     return queue_put(mq, &node, my_qiterater);
 }
 
-void task_erase_paras(void)
-{
-    task_msg_post(TASK_MISC, EVT_EEPROM, 1, NULL, 0);
-}
 
 
 

@@ -6,11 +6,7 @@
 
 #define CHECK(r)    if(r!=SP_OK) return -1;
 
-typedef enum sp_return sp_return_t;
-typedef struct sp_port sp_port_t;
-typedef struct sp_port_config sp_config_t;
-
-
+static int isOpened = 0;
 static sp_port_t* sPort = NULL;
 
 
@@ -29,16 +25,17 @@ int port_free(void)
 int port_open(int port)
 {
     char tmp[50];
-    sp_config_t* cfg;
     sp_return_t r;
+    sp_config_t* cfg = NULL;
 
     CHECK(sp_new_config(&cfg));
 
     sprintf(tmp, "\\\\.\\COM%d", port);
-    r = sp_get_port_by_name(tmp, &sPort);
-    CHECK(r);
+    CHECK(sp_get_port_by_name(tmp, &sPort));
 
-    CHECK(sp_get_config(sPort, &cfg));
+    CHECK(sp_open(sPort, SP_MODE_READ_WRITE));
+
+    CHECK(sp_get_config(sPort, cfg));
 
     sp_set_config_baudrate(cfg, 115200);
     sp_set_config_bits(cfg, 8);
@@ -52,21 +49,21 @@ int port_open(int port)
     //sp_set_config_flowcontrol(cfg, SP_FLOWCONTROL_NONE);
     CHECK(sp_set_config(sPort, cfg));
 
-    CHECK(sp_open(sPort, SP_MODE_READ_WRITE));
     sp_free_config(cfg);
+    isOpened = 1;
 
     return 0;
 }
 
 int port_is_opened(void)
 {
-    return  sPort ? 1 : 0;;
+    return isOpened;
 }
 
 int port_close(void)
 {
     int r = sp_close(sPort);
-    sPort = NULL;
+    isOpened = 0;
 
     return r;
 }
@@ -75,11 +72,11 @@ int port_send(void* data, U16 len)
 {
     int r;
 
-    //r = sp_blocking_write(sPort, data, len, 0);
-    //return (r == len) ? 0 : 1;
+    r = sp_blocking_write(sPort, data, len, 0);
+    return (r == len) ? 0 : 1;
 
-    r = sp_nonblocking_write(sPort, data, len);
-    return (r>0) ? 0 : 1;
+    //r = sp_nonblocking_write(sPort, data, len);
+    //return (r>0) ? 0 : 1;
 }
 
 

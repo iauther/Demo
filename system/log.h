@@ -30,16 +30,16 @@ int log_set(log_cfg_t *cfg);
                                 printf(fmt, ##__VA_ARGS__);\
                             }
 #else
-#define LOG(lv, fmt, ...)   if(log_cfg.en[lv]) {\
+#define LOGx(lv, fmt, ...)  if(log_cfg.en[lv]) {\
                                 printf(fmt, ##__VA_ARGS__);\
                             }
 #endif
 
 
-#define LOGI(fmt, ...)      LOG(LV_INFO, fmt, ##__VA_ARGS__)
-#define LOGD(fmt, ...)      LOG(LV_DEBUG, fmt, ##__VA_ARGS__)
-#define LOGW(fmt, ...)      LOG(LV_WARNNING, fmt, ##__VA_ARGS__)
-#define LOGE(fmt, ...)      LOG(LV_ERROR, fmt, ##__VA_ARGS__)
+#define LOGI(fmt, ...)      LOGx(LV_INFO, fmt, ##__VA_ARGS__)
+#define LOGD(fmt, ...)      LOGx(LV_DEBUG, fmt, ##__VA_ARGS__)
+#define LOGW(fmt, ...)      LOGx(LV_WARNNING, fmt, ##__VA_ARGS__)
+#define LOGE(fmt, ...)      LOGx(LV_ERROR, fmt, ##__VA_ARGS__)
                             
 #endif
 

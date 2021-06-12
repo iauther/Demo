@@ -3,7 +3,7 @@
 #include "drv/htimer.h"
 #include "drv/delay.h"
 #include "led.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 
 typedef struct {

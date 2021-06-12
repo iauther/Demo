@@ -45,7 +45,7 @@
     #define GPIO_12V_PIN            {GPIOA, GPIO_PIN_4}
     #define GPIO_BUZZER_PIN         {GPIOA, GPIO_PIN_5}
     
-    #define GPIO_VALVE_PIN          {GPIOC, GPIO_PIN_10}
+    #define GPIO_VALVE_PIN          {GPIOA, GPIO_PIN_1}
     #define GPIO_PUMP_PWR_PIN       {GPIOA, GPIO_PIN_11}
     #define GPIO_PUMP_PWM_PIN       PWM_PIN_A0
     //#define PUMP_USE_UART         //the first pump control by pwm
@@ -74,12 +74,12 @@
     
     #define GPIO_WDG_PIN            {GPIOA, GPIO_PIN_0}
     #define GPIO_AT24CXX_PIN        {GPIOA, GPIO_PIN_1}
-    #define GPIO_12V_PIN            {GPIOA, GPIO_PIN_4}
+    #define GPIO_12V_PIN            {GPIOA, GPIO_PIN_4}     //PA4有些怪异，调试时需注意
     #define GPIO_BUZZER_PIN         {GPIOA, GPIO_PIN_5}
     
     #define GPIO_VALVE_PIN          {GPIOA, GPIO_PIN_8}
     #define GPIO_PUMP_PWR_PIN       {GPIOA, GPIO_PIN_11}
-    #define GPIO_PUMP_PWM_PIN       {GPIOB, GPIO_PIN_0}
+    #define GPIO_PUMP_PWM_PIN       PWM_PIN_B0  //{GPIOB, GPIO_PIN_0}
     
     #define MS4525_INT_PIN          {GPIOC, GPIO_PIN_0}
     

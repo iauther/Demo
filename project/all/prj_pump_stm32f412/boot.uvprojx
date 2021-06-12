@@ -443,6 +443,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\system\date.c</FilePath>
             </File>
+            <File>
+              <FileName>com.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\com.c</FilePath>
+            </File>
+            <File>
+              <FileName>nvm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\nvm.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

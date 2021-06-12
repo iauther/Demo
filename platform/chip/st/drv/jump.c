@@ -1,15 +1,18 @@
 #include "jump.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 
 #define APP_ADDR     (FLASH_BASE+APP_OFFSET)
 #define BOOT_ADDR    (FLASH_BASE+BOOT_OFFSET)
 
-static void reboot(void)
+typedef void (*jump_fn_t)(void);
+
+
+void reboot(void)
 {
     __disable_fiq();
-    //NVIC_SystemReset();
-    //HAL_NVIC_SystemReset();
+    NVIC_SystemReset();
+    HAL_NVIC_SystemReset();
 }
 
 

@@ -1,7 +1,7 @@
 #include "paras.h"
 #include "date.h"
 #include "nvm.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 paras_t DEFAULT_PARAS={
     
@@ -46,24 +46,44 @@ paras_t DEFAULT_PARAS={
 };
 
 
+#ifdef _WIN32
+ack_timeout_t ackTimeout = {
+    {
+        //enable    resendIvl   retryTimes
+         {1,         100,        5},       //TYPE_CMD
+         {1,         100,        5},       //TYPE_STAT
+         {1,         100,        5},       //TYPE_ACK
+         {1,         100,        5},       //TYPE_SETT
+         {1,         100,        5},       //TYPE_PARAS
+         {1,         100,        5},       //TYPE_ERROR
+         {1,         100,        5},       //TYPE_UPGRADE
+         {1,         1000,       5},       //TYPE_LEAP
+     }
+};
+#else
 ack_timeout_t ackTimeout={
     {
-        {1, 5},     //TYPE_CMD
-        {0, 5},     //TYPE_STAT
-        {1, 5},     //TYPE_ACK
-        {1, 5},     //TYPE_SETT
-        {0, 5},     //TYPE_PARAS
-        {1, 5},     //TYPE_ERROR
-        {1, 5},     //TYPE_UPGRADE
-        {0, 5},     //TYPE_LEAP
+       //enable    resendIvl   retryTimes
+        {1,         100,        5},       //TYPE_CMD
+        {1,         100,        5},       //TYPE_STAT
+        {1,         100,        5},       //TYPE_ACK
+        {1,         100,        5},       //TYPE_SETT
+        {0,         100,        5},       //TYPE_PARAS
+        {0,         100,        5},       //TYPE_ERROR
+        {1,         100,        5},       //TYPE_UPGRADE
+        {1,         1000,       5},       //TYPE_LEAP
     }
 };
+#endif
+
 
 #ifdef OS_KERNEL
-U8 curState=STAT_AUTO;
+U8 sysState=STAT_MANUAL;
 #else
-U8 curState=STAT_UPGRADE;
+U8 sysState=STAT_UPGRADE;
 #endif
+
+stat_t curStat;
 paras_t curParas;
 
 
@@ -96,14 +116,36 @@ int paras_erase(void)
 }
 
 
+int paras_reset(void)
+{
+    int r;
+    curParas = DEFAULT_PARAS;
+    r = paras_write(0, &curParas, sizeof(curParas));
+    if(r==0) {
+        get_date_string((char*)DEFAULT_PARAS.fwInfo.bldtime, curParas.fwInfo.bldtime);
+    }
+    
+    return r;
+}
+
+
+
 int paras_read(U32 addr, void *data, U32 len)
 {
-    return 0;// nvm_read(addr, data, len);
+#ifdef _WIN32
+    return 0;
+#else
+    return nvm_read(addr, data, len);
+#endif
 }
 
 int paras_write(U32 addr, void *data, U32 len)
 {
-    return 0;// nvm_write(addr, data, len);
+#ifdef _WIN32
+    return 0;
+#else
+    return nvm_write(addr, data, len);
+#endif
 }
 
 
@@ -115,7 +157,7 @@ int paras_write_node(node_t *n)
         return -1;
     }
     
-    addr=((U8*)n->ptr-(U8*)&curParas);
+    addr=((U32)n->ptr-(U32)&curParas);
     return paras_write(addr, n->ptr, n->len);
 }
 

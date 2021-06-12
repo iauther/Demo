@@ -5,7 +5,7 @@
 #include "n950.h"
 #include "log.h"
 #include "msg.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 //KNF±Ã  ×î´ó¸ºÑ¹: 2mbar=2*100pa=0.2kpa
 
@@ -201,15 +201,32 @@ int n950_deinit(void)
     return 0;
 }
 
+int n950_set_speed(U32 speed)
+{   
+    if(((speed>0) && (speed<N950_SPEED_MIN)) || speed>N950_SPEED_MAX) {
+        return -1;
+    }
+    
+    return send_cmd(CMD_PUMP_SPEED, speed);
+}
+
 
 int n950_send_cmd(U8 cmd, U32 speed)
 {
     U8 c=cmd;
     U32 sp=speed;
     
-    if(cmd==CMD_PUMP_START || cmd==CMD_PUMP_STOP) {
+    if(((speed>0) && (speed<N950_SPEED_MIN)) || speed>N950_SPEED_MAX) {
+        return 1;
+    }
+    
+    if(cmd==CMD_PUMP_START) {
         c = CMD_PUMP_SPEED;
         sp = n950_speed;
+    }
+    else if(cmd==CMD_PUMP_STOP) {
+        c = CMD_PUMP_SPEED;
+        sp = 0;
     }
     
     return send_cmd(c, sp);

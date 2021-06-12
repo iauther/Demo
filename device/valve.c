@@ -1,7 +1,7 @@
 #include "drv/gpio.h"
 #include "drv/delay.h"
 #include "valve.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 //不能使用PA4，没搞清楚为啥，gpio一初始化会把串口很多值改变
   

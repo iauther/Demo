@@ -448,6 +448,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\system\nvm.c</FilePath>
             </File>
+            <File>
+              <FileName>com.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\com.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

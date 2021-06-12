@@ -467,12 +467,12 @@ int uart_write(handle_t h, U8 *data, U32 len)
     if(uh->mode==MODE_DMA) {
         uh->txFinished = 0;
         r = HAL_UART_Transmit_DMA(&uh->huart, data, len);
-        //uart_tx_wait(uh, 5);
+        uart_tx_wait(uh, 10);
     }
     else if(uh->mode==MODE_IT) {
         uh->txFinished = 0;
         r = HAL_UART_Transmit_IT(&uh->huart, data, len);
-        //uart_tx_wait(uh, 5);
+        uart_tx_wait(uh, 10);
     }
     else
 #endif

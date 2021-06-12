@@ -1,9 +1,10 @@
 #include <windows.h>
 #include "win.h"
 #include "port.h"
-#include "log.h"
+#include "logx.h"
 #include "task.h"
 #include "icfg.h"
+#include "pkt.h"
 
 #pragma comment  (lib, "libui.lib")
 
@@ -103,13 +104,14 @@ static void on_port_combo_sel_fn(uiCombobox* c, void* data)
 }
 static void on_port_open_btn_fn(uiButton* b, void* data)
 {
-	int r;
+	int r=0;
 	uiCombobox* c = uiCombobox(data);
 	int port_id = uiComboboxSelected(c)+1;
 
 	if (port_is_opened()) {
-		port_close();
 		uiButtonSetText(b, "Open");
+		port_close();
+		r = 0;
 	}
 	else {
 		r = port_open(port_id);
@@ -180,11 +182,15 @@ static void on_sett_start_btn_fn(uiButton* b, void* data)
 {
 	if(strcmp(uiButtonText(b), "Start")==0) {
 		uiButtonSetText(b, "Stop");
-		LOG("stop the pump...\n");
+		LOG("start the pump...\n");
+		cmd_t cmd = { CMD_PUMP_START,0};
+		task_app_trig(TYPE_CMD, 1, &cmd, sizeof(cmd));
 	}
 	else if (strcmp(uiButtonText(b), "Stop") == 0) {
 		uiButtonSetText(b, "Start");
-		LOG("start the pump...\n");
+		LOG("stop the pump...\n");
+		cmd_t cmd = { CMD_PUMP_STOP,0 };
+		task_app_trig(TYPE_CMD, 1, &cmd, sizeof(cmd));
 	}
 }
 static int para_grp_init(uiWindow* win, para_grp_t* para)

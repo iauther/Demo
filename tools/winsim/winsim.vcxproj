@@ -23,8 +23,7 @@
     <ClInclude Include="..\..\system\pkt.h" />
     <ClInclude Include="inc\framework.h" />
     <ClInclude Include="inc\icfg.h" />
-    <ClInclude Include="inc\libserialport.h" />
-    <ClInclude Include="inc\log.h" />
+    <ClInclude Include="inc\logx.h" />
     <ClInclude Include="inc\port.h" />
     <ClInclude Include="inc\Resource.h" />
     <ClInclude Include="inc\serial.h" />
@@ -33,16 +32,26 @@
     <ClInclude Include="inc\ui.h" />
     <ClInclude Include="inc\win.h" />
     <ClInclude Include="inc\winsim.h" />
+    <ClInclude Include="lib\libserialport\libserialport.h" />
+    <ClInclude Include="lib\libserialport\libserialport_internal.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\system\com.c" />
     <ClCompile Include="..\..\system\date.c" />
     <ClCompile Include="..\..\system\paras.c" />
     <ClCompile Include="..\..\system\pkt.c" />
-    <ClCompile Include="src\log.c" />
+    <ClCompile Include="..\..\system\upgrade.c" />
+    <ClCompile Include="lib\libserialport\serialport.c" />
+    <ClCompile Include="lib\libserialport\timing.c" />
+    <ClCompile Include="lib\libserialport\windows.c" />
+    <ClCompile Include="src\logx.c" />
     <ClCompile Include="src\myApp.c" />
     <ClCompile Include="src\myDev.c" />
     <ClCompile Include="src\port.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\port2.c" />
     <ClCompile Include="src\serial.c" />
@@ -119,7 +128,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>./inc;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./inc;./lib/libserialport;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -136,7 +145,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>./inc;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./inc;./lib/libserialport;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -153,13 +162,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>./inc;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./inc;./lib/libserialport;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>./lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libui.lib;libserialport.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libui.lib;setupapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -170,7 +179,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>./inc;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./inc;./lib/libserialport;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

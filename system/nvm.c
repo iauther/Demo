@@ -3,7 +3,7 @@
 #include "drv/flash.h"
 #endif
 #include "nvm.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 
 

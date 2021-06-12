@@ -16,5 +16,6 @@ int task_dev_start(void);
 int task_dev_stop(void);
 
 int task_quit(void);
+int task_app_trig(U8 type, U8 nAck, void* data, U16 len);
 
 #endif

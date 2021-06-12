@@ -3,7 +3,7 @@
 #include "drv/si2c.h"
 #include "drv/delay.h"
 #include "ms4525.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 //≤Ó—πº∆
 

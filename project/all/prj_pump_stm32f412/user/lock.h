@@ -5,7 +5,7 @@
 
 enum {
     LOCK_BIO=0,
-    LOCK_E2P,
+    LOCK_NVM,
     
     LOCK_MAX
 };

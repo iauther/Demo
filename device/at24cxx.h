@@ -2,7 +2,7 @@
 #define __AT24CXX_Hx__
 
 #include "types.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 #define AT_CHECK_ADDR	0X00
 #define AT_CHECK_VALUE	0X52

@@ -115,7 +115,6 @@ typedef struct {
 }fw_info_t;
 
 typedef struct {
-    U8              obj;           //0: boot   1: app
     U16             pkts;
     U16             pid;
     U16             dataLen;
@@ -123,6 +122,8 @@ typedef struct {
 }upgrade_pkt_t;
 
 typedef struct {
+    U8              obj;            //0: boot   1: app
+    U8              force;
     U8              erase;          //0: not erase   1: do erase
     U8              action;         //0: do nothing  1: restart   0x3f: run app
 }upgrade_ctl_t;
@@ -132,10 +133,7 @@ typedef struct {
 }md5_t;
 
 typedef struct {
-    struct {
-        fw_info_t   fwInfo;
-        U8          force;
-    }upgInfo;
+    fw_info_t       fwInfo;
     upgrade_ctl_t   upgCtl;
     U8*             data[0];
 }upgrade_hdr_t;
@@ -152,15 +150,18 @@ typedef struct {
 
 typedef struct {
     struct {
-        int         enable;     //timeout enable
-        int         retries;
+        U8          enable;
+        int         resendIvl;       //resend interval time,  unit: ms
+        int         retryTimes;      //retry max
     }set[TYPE_MAX];
 }ack_timeout_t;
 
-extern U8 curState;
+
+
+extern U8 sysState;
+extern stat_t curStat;
 extern paras_t curParas;
 extern ack_timeout_t ackTimeout;
-
 
 
 #endif

@@ -4,11 +4,8 @@
 
 #include "types.h"
 
-typedef void (*jump_fn_t)(void);
-
-
+void reboot(void);
 void jump_to_app(void);
-
 void jump_to_boot(void);
 
 

@@ -7,7 +7,7 @@
 #include "drv/i2c.h"
 #include "drv/clk.h"
 #include "paras.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 handle_t i2c1Handle=NULL;
 handle_t i2c2Handle=NULL;

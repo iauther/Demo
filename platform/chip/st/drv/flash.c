@@ -1,6 +1,6 @@
 #include <string.h>
 #include "drv/flash.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 #define FLASH_CACHE_SIZE 1000
 
@@ -196,7 +196,10 @@ static void set_erase_flag(U32 from, U32 to)
 
 int flash_init(void)
 {
+    U32 magic=0;
+    
     memset(erase_flag, 0, sizeof(erase_flag));
+    paras_set_fwmagic(&magic);
     return 0;
 }
 

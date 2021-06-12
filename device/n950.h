@@ -47,6 +47,7 @@ typedef struct {
 
 int n950_init(void);
 int n950_deinit(void);
+int n950_set_speed(U32 speed);
 int n950_send_cmd(U8 cmd, U32 speed);
 int n950_get(n950_stat_t *st);
 void n950_test(void);

@@ -45,7 +45,7 @@
 //   <i> Defines the combined global dynamic memory size.
 //   <i> Default: 32768
 #ifndef OS_DYNAMIC_MEM_SIZE
-#define OS_DYNAMIC_MEM_SIZE         65536
+#define OS_DYNAMIC_MEM_SIZE         8192
 #endif
  
 //   <o>Kernel Tick Frequency [Hz] <1-1000000>
@@ -58,7 +58,7 @@
 //   <e>Round-Robin Thread switching
 //   <i> Enables Round-Robin Thread switching.
 #ifndef OS_ROBIN_ENABLE
-#define OS_ROBIN_ENABLE             1
+#define OS_ROBIN_ENABLE             0
 #endif
  
 //     <o>Round-Robin Timeout <1-1000>
@@ -94,7 +94,7 @@
 //   <e>Object specific Memory allocation
 //   <i> Enables object specific memory allocation.
 #ifndef OS_THREAD_OBJ_MEM
-#define OS_THREAD_OBJ_MEM           0
+#define OS_THREAD_OBJ_MEM           1
 #endif
  
 //     <o>Number of user Threads <1-1000>
@@ -125,14 +125,14 @@
 //   <i> Defines stack size for threads with zero stack size specified.
 //   <i> Default: 3072
 #ifndef OS_STACK_SIZE
-#define OS_STACK_SIZE               3072
+#define OS_STACK_SIZE               1024
 #endif
  
 //   <o>Idle Thread Stack size [bytes] <72-1073741824:8>
 //   <i> Defines stack size for Idle thread.
 //   <i> Default: 512
 #ifndef OS_IDLE_THREAD_STACK_SIZE
-#define OS_IDLE_THREAD_STACK_SIZE   512
+#define OS_IDLE_THREAD_STACK_SIZE   256
 #endif
  
 //   <o>Idle Thread TrustZone Module Identifier
@@ -147,7 +147,7 @@
 //   <i> Enables stack overrun check at thread switch.
 //   <i> Enabling this option increases slightly the execution time of a thread switch.
 #ifndef OS_STACK_CHECK
-#define OS_STACK_CHECK              1
+#define OS_STACK_CHECK              0
 #endif
  
 //   <q>Stack usage watermark
@@ -303,7 +303,7 @@
 //     <i> Applies to objects with system provided memory for data storage.
 //     <i> Default: 0
 #ifndef OS_MEMPOOL_DATA_SIZE
-#define OS_MEMPOOL_DATA_SIZE        0
+#define OS_MEMPOOL_DATA_SIZE        4096
 #endif
  
 //   </e>
