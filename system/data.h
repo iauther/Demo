@@ -81,6 +81,7 @@ typedef struct {
 
 typedef struct {
     U8              stat;
+    U8              mode;
     F32             temp;        //environment temperature,   unit: degree celsius
     F32             aPres;       //outside absolute pressure, unit: kpa
     F32             dPres;       //differential pressure,     unit: kPa

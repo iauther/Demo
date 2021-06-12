@@ -22,17 +22,16 @@
  *
  * -----------------------------------------------------------------------------
  */
-#if (OS_KERNEL==1)
 
 #include "cmsis_compiler.h"
 #include "RTX_Config.h"
-#include "rtx/rtx_os.h"
+#include "rtx_os.h"
 
 #ifdef    RTE_Compiler_EventRecorder
-#include "rtx/EventRecorder.h"
-#include "rtx/EventRecorderConf.h"
+#include "EventRecorder.h"
+#include "EventRecorderConf.h"
 #endif
-#include "rtx/rtx_evr.h"
+#include "rtx_evr.h"
 
 
 // System Configuration
@@ -770,7 +769,5 @@ void _mutex_free(mutex *m) {
 }
 
 //lint -restore
-
-#endif
 
 #endif

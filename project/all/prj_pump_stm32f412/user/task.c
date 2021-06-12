@@ -26,7 +26,7 @@ handle_t task_create(int id, osThreadFunc_t task, U32 stack_size)
     }
     
     h->thread_fn = task;
-    h->msg = msg_init(5, sizeof(evt_t));
+    h->msg = msg_init(10, sizeof(evt_t));
     h->thread_id = osThreadNew(h->thread_fn, h, (const osThreadAttr_t*)&attr);
     task_handle[id] = h;
     

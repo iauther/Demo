@@ -3,7 +3,7 @@
 #include "error.h"
 #include "com.h"
 
-#define TIMER_MS            100
+#define TIMER_MS            1000
 
 static void com_tmr_callback(void *arg)
 {

@@ -46,9 +46,6 @@ static int uart_send_cmd(U8 cmd, U32 speed)
         if(cmd==CMD_SET_START) {
             delay_ms(30);
         }
-        else if(cmd==CMD_SET_SPEED){
-            n950_speed = speed;
-        }
     }
     
     return r;
@@ -110,18 +107,14 @@ static void pwm_ic_callback_fn(handle_t h, U8 pwm_pin, U32 freq, F32 dr)
     
 }
 
-static int set_speed(U32 speed)
+static int pwm_set_speed(U32 speed)
 {
     int r;
     F32 dr;
-    if(speed>N950_SPEED_MAX || (speed>0 && speed<N950_SPEED_MIN)) {
-        return -1;
-    }
     
     //dr = 2.1/5.0;
     dr = DRATIO_OF(speed);
     r = pwm_set(pwmHandle, PWM_PIN_A0, PWM_FREQ, dr);
-    n950_speed = speed;
     
     return r;
 }
@@ -131,15 +124,12 @@ static int pwm_send_cmd(U8 cmd, U32 speed)
 {
     switch(cmd) {
         case CMD_SET_START:
-        set_speed(n950_speed);
+        case CMD_SET_SPEED:
+        pwm_set_speed(speed);
         break;
         
         case CMD_SET_STOP:
-        set_speed(0);
-        break;
-       
-        case CMD_SET_SPEED:
-        set_speed(speed);
+        pwm_set_speed(0);
         break;
         
         default:
@@ -201,10 +191,23 @@ int n950_deinit(void)
     return 0;
 }
 
+int n950_start(void)
+{
+    return send_cmd(CMD_PUMP_SPEED, n950_speed);
+}
+
+
+int n950_stop(void)
+{
+    return send_cmd(CMD_PUMP_SPEED, 0);
+}
+
+
+
 int n950_set_speed(U32 speed)
 {   
     if(((speed>0) && (speed<N950_SPEED_MIN)) || speed>N950_SPEED_MAX) {
-        return -1;
+        return -2;
     }
     
     return send_cmd(CMD_PUMP_SPEED, speed);
@@ -220,13 +223,9 @@ int n950_send_cmd(U8 cmd, U32 speed)
         return 1;
     }
     
-    if(cmd==CMD_PUMP_START) {
+    if(cmd==CMD_PUMP_START || cmd==CMD_PUMP_STOP) {
         c = CMD_PUMP_SPEED;
-        sp = n950_speed;
-    }
-    else if(cmd==CMD_PUMP_STOP) {
-        c = CMD_PUMP_SPEED;
-        sp = 0;
+        sp = (cmd==CMD_PUMP_START)?n950_speed:0;
     }
     
     return send_cmd(c, sp);

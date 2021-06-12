@@ -24,10 +24,9 @@
  *
  * -----------------------------------------------------------------------------
  */
-#if (OS_KERNEL==1)
  
 #include "cmsis_compiler.h"
-#include "rtx/rtx_os.h"
+#include "rtx_os.h"
  
 // OS Idle Thread
 __WEAK __NO_RETURN void osRtxIdleThread (void *argument) {
@@ -64,4 +63,4 @@ __WEAK uint32_t osRtxErrorNotify (uint32_t code, void *object_id) {
 //return 0U;
 }
 
-#endif
+
