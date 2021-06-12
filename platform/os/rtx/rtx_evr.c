@@ -26,7 +26,7 @@
 
 #include <string.h>
 #include "cmsis_compiler.h"
-#include "rtx/rtx_evr.h"                    // RTX Event Recorder definitions
+#include "rtx_evr.h"                    // RTX Event Recorder definitions
 
 #ifdef  RTE_Compiler_EventRecorder
 

@@ -22,7 +22,6 @@
  *
  * -----------------------------------------------------------------------------
  */
-#if (OS_KERNEL==5)
 
 #ifndef RTX_EVR_H_
 #define RTX_EVR_H_
@@ -1974,5 +1973,4 @@ extern void EvrRtxMessageQueueDestroyed (osMessageQueueId_t mq_id);
 
 #endif  // RTX_EVR_H_
 
-#endif
 

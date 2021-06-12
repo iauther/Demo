@@ -22,8 +22,6 @@
  *
  * -----------------------------------------------------------------------------
  */
-#if (OS_KERNEL==5)
-
 
 #ifndef RTX_OS_H_
 #define RTX_OS_H_
@@ -473,5 +471,5 @@ extern const osRtxConfig_t osRtxConfig;         ///< OS Configuration
  
 #endif  // RTX_OS_H_
 
-#endif
+
 
