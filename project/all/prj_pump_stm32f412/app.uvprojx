@@ -483,14 +483,24 @@
               <FilePath>.\user\task_misc.c</FilePath>
             </File>
             <File>
+              <FileName>rtx_lib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\cfg\rtx_lib.c</FilePath>
+            </File>
+            <File>
               <FileName>RTX_Config.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\cfg\RTX_Config.c</FilePath>
             </File>
             <File>
-              <FileName>rtx_lib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\cfg\rtx_lib.c</FilePath>
+              <FileName>RTX_Config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\cfg\RTX_Config.h</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_hal_conf.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\cfg\stm32f4xx_hal_conf.h</FilePath>
             </File>
           </Files>
         </Group>
