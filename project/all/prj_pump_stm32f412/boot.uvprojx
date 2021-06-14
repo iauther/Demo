@@ -10,7 +10,7 @@
       <TargetName>boot</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060750::V5.06 update 6 (build 750)::.\ARMCC</pCCUsed>
+      <pCCUsed>5060750::V5.06 update 6 (build 750)::ARMCC</pCCUsed>
       <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
@@ -486,6 +486,11 @@
               <FileName>jump.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\st\drv\jump.c</FilePath>
+            </File>
+            <File>
+              <FileName>htimer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\chip\st\drv\htimer.c</FilePath>
             </File>
           </Files>
         </Group>

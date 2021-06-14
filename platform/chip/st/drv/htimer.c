@@ -1,5 +1,7 @@
 #include "drv/htimer.h"
 
+
+#if 0
 typedef struct {
     TIM_HandleTypeDef   htim;
     DMA_HandleTypeDef   hdma;
@@ -201,4 +203,85 @@ int htimer_stop(HTIMER tmr)
     //return HAL_TIM_Base_Stop(&htimer[tim]);
     return HAL_TIM_Base_Stop_IT(&htimer[tmr]);;
 }
+
+#endif
+
+
+TIM_HandleTypeDef htim6;
+static htimer_callback_t htim_callback=NULL;
+void htimer_irq_handler()
+{
+    HAL_TIM_IRQHandler(&htim6);
+    if(htim_callback) {
+        htim_callback(0);
+    }
+}
+
+
+
+void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
+{
+    if(htim_base->Instance==TIM6){
+        __HAL_RCC_TIM6_CLK_ENABLE();
+        
+        /* TIM6 interrupt Init */
+        HAL_NVIC_SetPriority(TIM6_IRQn, 0, 0);
+        HAL_NVIC_EnableIRQ(TIM6_IRQn);
+    }
+}
+
+
+void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
+{
+    if(htim_base->Instance==TIM6){
+        __HAL_RCC_TIM6_CLK_DISABLE();
+        HAL_NVIC_DisableIRQ(TIM6_IRQn);
+    }
+}
+
+int htimer_start2(htimer_callback_t cb, int ms, int repeat)
+{
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+    
+    htim6.Instance = TIM6;
+    htim6.Init.Prescaler = 5;
+    htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim6.Init.Period = 65535;
+    htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    if (HAL_TIM_Base_Init(&htim6) != HAL_OK) {
+        return -1;
+    }
+    
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_ENABLE;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK) {
+        return -1;
+    }
+    
+    return 0;
+}
+
+
+int htimer_stop2(void)
+{
+    if (HAL_TIM_Base_DeInit(&htim6) != HAL_OK) {
+        return -1;
+    }
+    
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -41,6 +41,9 @@ int htimer_set(handle_t h, htimer_set_t *set);
 int htimer_start(handle_t h);
 int htimer_stop(handle_t h);
 
+int htimer_start2(htimer_callback_t cb, int ms, int repeat);
+int htimer_stop2(void);
+
 handle_t htimer_sw_start(htimer_set_t *set);
 int htimer_sw_stop(handle_t *h);
 
