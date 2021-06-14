@@ -216,7 +216,12 @@ void htimer_irq_handler()
         htim_callback(0);
     }
 }
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == htim6.Instance) {
+		//
+	}
+}
 
 
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
