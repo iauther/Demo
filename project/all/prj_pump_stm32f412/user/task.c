@@ -75,13 +75,14 @@ int task_msg_post(int task_id, U8 evt, U8 type, void *data, U16 len)
 
 
 
+
 int task_start(void)
 {
     osKernelInitialize();                 // Initialize CMSIS-RTOS
     
-    task_create(TASK_COM,  task_com_fn,  1024);
     task_create(TASK_DEV,  task_dev_fn,  1024);
     task_create(TASK_MISC, task_misc_fn, 1024); 
+    task_create(TASK_COM,  task_com_fn,  2048);
     
     osKernelStart();
     

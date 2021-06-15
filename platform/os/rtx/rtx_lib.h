@@ -37,8 +37,8 @@
 #include "rtx/os_tick.h"                    // CMSIS OS Tick API
 #include "cmsis_os2.h"                  // CMSIS RTOS API
 #include "RTX_Config.h"                 // RTX Configuration
-#include "rtx/rtx_os.h"                     // RTX OS definitions
-#include "rtx/rtx_evr.h"                    // RTX Event Recorder definitions
+#include "rtx_os.h"                     // RTX OS definitions
+#include "rtx_evr.h"                    // RTX Event Recorder definitions
 
 
 //  ==== Library defines ====

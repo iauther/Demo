@@ -187,11 +187,11 @@ void task_dev_fn(void *arg)
     evt_t e;
     osTimerId_t tmrId;
     task_handle_t *h=(task_handle_t*)arg;
-    
+/*    
     tmrId = osTimerNew(dev_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, TIMER_MS);
     h->running = 1;
-    
+*/    
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));
         if(r==0) {

@@ -25,14 +25,14 @@ void task_com_fn(void *arg)
     evt_t e;
     osTimerId_t tmrId;
     task_handle_t *h=(task_handle_t*)arg;
-    
-    
+/*    
     tmrId = osTimerNew(com_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, TIMER_MS);
-    h->running = 1;
+    h->running = 1;   
     
     //jump_to_boot();
     com_init(com_rx_callback, TIMER_MS);
+*/
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));
         if(r==0) {
