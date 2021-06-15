@@ -8,9 +8,7 @@
 
 typedef struct {
     osMessageQueueId_t  mq;
-    osMemoryPoolId_t    mp;
     osEventFlagsId_t    ef;
-    osMutexId_t         mtx;
     U8                  ack;
     int                 msg_size;
 }msg_t;

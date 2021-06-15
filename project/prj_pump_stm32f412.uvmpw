@@ -9,12 +9,12 @@
 
   <project>
     <PathAndName>.\all\prj_pump_stm32f412\app.uvprojx</PathAndName>
-    <NodeIsActive>1</NodeIsActive>
     <NodeIsExpanded>1</NodeIsExpanded>
   </project>
 
   <project>
     <PathAndName>.\all\prj_pump_stm32f412\boot.uvprojx</PathAndName>
+    <NodeIsActive>1</NodeIsActive>
     <NodeIsExpanded>1</NodeIsExpanded>
   </project>
 
