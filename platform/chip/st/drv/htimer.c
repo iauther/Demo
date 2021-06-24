@@ -1,14 +1,10 @@
 #include "drv/htimer.h"
 
-
 #if 0
 typedef struct {
     TIM_HandleTypeDef   htim;
     DMA_HandleTypeDef   hdma;
     htimer_callback_t   callback;
-    
-    
-    
 }htimer_handle_t;
 
 
@@ -203,75 +199,94 @@ int htimer_stop(HTIMER tmr)
     //return HAL_TIM_Base_Stop(&htimer[tim]);
     return HAL_TIM_Base_Stop_IT(&htimer[tmr]);;
 }
-
 #endif
 
 
+
+#define HTIMER_MAX      10
+typedef struct {
+    int                 used;
+    int                 start;
+    int                 done;
+    htimer_set_t        set;
+}htimer_handle_t;
+
+
+static U32 htimer_cnt=0;
 TIM_HandleTypeDef htim6;
-static htimer_callback_t htim_callback=NULL;
-void htimer_irq_handler()
+htimer_handle_t htimerHandle[HTIMER_MAX]={0};
+
+
+
+void TIM6_IRQHandler(void)
 {
     HAL_TIM_IRQHandler(&htim6);
-    if(htim_callback) {
-        htim_callback(0);
-    }
 }
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if (htim->Instance == htim6.Instance) {
-		//
-	}
-}
-
-
-void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
-{
-    if(htim_base->Instance==TIM6){
-        __HAL_RCC_TIM6_CLK_ENABLE();
+    int i;
+    
+    if(htim->Instance==TIM6) {
         
-        /* TIM6 interrupt Init */
-        HAL_NVIC_SetPriority(TIM6_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(TIM6_IRQn);
+        htimer_cnt++;
+        for(i=0; i<HTIMER_MAX; i++) {
+            if(htimerHandle[i].used==1 && htimerHandle[i].start) {
+                if(htimer_cnt%htimerHandle[i].set.ms==0) {
+                    if((htimerHandle[i].set.repeat==0 && htimerHandle[i].done==0) || htimerHandle[i].set.repeat) {
+                        htimerHandle[i].set.callback(htimerHandle[i].set.user_data);
+                        htimerHandle[i].done=1;
+                    }
+                }
+            }
+        }
     }
 }
 
 
-void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
-{
-    if(htim_base->Instance==TIM6){
-        __HAL_RCC_TIM6_CLK_DISABLE();
-        HAL_NVIC_DisableIRQ(TIM6_IRQn);
-    }
-}
 
-int htimer_start2(htimer_callback_t cb, int ms, int repeat)
+
+
+int htimer_init(void)
 {
     TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+    __HAL_RCC_TIM6_CLK_ENABLE();
+    
     
     htim6.Instance = TIM6;
-    htim6.Init.Prescaler = 5;
+    htim6.Init.Prescaler = 99;
     htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim6.Init.Period = 65535;
+    htim6.Init.Period = 1000;
     htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
     if (HAL_TIM_Base_Init(&htim6) != HAL_OK) {
         return -1;
     }
     
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_ENABLE;
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
     if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK) {
         return -1;
     }
     
+    HAL_TIM_Base_Start_IT(&htim6);
+    
+    HAL_NVIC_SetPriority(TIM6_IRQn, 6, 0);
+    HAL_NVIC_EnableIRQ(TIM6_IRQn);
+    
     return 0;
 }
 
 
-int htimer_stop2(void)
+int htimer_deinit(void)
 {
+    HAL_TIM_Base_Stop(&htim6);
     if (HAL_TIM_Base_DeInit(&htim6) != HAL_OK) {
         return -1;
     }
+    
+    __HAL_RCC_TIM6_CLK_DISABLE();
+    HAL_NVIC_DisableIRQ(TIM6_IRQn);
     
     return 0;
 }
@@ -280,12 +295,75 @@ int htimer_stop2(void)
 
 
 
+int htimer_new(void)
+{
+    int i;
+    
+    for(i=0; i<HTIMER_MAX; i++) {
+        if(htimerHandle[i].used==0) {
+            htimerHandle[i].used = 1;
+            htimerHandle[i].start = 0;
+            htimerHandle[i].done = 0;
+            return i;
+        }
+    }
+    
+    return -1;
+}
+
+
+int htimer_set(int htimer_id, htimer_set_t *set)
+{
+    if((htimer_id<0 && htimer_id>=HTIMER_MAX) || !set) {
+        return -1;
+    }
+    
+    if(htimerHandle[htimer_id].used==0) {
+        return -1;
+    }
+    
+    htimerHandle[htimer_id].set = *set;
+    
+    return 0;
+}
 
 
 
+int htimer_free(int htimer_id)
+{
+    if(htimer_id<0 && htimer_id>=HTIMER_MAX) {
+        return -1;
+    }
+    
+    htimerHandle[htimer_id].used = 0;
+    
+    return 0;
+}
+
+
+int htimer_start(int htimer_id)
+{
+    if(htimer_id<0 && htimer_id>=HTIMER_MAX) {
+        return -1;
+    }
+    
+    htimerHandle[htimer_id].start = 1;
+    
+    return 0;
+}
 
 
 
+int htimer_stop(int htimer_id)
+{
+    if(htimer_id<0 && htimer_id>=HTIMER_MAX) {
+        return -1;
+    }
+    
+    htimerHandle[htimer_id].start = 0;
+    
+    return 0;
+}
 
 
 

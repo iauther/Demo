@@ -19,11 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\project\all\prj_pump_stm32f412\user\myCfg.h" />
+    <ClInclude Include="..\..\system\com.h" />
     <ClInclude Include="..\..\system\date.h" />
+    <ClInclude Include="..\..\system\error.h" />
+    <ClInclude Include="..\..\system\log.h" />
     <ClInclude Include="..\..\system\pkt.h" />
     <ClInclude Include="inc\framework.h" />
     <ClInclude Include="inc\icfg.h" />
-    <ClInclude Include="inc\logx.h" />
     <ClInclude Include="inc\port.h" />
     <ClInclude Include="inc\Resource.h" />
     <ClInclude Include="inc\serial.h" />
@@ -47,12 +50,6 @@
     <ClCompile Include="src\logx.c" />
     <ClCompile Include="src\myApp.c" />
     <ClCompile Include="src\myDev.c" />
-    <ClCompile Include="src\port.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="src\port2.c" />
     <ClCompile Include="src\serial.c" />
     <ClCompile Include="src\win.c" />
@@ -162,7 +159,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>./inc;./lib/libserialport;../../system;../../device;../../project/all/prj_pump_stm32f412/cfg;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./inc;./lib/libserialport;../../system;../../device;../../project/all/prj_pump_stm32f412/user;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

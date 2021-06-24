@@ -1,16 +1,16 @@
 #include "pkt.h"
+#include "paras.h"
 #include "data.h"
 #include "log.h"
 
 #ifdef _WIN32
-#include "logx.h"
 #include "port.h"
 #else
 #include "drv/uart.h"
 #endif
 
 typedef struct {
-    U8              askAck;
+    int             askAck;
     int             cnt;
     int             retries;
     U16             dataLen;
@@ -26,8 +26,10 @@ typedef struct {
     }data;
 }cache_t;
 
-#define BUFLEN      1000
-static U8 myBuf[BUFLEN];
+
+
+U8 pkt_rx_buf[PKT_BUFLEN];
+U8 pkt_tx_buf[PKT_BUFLEN];
 static pkt_cfg_t myCfg;
 static cache_t myCache[TYPE_MAX]={0};
 
@@ -45,11 +47,11 @@ static U8 get_sum(void* data, U16 len)
 }
 static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
 {
-    U8* buf = myBuf;
+    U8* buf = pkt_tx_buf;
     pkt_hdr_t* p = (pkt_hdr_t*)buf;
     U32 totalLen = PKT_HDR_LENGTH + len;
 
-    if (totalLen>BUFLEN-1) {
+    if (totalLen>PKT_BUFLEN-1) {
         //log("_____ send_pkt len is wrong, %d, max: %d\n", totalLen+1, BUFLEN);
         return -1;
     }
@@ -70,7 +72,7 @@ static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
 }
 static int send_ack(U8 type)
 {
-    U8* buf = myBuf;
+    U8* buf = pkt_tx_buf;
     pkt_hdr_t* p = (pkt_hdr_t*)buf;
     ack_t* ack = (ack_t*)p->data;
     U32 totalLen = PKT_HDR_LENGTH + sizeof(ack_t);
@@ -91,16 +93,16 @@ static int send_ack(U8 type)
 }
 static int send_err(U8 type, U8 error)
 {
-    U8* buf = myBuf;
+    U8* buf = pkt_tx_buf;
     pkt_hdr_t* p = (pkt_hdr_t*)buf;
     error_t* err = (error_t*)p->data;
-    U32 totalLen = PKT_HDR_LENGTH + sizeof(ack_t);
+    U32 totalLen = PKT_HDR_LENGTH + sizeof(error_t);
 
     p->magic = PKT_MAGIC;
     p->type = TYPE_ERROR;
     p->flag = 0;
     p->askAck = 0;
-    p->dataLen = sizeof(ack_t);
+    p->dataLen = sizeof(error_t);
 
     err->type = type;
     err->error = error;
@@ -117,11 +119,15 @@ static int send_err(U8 type, U8 error)
 
 int pkt_init(pkt_cfg_t *cfg)
 {
+    int i;
     if(!cfg) {
         return -1;
     }
     
     myCfg = *cfg;
+    for (i = 0; i < TYPE_MAX; i++) {
+        myCache[i].askAck = -1;
+    }
     
     return 0;
 }
@@ -129,23 +135,30 @@ int pkt_init(pkt_cfg_t *cfg)
 
 U8 pkt_hdr_check(void *data, U16 len)
 {
-    U8 sum,err=ERROR_NONE;
+    U8 sum1,sum2,err=ERROR_NONE;
+    U8 *p8=(U8*)data;
     pkt_hdr_t *p=(pkt_hdr_t*)data;
     
     if (p->magic != PKT_MAGIC) {
         err = ERROR_PKT_MAGIC;
     }
 
-    if (p->dataLen + PKT_HDR_LENGTH+1 != len || p->dataLen + PKT_HDR_LENGTH + 1>BUFLEN) {
+#if 0
+    if (p->dataLen + PKT_HDR_LENGTH+1 != len || p->dataLen + PKT_HDR_LENGTH + 1>PKT_BUFLEN) {
         #ifdef _WIN32
         LOG("____dataLen: %d, PKT_HDR_LEN: %d, len: %d\n", p->dataLen, PKT_HDR_LENGTH, len);
         #endif
         err = ERROR_PKT_LENGTH;
     }
+#endif
 
     if (err==ERROR_NONE) {
-        sum = get_sum(p, p->dataLen + PKT_HDR_LENGTH);
-        if (sum != ((U8*)p)[p->dataLen + PKT_HDR_LENGTH]) {
+        sum1 = p8[p->dataLen + PKT_HDR_LENGTH];
+        sum2 = get_sum(p, p->dataLen + PKT_HDR_LENGTH);
+        if (sum1 != sum2) {
+            #ifdef _WIN32
+            LOG("____checksum: 0x%02x, p8 0x%02x\n", sum1, sum2);
+            #endif
             err = ERROR_PKT_CHECKSUM;
         }
     }
@@ -162,7 +175,7 @@ void pkt_cache_reset(void)
 
 static void cache_update(void)
 {
-    pkt_hdr_t *p=(pkt_hdr_t*)myBuf;
+    pkt_hdr_t *p=(pkt_hdr_t*)pkt_tx_buf;
     cache_t *c=&myCache[p->type];
     c->askAck = p->askAck;
     c->cnt = 0;
@@ -175,7 +188,7 @@ static void cache_update(void)
 }
 
 
-int pkt_ack_update(U8 type)
+int pkt_ack_reset(U8 type)
 {
     cache_t *c;
     
@@ -184,7 +197,7 @@ int pkt_ack_update(U8 type)
     }
     
     c = &myCache[type];
-    c->askAck = 0;
+    c->askAck = -1;
     c->cnt = 0;
     c->retries = 0;
     
@@ -196,7 +209,7 @@ static int need_wait_ack(U8 type)
 {
     int r=0;
     
-    if(myCache[type].askAck) {
+    if(myCache[type].askAck>0) {
         if(ackTimeout.set[type].enable) {
             if(myCache[type].retries<ackTimeout.set[type].retryTimes) {
                 r = 1;
@@ -208,39 +221,31 @@ static int need_wait_ack(U8 type)
 }
 
 
-int pkt_ack_is_timeout(U8 type)
+int pkt_check_timeout(U8 type)
 {
     int r=0;
     U8 send=0;
     cache_t *c=&myCache[type];
     
-    if(c->askAck) {
+    if(c->askAck>0) {
         if(ackTimeout.set[type].enable) {
-            if(c->cnt*myCfg.period<ackTimeout.set[type].resendIvl*(c->retries+1)) {
-                c->cnt++;
-            }
-            else {
-                if (c->retries < ackTimeout.set[type].retryTimes) {
-                    c->cnt++;
-                    c->retries++;
-                    r = 0; send = 1;
+            if((c->cnt*myCfg.period) % ackTimeout.set[type].resendIvl==0) {
+
+                if (ackTimeout.set[type].retryTimes > 0) {
+                    if (c->retries < ackTimeout.set[type].retryTimes) {
+                        c->retries++;
+                    }
+                    else {
+                        r = 1;
+                    }
                 }
                 else {
                     r = 1;
                 }
             }
+            c->cnt++;
         }
-        else {
-            r = -1; send = 2;
-        }
-    }
-    else {
-        r = -2;
-    }
-    
-    if(send) {
-        send_pkt(type, 1, &c->data, c->dataLen);
-    }
+    }  
 
     return r;
 }
@@ -258,6 +263,19 @@ int pkt_send(U8 type, U8 nAck, void* data, U16 len)
     }
     
     return r;
+}
+
+
+int pkt_resend(U8 type)
+{
+    cache_t* c=NULL;
+
+    if (type>=TYPE_MAX) {
+        return 1;
+    }
+
+    c = &myCache[type];
+    return send_pkt(type, 1, &c->data, c->dataLen);
 }
 
 

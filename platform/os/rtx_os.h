@@ -472,4 +472,3 @@ extern const osRtxConfig_t osRtxConfig;         ///< OS Configuration
 #endif  // RTX_OS_H_
 
 
-

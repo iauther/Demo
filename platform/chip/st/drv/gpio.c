@@ -7,7 +7,7 @@
 
 
 #define INDEXOF(grp) ((U8)(((U32)(grp)-GPIOA_BASE)/0x400))
-#define DATAOF(pin)  (&gpioData[pin])
+#define DATAOF(pin)  (&gpioData[(int)log2(pin)])
 typedef struct {
     gpio_pin_t          pin;
     GPIO_InitTypeDef    init;
@@ -19,26 +19,14 @@ static gpio_data_t gpioData[16]={0};
 IRQn_Type gpioIRQn[4]={EXTI0_IRQn,EXTI1_IRQn,EXTI2_IRQn,EXTI3_IRQn};
 static U32 modeMap[GPIO_MODE_MAX]={GPIO_MODE_INPUT,GPIO_MODE_OUTPUT_PP,GPIO_MODE_IT_RISING,GPIO_MODE_IT_FALLING,
                                    GPIO_MODE_IT_RISING_FALLING,GPIO_MODE_EVT_RISING,GPIO_MODE_EVT_FALLING,GPIO_MODE_EVT_RISING_FALLING};
-                              
-                              
-                              
-static U8 find_index(U16 v)
-{
-    U8 i=0,j=16;
-    while(j-->0) {
-        if(v&0x01) {
-            return i;
-        }
-        i++;
-    }
-    return i;
-}
+                                            
 
 
 void HAL_GPIO_EXTI_Callback(uint16_t pin)
 {
-    if(gpioData[pin].callback) {
-        gpioData[pin].callback(&pin);
+    int x=log2(pin);
+    if(gpioData[x].callback) {
+        gpioData[x].callback(&pin);
     }
 }
 
@@ -141,10 +129,6 @@ U8 gpio_get_hl(gpio_pin_t *pin)
 
 int gpio_pull(gpio_pin_t *pin, U8 type)
 {
-    if(!pin) {
-        return -1;
-    }
-    
     GPIO_InitTypeDef init;
     
     if(!pin) {
@@ -234,7 +218,8 @@ int gpio_clk_en(gpio_pin_t *pin, U8 on)
             else   __HAL_RCC_GPIOD_CLK_DISABLE();
         }
         break;
-        
+
+#ifdef STM32F412Zx      
         case (U32)GPIOE:
         {
             if(on) __HAL_RCC_GPIOE_CLK_ENABLE();
@@ -262,6 +247,7 @@ int gpio_clk_en(gpio_pin_t *pin, U8 on)
             else   __HAL_RCC_GPIOH_CLK_DISABLE();
         }
         break;
+#endif
         
         default:
         return -1;

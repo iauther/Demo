@@ -1,4 +1,5 @@
 #include "clk.h"
+#include "myCfg.h"
 #include "platform.h"
 
 U32 sys_freq = 0;
@@ -35,13 +36,12 @@ int clk2_init(void)
 
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK) {
         return -1;
-    }
+    } 
     
     sys_freq = HAL_RCC_GetSysClockFreq();
     //__HAL_RCC_GPIOC_CLK_ENABLE();
     //__HAL_RCC_GPIOH_CLK_ENABLE();
     //__HAL_RCC_GPIOA_CLK_ENABLE();
-    
     
     //HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
     

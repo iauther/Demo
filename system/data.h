@@ -5,6 +5,8 @@
 #include "n950.h"
 #include "ms4525.h"
 #include "valve.h"
+#include "led.h"
+#include "buzzer.h"
 #include "ft32xx.h"
 #include "nvm.h"
 #include "bmp280/bmp280.h"
@@ -26,12 +28,20 @@ enum {
 };
 
 enum {
-    STAT_AUTO=0,
-    STAT_MANUAL,
+    STAT_STOP=0,
+    STAT_RUNNING,
     STAT_UPGRADE,
     
     STAT_MAX
 };
+
+enum {
+    ADJ_AUTO=0,
+    ADJ_MANUAL,
+    
+    ADJ_MAX
+};
+
 
 
 enum {
@@ -80,8 +90,9 @@ typedef struct {
 }setts_t;
 
 typedef struct {
-    U8              stat;
-    U8              mode;
+    U8              adjMode;
+    U8              sysState;
+    
     F32             temp;        //environment temperature,   unit: degree celsius
     F32             aPres;       //outside absolute pressure, unit: kpa
     F32             dPres;       //differential pressure,     unit: kPa
@@ -136,7 +147,7 @@ typedef struct {
 typedef struct {
     fw_info_t       fwInfo;
     upgrade_ctl_t   upgCtl;
-    U8*             data[0];
+    U8              data[0];
 }upgrade_hdr_t;
 
 typedef struct {
@@ -148,21 +159,6 @@ typedef struct {
 
 
 #define PKT_HDR_LENGTH      sizeof(pkt_hdr_t)
-
-typedef struct {
-    struct {
-        U8          enable;
-        int         resendIvl;       //resend interval time,  unit: ms
-        int         retryTimes;      //retry max
-    }set[TYPE_MAX];
-}ack_timeout_t;
-
-
-
-extern U8 sysState;
-extern stat_t curStat;
-extern paras_t curParas;
-extern ack_timeout_t ackTimeout;
 
 
 #endif

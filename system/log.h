@@ -29,17 +29,24 @@ int log_set(log_cfg_t *cfg);
                                 printf("%s %s, line:%d, ", log_string[lv], __FILE__, __LINE__);\
                                 printf(fmt, ##__VA_ARGS__);\
                             }
-#else
-#define LOGx(lv, fmt, ...)  if(log_cfg.en[lv]) {\
-                                printf(fmt, ##__VA_ARGS__);\
-                            }
 #endif
 
+#ifdef _WIN32
+    #define LOGx(lv, fmt, ...)  logx(fmt, ...)
+#else
+    #define LOGx(lv, fmt, ...)  if(log_cfg.en[lv]) {\
+                                    printf(fmt, ##__VA_ARGS__);\
+                                }
+#endif
 
+         
+#define LOG                 logx
+                                
 #define LOGI(fmt, ...)      LOGx(LV_INFO, fmt, ##__VA_ARGS__)
 #define LOGD(fmt, ...)      LOGx(LV_DEBUG, fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...)      LOGx(LV_WARNNING, fmt, ##__VA_ARGS__)
 #define LOGE(fmt, ...)      LOGx(LV_ERROR, fmt, ##__VA_ARGS__)
-                            
+     
+                                
 #endif
 

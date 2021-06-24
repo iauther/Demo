@@ -1,6 +1,8 @@
 #include "drv/i2c.h"
 #include "drv/delay.h"
 #include "lock.h"
+#include "myCfg.h"
+
 
 #if defined(__CC_ARM)
 #pragma diag_suppress 1296
@@ -9,41 +11,53 @@
 
 #define NMAX    5
 
+#ifndef GPIOF
+#define GPIOF 0
+#endif
 
+
+typedef struct {
+    GPIO_TypeDef        *grp;
+    U32                 pin;
+    U32                 alt;
+}pin_info_t;
+
+typedef struct {
+    pin_info_t          scl[NMAX];
+    pin_info_t          sda[NMAX];
+}i2c_pin_info_t;
+
+typedef struct {
+    pin_info_t          scl;
+    pin_info_t          sda;
+}i2c_info_t;
 typedef struct {
     int                 port;
     U8                  useDMA;
-    i2c_pin_t           pin;
+    i2c_info_t          info;
     i2c_callback        callback;
     U8                  finish_flag;
     I2C_HandleTypeDef   hi2c;
     handle_t            lock;
 }i2c_handle_t;
 
-typedef struct {
-    pin_t           scl[NMAX];
-    pin_t           sda[NMAX];
-}i2c_pin_info_t;
-
 
 static i2c_pin_info_t pin_info[I2C_MAX]= {
     {//I2C_1
-        {{GPIOB, GPIO_PIN_6}, {GPIOB, GPIO_PIN_8}, {NULL, 0}},
-        {{GPIOB, GPIO_PIN_7}, {GPIOB, GPIO_PIN_9}, {NULL, 0}},
+        {{GPIOB, GPIO_PIN_6, GPIO_AF4_I2C1}, {GPIOB, GPIO_PIN_8, GPIO_AF4_I2C1}, {NULL, 0, 0}},
+        {{GPIOB, GPIO_PIN_7, GPIO_AF4_I2C1}, {GPIOB, GPIO_PIN_9, GPIO_AF4_I2C1}, {NULL, 0, 0}}
     },
     
     {//I2C_2
-        {{GPIOB, GPIO_PIN_10}, {GPIOF, GPIO_PIN_1}, {NULL, 0}},
-        {{GPIOB, GPIO_PIN_3},  {GPIOB, GPIO_PIN_9}, {GPIOB, GPIO_PIN_11}, {GPIOF, GPIO_PIN_0}, {NULL, 0}},
+        {{GPIOB, GPIO_PIN_10, GPIO_AF4_I2C2}, {GPIOF, GPIO_PIN_1, GPIO_AF4_I2C2}, {NULL, 0, 0}},
+        {{GPIOB, GPIO_PIN_3,  GPIO_AF9_I2C2}, {GPIOB, GPIO_PIN_9, GPIO_AF9_I2C2}, {GPIOB, GPIO_PIN_11, GPIO_AF4_I2C2}, {GPIOF, GPIO_PIN_0, GPIO_AF4_I2C2}, {NULL, 0, 0}}
     },
     
     {//I2C_3
-        {{GPIOA, GPIO_PIN_8}, {NULL, 0}},
-        {{GPIOB, GPIO_PIN_8}, {GPIOB, GPIO_PIN_9}, {GPIOC, GPIO_PIN_9}, {NULL, 0}},
+        {{GPIOA, GPIO_PIN_8, GPIO_AF4_I2C3}, {NULL, 0, 0}},
+        {{GPIOB, GPIO_PIN_8, GPIO_AF4_I2C3}, {GPIOC, GPIO_PIN_9, GPIO_AF4_I2C3}, {NULL, 0, 0}},
     }
 };
-
-
 
 
 
@@ -53,15 +67,16 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
 {
     GPIO_InitTypeDef init={0};
     i2c_handle_t *h=NULL;
-    
+  
+    init.Mode = GPIO_MODE_AF_OD;
+    init.Pull = GPIO_PULLUP;
+    init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     switch((U32)i2cHandle->Instance) {
         case (U32)I2C1:
         {
             h = allHandle[I2C_1];
             __HAL_RCC_I2C1_CLK_ENABLE();
             __HAL_RCC_GPIOB_CLK_ENABLE();
-            init.Alternate = GPIO_AF4_I2C1;
-            init.Pull = GPIO_NOPULL;//GPIO_PULLUP;
         }
         break;
         
@@ -69,9 +84,11 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
         {
             h = allHandle[I2C_2];
             __HAL_RCC_I2C2_CLK_ENABLE();
+#ifdef STM32F412Zx
             __HAL_RCC_GPIOF_CLK_ENABLE();
-            init.Alternate = GPIO_AF4_I2C2;
-            init.Pull = GPIO_NOPULL;//GPIO_PULLUP;
+#else
+            __HAL_RCC_GPIOB_CLK_ENABLE();
+#endif  
         }
         break;
         
@@ -82,7 +99,7 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
             __HAL_RCC_GPIOA_CLK_ENABLE();
             __HAL_RCC_GPIOC_CLK_ENABLE();
             init.Alternate = GPIO_AF4_I2C3;
-            init.Pull = GPIO_PULLUP;
+            
         }
         break;
         
@@ -90,18 +107,20 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
         return;
     }
     
-    init.Mode = GPIO_MODE_AF_OD;
-    init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    if(h->pin.scl.grp==h->pin.sda.grp) {
-        init.Pin = h->pin.scl.pin | h->pin.sda.pin;
-        HAL_GPIO_Init(h->pin.scl.grp, &init);
+    
+    if(h->info.scl.grp==h->info.sda.grp && h->info.scl.alt==h->info.sda.alt) {
+        init.Pin = h->info.scl.pin | h->info.sda.pin;
+        init.Alternate = h->info.scl.alt;
+        HAL_GPIO_Init(h->info.scl.grp, &init);
     }
     else {
-        init.Pin = h->pin.scl.pin;
-        HAL_GPIO_Init(h->pin.scl.grp, &init);
+        init.Pin = h->info.scl.pin;
+        init.Alternate = h->info.scl.alt;
+        HAL_GPIO_Init(h->info.scl.grp, &init);
         
-        init.Pin = h->pin.sda.pin;
-        HAL_GPIO_Init(h->pin.sda.grp, &init);
+        init.Pin = h->info.sda.pin;
+        init.Alternate = h->info.sda.alt;
+        HAL_GPIO_Init(h->info.sda.grp, &init);
     }
     
     //__I2C2_FORCE_RESET();
@@ -139,44 +158,45 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
         return;
     }
     
-    if(h->pin.scl.grp==h->pin.sda.grp) {
-        HAL_GPIO_DeInit(h->pin.scl.grp, h->pin.scl.pin | h->pin.sda.pin);
+    if(h->info.scl.grp==h->info.sda.grp) {
+        HAL_GPIO_DeInit(h->info.scl.grp, h->info.scl.pin | h->info.sda.pin);
     }
     else {
-        HAL_GPIO_DeInit(h->pin.scl.grp, h->pin.scl.pin);
-        HAL_GPIO_DeInit(h->pin.sda.grp, h->pin.sda.pin);
+        HAL_GPIO_DeInit(h->info.scl.grp, h->info.scl.pin);
+        HAL_GPIO_DeInit(h->info.sda.grp, h->info.sda.pin);
     }
 }
 
-static int get_port(i2c_pin_t *pin)
+static int get_port(i2c_info_t *info, i2c_pin_t *pin)
 {
-    int i,j;
+    int i,j,r=-1;
     int p1=-1,p2=-1;
-    i2c_pin_info_t *info;
+    i2c_pin_info_t *inf=pin_info;
     
     for(i=0; i<I2C_MAX; i++) {
-        
-        info = &pin_info[i];
         for(j=0; j<NMAX; j++) {
-            if(info->scl[j].grp==pin->scl.grp && info->scl[j].pin==pin->scl.pin ) {
+            if(inf[i].scl[j].grp==pin->scl.grp && inf[i].scl[j].pin==pin->scl.pin ) {
                 p1 = i;
+                info->scl.alt = inf[i].scl[j].alt;
                 break;
             }
         }
         
         for(j=0; j<NMAX; j++) {
-            if(info->sda[j].grp==pin->sda.grp && info->sda[j].pin==pin->sda.pin ) {
+            if(inf[i].sda[j].grp==pin->sda.grp && inf[i].sda[j].pin==pin->sda.pin ) {
                 p2 = i;
+                info->sda.alt = inf[i].sda[j].alt;
                 break;
             }
         }
         
         if(p1!=-1 && p2!=-1 && p1==p2) {
-            return p1;
+            r = p1;
+            break;
         }
     }
     
-    return -1;
+    return r;
 }    
 
 handle_t i2c_init(i2c_cfg_t *cfg)
@@ -202,8 +222,12 @@ handle_t i2c_init(i2c_cfg_t *cfg)
     init.OwnAddress1 = 0;
     init.OwnAddress2 = 0;
     
-    h->port = get_port(&cfg->pin);
-    h->pin  = cfg->pin;
+    h->info.scl.grp  = cfg->pin.scl.grp;
+    h->info.scl.pin  = cfg->pin.scl.pin;
+    h->info.sda.grp  = cfg->pin.sda.grp;
+    h->info.sda.pin  = cfg->pin.sda.pin;
+    
+    h->port = get_port(&h->info, &cfg->pin);
     h->hi2c.Instance = i2cDef[h->port];
     h->hi2c.Init = init;
     h->useDMA = cfg->useDMA;

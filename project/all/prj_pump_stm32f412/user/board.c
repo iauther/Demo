@@ -1,11 +1,15 @@
 #include "board.h"
 #include "data.h"
+#include "led.h"
+#include "buzzer.h"
+#include "data.h"
 #include "drv/clk.h"
 #include "drv/gpio.h"
 #include "drv/delay.h"
 #include "drv/uart.h"
 #include "drv/i2c.h"
 #include "drv/clk.h"
+#include "drv/htimer.h"
 #include "paras.h"
 #include "myCfg.h"
 
@@ -17,31 +21,25 @@ handle_t i2c2Handle=NULL;
 static int bus_init(void)
 {
     i2c_cfg_t  ic;
+    i2c_pin_t  p1={I2C1_SCL_PIN,I2C1_SDA_PIN};
+    i2c_pin_t  p2={I2C2_SCL_PIN,I2C2_SDA_PIN};
     
-    ic.pin.scl.grp = GPIOA;
-    ic.pin.scl.pin = GPIO_PIN_8;
-    ic.pin.sda.grp = GPIOC;
-    ic.pin.sda.pin = GPIO_PIN_9;
     
-    ic.freq = 100000;
+    ic.pin= p1;
+    ic.freq = I2C1_FREQ;
     ic.useDMA = 0;;
     ic.callback = NULL;
     ic.finish_flag=0;
     i2c1Handle = i2c_init(&ic);
     
-    
-    ic.pin.scl.grp = GPIOF;
-    ic.pin.scl.pin = GPIO_PIN_1;
-    ic.pin.sda.grp = GPIOF;
-    ic.pin.sda.pin = GPIO_PIN_0;
-    
-    ic.freq = 100000;
+    ic.pin= p2;
+    ic.freq = I2C2_FREQ;
     ic.useDMA = 0;;
     ic.callback = NULL;
     ic.finish_flag=0;
     i2c2Handle = i2c_init(&ic);
     
-    return (i2c2Handle?-1:0);
+    return ((i2c1Handle&&i2c2Handle)?-1:0);
 }
 
 
@@ -49,15 +47,15 @@ static int dev_init(void)
 {
     int r=0;
 
-#ifdef OS_KERNEL
     r = nvm_init();
+    r = led_init();
+    r = buzzer_init();
+    
+#ifdef OS_KERNEL
     r = n950_init();
     r = ms4525_init();
     r = bmp280_init();
     r = valve_init();
-    
-    //r = mlx90632_init();
-    //r = as62xx_init();
 #endif
     
     return r;
@@ -96,10 +94,13 @@ int board_init(void)
     
     r = HAL_Init();
     r = clk2_init();
+    r = htimer_init();
     
     r = bus_init();
     r = dev_init();
     r = paras_load();
+    
+    led_set_color(GREEN);
    
     return r;
 }

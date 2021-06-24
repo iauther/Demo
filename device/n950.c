@@ -28,20 +28,25 @@ char *cmd_str[CMD_MAX] = {
     "gSh",
     "iV",
 };
-U8 tx_buf[30],rx_buf[30];
+
+#define N950_BUFLEN     30
+static U8 n950_tmp_buf[N950_BUFLEN];
+static U8 n950_rx_buf[N950_BUFLEN];
+static U8 n950_tx_buf[N950_BUFLEN];
 static int uart_send_cmd(U8 cmd, U32 speed)
 {
     int r;
+    U8  tmp[30];
     
     if(cmd==CMD_SET_SPEED) {
-        sprintf((char*)tx_buf, "%s%d\r", cmd_str[cmd], speed);
+        sprintf((char*)tmp, "%s%d\r", cmd_str[cmd], speed);
     }
     else {
-        sprintf((char*)tx_buf, "%s\r", cmd_str[cmd]);
+        sprintf((char*)tmp, "%s\r", cmd_str[cmd]);
     }
     
     rx_length = 0;
-    r = uart_write(uartHandle, (U8*)tx_buf, strlen((char*)tx_buf));
+    r = uart_write(uartHandle, (U8*)tmp, strlen((char*)tmp));
     if(r==0) {
         if(cmd==CMD_SET_START) {
             delay_ms(30);
@@ -78,7 +83,7 @@ static pwm_cfg_t cfg={
                 {
                     .pwm_pin  = GPIO_PUMP_PWM_PIN,            //set speed
                     .type = TYPE_OC,
-                    .mode = MODE_OD,
+                    .mode = MODE_PP,
                 },
                 
                 {
@@ -114,7 +119,7 @@ static int pwm_set_speed(U32 speed)
     
     //dr = 2.1/5.0;
     dr = DRATIO_OF(speed);
-    r = pwm_set(pwmHandle, PWM_PIN_A0, PWM_FREQ, dr);
+    r = pwm_set(pwmHandle, GPIO_PUMP_PWM_PIN, PWM_FREQ, dr);
     
     return r;
 }
@@ -163,6 +168,9 @@ static int uart_rx_wait(int ms)
 static void rx_callback(U8 *data, U16 len)
 {
     rx_length = len;
+    if(len<=N950_BUFLEN) {
+        memcpy(n950_tmp_buf, data, len);
+    }
 }
 int n950_init(void)
 {
@@ -172,12 +180,14 @@ int n950_init(void)
     uc.port = PUMP_UART_PORT;
     uc.baudrate = N950_BAUDRATE;
     uc.para.rx  = rx_callback;
-    uc.para.buf = rx_buf;
-    uc.para.blen = sizeof(rx_buf);
+    uc.para.buf = n950_rx_buf;
+    uc.para.blen = sizeof(n950_rx_buf);
     uc.para.dlen = 0;
     uartHandle = uart_init(&uc);
     
     pwmHandle = pwm_init(&cfg);
+    
+    //n950_test();
     
     return 0;
 }
@@ -246,12 +256,12 @@ int n950_get(n950_stat_t *st)
     //rx_buf[25]        0: command not complete  1: command complete  ?: command unclear
     //rx_buf[26]        0x0d: end sympol
 #if 1
-    rx_buf[5]=rx_buf[11]=rx_buf[19]=rx_buf[24]=0;
-    st->speed = atoi((char*)rx_buf);
-    st->current = atof((char*)(rx_buf+6));
-    st->temp = atof((char*)(rx_buf+12));
-    st->fault = atoi((char*)(rx_buf+20));
-    st->cmdAck = (rx_buf[25]=='?')?2:rx_buf[25];
+    n950_tmp_buf[5]=n950_tmp_buf[11]=n950_tmp_buf[19]=n950_tmp_buf[24]=0;
+    st->speed = atoi((char*)n950_tmp_buf);
+    st->current = atof((char*)(n950_tmp_buf+6));
+    st->temp = atof((char*)(n950_tmp_buf+12));
+    st->fault = atoi((char*)(n950_tmp_buf+20));
+    st->cmdAck = (n950_tmp_buf[25]=='?')?2:n950_tmp_buf[25];
 #endif
     
     return r;
@@ -260,14 +270,15 @@ int n950_get(n950_stat_t *st)
 
 void n950_test(void)
 {
-    //U8 tmp[50];
+    int r, cnt=0;
+    U8 tmp[50];
     
     //set_speed(100);
     while(1) {
-        //sprintf((char*)tmp, "______test cnt: %d\r\n", cnt++);
-        //r = uart_write(uartHandle, tmp, strlen((char*)tmp));
+        sprintf((char*)tmp, "______test cnt: %d\r\n", cnt++);
+        r = uart_write(uartHandle, tmp, strlen((char*)tmp));
         //LOGD("______test cnt: %d\r\n", cnt++);
-        //delay_ms(500);
+        delay_ms(100);
     }
 }
 

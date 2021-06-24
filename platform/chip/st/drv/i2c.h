@@ -46,7 +46,5 @@ int i2c_mem_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *dat
 int i2c_mem_is_ready(handle_t h, U16 devAddr);
 
 
-#define I2C_PORT    I2C_3
-#define I2C_FREQ    (10*1000)
 
 #endif /*__ i2c_H */

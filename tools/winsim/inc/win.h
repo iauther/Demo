@@ -53,6 +53,7 @@ typedef struct {
 		label_input_t*	maxVol;
 
 		uiButton*		set;
+		uiButton*		valve;
 
 		uiButton*		start;
 	}sett;
@@ -62,11 +63,13 @@ typedef struct {
 		uiBox*			vbox;
 		uiGrid*			grid;
 
+		uiLabel*		stat;
 		uiLabel*		mode;
-		uiLabel*		temp;
-		uiLabel*		speed;
-		uiLabel*		valve;
 		uiLabel*		vacuum;
+		uiLabel*		pressure;
+		uiLabel*		tempure;
+
+		uiLabel*		speed;
 		uiLabel*		current;
 	}stat;
 }para_grp_t;
@@ -78,6 +81,7 @@ typedef struct {
 	uiBox*				vbox;
 	uiGrid*				g;
 
+	uiLabel*			fwinfo;
 	uiEntry*			path;
 	uiButton*			open;
 
@@ -110,6 +114,7 @@ typedef struct {
 
 
 void win_init(int mcu);
+void win_paras_update(paras_t* paras);
 void win_stat_update(stat_t* stat);
 
 #endif

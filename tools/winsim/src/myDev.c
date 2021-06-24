@@ -15,8 +15,9 @@ extern paras_t DEFAULT_PARAS;
 static int send_stat(U8 st)
 {
     stat_t stat;
-            
-    stat.stat = st;
+
+    stat.adjMode = ADJ_AUTO;
+    stat.sysState = st;
     stat.temp = 22.34F;
     stat.aPres = 93.6F;
     stat.dPres = 77.2F;
@@ -33,16 +34,20 @@ static int send_stat(U8 st)
 
 static U8 timer_proc(void)
 {
-    U8  err;
+    U8  i,err=0;
     int r;   
 
     if (!port_is_opened()) {
         return 0;
     }
-    send_stat(STAT_AUTO);
+    send_stat(STAT_RUNNING);
 
-    err = com_loop_check(1);
-
+    for (i = 0; i < TYPE_MAX; i++) {
+        r = com_check_timeout(i);
+        if (r == 0) { //timeout
+            //err_print(i, 100);
+        }
+    }
     
 
     return err;
@@ -128,7 +133,7 @@ int task_dev_start(void)
 
     com_init(dummy_fun, TIMER_MS);
 
-    timerId = SetTimer(NULL, 1, 100, timer_callback);
+    timerId = SetTimer(NULL, 1, TIMER_MS, timer_callback);
     devRxThreadHandle = CreateThread(NULL, 0, dev_rx_thread, NULL, 0, NULL);
     devThreadHandle = CreateThread(NULL, 0, dev_thread, NULL, 0, NULL);
 

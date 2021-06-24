@@ -90,7 +90,9 @@
 	#define MEM_STWC         5U                    /* Self Timed Write Cycle */
 	#define MEM_MAX_SIZE     ((MEM_PAGE_SIZE) * (MEM_NUM_OF_PAGE)) /* Maximum memory size */
 #else
+	#ifndef _WIN32
 	#error [MEM ERROR01]Memory is not selected Or not supported.
+	#endif
 #endif
 
 

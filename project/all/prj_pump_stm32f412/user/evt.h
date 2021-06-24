@@ -6,7 +6,7 @@
 #define MAXLEN  0xFF
 
 enum {
-    EVT_COM,
+    EVT_COM=0,
     EVT_N950,
     EVT_MS4525,
     

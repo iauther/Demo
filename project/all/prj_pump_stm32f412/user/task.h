@@ -8,8 +8,7 @@
 #include "msg.h"
 
 enum {
-    TASK_MAIN=0,
-    TASK_COM,
+    TASK_COM=0,
     TASK_DEV,
     TASK_MISC,
     
@@ -22,8 +21,6 @@ typedef struct {
     osTimerId_t     tmr_id;
     osThreadId_t    thread_id;
     osThreadFunc_t  thread_fn;
-    
-    U8              running;
 }task_handle_t;
 
 void task_com_fn(void *arg);
@@ -35,6 +32,7 @@ int task_msg_send(int task_id, U8 evt, U8 type, void *data, U16 len);
 int task_msg_post(int task_id, U8 evt, U8 type, void *data, U16 len);
 
 int task_misc_save_paras(node_t *n);
+void task_start_others(void);
 
 int task_start(void);
 int task_new(osThreadFunc_t fn, void *arg);

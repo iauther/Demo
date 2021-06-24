@@ -1,16 +1,17 @@
 #include <windows.h>
 #include "win.h"
 #include "port.h"
-#include "logx.h"
+#include "log.h"
 #include "task.h"
 #include "icfg.h"
-#include "pkt.h"
+#include "com.h"
 
 #pragma comment  (lib, "libui.lib")
 
-
+int port_opened = 0;
 extern setts_t  curSetts;
 extern sett_t* pCurSett;
+static U8 valve_open = 0;
 extern int exit_flag;
 static grp_t     grp;
 static int       mcuSim;
@@ -108,9 +109,10 @@ static void on_port_open_btn_fn(uiButton* b, void* data)
 	uiCombobox* c = uiCombobox(data);
 	int port_id = uiComboboxSelected(c)+1;
 
-	if (port_is_opened()) {
+	if (port_opened) {
 		uiButtonSetText(b, "Open");
 		port_close();
+		port_opened = 0;
 		r = 0;
 	}
 	else {
@@ -119,6 +121,8 @@ static void on_port_open_btn_fn(uiButton* b, void* data)
 			uiMsgBoxError(grp.win, "Open Failed", "Please Check The Port And Try Again.");
 		}
 		else {
+			port_opened = 1;
+			com_send_paras(0);
 			uiButtonSetText(b, "Close");
 		}
 	}
@@ -146,7 +150,7 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 	port->g = uiNewGrid();					uiGridSetPadded(port->g, 1);
 	port->port = uiNewCombobox();
 	for (i = 1; i <= MAX_PORT; i++) {
-		sprintf(tmp, "COM%d", i);
+		snprintf(tmp, sizeof(tmp), "COM%d", i);
 		uiComboboxAppend(port->port, tmp);
 		uiComboboxOnSelected(port->port, on_port_combo_sel_fn, NULL);
 	}
@@ -176,21 +180,45 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 
 static void on_sett_set_fn(uiButton* b, void* data)
 {
-	//com_send(TYPE_SETT, 0, NULL, 0);
+	setts_t *setts=&curParas.setts;
+	if (!com_get_paras_flag()) {
+		uiMsgBoxError(grp.win, "Set Failed", "Paras not received!");
+		return;
+	}
+	com_send_data(TYPE_SETT, 1, setts, sizeof(setts_t));
 }
+static void on_sett_valve_fn(uiButton* b, void* data)
+{
+	para_grp_t* para = (para_grp_t*)data;
+
+	valve_open = !valve_open;
+	cmd_t cmd = { CMD_VALVE_SET , valve_open };
+	com_send_data(TYPE_CMD, 0, &cmd, sizeof(cmd));
+
+	uiButtonSetText(para->sett.valve, valve_open?"Valve Open":"Valve Close");
+	uiButtonSetText(para->sett.start, "Start");
+}
+
 static void on_sett_start_btn_fn(uiButton* b, void* data)
 {
+	U8 err;
+	cmd_t cmd;
+
 	if(strcmp(uiButtonText(b), "Start")==0) {
-		uiButtonSetText(b, "Stop");
-		LOG("start the pump...\n");
-		cmd_t cmd = { CMD_PUMP_START,0};
-		task_app_trig(TYPE_CMD, 1, &cmd, sizeof(cmd));
+		cmd.cmd = CMD_PUMP_START;cmd.para = 0;
+		err = com_send_data(TYPE_CMD, 0, &cmd, sizeof(cmd));
+		if (err == 0) {
+			uiButtonSetText(b, "Stop");
+			LOG("start the pump...\n");
+		}
 	}
 	else if (strcmp(uiButtonText(b), "Stop") == 0) {
-		uiButtonSetText(b, "Start");
-		LOG("stop the pump...\n");
-		cmd_t cmd = { CMD_PUMP_STOP,0 };
-		task_app_trig(TYPE_CMD, 1, &cmd, sizeof(cmd));
+		cmd.cmd = CMD_PUMP_STOP;cmd.para = 0;
+		err = com_send_data(TYPE_CMD, 0, &cmd, sizeof(cmd));
+		if (err == 0) {
+			uiButtonSetText(b, "Start");
+			LOG("stop the pump...\n");
+		}
 	}
 }
 static int para_grp_init(uiWindow* win, para_grp_t* para)
@@ -213,9 +241,10 @@ static int para_grp_init(uiWindow* win, para_grp_t* para)
 	para->sett.w_time = label_input_new("wTime", "0", "s");
 	para->sett.s_time = label_input_new("sTime", "0", "s");
 	para->sett.t_time = label_input_new("tTime", "0", "s");
-	para->sett.vacuum = label_input_new("Pres ", "93", "kpa");
-	para->sett.maxVol = label_input_new("Vol  ", "200", "ml");
+	para->sett.vacuum = label_input_new("Pres ", "0", "kpa");
+	para->sett.maxVol = label_input_new("Vol  ", "0", "ml");
 	para->sett.set    = uiNewButton("Set");   uiButtonOnClicked(para->sett.set, on_sett_set_fn, NULL);
+	para->sett.valve  = uiNewButton("Valve Close"); uiButtonOnClicked(para->sett.valve, on_sett_valve_fn, para);
 	para->sett.start  = uiNewButton("Start"); uiButtonOnClicked(para->sett.start, on_sett_start_btn_fn, NULL);
 
 	uiGridAppend(para->sett.grid, uiControl(para->sett.mode->grid),   0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
@@ -226,6 +255,7 @@ static int para_grp_init(uiWindow* win, para_grp_t* para)
 	uiGridAppend(para->sett.grid, uiControl(para->sett.maxVol->grid), 0, 5, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
 
 	uiGridAppend(para->sett.grid, uiControl(para->sett.set),		  3, 3, 1, 1, 1, uiAlignCenter, 0, uiAlignFill);
+	uiGridAppend(para->sett.grid, uiControl(para->sett.valve),        3, 4, 1, 1, 1, uiAlignCenter, 0, uiAlignFill);
 	uiGridAppend(para->sett.grid, uiControl(para->sett.start),        0, 6, 4, 1, 1, uiAlignFill, 0, uiAlignFill);
 
 	uiBoxAppend(para->sett.vbox, uiControl(para->sett.grid), 0);
@@ -236,19 +266,19 @@ static int para_grp_init(uiWindow* win, para_grp_t* para)
 	para->stat.vbox   = uiNewHorizontalBox();    uiBoxSetPadded(para->stat.vbox, 1);
 	para->stat.grid   = uiNewGrid();             uiGridSetPadded(para->stat.grid, 1);
 
-	para->stat.mode   = uiNewLabel("Mode:");
-	para->stat.temp   = uiNewLabel("Temp:");
-	para->stat.valve  = uiNewLabel("Valve:");
-	para->stat.speed  = uiNewLabel("Speed:");
+	para->stat.stat   = uiNewLabel("stat:");
 	para->stat.vacuum = uiNewLabel("Vacuum:");
-	para->stat.current = uiNewLabel("Current:");
+	para->stat.pressure = uiNewLabel("Pressure:");
+	para->stat.tempure  = uiNewLabel("Tempure:");
+	para->stat.speed    = uiNewLabel("Speed:");
+	para->stat.current  = uiNewLabel("Current:");
 
-	uiGridAppend(para->stat.grid, uiControl(para->stat.mode),    0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(para->stat.grid, uiControl(para->stat.temp),    0, 1, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(para->stat.grid, uiControl(para->stat.valve),   0, 2, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(para->stat.grid, uiControl(para->stat.speed),   0, 3, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(para->stat.grid, uiControl(para->stat.vacuum),  0, 4, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(para->stat.grid, uiControl(para->stat.current), 0, 5, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(para->stat.grid, uiControl(para->stat.stat),    0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(para->stat.grid, uiControl(para->stat.vacuum),    0, 2, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(para->stat.grid, uiControl(para->stat.pressure),   0, 3, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(para->stat.grid, uiControl(para->stat.tempure),   0, 4, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(para->stat.grid, uiControl(para->stat.speed),  0, 5, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(para->stat.grid, uiControl(para->stat.current), 0, 6, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
 
 	uiBoxAppend(para->stat.vbox, uiControl(para->stat.grid), 1);
 	uiGroupSetChild(para->stat.grp, uiControl(para->stat.vbox));
@@ -283,15 +313,18 @@ static int upg_grp_init(uiWindow* win, upg_grp_t* upg)
 	upg->vbox = uiNewVerticalBox();
 	////////////////
 	upg->g    = uiNewGrid();					uiGridSetPadded(upg->g, 1);
+
+	upg->fwinfo = uiNewLabel("fw info: ");
 	upg->path = uiNewEntry();					uiEntrySetReadOnly(upg->path, 1);
 	upg->open = uiNewButton("Open");			uiButtonOnClicked(upg->open, on_upg_open_btn_fn, win);
 	upg->pgbar = uiNewProgressBar();			uiProgressBarSetValue(upg->pgbar, 0);
 	upg->start = uiNewButton("Start");			uiButtonOnClicked(upg->start, on_upg_start_btn_fn, NULL);
 	
-	uiGridAppend(upg->g, uiControl(upg->path),  0, 0, 1, 1, 1, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(upg->g, uiControl(upg->open),  1, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(upg->g, uiControl(upg->pgbar), 0, 1, 2, 1, 1, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(upg->g, uiControl(upg->start), 0, 2, 1, 1, 0, uiAlignCenter, 0, uiAlignFill);
+	uiGridAppend(upg->g, uiControl(upg->fwinfo), 0, 0, 1, 1, 1, uiAlignFill,   0, uiAlignFill);
+	uiGridAppend(upg->g, uiControl(upg->path),   0, 1, 1, 1, 1, uiAlignFill,   0, uiAlignFill);
+	uiGridAppend(upg->g, uiControl(upg->open),   1, 1, 1, 1, 0, uiAlignFill,   0, uiAlignFill);
+	uiGridAppend(upg->g, uiControl(upg->pgbar),  0, 2, 2, 1, 1, uiAlignFill,   0, uiAlignFill);
+	uiGridAppend(upg->g, uiControl(upg->start),  0, 3, 1, 1, 0, uiAlignCenter, 0, uiAlignFill);
 
 	uiBoxAppend(upg->vbox, uiControl(upg->g), 1);
 	uiGroupSetChild(upg->grp, uiControl(upg->vbox));
@@ -408,10 +441,79 @@ void win_init(int mcu)
 }
 
 
+const char* statString[STAT_MAX] = {
+	"stop",
+	"running",
+	"upgrade",
+};
+const char* modeString[MODE_MAX] = {
+	"continus",
+	"interval",
+	"fixed-time",
+	"fixed-volume",
+};
+
+
+void win_paras_update(paras_t* paras)
+{
+	char tmp[100];
+#if 1
+	if (!paras) {
+		grp.para.sett.mode = label_comb_new("Mode", NULL, NULL, modeString, 0);
+		grp.para.sett.w_time = label_input_new("wTime", "0", "s");
+		grp.para.sett.s_time = label_input_new("sTime", "0", "s");
+		grp.para.sett.t_time = label_input_new("tTime", "0", "s");
+		grp.para.sett.vacuum = label_input_new("Pres ", "0", "kpa");
+		grp.para.sett.maxVol = label_input_new("Vol  ", "0", "ml");
+	}
+	else {
+		snprintf(tmp, sizeof(tmp), "%d", paras->setts.mode);
+		uiComboboxSetSelected(grp.para.sett.mode->combo, tmp);
+
+		snprintf(tmp, sizeof(tmp), "%d", paras->setts.sett[paras->setts.mode].time.work_time);
+		uiEntrySetText(grp.para.sett.w_time->entry, tmp);
+
+		snprintf(tmp, sizeof(tmp), "%d", paras->setts.sett[paras->setts.mode].time.stop_time);
+		uiEntrySetText(grp.para.sett.s_time->entry, tmp);
+
+		snprintf(tmp, sizeof(tmp), "%2.1f", paras->setts.sett[paras->setts.mode].pres);
+		uiEntrySetText(grp.para.sett.vacuum->entry, tmp);
+
+		snprintf(tmp, sizeof(tmp), "%d", (int)paras->setts.sett[paras->setts.mode].maxVol);
+		uiEntrySetText(grp.para.sett.maxVol->entry, tmp);
+
+		snprintf(tmp, sizeof(tmp), "fw info: %s, %s", paras->fwInfo.version, paras->fwInfo.bldtime);
+		uiLabelSetText(grp.upg.fwinfo, (const char*)tmp);
+	}
+#endif
+}
+
 void win_stat_update(stat_t *stat)
 {
-	char tmp[50];
+	char tmp[100];
 
-	sprintf(tmp, "Vacuum: %.1f", stat->dPres);
+	snprintf(tmp, sizeof(tmp), "State: %s", statString[stat->sysState]);
+	uiLabelSetText(grp.para.stat.stat, (const char*)tmp);
+
+	snprintf(tmp, sizeof(tmp), "Pressure: %.1f", stat->aPres);
 	uiLabelSetText(grp.para.stat.vacuum, (const char*)tmp);
+
+	snprintf(tmp, sizeof(tmp), "Vacuum: %.1f", stat->dPres);
+	uiLabelSetText(grp.para.stat.pressure, (const char*)tmp);
+
+	snprintf(tmp, sizeof(tmp), "Tempure: %.1f", stat->temp);
+	uiLabelSetText(grp.para.stat.tempure, (const char*)tmp);
+
+	snprintf(tmp, sizeof(tmp), "Speed: %d", stat->pump.speed);
+	uiLabelSetText(grp.para.stat.speed, (const char*)tmp);
+
+	snprintf(tmp, sizeof(tmp), "Current: %.1f", stat->pump.current);
+	uiLabelSetText(grp.para.stat.current, (const char*)tmp);
+
+	uiButtonSetText(grp.para.sett.start, (stat->sysState==STAT_STOP)?"Start": "Stop");
 }
+
+
+
+
+

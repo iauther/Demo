@@ -1,5 +1,6 @@
 #include <string.h>
 #include "drv/flash.h"
+#include "paras.h"
 #include "myCfg.h"
 
 #define FLASH_CACHE_SIZE 1000

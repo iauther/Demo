@@ -2,6 +2,18 @@
 #define __PARA_Hx__
 
 #include "data.h"
+#include "notice.h"
+
+#define ACK_POLL_MS     300
+
+
+typedef struct {
+    struct {
+        U8          enable;
+        int         resendIvl;       //resend interval time,  unit: ms
+        int         retryTimes;      //retry max
+    }set[TYPE_MAX];
+}ack_timeout_t;
 
 
 int paras_load(void);
@@ -15,6 +27,14 @@ int paras_get_fwmagic(U32 *fwmagic);
 int paras_set_fwmagic(U32 *fwmagic);
 int paras_get_fwinfo(fw_info_t *fwinfo);
 int paras_set_fwinfo(fw_info_t *fwinfo);
+
+extern U8 adjMode;
+extern U8 sysState;
+extern stat_t curStat;
+extern paras_t curParas;
+extern ack_timeout_t ackTimeout;
+extern notice_t allNotice[LEV_MAX];
+
 
 #endif
 

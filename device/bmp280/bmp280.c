@@ -2,9 +2,9 @@
 #include "drv/delay.h"
 #include "drv/i2c.h"
 #include "log.h"
+#include "myCfg.h"
 
 
-#define BMP280_ADDR     0x76
 
 /*
  *  @return Status of execution
@@ -31,24 +31,25 @@ static int8_t i2c_reg_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_dat
 }
 
 
-static void print_rslt(int8_t rslt)
+static void print_err(int8_t err)
 {
-    if (rslt != BMP280_OK) {
-        if (rslt == BMP280_E_NULL_PTR) {
-            LOGE("Error [%d] : Null pointer error\r\n", rslt);
+    return;
+    if (err != BMP280_OK) {
+        if (err == BMP280_E_NULL_PTR) {
+            LOGE("Error [%d] : Null pointer error\r\n", err);
         }
-        else if (rslt == BMP280_E_COMM_FAIL) {
-            LOGE("Error [%d] : Bus communication failed\r\n", rslt);
+        else if (err == BMP280_E_COMM_FAIL) {
+            LOGE("Error [%d] : Bus communication failed\r\n", err);
         }
-        else if (rslt == BMP280_E_IMPLAUS_TEMP) {
-            LOGE("Error [%d] : Invalid Temperature\r\n", rslt);
+        else if (err == BMP280_E_IMPLAUS_TEMP) {
+            LOGE("Error [%d] : Invalid Temperature\r\n", err);
         }
-        else if (rslt == BMP280_E_DEV_NOT_FOUND) {
-            LOGE("Error [%d] : Device not found\r\n", rslt);
+        else if (err == BMP280_E_DEV_NOT_FOUND) {
+            LOGE("Error [%d] : Device not found\r\n", err);
         }
         else {
             /* For more error codes refer "*_defs.h" */
-            LOGE("Error [%d] : Unknown error code\r\n", rslt);
+            LOGE("Error [%d] : Unknown error code\r\n", err);
         }
     }
 }
@@ -58,7 +59,7 @@ static void print_rslt(int8_t rslt)
 static struct bmp280_dev bmp280;
 int bmp280_init(void)
 {
-    int8_t rslt;
+    int8_t r;
     struct bmp280_config conf;
 
     bmpHandle = i2c1Handle;
@@ -66,17 +67,15 @@ int bmp280_init(void)
     bmp280.delay_ms = delay_ms;
 
     /* Assign device I2C address based on the status of SDO pin (GND for PRIMARY(0x76) & VDD for SECONDARY(0x77)) */
-    bmp280.dev_id = BMP280_I2C_ADDR_PRIM;
+    bmp280.dev_id = BMP280_ADDR;
     bmp280.intf = BMP280_I2C_INTF;
     bmp280.read = i2c_reg_read;
     bmp280.write = i2c_reg_write;
 
-    rslt = bmp280_init2(&bmp280);
-    print_rslt(rslt);
+    r = bmp280_init2(&bmp280);
 
     //Always read the current settings before writing, especially when all the configuration is not modified
-    rslt = bmp280_get_config(&conf, &bmp280);
-    print_rslt(rslt);
+    r = bmp280_get_config(&conf, &bmp280);
 
     /* configuring the temperature oversampling, filter coefficient and output data rate */
     /* Overwrite the desired settings */
@@ -88,12 +87,10 @@ int bmp280_init(void)
 
     // Setting the output data rate
     conf.odr = BMP280_ODR_0_5_MS;//BMP280_ODR_1000_MS;
-    rslt = bmp280_set_config(&conf, &bmp280);
-    print_rslt(rslt);
+    r = bmp280_set_config(&conf, &bmp280);
 
     /* Always set the power mode after setting the configuration */
-    rslt = bmp280_set_power_mode(BMP280_FORCED_MODE, &bmp280);
-    print_rslt(rslt);
+    r = bmp280_set_power_mode(BMP280_FORCED_MODE, &bmp280);
 
     return 0;
 }

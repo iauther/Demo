@@ -23,6 +23,9 @@
 
 #include "libserialport.h"
 
+#define READ_TIMEOUT_INTERVAL	1	//ms
+
+
 static const std_baudrate_t std_baudrates[] = {
 #ifdef _WIN32
 	/*
@@ -497,7 +500,7 @@ SP_API sp_return_t sp_open(sp_port_t *port, sp_mode_t flags)
 		RETURN_FAIL("Port CreateFile() failed");
 
 	/* All timeouts initially disabled. */
-	port->timeouts.ReadIntervalTimeout = 1;
+	port->timeouts.ReadIntervalTimeout = READ_TIMEOUT_INTERVAL;
 	port->timeouts.ReadTotalTimeoutMultiplier = 0;
 	port->timeouts.ReadTotalTimeoutConstant = 0;
 	port->timeouts.WriteTotalTimeoutMultiplier = 0;
@@ -1022,7 +1025,7 @@ SP_API sp_return_t sp_blocking_read(sp_port_t *port, void *buf,
 	if (port->timeouts.ReadIntervalTimeout != 0 ||
 			port->timeouts.ReadTotalTimeoutMultiplier != 0 ||
 			port->timeouts.ReadTotalTimeoutConstant != timeout_ms) {
-		port->timeouts.ReadIntervalTimeout = 1;
+		port->timeouts.ReadIntervalTimeout = READ_TIMEOUT_INTERVAL;
 		port->timeouts.ReadTotalTimeoutMultiplier = 0;
 		port->timeouts.ReadTotalTimeoutConstant = timeout_ms;
 		if (SetCommTimeouts(port->hdl, &port->timeouts) == 0)

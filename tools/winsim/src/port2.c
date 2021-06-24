@@ -48,6 +48,7 @@ int port_open(int port)
     //sp_set_config_xon_xoff(cfg, SP_XONXOFF_DISABLED);
     //sp_set_config_flowcontrol(cfg, SP_FLOWCONTROL_NONE);
     CHECK(sp_set_config(sPort, cfg));
+    CHECK(sp_flush(sPort, SP_BUF_BOTH));
 
     sp_free_config(cfg);
     isOpened = 1;

@@ -30,7 +30,7 @@ handle_t task_create(int id, osThreadFunc_t task, U32 stack_size)
     h->thread_id = osThreadNew(h->thread_fn, h, (const osThreadAttr_t*)&attr);
     task_handle[id] = h;
     
-    //while(!h->running);
+    //if(id!=TASK_MAIN) while(!h->running);
     
     return h;
 }
@@ -74,16 +74,30 @@ int task_msg_post(int task_id, U8 evt, U8 type, void *data, U16 len)
 }
 
 
+void task_wait(int task_id)
+{
+    task_handle_t *h=task_handle[task_id];
+    if(!h || !h->thread_id) {
+        return;
+    }
+    
+    if(osThreadGetState(h->thread_id) != osThreadBlocked) {
+        osThreadYield();
+    }
+}
+
+
+void task_start_others(void)
+{
+    task_create(TASK_DEV,  task_dev_fn,  2048);
+    task_create(TASK_MISC, task_misc_fn, 1024);
+}
 
 
 int task_start(void)
 {
     osKernelInitialize();                 // Initialize CMSIS-RTOS
-    
-    task_create(TASK_DEV,  task_dev_fn,  1024);
-    task_create(TASK_MISC, task_misc_fn, 1024); 
     task_create(TASK_COM,  task_com_fn,  2048);
-    
     osKernelStart();
     
     return 0;

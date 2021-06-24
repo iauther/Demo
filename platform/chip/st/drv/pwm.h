@@ -4,7 +4,7 @@
 #include "types.h"
 #include "drv/gpio.h"
 
-#define PCH_MAX     4
+#define PWM_CH_MAX     4
 
 enum {
     PWM_PIN_A0,
@@ -53,7 +53,7 @@ typedef struct {
 }pwm_ch_t;
 
 typedef struct {
-    pwm_ch_t        pch[PCH_MAX];
+    pwm_ch_t        pwmCh[PWM_CH_MAX];
     
     U32             freq;
     F32             dr;     //duty ratio

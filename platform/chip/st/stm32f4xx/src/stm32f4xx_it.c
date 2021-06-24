@@ -158,12 +158,3 @@ void DMA1_Stream4_IRQHandler(void)
 {
     uart_dma_handler(1, UART_3);    //tx
 }
-
-
-void TIM6_IRQHandler(void)
-{
-    extern void htimer_irq_handler();
-    htimer_irq_handler();
-}
-
-

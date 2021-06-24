@@ -42,7 +42,6 @@ void task_misc_fn(void *arg)
     
     tmrId = osTimerNew(misc_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, TIMER_MS);
-    h->running = 1;
     
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));

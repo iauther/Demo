@@ -27,9 +27,7 @@ typedef struct {
     IRQn_Type           IRQn;
     U8                  Alternate;
 }pwm_info_t;
-typedef struct {
-    
-}pwm_time_t;
+
 
 typedef struct {
     TIM_HandleTypeDef   htim;
@@ -60,11 +58,13 @@ pwm_info_t PWM_INFO[PWM_PIN_MAX]={
     {TIMER_3, {GPIOD, GPIO_PIN_13}, TIM_CHANNEL_2, TIM4, TIM4_IRQn, GPIO_AF2_TIM4},
     {TIMER_3, {GPIOD, GPIO_PIN_14}, TIM_CHANNEL_3, TIM4, TIM4_IRQn, GPIO_AF2_TIM4},
     {TIMER_3, {GPIOD, GPIO_PIN_15}, TIM_CHANNEL_4, TIM4, TIM4_IRQn, GPIO_AF2_TIM4},
-                                                                                 
+
+#ifdef STM32F412Zx    
     {TIMER_4, {GPIOF, GPIO_PIN_3 }, TIM_CHANNEL_1, TIM5, TIM5_IRQn, GPIO_AF2_TIM5},
     {TIMER_4, {GPIOF, GPIO_PIN_4 }, TIM_CHANNEL_2, TIM5, TIM5_IRQn, GPIO_AF2_TIM5},
     {TIMER_4, {GPIOF, GPIO_PIN_5 }, TIM_CHANNEL_3, TIM5, TIM5_IRQn, GPIO_AF2_TIM5},
     {TIMER_4, {GPIOF, GPIO_PIN_10}, TIM_CHANNEL_4, TIM5, TIM5_IRQn, GPIO_AF2_TIM5},
+#endif
                                                                         
 };
 
@@ -93,20 +93,21 @@ static U8 get_pwm_type(pwm_handle_t *h, U8 pwm_pin)
 {
     U8 i;
     
-    for(i=0; i<PCH_MAX; i++) {
-        if(h->cfg.para.pch[i].pwm_pin==pwm_pin) {
-            return h->cfg.para.pch[i].type;
+    for(i=0; i<PWM_CH_MAX; i++) {
+        if(h->cfg.para.pwmCh[i].pwm_pin==pwm_pin) {
+            return h->cfg.para.pwmCh[i].type;
         }
     }
     
     return TYPE_NO;
 }
 
-static pwm_info_t *get_info(pwm_ch_t *pch)
+static pwm_info_t *get_info(pwm_ch_t *pCh)
 {
-    for(int i=0; i<PCH_MAX; i++) {
-        if(pch[i].type!=TYPE_NO) {
-            return &PWM_INFO[pch[i].pwm_pin];
+    int i;
+    for(i=0; i<PWM_CH_MAX; i++) {
+        if(pCh[i].type!=TYPE_NO) {
+            return &PWM_INFO[pCh[i].pwm_pin];
         }
     }
 
@@ -179,8 +180,8 @@ static int irq_clk_set(pwm_handle_t *h, U8 on)
 }
 static U8 get_pwm_pin(TIM_TypeDef *tim, U8 ch)
 {
-    
-    for(U8 i=0; i<PWM_PIN_MAX; i++) {
+    int i;
+    for(i=0; i<PWM_PIN_MAX; i++) {
         if(PWM_INFO[i].chn==ch && PWM_INFO[i].TIM==tim) {
             return i;
         }
@@ -260,10 +261,10 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim)
    ((__CHANNEL__) == TIM_CHANNEL_3) ? (((__HANDLE__)->Instance->CCER>>(1+8)) & 0x11) :\
    (((__HANDLE__)->Instance->CCER>>(1+12)) & 0x101))
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)     // µ±¼ÆÊýÒç³ösÊ±¸üÐÂÖÐ¶Ï»Øµ÷º¯Êý
-{
-
-}
+//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)     // µ±¼ÆÊýÒç³ösÊ±¸üÐÂÖÐ¶Ï»Øµ÷º¯Êý
+//{
+//
+//}
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)   // Êä³ö±È½ÏÖÐ¶Ï»Øµ÷º¯Êý
 {
 
@@ -322,10 +323,7 @@ void HAL_TIM_TriggerCallback(TIM_HandleTypeDef *htim)           // ´¥·¢ÖÐ¶Ï»Øµ÷º
 {
  
 }
-void TIM2_IRQHandler(void)
-{
-    HAL_TIM_IRQHandler(&pwm_handle[TIMER_1]->htim);
-}
+void TIM2_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_1]->htim);}
 void TIM3_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_2]->htim);}
 void TIM4_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_3]->htim);}
 void TIM5_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_4]->htim);}
@@ -334,6 +332,7 @@ void TIM5_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_4]->htim);}
 
 static int base_init(pwm_handle_t *h)
 {
+    HAL_StatusTypeDef st;
     TIM_MasterConfigTypeDef sMasterConfig = {0};
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     
@@ -344,7 +343,9 @@ static int base_init(pwm_handle_t *h)
     h->htim.Init.Period = h->period;
     h->htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     h->htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-    if (HAL_TIM_Base_Init(&h->htim) != HAL_OK) {
+    
+    st = HAL_TIM_Base_Init(&h->htim);
+    if ( st != HAL_OK) {
         return -1;
     }
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
@@ -366,16 +367,16 @@ static int base_init(pwm_handle_t *h)
 static int oc_ic_init(pwm_handle_t *h)
 {
     int i, ic_flag=0,oc_flag=0;
-    pwm_ch_t *pch=h->cfg.para.pch;
+    pwm_ch_t *pCh=h->cfg.para.pwmCh;
     TIM_IC_InitTypeDef ic = {0};
     TIM_OC_InitTypeDef oc = {0};
     pwm_info_t *info;
     
-    for(i=0; i<PCH_MAX; i++) {
-        if(pch[i].type!=TYPE_NO) {
+    for(i=0; i<PWM_CH_MAX; i++) {
+        if(pCh[i].type!=TYPE_NO) {
             
-            info = &PWM_INFO[pch[i].pwm_pin];
-            switch(pch[i].type) {
+            info = &PWM_INFO[pCh[i].pwm_pin];
+            switch(pCh[i].type) {
                 case TYPE_IC:
                 {
                     if(ic_flag==0) {
@@ -397,7 +398,7 @@ static int oc_ic_init(pwm_handle_t *h)
                         return -1;
                     }
                     
-                    pin_init(&pch[i], 1);
+                    pin_init(&pCh[i], 1);
                 }
                 break;
                 
@@ -419,7 +420,7 @@ static int oc_ic_init(pwm_handle_t *h)
                     }
                     HAL_TIM_PWM_Start(&h->htim, info->chn);
                     
-                    pin_init(&pch[i], 1);
+                    pin_init(&pCh[i], 1);
                 }
                 
                 default:
@@ -434,10 +435,13 @@ static int oc_ic_init(pwm_handle_t *h)
 
 static void set_freq_dr(pwm_handle_t *h, U8 channel, F32 freq, F32 dr)
 {
+    U32 value;
+    
     h->period = PERIOD_OF(freq);
+    value = PULSE_OF(h->period, dr);
     
     __HAL_TIM_SET_AUTORELOAD(&h->htim, h->period);
-    __HAL_TIM_SET_COMPARE(&h->htim, channel, PULSE_OF(h->period, dr));
+    __HAL_TIM_SET_COMPARE(&h->htim, channel, value);
 }
 
 
@@ -454,7 +458,7 @@ handle_t pwm_init(pwm_cfg_t *cfg)
         return NULL;
     }
     
-    info = get_info(cfg->para.pch);
+    info = get_info(cfg->para.pwmCh);
     if(!info) {
         LOGE("____ pwm para is invalid!\n");
         return NULL;
@@ -494,7 +498,6 @@ int pwm_deinit(handle_t *h)
         return -1;
     }
     
-    HAL_TIM_Base_DeInit(&(*ph)->htim);
     HAL_TIM_Base_DeInit(&(*ph)->htim);
     
     return 0;
@@ -562,11 +565,12 @@ int pwm_set(handle_t h, U8 pwm_pin, U32 freq, F32 dr)
         return -1;
     }
     
-    info = &PWM_INFO[pwm_pin];
     type = get_pwm_type(h, pwm_pin);
     if(type==TYPE_OC) {
+        info = &PWM_INFO[pwm_pin];
+        
         HAL_TIM_PWM_Stop(&ph->htim, info->chn);
-        set_freq_dr(h, pwm_pin, freq, dr);
+        set_freq_dr(h, info->chn, freq, dr);
         HAL_TIM_PWM_Start(&ph->htim, info->chn);
     }
     

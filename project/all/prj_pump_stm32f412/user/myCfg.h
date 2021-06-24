@@ -2,7 +2,7 @@
 #define __CFG_Hx__
 
 
-#define BOARD_NUCLEO_F412ZG
+//#define BOARD_NUCLEO_F412ZG
 //#define BOARD_PUMP_F412RET6
 
 
@@ -21,12 +21,14 @@
     
     
     #define I2C1_FREQ               (100*1000)
-    #define I2C1_SCL_PIN            
-    #define I2C1_SDA_PIN
+    #define I2C1_SCL_PIN            {GPIOA, GPIO_PIN_8}
+    #define I2C1_SDA_PIN            {GPIOC, GPIO_PIN_9}
     
     #define I2C2_FREQ               (100*1000)
-    #define I2C2_SCL_PIN            
-    #define I2C2_SDA_PIN
+    #define I2C2_SCL_PIN            {GPIOF, GPIO_PIN_1}
+    #define I2C2_SDA_PIN            {GPIOF, GPIO_PIN_0}
+    
+    #define BMP280_ADDR             0x76
     
     
     #define USE_EEPROM
@@ -62,6 +64,18 @@
     #define USE_BMP280
     #define USE_VALVE
     
+    
+    #define I2C1_FREQ               (100*1000)
+    #define I2C1_SCL_PIN            {GPIOB, GPIO_PIN_6}
+    #define I2C1_SDA_PIN            {GPIOB, GPIO_PIN_7}
+    
+    #define I2C2_FREQ               (100*1000)
+    #define I2C2_SCL_PIN            {GPIOB, GPIO_PIN_10}          
+    #define I2C2_SDA_PIN            {GPIOB, GPIO_PIN_9}     //{GPIOB, GPIO_PIN_3}
+    
+    #define BMP280_ADDR             0x77
+    
+    
     #define USE_EEPROM
     #define USE_AT24C16
     #define AT24CXX_A0_PIN          0
@@ -83,13 +97,16 @@
     
     #define MS4525_INT_PIN          {GPIOC, GPIO_PIN_0}
     
+    #define LED_ON_LEVEL            1
     #define GPIO_LEDR_PIN           {GPIOA, GPIO_PIN_7}
     #define GPIO_LEDG_PIN           {GPIOA, GPIO_PIN_15}
     #define GPIO_LEDB_PIN           {GPIOA, GPIO_PIN_12}
     
     
 #else
+    #ifndef _WIN32
     error "must define board!!"
+    #endif
 #endif
 
 

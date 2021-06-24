@@ -1,4 +1,5 @@
 #include "task.h"                          // CMSIS RTOS header file
+#include "paras.h"
 #include "data.h" 
 #include "pkt.h"
 
@@ -101,7 +102,7 @@ static void auto_pres(stat_t *st)
         
 }
 
-
+#if 0
 static int get_temp(temp_t *temp)
 {
     int r;
@@ -113,6 +114,8 @@ static int get_temp(temp_t *temp)
     
     return r;
 }
+#endif
+
 static int stat_cmp(stat_t *prev, stat_t *now)
 {
     int r=0;
@@ -136,7 +139,8 @@ static int get_stat(stat_t *st)
     bmp280_get(&bmp);
     n950_get(&st->pump);
     
-    st->stat = sysState;
+    st->adjMode  = adjMode;
+    st->sysState = sysState;
     st->dPres = ABS(ms.pres);
     st->aPres = bmp.pres;
     st->temp  = bmp.temp;
@@ -147,10 +151,6 @@ static int get_stat(stat_t *st)
         pkt_send(TYPE_STAT, 0, st, sizeof(stat_t));
     }
 #endif
-    
-    //if(cnt%TEMP_CNT==0) {
-    //    get_temp(&gTemp);
-    //}
     
     return 0;
 }
@@ -173,7 +173,7 @@ static int timer_proc(void)
     
     get_stat(&curStat);
     
-    if(sysState==STAT_AUTO) {
+    if(sysState==STAT_RUNNING && adjMode==ADJ_AUTO) {
         auto_pres(&curStat);
     }
               
@@ -187,11 +187,10 @@ void task_dev_fn(void *arg)
     evt_t e;
     osTimerId_t tmrId;
     task_handle_t *h=(task_handle_t*)arg;
-/*    
+    
     tmrId = osTimerNew(dev_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, TIMER_MS);
-    h->running = 1;
-*/    
+    
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));
         if(r==0) {

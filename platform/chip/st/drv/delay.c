@@ -6,26 +6,18 @@
 extern U32 sys_freq;   //the delay function depend on this freq
 
 
-#define RETURN
-
-void delay_ns(U32 ns)
+static inline void delay_1us(void)
 {
-    int m;
+    int x=ceil(1000000000.0/sys_freq);
+    int y=1000/x;
     
-    m = ceil(1000000000.0/sys_freq);
-    if(ns>0 && ns<m) {
-        __nop();
-    }
-    else {
-        int n=ceil(ns%m);
-        while(n-->0) __nop();
-    }
+    while(y-->0) __nop();
 }
 
 
 void delay_us(U32 us)
 {   
-    while(us-->0) delay_ns(1000);
+    while(us-->0) delay_1us();
 }
 
 
@@ -36,6 +28,7 @@ void delay_ms(U32 ms)
         osDelay(ms);
     }
     else {
+        //while(ms-->0) delay_us(1000);
         HAL_Delay(ms);
     }
 #else

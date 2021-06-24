@@ -51,21 +51,27 @@
     <ClInclude Include="..\..\system\date.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="inc\logx.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="lib\libserialport\libserialport.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="lib\libserialport\libserialport_internal.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\system\com.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\project\all\prj_pump_stm32f412\user\myCfg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\system\error.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\system\log.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\winsim.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\port.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\serial.c">

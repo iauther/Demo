@@ -46,40 +46,45 @@ paras_t DEFAULT_PARAS={
 };
 
 
-#ifdef _WIN32
-ack_timeout_t ackTimeout = {
-    {
-        //enable    resendIvl   retryTimes
-         {1,         100,        5},       //TYPE_CMD
-         {1,         100,        5},       //TYPE_STAT
-         {1,         100,        5},       //TYPE_ACK
-         {1,         100,        5},       //TYPE_SETT
-         {1,         100,        5},       //TYPE_PARAS
-         {1,         100,        5},       //TYPE_ERROR
-         {1,         100,        5},       //TYPE_UPGRADE
-         {1,         1000,       5},       //TYPE_LEAP
-     }
-};
-#else
 ack_timeout_t ackTimeout={
     {
-       //enable    resendIvl   retryTimes
-        {1,         100,        5},       //TYPE_CMD
-        {1,         100,        5},       //TYPE_STAT
-        {1,         100,        5},       //TYPE_ACK
-        {1,         100,        5},       //TYPE_SETT
-        {0,         100,        5},       //TYPE_PARAS
-        {0,         100,        5},       //TYPE_ERROR
-        {1,         100,        5},       //TYPE_UPGRADE
-        {1,         1000,       5},       //TYPE_LEAP
-    }
+        //enable      resendIvl         retryTimes
+         {1,         ACK_POLL_MS*5,        2},       //TYPE_CMD
+         {1,         ACK_POLL_MS*5,        2},       //TYPE_STAT
+         {1,         ACK_POLL_MS*5,        2},       //TYPE_ACK
+         {1,         ACK_POLL_MS*5,        2},       //TYPE_SETT
+         {1,         ACK_POLL_MS*5,        -1},      //TYPE_PARAS
+         {1,         ACK_POLL_MS*5,        -1},      //TYPE_ERROR
+         {1,         ACK_POLL_MS*5,        2},       //TYPE_UPGRADE
+         {1,         ACK_POLL_MS*10,       2},       //TYPE_LEAP
+     }
 };
-#endif
+
+notice_t allNotice[LEV_MAX]={
+    {//warn
+        //blink_color   stop_color      light_time      dark_time       total_time
+        {BLUE,          BLANK,          100,            100,            5000},
+        
+        //ring_time     quiet_time      total_time
+        {200,           200,            5000},
+    },
+    
+    {//error
+        //blink_color   stop_color      light_time      dark_time       total_time
+        {BLUE,          BLANK,          100,            100,            5000},
+        
+        //ring_time     quiet_time      total_time
+        {100,           100,            5000},
+    },
+};
+
 
 
 #ifdef OS_KERNEL
-U8 sysState=STAT_MANUAL;
+U8 adjMode=ADJ_AUTO;
+U8 sysState=STAT_STOP;
 #else
+U8 adjMode=ADJ_MANUAL;
 U8 sysState=STAT_UPGRADE;
 #endif
 

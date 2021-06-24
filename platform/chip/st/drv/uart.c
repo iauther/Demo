@@ -82,6 +82,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
     U8 port=0;
     GPIO_InitTypeDef init = {0};
 
+    init.Mode = GPIO_MODE_AF_PP;
+    init.Pull = GPIO_NOPULL;
+    init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     switch((U32)huart->Instance) {
         case (U32)USART1:
         port = UART_1;
@@ -89,9 +92,6 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
         __HAL_RCC_GPIOA_CLK_ENABLE();
 
         init.Pin = GPIO_PIN_9|GPIO_PIN_10;
-        init.Mode = GPIO_MODE_AF_OD;
-        init.Pull = GPIO_NOPULL;
-        init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
         init.Alternate = GPIO_AF7_USART1;
         HAL_GPIO_Init(GPIOA, &init);
         break;
@@ -102,9 +102,6 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
         __HAL_RCC_GPIOA_CLK_ENABLE();
 
         init.Pin = GPIO_PIN_2|GPIO_PIN_3;
-        init.Mode = GPIO_MODE_AF_PP;
-        init.Pull = GPIO_NOPULL;
-        init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
         init.Alternate = GPIO_AF7_USART2;
         HAL_GPIO_Init(GPIOA, &init);
         break;
@@ -116,16 +113,10 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
         __HAL_RCC_GPIOB_CLK_ENABLE();
 
         init.Pin = GPIO_PIN_5;
-        init.Mode = GPIO_MODE_AF_PP;
-        init.Pull = GPIO_NOPULL;
-        init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
         init.Alternate = GPIO_AF7_USART3;
         HAL_GPIO_Init(GPIOC, &init);
 
         init.Pin = GPIO_PIN_10;
-        init.Mode = GPIO_MODE_AF_PP;
-        init.Pull = GPIO_NOPULL;
-        init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
         init.Alternate = GPIO_AF7_USART3;
         HAL_GPIO_Init(GPIOB, &init);
         break;
@@ -136,9 +127,6 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
         __HAL_RCC_GPIOC_CLK_ENABLE();
 
         init.Pin = GPIO_PIN_6|GPIO_PIN_7;
-        init.Mode = GPIO_MODE_AF_PP;
-        init.Pull = GPIO_NOPULL;
-        init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
         init.Alternate = GPIO_AF8_USART6;
         HAL_GPIO_Init(GPIOC, &init);
         break;
@@ -417,7 +405,7 @@ int uart_read(handle_t h, U8 *data, U32 len)
     int r;
     uart_handle_t *uh=(uart_handle_t*)h;
     
-    if(!h) {
+    if(!h || !data || !len) {
         return -1;
     }
     
@@ -458,12 +446,12 @@ int uart_write(handle_t h, U8 *data, U32 len)
     int r;
     uart_handle_t *uh=(uart_handle_t*)h;
     
-    if(!h) {
+    if(!h || !data || !len) {
         return -1;
     }
 
     lock_dynamic_hold(uh->lock);
-#if 1
+#if 0
     if(uh->mode==MODE_DMA) {
         uh->txFinished = 0;
         r = HAL_UART_Transmit_DMA(&uh->huart, data, len);

@@ -47,6 +47,8 @@ enum {
     ERROR_UART1_PUMP,        //pump
     ERROR_UART2_COM,         //ipad uart port
     
+    ERROR_MAX
+    
 };
 
 
