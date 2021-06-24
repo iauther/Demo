@@ -5,6 +5,7 @@
 #include "task.h"
 #include "icfg.h"
 #include "com.h"
+#include "paras.h"
 
 #pragma comment  (lib, "libui.lib")
 

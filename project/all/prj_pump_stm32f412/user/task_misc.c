@@ -17,9 +17,10 @@ static int my_qiterater(handle_t h, int index, void *p1, void *p2)
     if(n1->ptr==n2->ptr && n1->len==n2->len) {
         queue_iterate_quit(mq);
         //memcpy(n2->ptr, n1->ptr, n1->len);
+        return index;
     }
     
-    return 0;
+    return -1;
 }
 
 static void misc_tmr_callback(void *arg)

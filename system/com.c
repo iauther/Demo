@@ -5,6 +5,7 @@
 #include "upgrade.h"
 #include "myCfg.h"
 #include "log.h"
+#include "task.h"
 
 #ifdef _WIN32
 #include "win.h"
@@ -20,7 +21,7 @@ static handle_t comHandle=NULL;
 static int paras_rxtx_flag = 0;
 
 
-static handle_t port_init(com_callback cb)
+static handle_t pt_init(com_callback cb)
 {
 #ifdef _WIN32
     return NULL;
@@ -46,7 +47,7 @@ int com_init(com_callback cb, int loop_period)
     int r;
     pkt_cfg_t cfg;
     
-    comHandle = port_init(cb);
+    comHandle = pt_init(cb);
     
     cfg.handle  = comHandle;
     cfg.period  = loop_period;
@@ -256,6 +257,7 @@ U8 com_data_proc(void *data, U16 len)
 {
     int r;
     U8 err=0;
+    node_t nd;
     pkt_hdr_t *p=(pkt_hdr_t*)data;
 
     if (p->askAck) {
@@ -271,15 +273,23 @@ U8 com_data_proc(void *data, U16 len)
                 if (p->dataLen == sizeof(sett_t)) {
                     sett_t* sett = (sett_t*)p->data;
                     curParas.setts.sett[sett->mode] = *sett;
+                    nd.ptr = &curParas.setts.sett[sett->mode];
+                    nd.len = sizeof(curParas.setts.sett[sett->mode]);
                 }
                 else if (p->dataLen == sizeof(curParas.setts.mode)) {
                     U8* m = (U8*)p->data;
                     curParas.setts.mode = *m;
+                    nd.ptr = &curParas.setts.mode;
+                    nd.len = sizeof(curParas.setts.mode);
                 }
                 else {
                     setts_t* setts = (setts_t*)p->data;
-                    memcpy(&curParas.setts, setts, sizeof(setts_t));
+                    curParas.setts = *setts;
+                    nd.ptr = &curParas.setts;
+                    nd.len = sizeof(curParas.setts);
                 }
+                
+                task_misc_save_paras(&nd);
             }
             else {
                 r = pkt_send(TYPE_SETT, 0, &curParas.setts, sizeof(curParas.setts));
@@ -295,7 +305,7 @@ U8 com_data_proc(void *data, U16 len)
             if (p->dataLen > 0) {
                 if (p->dataLen == sizeof(paras_t)) {
                     paras_t* paras = (paras_t*)p->data;
-                    curParas = *paras;
+                    //curParas = *paras;
                 }
                 else {
                     err = ERROR_PKT_LENGTH;
