@@ -98,9 +98,10 @@ int board_init(void)
     
     r = bus_init();
     r = dev_init();
-    r = paras_load();
-    
+
+#ifdef OS_KERNEL
     led_set_color(GREEN);
+#endif
    
     return r;
 }

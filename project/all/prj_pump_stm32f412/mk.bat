@@ -1,9 +1,9 @@
 @echo off
-if "%1" == "1" (
+if "%1" == "0" (
 copy /y  %2  ..\..\..\..\output\
-..\mkfw ..\..\..\..\output\boot.bin
+..\mkfw %1 ..\..\..\..\output\boot.bin
 ) else (
 copy /y  %2  ..\..\..\..\output\
-..\mkfw ..\..\..\..\output\app.bin
+..\mkfw %1 ..\..\..\..\output\app.bin
 )
 

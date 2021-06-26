@@ -37,7 +37,7 @@ void task_com_fn(void *arg)
     task_handle_t *h=(task_handle_t*)arg;
     
     task_com_init();
-    task_start_others();
+    task_start_others();    
     
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));

@@ -154,6 +154,7 @@ static TCHAR* ascii_to_unicode(char* str)
 	return pUni;
 }
 
+
 int main(char argc, char *argv[])
 {
 	int r;
@@ -163,10 +164,11 @@ int main(char argc, char *argv[])
 	char newPath[1000];
 	upgrade_hdr_t hdr;
 	fw_info_t fwInfo;
-	char* path = argv[1];
+	char* path = argv[2];
+	char* obj = argv[1];
 	TCHAR* xPath;
     
-	if(argc<2) {
+	if(argc<3) {
 		printf("input the firmware file, please!\n");
 		return -1;
 	}
@@ -181,6 +183,7 @@ int main(char argc, char *argv[])
 	get_version(fwInfo.version, sizeof(fwInfo.version));
 	get_buildtime(path, (char*)fwInfo.bldtime, sizeof(fwInfo.bldtime));
 	hdr.fwInfo = fwInfo;
+	hdr.upgCtl.obj = atoi(obj);
 	hdr.upgCtl.force = 0;
 	hdr.upgCtl.erase  = 0;
 	hdr.upgCtl.action = 1;
@@ -201,7 +204,7 @@ int main(char argc, char *argv[])
 		return -1;
 	}
 
-	md5_calc(&hdr.upgCtl, sizeof(hdr)-sizeof(hdr.fwInfo), dat.data, dat.dlen, (char*)md5.digit);
+	md5_calc(&hdr, sizeof(hdr), dat.data, dat.dlen, (char*)md5.digit);
 
 	fwrite(&md5, 1, sizeof(md5), fp);
 	fwrite(&hdr, 1, sizeof(hdr), fp);

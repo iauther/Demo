@@ -169,14 +169,16 @@ U8 com_data_proc(void *data, U16 len)
     if (p->askAck) {
         pkt_send_ack(p->type);
     }
-    
+
     err = pkt_hdr_check(p, len);
     if (err == ERROR_NONE) {
         switch (p->type) {
         case TYPE_STAT:
         {
             stat_t* stat = (stat_t*)p->data;
+            curStat = *stat;
 
+             //LOG("_____ sysState: %d\n", curStat.sysState);
             //LOG("_____ stat temp: %f, aPres: %fkpa, dPres: %fkpa\n", stat->temp, stat->aPres, stat->dPres);
             win_stat_update(stat);
         }
@@ -224,6 +226,11 @@ U8 com_data_proc(void *data, U16 len)
         {
             ack_t* ack = (ack_t*)p->data;
             
+            if (ack->type==TYPE_UPGRADE) {
+                extern int upgrade_ack;
+                upgrade_ack = 1;
+            }
+
             LOG("___ type_ack, type: %d\n", ack->type);
             pkt_ack_reset(ack->type);
         }
@@ -267,6 +274,7 @@ U8 com_data_proc(void *data, U16 len)
     err = pkt_hdr_check(p, len);
     if (err == ERROR_NONE) {
         switch (p->type) {
+#ifdef OS_KERNEL
         case TYPE_SETT:
         {
             if (p->dataLen > 0) {
@@ -289,7 +297,9 @@ U8 com_data_proc(void *data, U16 len)
                     nd.len = sizeof(curParas.setts);
                 }
                 
+                #ifdef OS_KERNEL
                 task_misc_save_paras(&nd);
+                #endif
             }
             else {
                 r = pkt_send(TYPE_SETT, 0, &curParas.setts, sizeof(curParas.setts));
@@ -319,26 +329,13 @@ U8 com_data_proc(void *data, U16 len)
             }
         }
         break;
-
+        
         case TYPE_STAT:
         {
             r = pkt_send(TYPE_STAT, 0, &curStat, sizeof(curStat));
             if(r) {
                 err = ERROR_UART2_COM;
             }
-        }
-        break;
-
-        case TYPE_CMD:
-        {
-            err = cmd_proc(p->data);
-        }
-        break;
-
-        case TYPE_ERROR:
-        {
-            error_t *e=(error_t*)p->data;
-            err = 0;
         }
         break;
         
@@ -358,12 +355,55 @@ U8 com_data_proc(void *data, U16 len)
             pkt_ack_reset(ack->type);
         }
         break;
-
+        
+        case TYPE_CMD:
+        {
+            err = cmd_proc(p->data);
+        }
+        break;
+        
         case TYPE_LEAP:
         {
             err=0;
         }
         break;
+#else
+        case TYPE_STAT:
+        {
+            curStat.sysState = sysState;
+            r = pkt_send(TYPE_STAT, 0, &curStat, sizeof(curStat));
+            if(r) {
+                err = ERROR_UART2_COM;
+            }
+        }
+        break;
+        
+        case TYPE_UPGRADE:
+        {
+            err = upgrade_proc(p->data);
+        }
+        break;
+        
+        case TYPE_ACK:
+        {
+            ack_t* ack = (ack_t*)p->data;
+            if (ack->type==TYPE_PARAS) {
+                paras_rxtx_flag = 1;
+            }
+
+            pkt_ack_reset(ack->type);
+        }
+        break;
+        
+        case TYPE_CMD:
+        case TYPE_LEAP:
+        case TYPE_SETT:
+        case TYPE_PARAS:
+        {
+            err = ERROR_PKT_TYPE_UNSUPPORT;
+        }
+        break;
+#endif
 
         default:
         {
@@ -388,7 +428,7 @@ U8 com_send_paras(U8 flag)
     U8  err=0;
     
     if (flag == 0) {      //ask paras
-        r = pkt_send(TYPE_PARAS, 1, NULL, 0);
+        r = pkt_send(TYPE_PARAS, 0, NULL, 0);
         if (r) {
             err = ERROR_UART2_COM;
         }

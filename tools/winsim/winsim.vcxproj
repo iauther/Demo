@@ -21,9 +21,11 @@
   <ItemGroup>
     <ClInclude Include="..\..\project\all\prj_pump_stm32f412\user\myCfg.h" />
     <ClInclude Include="..\..\system\com.h" />
+    <ClInclude Include="..\..\system\data.h" />
     <ClInclude Include="..\..\system\date.h" />
     <ClInclude Include="..\..\system\error.h" />
     <ClInclude Include="..\..\system\log.h" />
+    <ClInclude Include="..\..\system\md5.h" />
     <ClInclude Include="..\..\system\pkt.h" />
     <ClInclude Include="inc\framework.h" />
     <ClInclude Include="inc\icfg.h" />
@@ -41,6 +43,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\system\com.c" />
     <ClCompile Include="..\..\system\date.c" />
+    <ClCompile Include="..\..\system\md5.c" />
     <ClCompile Include="..\..\system\paras.c" />
     <ClCompile Include="..\..\system\pkt.c" />
     <ClCompile Include="..\..\system\upgrade.c" />

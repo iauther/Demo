@@ -14,6 +14,7 @@
 #include "temp/ams/as62xx.h"
 
 #define FW_MAGIC            0xFACEBEAD
+#define UPG_MAGIC           0xABCD1234
 #define PKT_MAGIC           0xDEADBEEF
 
 //#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)

@@ -27,6 +27,8 @@ int paras_get_fwmagic(U32 *fwmagic);
 int paras_set_fwmagic(U32 *fwmagic);
 int paras_get_fwinfo(fw_info_t *fwinfo);
 int paras_set_fwinfo(fw_info_t *fwinfo);
+int paras_set_upg(void);
+
 
 extern U8 adjMode;
 extern U8 sysState;
@@ -34,7 +36,7 @@ extern stat_t curStat;
 extern paras_t curParas;
 extern ack_timeout_t ackTimeout;
 extern notice_t allNotice[LEV_MAX];
-
+extern paras_t DEFAULT_PARAS;
 
 #endif
 

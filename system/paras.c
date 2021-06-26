@@ -76,6 +76,14 @@ notice_t allNotice[LEV_MAX]={
         //ring_time     quiet_time      total_time
         {100,           100,            5000},
     },
+    
+    {//upgrade
+        //blink_color   stop_color      light_time      dark_time       total_time
+        {BLUE,          BLANK,          100,            100,            -1},
+        
+        //ring_time     quiet_time      total_time
+        {30,            30,             -1},
+    },
 };
 
 
@@ -88,7 +96,7 @@ U8 adjMode=ADJ_MANUAL;
 U8 sysState=STAT_UPGRADE;
 #endif
 
-stat_t curStat;
+stat_t  curStat;
 paras_t curParas;
 
 
@@ -96,13 +104,21 @@ paras_t curParas;
 int paras_load(void)
 {
     int r;
+    U32 fwmagic=0;
     
-    r = paras_read(0, (U8*)&curParas, sizeof(curParas));
+    r = paras_get_fwmagic(&fwmagic);
     if(r==0) {
-        if(memcmp(&curParas, &DEFAULT_PARAS, sizeof(curParas))) {
+        if(fwmagic!=FW_MAGIC && fwmagic!=UPG_MAGIC) {
             curParas = DEFAULT_PARAS;
-            paras_write(0, &curParas, sizeof(curParas));
-        } 
+            r = paras_write(0, &curParas, sizeof(curParas));
+        }
+        else {
+            if(fwmagic==UPG_MAGIC){
+                fwmagic = FW_MAGIC;
+                paras_set_fwmagic(&fwmagic);
+            }
+            r = paras_read(0, &curParas, sizeof(curParas));
+        }
     }
     else {
         curParas = DEFAULT_PARAS;
@@ -115,15 +131,16 @@ int paras_load(void)
 
 int paras_erase(void)
 {
-    fw_info_t fwInfo={0};
+    paras_t paras={0};
 
-    return paras_write(0, &fwInfo, sizeof(fwInfo));
+    return paras_write(0, &paras, sizeof(paras));
 }
 
 
 int paras_reset(void)
 {
     int r;
+    
     curParas = DEFAULT_PARAS;
     r = paras_write(0, &curParas, sizeof(curParas));
     if(r==0) {
@@ -227,5 +244,19 @@ int paras_set_fwinfo(fw_info_t *fwinfo)
 }
 
 
+
+int paras_set_upg(void)
+{
+    int r;
+    U32 fwMagic=0;
+    
+    r = paras_get_fwmagic(&fwMagic);
+    if(r==0 && fwMagic!=UPG_MAGIC) {
+        fwMagic = UPG_MAGIC;
+        r = paras_set_fwmagic(&fwMagic);
+    }
+    
+    return r;
+}
 
 

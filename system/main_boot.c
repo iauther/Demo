@@ -1,39 +1,60 @@
 #include "drv/jump.h"
 #include "drv/uart.h"
 #include "drv/delay.h"
+#include "drv/htimer.h"
 #include "board.h"
 #include "com.h"
+#include "pkt.h"
+#include "paras.h"
+#include "notice.h"
+#include "upgrade.h"
 #include "myCfg.h"
-
-#define TIMER_MS            100
-#define RD_BUFLEN           1000
 
 
 static U16 data_recved_len=0;
-static U8  readBuffer[RD_BUFLEN];
+static int tmr_id=0;
+
+static U8  readBuffer[PKT_BUFLEN];
 static void rx_callback(U8 *data, U16 len)
 {
     
-    if(len<=RD_BUFLEN) {
+    if(len<=PKT_BUFLEN) {
         memcpy(readBuffer, data, len);
         data_recved_len = len;
     }
 }
-
+static void tmr_callback(void *arg)
+{
+    
+}
+////////////////////////////////////////////////
+static void start_timer(void)
+{
+    htimer_set_t set;
+    
+    tmr_id = htimer_new();
+    if(tmr_id>=0) {
+        set.ms = ACK_POLL_MS;
+        set.freq = 0;
+        set.repeat = 1;
+        set.callback = tmr_callback;
+        htimer_set(tmr_id, &set);
+        htimer_start(tmr_id);
+    }
+}
 
 int main(void)
 {
     board_init();
-    //timer_init();
-    
-    com_init(rx_callback, TIMER_MS);
-    //if(!upgrade_is_need()) {
-    if(1) {
+    if(!upgrade_is_need()) {
         board_deinit();
-        com_deinit();
-        
         jump_to_app();
     }
+    
+    notice_start(DEV_LED, LEV_UPGRADE);
+    com_init(rx_callback, ACK_POLL_MS);
+    //start_timer();
+    
     
     while(1) {
         if(data_recved_len>0) {

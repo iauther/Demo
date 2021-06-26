@@ -69,6 +69,12 @@
     <ClInclude Include="..\..\system\log.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\system\md5.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\system\data.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\winsim.c">
@@ -114,6 +120,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\libserialport\windows.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\system\md5.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

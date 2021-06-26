@@ -15,6 +15,7 @@
 
   <project>
     <PathAndName>.\all\prj_pump_stm32f412\prj_pump_stm32f412_rx\boot.uvprojx</PathAndName>
+    <NodeIsExpanded>1</NodeIsExpanded>
   </project>
 
 </ProjectWorkspace>

@@ -53,7 +53,7 @@ static void led_tmr_callback(void *user_data)
         }
     }
     
-    if(info->time.light_time+info->time.dark_time >= info->cfg.total_time) {
+    if(info->cfg.total_time>0 && info->time.light_time+info->time.dark_time >= info->cfg.total_time) {
         htimer_stop(led_tmr_id);
         led_set_color(info->cfg.stop_color);
         info->stat = 0;

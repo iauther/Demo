@@ -1,6 +1,7 @@
- #include <stddef.h>
- #include "at24cxx.h"
+#include <stddef.h>
+#include "at24cxx.h"
 #ifndef _WIN32
+#include "drv/jump.h"
 #include "drv/flash.h"
 #endif
 #include "myCfg.h"
@@ -22,19 +23,6 @@ int upgrade_init(U8 obj)
     return r;
 }
 
-extern paras_t DEFAULT_PARAS;
-int upgrade_check(void)
-{
-    fw_info_t fwInfo;
-    
-    paras_get_fwinfo(&fwInfo);
-    if(fwInfo.magic!=DEFAULT_PARAS.fwInfo.magic) {
-        paras_set_fwinfo(&DEFAULT_PARAS.fwInfo);
-    }
-    
-    return 0;
-}
-
 
 int upgrade_write(U8 *data, U32 len)
 {
@@ -42,35 +30,21 @@ int upgrade_write(U8 *data, U32 len)
 
 #ifndef _WIN32
     r = flash_write(upgrade_addr, data, len);
-#endif
     if(r==0) {
         upgrade_addr += len;
     }
+#endif
     
-    return 0;
-}
-
-
-int upgrade_refresh(void)
-{
-    int r;
-    U32 fwmagic;
-    
-    paras_get_fwmagic(&fwmagic);
-    if(fwmagic!=FW_MAGIC) {       
-        paras_set_fwinfo(&DEFAULT_PARAS.fwInfo);
-    }
-    
-    return 0;
+    return r;
 }
 
 
 int upgrade_is_need(void)
 {
-    U32 fwMagic=FW_MAGIC;
+    U32 fwMagic;
     
     paras_get_fwmagic(&fwMagic);
-    if(fwMagic!=FW_MAGIC) {
+    if(fwMagic==UPG_MAGIC) {
         return 1;
     }
     
@@ -85,50 +59,61 @@ U8 upgrade_proc(void *data)
 {
     int r=0;
     U8  err=0;
-    static U16 upg_pid=0;
-    U8  *ptr=(U8*)&upgHeader;
+    static U16 upg_pkt_pid=0;
+    U8  *pHdr=(U8*)&upgHeader;
     upgrade_pkt_t *upg=(upgrade_pkt_t*)data;
+
+#ifdef OS_KERNEL
+    if(upg->dataLen==0) {
+
+        paras_set_upg();
+        reboot();               //jump_to_boot();
+        return 0;
+    }
+#else
+    
+    if(upg->dataLen==0) {
+        return 0;
+    }
     
     if(upg->pid==0) {
-        upg_pid = 0;
+        upg_pkt_pid = 0;
         upgRecvedLen = 0;
-        upgrade_init(upgHeader.upgCtl.obj);
     }
     
- /*   
     if(upgRecvedLen<sizeof(upgrade_hdr_t)) {
-        if(upgRecvedLen+upg->dataLen<sizeof(upgrade_hdr_t)) {
-            memcpy(ptr+upgRecvedLen, upg->data, upg->dataLen);
-            upgDataLength += upg->dataLen;
+        if(upgRecvedLen+upg->dataLen < sizeof(upgrade_hdr_t)) {
+            memcpy(pHdr+upgRecvedLen, upg->data, upg->dataLen);
+            upgRecvedLen += upg->dataLen;
         }
         else {
-            memcpy(ptr+upgRecvedLen, upg->data, sizeof(upgrade_hdr_t)-upgRecvedLen);
-            upgDataLength = sizeof(upgrade_hdr_t);
+            int len = sizeof(upgrade_hdr_t)-upgRecvedLen;
+            memcpy(pHdr+upgRecvedLen, upg->data, len);
+            upgRecvedLen = sizeof(upgrade_hdr_t);
             
-            upgrade_write_fwinfo(upgHeader.fwInfo);
+            if(upgHeader.upgCtl.erase>0) {
+                paras_erase();
+            }
+            upgrade_init(upgHeader.upgCtl.obj);
+            upgrade_write(upg->data+len, upg->dataLen-len);
         }
     }
-    else {
-        memcpy(ptr, upg->data, sizeof(upgrade_hdr_t)-upgRecvedLen);
-        upgDataLength = sizeof(upgrade_hdr_t);
-    
-        upgrade_write_fwinfo(upgHeader.fwInfo);
-    
-        
-    
-    }
-*/        
             
-    if(upg->pid!=upg_pid) {
+    if(upg->pid!=upg_pkt_pid) {
         return ERROR_FW_PKT_ID;
     }
     
     if(upg->pid==upg->pkts-1) {
-        //upgrade finished
+
+#ifndef _WIN32
+        jump_to_app();
+#endif
     }
     else {
-        upg_pid++;
+        upgrade_write(upg->data, upg->dataLen);
+        upg_pkt_pid++;
     }
+#endif
     
     return r;
 }

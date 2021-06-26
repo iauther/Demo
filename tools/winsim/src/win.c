@@ -9,6 +9,16 @@
 
 #pragma comment  (lib, "libui.lib")
 
+typedef struct {
+	int start;
+	int fileLen;
+	int sendLen;
+	char* fileBuf;
+	int   pktId;
+	int   pkts;
+}upg_info_t;
+
+
 int port_opened = 0;
 extern setts_t  curSetts;
 extern sett_t* pCurSett;
@@ -16,7 +26,12 @@ static U8 valve_open = 0;
 extern int exit_flag;
 static grp_t     grp;
 static int       mcuSim;
+
+int upgrade_ack = -1;
+static upg_info_t upgInfo = {.start=0, .fileLen=0, .sendLen=0, .fileBuf=NULL};
+
 uiMultilineEntry* logEntry = NULL;
+static void start_upg_timer(void);
 
 static int onClosing(uiWindow* w, void* data)
 {
@@ -124,6 +139,7 @@ static void on_port_open_btn_fn(uiButton* b, void* data)
 		else {
 			port_opened = 1;
 			com_send_paras(0);
+			//com_send_data(TYPE_STAT, 0, NULL, 0);
 			uiButtonSetText(b, "Close");
 		}
 	}
@@ -290,22 +306,165 @@ static int para_grp_init(uiWindow* win, para_grp_t* para)
 	return 0;
 }
 
-extern node_t upg_node;
+#include "md5.h"
+#define CHAR(b) (b<=9)?(b+0x30):(b-10+0x61);
+static void byte2char(char* chr, unsigned char b)
+{
+	char h, l;
+
+	l = b & 0x0f;
+	h = (b >> 4) & 0x0f;
+
+	chr[0] = CHAR(h);
+	chr[1] = CHAR(l);
+}
+static int md5_get(void* data, int len, md5_t *md5)
+{
+	int i;
+	md5_ctx_t ctx;
+	char tmp[16];
+
+	md5_init(&ctx);
+	md5_update(&ctx, (U8*)data, len);
+	md5_final(&ctx, tmp);
+
+	for (i = 0; i < 16; i++) {
+		byte2char(&md5->digit[i * 2], tmp[i]);
+	}
+
+	return 0;
+}
+static void print_md5(char *str, md5_t *md5)
+{
+	char tmp[100];
+
+	memcpy(tmp, md5, sizeof(md5_t));
+	tmp[32] = 0;
+
+	LOG("%s %s\n", str, tmp);
+
+}
+static int hdr_check(void *data, int len)
+{
+	md5_t m1,m2;
+	upgrade_hdr_t* hdr = (upgrade_hdr_t*)((U8*)data + sizeof(md5_t));
+
+	memcpy(&m1, data, sizeof(md5_t));
+	md5_get(hdr, len- sizeof(md5_t), &m2);
+	if (memcmp(&m1, &m2, sizeof(md5_t))) {
+		print_md5("md5-0:", &m1);
+		print_md5("md5-1:", &m2);
+		return -1;
+	}
+	LOG("md5 is ok!\n");
+
+	if (hdr->fwInfo.magic != FW_MAGIC) {
+		LOG("fw magic is wrong: 0x%08x\n", hdr->fwInfo.magic);
+		return -1;
+	}
+	LOG("fwinfo.magic: 0x%08x\n", hdr->fwInfo.magic);
+	LOG("fwinfo.version: %s\n", hdr->fwInfo.version);
+	LOG("fwinfo.buildtime: %s\n", hdr->fwInfo.bldtime);
+
+	LOG("upgctl.obj: %d\n", hdr->upgCtl.obj);
+	LOG("upgctl.force: %d\n", hdr->upgCtl.force);
+	LOG("upgctl.action: %d\n", hdr->upgCtl.action);
+	LOG("upgctl.erase: %d\n", hdr->upgCtl.erase);
+	
+	return 0;
+}
+
+static long get_flen(FILE* fp)
+{
+	long flen;
+
+	fseek(fp, 0, SEEK_END);
+	flen = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
+	return flen;
+}
+static int readFile(char* path)
+{
+	FILE* fp;
+	errno_t r;
+	char* ptr=NULL;
+	long flen, rlen;
+
+	if (upgInfo.fileBuf) {
+		free(upgInfo.fileBuf);
+		upgInfo.fileBuf = NULL;
+		upgInfo.fileLen = 0;
+	}
+
+	r = fopen_s(&fp, (const char*)path, "rb");
+	if (r) {
+		LOG("fopen %s failed\n", path);
+		return -1;
+	}
+
+	flen = get_flen(fp);
+	ptr = (char*)malloc(flen);
+	if (!ptr) {
+		LOG("malloc file buf failed\n");
+		goto failed;
+	}
+
+	rlen = fread(ptr, 1, flen, fp);
+	r = hdr_check(ptr, rlen);
+	if (r) {
+		goto failed;
+	}
+
+	upgInfo.fileBuf = ptr;
+	upgInfo.fileLen = rlen;
+
+	return 0;
+
+failed:
+	free(ptr);
+	fclose(fp);
+
+	return r;
+}
 static void on_upg_open_btn_fn(uiButton* b, void* data)
 {
+	int r;
 	char* filename;
-	uiWindow* win = uiWindow(data);
+	upg_grp_t* upg = (upg_grp_t*)data;
 
-	filename = uiOpenFile(win);
+	filename = uiOpenFile(grp.win);
 	if (filename) {
-		//uiEntrySetText(entry, "");
-		return;
+		r = readFile(filename);
+		if (r) {
+			uiMsgBoxError(grp.win, "Failed", "Upgrade file is invalid!");
+			return;
+		}
+
+		uiEntrySetText(upg->path, filename);
 	}
 }
 
 static void on_upg_start_btn_fn(uiButton* b, void* data)
 {
+	errno_t r;
 
+	if (!upgInfo.fileBuf) {
+		uiMsgBoxError(grp.win, "Failed", "Please select the upgrade file!");
+		return;
+	}
+
+	if (strcmp(uiButtonText(b), "Start") == 0) {
+		upgInfo.start = 1;
+		upgrade_ack = -1;
+		upgInfo.sendLen = 0;
+		start_upg_timer();
+		uiButtonSetText(b, "Stop");
+	}
+	else {
+		upgInfo.start = 0;
+		uiButtonSetText(b, "Start");
+	}
 }
 static int upg_grp_init(uiWindow* win, upg_grp_t* upg)
 {
@@ -317,9 +476,9 @@ static int upg_grp_init(uiWindow* win, upg_grp_t* upg)
 
 	upg->fwinfo = uiNewLabel("fw info: ");
 	upg->path = uiNewEntry();					uiEntrySetReadOnly(upg->path, 1);
-	upg->open = uiNewButton("Open");			uiButtonOnClicked(upg->open, on_upg_open_btn_fn, win);
+	upg->open = uiNewButton("Open");			uiButtonOnClicked(upg->open, on_upg_open_btn_fn, upg);
 	upg->pgbar = uiNewProgressBar();			uiProgressBarSetValue(upg->pgbar, 0);
-	upg->start = uiNewButton("Start");			uiButtonOnClicked(upg->start, on_upg_start_btn_fn, NULL);
+	upg->start = uiNewButton("Start");			uiButtonOnClicked(upg->start, on_upg_start_btn_fn, upg);
 	
 	uiGridAppend(upg->g, uiControl(upg->fwinfo), 0, 0, 1, 1, 1, uiAlignFill,   0, uiAlignFill);
 	uiGridAppend(upg->g, uiControl(upg->path),   0, 1, 1, 1, 1, uiAlignFill,   0, uiAlignFill);
@@ -388,6 +547,62 @@ static int log_grp_init(uiWindow* win, log_grp_t* log)
 	return 0;
 }
 
+#define UPG_TIMER_MS		300
+#define UPG_DATA_LEN		500
+#define UPG_PKT_LEN			sizeof(upgrade_pkt_t)
+static char upgSendBuf[UPG_PKT_LEN+UPG_DATA_LEN+10];
+static int ui_timer_callback(void* arg)
+{
+	int slen;
+	upgrade_pkt_t* pkt = (upgrade_pkt_t*)upgSendBuf;
+
+	if (upgInfo.start>0) {
+		if (upgrade_ack == -1) {
+			upgInfo.pktId = 0;
+			upgInfo.pkts = (U16)ceil((double)(upgInfo.fileLen - sizeof(md5_t))/ UPG_DATA_LEN);
+			com_send_data(TYPE_UPGRADE, 1, NULL, 0);
+			upgrade_ack = 0;
+		}
+
+		if (upgrade_ack > 0) {
+			if (upgInfo.sendLen >= (upgInfo.fileLen-sizeof(md5_t))) {
+				upgInfo.start = 0;
+				upgInfo.sendLen = 0;
+
+				uiButtonSetText(grp.upg.start, "Start");
+				uiMsgBox(grp.win, "Success", "Upgrade ok!");
+			}
+			else {
+
+				if ((upgInfo.sendLen + UPG_DATA_LEN) < (upgInfo.fileLen - sizeof(md5_t))) {
+					slen = UPG_DATA_LEN;
+				}
+				else {
+					slen = upgInfo.fileLen - sizeof(md5_t) - upgInfo.sendLen;
+				}
+
+				upgrade_ack = 0;
+				pkt->dataLen = slen;
+				pkt->pid = upgInfo.pktId;
+				pkt->pkts = upgInfo.pkts;
+				memcpy(pkt->data, upgInfo.fileBuf + sizeof(md5_t) + upgInfo.sendLen, slen);
+				com_send_data(TYPE_UPGRADE, 1, pkt, UPG_PKT_LEN + slen);
+
+				upgInfo.sendLen += slen;
+				upgInfo.pktId++;
+				uiProgressBarSetValue(grp.upg.pgbar, (upgInfo.sendLen * 100) / (upgInfo.fileLen - sizeof(md5_t)));
+			}
+		}
+
+		start_upg_timer();
+	}
+
+	return 0;
+}
+static void start_upg_timer(void)
+{
+	uiTimer(UPG_TIMER_MS, ui_timer_callback, NULL);
+}
 
 
 static void ui_init(void)

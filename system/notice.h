@@ -8,6 +8,7 @@
 enum {
     LEV_WARN=0,
     LEV_ERROR,
+    LEV_UPGRADE,
     
     LEV_MAX
 };

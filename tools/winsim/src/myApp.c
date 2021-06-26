@@ -237,6 +237,7 @@ static U8 timer_proc(void)
         return 0;
     }
 
+
     //err = com_send_data(TYPE_STAT, 0, NULL, 0);
 
     if (cnt% LEAP_CNT ==0) {
@@ -244,7 +245,7 @@ static U8 timer_proc(void)
         //LOG("____ send a leap\n");
     }
 
-    err = com_ack_poll();
+    //err = com_ack_poll();
 
     cnt++;
 
