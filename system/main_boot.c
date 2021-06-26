@@ -46,20 +46,25 @@ static void start_timer(void)
 int main(void)
 {
     board_init();
-    if(!upgrade_is_need()) {
+    //if(!upgrade_is_need()) {
+    if(0) {
         board_deinit();
         jump_to_app();
     }
     
-    notice_start(DEV_LED, LEV_UPGRADE);
     com_init(rx_callback, ACK_POLL_MS);
+    notice_start(DEV_LED, LEV_UPGRADE);
     //start_timer();
     
+    //com_deinit();
+    //board_deinit();
+    //jump_to_app();
     
     while(1) {
         if(data_recved_len>0) {
             com_data_proc(readBuffer, data_recved_len);
             data_recved_len = 0;
+            //memset(readBuffer, 0, sizeof(pkt_hdr_t));
         }
     }
 }

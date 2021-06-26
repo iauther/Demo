@@ -28,6 +28,7 @@ int paras_set_fwmagic(U32 *fwmagic);
 int paras_get_fwinfo(fw_info_t *fwinfo);
 int paras_set_fwinfo(fw_info_t *fwinfo);
 int paras_set_upg(void);
+int paras_clr_upg(void);
 
 
 extern U8 adjMode;

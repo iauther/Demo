@@ -42,6 +42,17 @@ static int bus_init(void)
     return ((i2c1Handle&&i2c2Handle)?-1:0);
 }
 
+static int bus_deinit(void)
+{
+    int r;
+    
+    r = i2c_deinit(&i2c1Handle);
+    r |= i2c_deinit(&i2c2Handle);
+    
+    return r;
+}
+
+
 
 static int dev_init(void)
 {
@@ -113,10 +124,10 @@ int board_deinit(void)
     
     r = HAL_DeInit();
     r = HAL_RCC_DeInit();
-    r = i2c_deinit(&i2c1Handle);
-    r = i2c_deinit(&i2c2Handle);
+    r = htimer_deinit();
     
     r = dev_deinit();
+    r = bus_deinit();
    
     return r;
 }

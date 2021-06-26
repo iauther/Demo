@@ -86,6 +86,9 @@ void err_print(U8 type, U8 err)
     case ERROR_PKT_CHECKSUM:
         LOG("_____ pkt checksum is wrong\n");
         break;
+    case ERROR_PKT_TYPE_UNSUPPORT:
+        LOG("_____ pkt %s unsupport\n", typeString2[type]);
+        break;
     case ERROR_DAT_TIMESET:
         LOG("_____ para timeset is wrong\n");
         break;

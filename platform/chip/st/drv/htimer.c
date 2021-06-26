@@ -234,7 +234,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             if(htimerHandle[i].used==1 && htimerHandle[i].start) {
                 if(htimer_cnt%htimerHandle[i].set.ms==0) {
                     if((htimerHandle[i].set.repeat==0 && htimerHandle[i].done==0) || htimerHandle[i].set.repeat) {
-                        htimerHandle[i].set.callback(htimerHandle[i].set.user_data);
+                        if(htimerHandle[i].set.callback) {
+                            htimerHandle[i].set.callback(htimerHandle[i].set.user_data);
+                        }
                         htimerHandle[i].done=1;
                     }
                 }

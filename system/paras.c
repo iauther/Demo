@@ -260,3 +260,22 @@ int paras_set_upg(void)
 }
 
 
+int paras_clr_upg(void)
+{
+    int r;
+    U32 fwMagic=0;
+    
+    r = paras_get_fwmagic(&fwMagic);
+    if(r==0 && fwMagic==UPG_MAGIC) {
+        fwMagic = UPG_MAGIC;
+        r = paras_set_fwmagic(&fwMagic);
+    }
+    
+    return r;
+}
+
+
+
+
+
+

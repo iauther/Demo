@@ -103,16 +103,16 @@ U8 upgrade_proc(void *data)
         return ERROR_FW_PKT_ID;
     }
     
+    upgrade_write(upg->data, upg->dataLen);
+    upg_pkt_pid++;
+    
     if(upg->pid==upg->pkts-1) {
 
-#ifndef _WIN32
+    #ifndef _WIN32
         jump_to_app();
-#endif
+    #endif
     }
-    else {
-        upgrade_write(upg->data, upg->dataLen);
-        upg_pkt_pid++;
-    }
+    
 #endif
     
     return r;

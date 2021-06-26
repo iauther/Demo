@@ -547,20 +547,21 @@ static int log_grp_init(uiWindow* win, log_grp_t* log)
 	return 0;
 }
 
-#define UPG_TIMER_MS		300
+#define UPG_TIMER_MS		100
 #define UPG_DATA_LEN		500
 #define UPG_PKT_LEN			sizeof(upgrade_pkt_t)
 static char upgSendBuf[UPG_PKT_LEN+UPG_DATA_LEN+10];
 static int ui_timer_callback(void* arg)
 {
-	int slen;
+	int r,slen;
 	upgrade_pkt_t* pkt = (upgrade_pkt_t*)upgSendBuf;
 
 	if (upgInfo.start>0) {
+
 		if (upgrade_ack == -1) {
 			upgInfo.pktId = 0;
 			upgInfo.pkts = (U16)ceil((double)(upgInfo.fileLen - sizeof(md5_t))/ UPG_DATA_LEN);
-			com_send_data(TYPE_UPGRADE, 1, NULL, 0);
+			r = com_send_data(TYPE_UPGRADE, 1, NULL, 0);
 			upgrade_ack = 0;
 		}
 
@@ -570,7 +571,7 @@ static int ui_timer_callback(void* arg)
 				upgInfo.sendLen = 0;
 
 				uiButtonSetText(grp.upg.start, "Start");
-				uiMsgBox(grp.win, "Success", "Upgrade ok!");
+				LOG("upgrade finished!\n");
 			}
 			else {
 

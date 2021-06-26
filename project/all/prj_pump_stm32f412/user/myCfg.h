@@ -7,7 +7,7 @@
 
 
 
-#define VERSION                     "V1.9.9"
+#define VERSION                     "V1.0.0"
 
 #define BOOT_OFFSET                 (0)                 //32KB
 #define COM_BAUDRATE                (115200)

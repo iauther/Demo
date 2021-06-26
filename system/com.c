@@ -166,12 +166,12 @@ U8 com_data_proc(void *data, U16 len)
     U8 err=0;
     pkt_hdr_t *p=(pkt_hdr_t*)data;
 
-    if (p->askAck) {
-        pkt_send_ack(p->type);
-    }
-
     err = pkt_hdr_check(p, len);
     if (err == ERROR_NONE) {
+        if (p->askAck) {
+            pkt_send_ack(p->type);
+        }
+
         switch (p->type) {
         case TYPE_STAT:
         {
@@ -259,7 +259,6 @@ U8 com_data_proc(void *data, U16 len)
     
 }
 #else
-
  U8 com_data_proc(void *data, U16 len)
 {
     int r;
@@ -267,12 +266,12 @@ U8 com_data_proc(void *data, U16 len)
     node_t nd;
     pkt_hdr_t *p=(pkt_hdr_t*)data;
 
-    if (p->askAck) {
-        pkt_send_ack(p->type);
-    }
-
     err = pkt_hdr_check(p, len);
     if (err == ERROR_NONE) {
+        if (p->askAck) {
+            pkt_send_ack(p->type);
+        }
+        
         switch (p->type) {
 #ifdef OS_KERNEL
         case TYPE_SETT:
