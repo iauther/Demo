@@ -63,10 +63,12 @@ int port_is_opened(void)
 
 int port_close(void)
 {
-    int r = sp_close(sPort);
+    sp_close(sPort);
+    sp_free_port(sPort);
+    sPort = NULL;
     isOpened = 0;
 
-    return r;
+    return 0;
 }
 
 int port_send(void* data, U16 len)

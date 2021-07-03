@@ -35,6 +35,9 @@ typedef struct {
 	uiCombobox*			port;
 	uiButton*			open;
 	uiCheckbox*		    mode;
+
+	uiButton*			restart;
+	uiButton*			factory;
 }port_grp_t;
 
 typedef struct {

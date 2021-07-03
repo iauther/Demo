@@ -197,10 +197,8 @@ static void set_erase_flag(U32 from, U32 to)
 
 int flash_init(void)
 {
-    U32 magic=0;
-    
     memset(erase_flag, 0, sizeof(erase_flag));
-    paras_set_fwmagic(&magic);
+    
     return 0;
 }
 
@@ -224,10 +222,7 @@ int flash_write(U32 offset, U8 *data, U32 len)
         return -1;
     }
     
-    r = flash_erase(offset, offset+len-1);
-    if(r!=HAL_OK) {
-        return -1;
-    }
+    flash_erase(offset, offset+len-1);
     __reset_cache();
     
     sec = get_sector(offset);
@@ -272,19 +267,19 @@ int flash_erase(U32 from, U32 to)
 }
 
 
-
 int flash_test(void)
 {
     int r,i;
-    U32 xtmp[100];
+    #define XTMP_LEN  (10)
+    U32 xtmp[XTMP_LEN];
     
-    #define TEST_ADDR       (1024*200)
+    #define TEST_ADDR       (32*1024)
     
-    for(i=0; i<sizeof(xtmp); i++) {
+    for(i=0; i<XTMP_LEN; i++) {
         xtmp[i] = i;
     }
     
-    flash_init();
+    //flash_init();
     r = flash_write(TEST_ADDR, (U8*)xtmp, sizeof(xtmp));
     memset(xtmp, 0, sizeof(xtmp));
     r = flash_read(TEST_ADDR, (U8*)xtmp, sizeof(xtmp));

@@ -6,7 +6,6 @@
 int sys_init(void)
 {
     board_init();
-    paras_load();
     
 #ifdef OS_KERNEL
     task_start();

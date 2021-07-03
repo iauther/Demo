@@ -3,6 +3,9 @@
 
 #include "types.h"
 
+#ifdef __cplusplus  
+extern "C" {
+#endif
 
 int port_init(void);
 int port_free(void);
@@ -14,5 +17,13 @@ int port_is_opened(void);
 int port_send(void* data, U16 len);
 int port_recv(void* data, U16 len);
 
+#ifdef __cplusplus  
+}
 #endif
+
+
+
+#endif
+
+
 

@@ -313,7 +313,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>1</Optim>
+            <Optim>0</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -392,6 +392,16 @@
               <FileName>board.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user\board.c</FilePath>
+            </File>
+            <File>
+              <FileName>error.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\..\system\error.h</FilePath>
+            </File>
+            <File>
+              <FileName>data.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\..\system\data.h</FilePath>
             </File>
           </Files>
         </Group>

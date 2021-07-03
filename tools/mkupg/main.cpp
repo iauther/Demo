@@ -165,7 +165,7 @@ int main(char argc, char *argv[])
 	upgrade_hdr_t hdr;
 	fw_info_t fwInfo;
 	char* path = argv[2];
-	char* obj = argv[1];
+	char* goal = argv[1];
 	TCHAR* xPath;
     
 	if(argc<3) {
@@ -183,7 +183,7 @@ int main(char argc, char *argv[])
 	get_version(fwInfo.version, sizeof(fwInfo.version));
 	get_buildtime(path, (char*)fwInfo.bldtime, sizeof(fwInfo.bldtime));
 	hdr.fwInfo = fwInfo;
-	hdr.upgCtl.obj = atoi(obj);
+	hdr.upgCtl.goal = (U8)atoi(goal);
 	hdr.upgCtl.force = 0;
 	hdr.upgCtl.erase  = 0;
 	hdr.upgCtl.action = 1;

@@ -6,15 +6,15 @@
 #include "led.h"
 #include "paras.h"
 
-
-static int ggg=0;
+static int rflag=0;
 static void com_tmr_callback(void *arg)
 {
     task_msg_post(TASK_COM, EVT_TIMER, 0, NULL, 0);
 }
 static void com_rx_callback(U8 *data, U16 len)
 {
-    task_msg_post(TASK_COM, EVT_COM, 0, data, len);
+    rflag = task_msg_post(TASK_COM, EVT_COM, 0, data, len);
+    rflag=0;
 }
 static void task_com_init(void)
 {
@@ -37,7 +37,7 @@ void task_com_fn(void *arg)
     task_handle_t *h=(task_handle_t*)arg;
     
     task_com_init();
-    task_start_others();    
+    task_start_others();
     
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));
@@ -62,7 +62,7 @@ void task_com_fn(void *arg)
             
             if(err) {
                 //do something here
-                led_set_color(RED);
+                //led_set_color(RED);
                 err = 0;
             }
         }

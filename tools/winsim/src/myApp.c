@@ -17,37 +17,6 @@ static UINT_PTR timerId;
 static HANDLE appThreadHandle, appRxThreadHandle;
 extern paras_t DEFAULT_PARAS;
 
-U8 testStat[] = {   0xef,0xbe,0xad,0xde,        //magic
-                    0x01,
-                    0x00,
-                    0x00,
-                    0x1b,0x00,
-                    0x01,
-                    0x12,0x50,0xc4,0x41,    //temp
-                    0xb4,0xdd,0xbb,0x42,    //apress
-                    0xc5,0x45,0x6c,0x42,    //dpress
-                    0x00,0x00,
-                    0x00,0x00,0x00,0x00,    //speed
-                    0x66,0x66,0xee,0x41,    //current
-                    0x31,
-                    0x0f,0x00,
-                    0x3d                 //checksum
-};
-
-static void parse_test(void)
-{
-    static int x = 0;
-    U8 tmp[4] = {0x41,0x78,0x0d,0xbc};
-    float f1[3] = { (float)0x1250c441, (float)0xb4ddbb42, (float)0xc5456c42 };
-    float f2[3] = { (float)0x41c45012, (float)0x42bbddb4, (float)0x426c45c5 };
-    float f3 = *((float*)tmp);
-    pkt_hdr_t* p = (pkt_hdr_t*)testStat;
-
-    if (p->type==TYPE_STAT) {
-        stat_t* stat = p->data;
-        x = 1;
-    }
-}
 
 const char* typeString2[TYPE_MAX] = {
     "TYPE_CMD",
@@ -230,6 +199,7 @@ void pkt_print(pkt_hdr_t* p, U16 len)
 
 
 extern int port_opened;
+extern int upgrade_start;
 static U8 timer_proc(void)
 {
     int r;
@@ -240,15 +210,16 @@ static U8 timer_proc(void)
         return 0;
     }
 
+    //if (curStat.sysState != STAT_UPGRADE) {
+    if(!upgrade_start) {
+        //err = com_send_data(TYPE_STAT, 0, NULL, 0);
+        if (cnt % LEAP_CNT == 0) {
+            //err = com_send_data(TYPE_LEAP, 1, NULL, 0);
+            //LOG("____ send a leap\n");
+        }
 
-    //err = com_send_data(TYPE_STAT, 0, NULL, 0);
-
-    if (cnt% LEAP_CNT ==0) {
-        //err = com_send_data(TYPE_LEAP, 1, NULL, 0);
-        //LOG("____ send a leap\n");
+        //err = com_ack_poll();
     }
-
-    //err = com_ack_poll();
 
     cnt++;
 
@@ -346,8 +317,6 @@ int task_app_start(void)
 {
     app_exit_flag = 0;
     app_thread_running = 0;
-
-    parse_test();
 
     timerId = SetTimer(NULL, 1, ACK_POLL_MS, timer_callback);
     appRxThreadHandle = CreateThread(NULL, 0, app_rx_thread, NULL, 0, NULL);

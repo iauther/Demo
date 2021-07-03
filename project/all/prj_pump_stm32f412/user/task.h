@@ -17,6 +17,7 @@ enum {
 
 typedef struct {
     msg_t           *msg;
+    int             msg_maxlen;
     
     osTimerId_t     tmr_id;
     osThreadId_t    thread_id;

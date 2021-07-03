@@ -44,6 +44,127 @@ static int uart_dma_init(uart_handle_t *h);
 static int uart_irq_en(uart_handle_t *h, int on);
 
 
+static void HAL_UART_IDLE_CALLBACK(uart_handle_t *h)
+{
+    U32 st = 0;
+    U16 data_len,remain;
+    uart_map_t *map=&UART_MAP[h->port];
+    
+    if(__HAL_UART_GET_FLAG(&h->huart, UART_FLAG_IDLE)!=RESET)  {//发生IDLE
+        __HAL_UART_CLEAR_IDLEFLAG(&h->huart);
+        
+        st = h->huart.Instance->SR;
+		st = h->huart.Instance->DR;
+        //HAL_NVIC_DisableIRQ(map->dmaRxIRQ);		//如果不关中断、那么__HAL_DMA_DISABLE会触发DMA2_Stream2_IRQHandler
+		//
+        
+        if(h->mode==MODE_DMA) {
+            HAL_UART_DMAStop(&h->huart);
+            //__HAL_DMA_DISABLE(h->huart.hdmarx);
+            
+            remain = __HAL_DMA_GET_COUNTER(h->huart.hdmarx);
+        }
+        else if(h->mode==MODE_IT) {
+            remain = h->huart.RxXferCount;
+            HAL_UART_AbortReceive_IT(&h->huart);
+        }
+        
+        data_len = h->huart.RxXferSize - remain;
+        if(h->para.rx && data_len) {
+            h->para.rx(h->huart.pRxBuffPtr, data_len);
+            //h->para.rx(h->para.buf, data_len);
+        }
+        
+        if(h->mode==MODE_DMA) {
+            __HAL_DMA_SET_COUNTER(h->huart.hdmarx, h->para.blen);
+            HAL_UART_Receive_DMA(&h->huart, h->para.buf, h->para.blen);
+            //__HAL_DMA_ENABLE(h->huart.hdmarx);
+        }
+        else if(h->mode==MODE_IT) {
+            HAL_UART_Receive_IT(&h->huart, h->para.buf, h->para.blen);
+        }
+    }
+}
+
+static void uart_handler(int uart)
+{
+    uart_handle_t *h=uart_handle[uart];
+    
+    if(!h) return;
+    
+    HAL_UART_IRQHandler(&h->huart);
+    HAL_UART_IDLE_CALLBACK(h);
+
+}
+
+static void uart_dma_handler(char rxtx, int uart)
+{
+    uart_handle_t *h=uart_handle[uart];
+    
+    if(!h) return;
+    
+    if(rxtx>0) {
+        HAL_DMA_IRQHandler(&h->hdmaTx);
+    }
+    else {
+        HAL_DMA_IRQHandler(&h->hdmaRx);
+    }
+}
+
+
+void USART1_IRQHandler(void)
+{
+    uart_handler(UART_1);
+}
+void USART2_IRQHandler(void)
+{
+    uart_handler(UART_2);
+}
+void USART3_IRQHandler(void)
+{
+    uart_handler(UART_3);
+}
+
+void DMA2_Stream2_IRQHandler(void)
+{
+    uart_dma_handler(0, UART_1);    //rx
+}
+void DMA2_Stream5_IRQHandler(void)
+{
+    uart_dma_handler(0, UART_1);    //rx
+}
+void DMA2_Stream7_IRQHandler(void)
+{
+    uart_dma_handler(1, UART_1);    //tx
+}
+
+void DMA1_Stream5_IRQHandler(void)
+{
+    uart_dma_handler(0, UART_2);    //rx
+}
+void DMA1_Stream7_IRQHandler(void)
+{
+    uart_dma_handler(0, UART_2);    //rx
+}
+void DMA1_Stream6_IRQHandler(void)
+{
+    uart_dma_handler(1, UART_2);    //tx
+}
+
+void DMA1_Stream1_IRQHandler(void)
+{
+    uart_dma_handler(0, UART_3);    //rx
+}
+void DMA1_Stream3_IRQHandler(void)
+{
+    uart_dma_handler(1, UART_3);    //tx
+}
+void DMA1_Stream4_IRQHandler(void)
+{
+    uart_dma_handler(1, UART_3);    //tx
+}
+//////////////////////////////////////////////////////////
+
 static U8 get_uart(UART_HandleTypeDef *huart)
 {
     U8 uart;
@@ -181,68 +302,6 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
 }
 
 
-static void HAL_UART_IDLE_CALLBACK(uart_handle_t *h)
-{
-    U16 data_len,remain;
-    uart_map_t *map=&UART_MAP[h->port];
-    
-    if(__HAL_UART_GET_FLAG(&h->huart, UART_FLAG_IDLE)!=RESET)  {//发生IDLE
-        __HAL_UART_CLEAR_IDLEFLAG(&h->huart);
-        
-        //HAL_NVIC_DisableIRQ(map->dmaRxIRQ);		//如果不关中断、那么__HAL_DMA_DISABLE会触发DMA2_Stream2_IRQHandler
-		//__HAL_DMA_DISABLE(h->huart.hdmarx);
-        
-        if(h->mode==MODE_DMA) {
-            HAL_UART_DMAStop(&h->huart);
-            remain = __HAL_DMA_GET_COUNTER(h->huart.hdmarx);
-        }
-        else if(h->mode==MODE_IT) {
-            remain = h->huart.RxXferCount;
-            HAL_UART_AbortReceive_IT(&h->huart);
-        }
-        
-        data_len = h->huart.RxXferSize - remain;
-        if(h->para.rx && data_len) {
-            h->para.rx(h->huart.pRxBuffPtr, data_len);
-            //h->para.rx(h->para.buf, data_len);
-        }
-        
-        if(h->mode==MODE_DMA) {
-            __HAL_DMA_SET_COUNTER(h->huart.hdmarx, h->para.blen);
-            HAL_UART_Receive_DMA(&h->huart, h->para.buf, h->para.blen);
-        }
-        else if(h->mode==MODE_IT) {
-            HAL_UART_Receive_IT(&h->huart, h->para.buf, h->para.blen);
-        }
-    }
-}
-void uart_handler(int uart)
-{
-    uart_handle_t *h=uart_handle[uart];
-    
-    if(!h) return;
-    
-    HAL_UART_IRQHandler(&h->huart);
-    HAL_UART_IDLE_CALLBACK(h);
-
-}
-
-void uart_dma_handler(char rxtx, int uart)
-{
-    uart_handle_t *h=uart_handle[uart];
-    
-    if(!h) return;
-    
-    if(rxtx>0) {
-        HAL_DMA_IRQHandler(&h->hdmaTx);
-    }
-    else {
-        HAL_DMA_IRQHandler(&h->hdmaRx);
-    }
-}
-
-
-
 static void dma_irq_en(U8 port, int on)
 {
     uart_map_t *map=&UART_MAP[port];
@@ -307,7 +366,7 @@ static int uart_dma_init(uart_handle_t *h)
     h->hdmaRx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
     h->hdmaRx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
     h->hdmaRx.Init.Mode = DMA_NORMAL;
-    h->hdmaRx.Init.Priority = DMA_PRIORITY_LOW;
+    h->hdmaRx.Init.Priority = DMA_PRIORITY_HIGH;
     h->hdmaRx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
     if (HAL_DMA_Init(&h->hdmaRx) != HAL_OK) {
         return -1;
@@ -455,12 +514,12 @@ int uart_write(handle_t h, U8 *data, U32 len)
     if(uh->mode==MODE_DMA) {
         uh->txFinished = 0;
         r = HAL_UART_Transmit_DMA(&uh->huart, data, len);
-        uart_tx_wait(uh, 10);
+        uart_tx_wait(uh, 5);
     }
     else if(uh->mode==MODE_IT) {
         uh->txFinished = 0;
         r = HAL_UART_Transmit_IT(&uh->huart, data, len);
-        uart_tx_wait(uh, 10);
+        uart_tx_wait(uh, 5);
     }
     else
 #endif

@@ -12,6 +12,10 @@ static HANDLE devRxThreadHandle, devThreadHandle;
 extern paras_t DEFAULT_PARAS;
 
 
+void boot_jump(viud)
+{
+}
+
 static int send_stat(U8 st)
 {
     stat_t stat;

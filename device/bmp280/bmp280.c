@@ -33,7 +33,6 @@ static int8_t i2c_reg_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_dat
 
 static void print_err(int8_t err)
 {
-    return;
     if (err != BMP280_OK) {
         if (err == BMP280_E_NULL_PTR) {
             LOGE("Error [%d] : Null pointer error\r\n", err);

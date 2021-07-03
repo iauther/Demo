@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define MAXLEN  0xFF
+#define MAXLEN   0xFF
 
 enum {
     EVT_COM=0,

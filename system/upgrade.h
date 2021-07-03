@@ -5,15 +5,14 @@
 #include "data.h"
 
 enum {
-    OBJ_BOOT=0,
-    OBJ_APP,
+    GOAL_BOOT=0,
+    GOAL_APP,
 };
 
 int upgrade_is_need(void);
-int upgrade_init(U8 obj);
 int upgrade_check(void);
-int upgrade_write(U8 *data, U32 len);
 U8 upgrade_proc(void *data);
+U8 upgrade_is_finished(void);
 
 #endif
 

@@ -103,27 +103,35 @@ paras_t curParas;
 ////////////////////////////////////////////////////////////
 int paras_load(void)
 {
-    int r;
-    U32 fwmagic=0;
+    int r=0;
+    fw_info_t fwinfo;
     
-    r = paras_get_fwmagic(&fwmagic);
-    if(r==0) {
-        if(fwmagic!=FW_MAGIC && fwmagic!=UPG_MAGIC) {
-            curParas = DEFAULT_PARAS;
-            r = paras_write(0, &curParas, sizeof(curParas));
+    if(sysState!=STAT_UPGRADE) {
+        r = paras_get_fwinfo(&fwinfo);
+        if(r==0) {
+            if(fwinfo.magic!=FW_MAGIC && fwinfo.magic!=UPG_MAGIC) {
+                curParas = DEFAULT_PARAS;
+                r = paras_write(0, &curParas, sizeof(curParas));
+            }
+            else {
+                
+                if(fwinfo.magic==UPG_MAGIC) {
+                    U32 fwmagic=FW_MAGIC;
+                    paras_set_fwmagic(&fwmagic);
+                }
+                
+                if(memcmp(fwinfo.version, DEFAULT_PARAS.fwInfo.version, sizeof(fwinfo)-sizeof(fwinfo.magic))) {
+                    paras_set_fwinfo(&DEFAULT_PARAS.fwInfo);
+                }
+                
+                r = paras_read(0, &curParas, sizeof(curParas));
+            }
         }
         else {
-            if(fwmagic==UPG_MAGIC){
-                fwmagic = FW_MAGIC;
-                paras_set_fwmagic(&fwmagic);
-            }
-            r = paras_read(0, &curParas, sizeof(curParas));
+            curParas = DEFAULT_PARAS;
         }
+        get_date_string((char*)DEFAULT_PARAS.fwInfo.bldtime, curParas.fwInfo.bldtime);
     }
-    else {
-        curParas = DEFAULT_PARAS;
-    }
-    get_date_string((char*)DEFAULT_PARAS.fwInfo.bldtime, curParas.fwInfo.bldtime);
     
     return r;
 }
@@ -193,7 +201,7 @@ int paras_get_fwmagic(U32 *fwmagic)
         return -1;
     }
 
-    r = paras_read(addr, (U8*)fwmagic, sizeof(U32));
+    r = paras_read(addr, fwmagic, sizeof(U32));
     
     return r;
 }
@@ -208,7 +216,7 @@ int paras_set_fwmagic(U32 *fwmagic)
         return -1;
     }
 
-    r = paras_write(addr, (U8*)fwmagic, sizeof(U32));
+    r = paras_write(addr, fwmagic, sizeof(U32));
     
     return r;
 }
@@ -223,7 +231,7 @@ int paras_get_fwinfo(fw_info_t *fwinfo)
         return -1;
     }
 
-    r = paras_read(addr, (U8*)fwinfo, sizeof(fw_info_t));
+    r = paras_read(addr, fwinfo, sizeof(fw_info_t));
     
     return r;
 }
@@ -232,13 +240,13 @@ int paras_get_fwinfo(fw_info_t *fwinfo)
 int paras_set_fwinfo(fw_info_t *fwinfo)
 {
     int r=-1;
-    U32 addr=offsetof(paras_t,fwInfo)+UPGRADE_INFO_ADDR;
+    U32 addr=offsetof(paras_t,fwInfo)+offsetof(fw_info_t,version)+UPGRADE_INFO_ADDR;
 
     if (!fwinfo) {
         return -1;
     }
 
-    r = paras_write(addr, (U8*)fwinfo, sizeof(fw_info_t));
+    r = paras_write(addr, fwinfo->version, sizeof(fw_info_t)-sizeof(fwinfo->magic));
     
     return r;
 }

@@ -53,7 +53,15 @@
     <ClCompile Include="src\logx.c" />
     <ClCompile Include="src\myApp.c" />
     <ClCompile Include="src\myDev.c" />
-    <ClCompile Include="src\port2.c" />
+    <ClCompile Include="src\port.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="src\port2.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="src\port3.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="src\serial.c" />
     <ClCompile Include="src\win.c" />
     <ClCompile Include="src\winsim.c" />
@@ -162,7 +170,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>./inc;./lib/libserialport;../../system;../../device;../../project/all/prj_pump_stm32f412/user;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./inc;./lib;./lib/libserialport;./lib/cserialport;../../system;../../device;../../project/all/prj_pump_stm32f412/user;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

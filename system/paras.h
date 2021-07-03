@@ -33,6 +33,7 @@ int paras_clr_upg(void);
 
 extern U8 adjMode;
 extern U8 sysState;
+extern U8 sysMode;
 extern stat_t curStat;
 extern paras_t curParas;
 extern ack_timeout_t ackTimeout;

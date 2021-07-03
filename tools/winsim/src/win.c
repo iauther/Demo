@@ -10,13 +10,17 @@
 #pragma comment  (lib, "libui.lib")
 
 typedef struct {
-	int start;
 	int fileLen;
 	int sendLen;
 	char* fileBuf;
 	int   pktId;
 	int   pkts;
 }upg_info_t;
+
+
+#define UPG_TIMER_MS		100
+#define UPG_DATA_LEN		500
+
 
 
 int port_opened = 0;
@@ -27,8 +31,10 @@ extern int exit_flag;
 static grp_t     grp;
 static int       mcuSim;
 
-int upgrade_ack = -1;
-static upg_info_t upgInfo = {.start=0, .fileLen=0, .sendLen=0, .fileBuf=NULL};
+int paras_rx_flag = 0;
+int upgrade_ack_error = 1;
+int upgrade_start = 0;
+upg_info_t upgInfo = {.fileLen=0, .sendLen=0, .fileBuf=NULL};
 
 uiMultilineEntry* logEntry = NULL;
 static void start_upg_timer(void);
@@ -139,7 +145,6 @@ static void on_port_open_btn_fn(uiButton* b, void* data)
 		else {
 			port_opened = 1;
 			com_send_paras(0);
-			//com_send_data(TYPE_STAT, 0, NULL, 0);
 			uiButtonSetText(b, "Close");
 		}
 	}
@@ -155,6 +160,18 @@ static void on_port_chkbox_fn(uiCheckbox* c, void* data)
 		task_app_start();
 	}
 }
+static void on_port_factory_btn_fn(uiButton* b, void* data)
+{
+	cmd_t cmd = { CMD_SYS_FACTORY, 0};
+	com_send_data(TYPE_CMD, 0, &cmd, sizeof(cmd));
+}
+static void on_port_restart_btn_fn(uiButton* b, void* data)
+{
+	cmd_t cmd = { CMD_SYS_RESTART, 0 };
+	com_send_data(TYPE_CMD, 0, &cmd, sizeof(cmd));
+}
+
+
 static int port_grp_init(uiWindow* win, port_grp_t* port)
 {
 	int i;
@@ -175,6 +192,10 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 
 	port->open = uiNewButton("Open");			uiButtonOnClicked(port->open, on_port_open_btn_fn, port->port);
 	port->mode = uiNewCheckbox("MCU Simulate"); uiCheckboxOnToggled(port->mode, on_port_chkbox_fn, NULL); uiCheckboxSetChecked(port->mode, mcuSim);
+
+	port->factory = uiNewButton("Factory");		uiButtonOnClicked(port->factory, on_port_factory_btn_fn, NULL);
+	port->restart = uiNewButton("Restart");		uiButtonOnClicked(port->restart, on_port_restart_btn_fn, NULL);
+
 	if (mcuSim) {
 		task_dev_start();
 	}
@@ -182,9 +203,11 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 		task_app_start();
 	}
 	                                            
-	uiGridAppend(port->g, uiControl(port->port), 0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(port->g, uiControl(port->open), 1, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(port->g, uiControl(port->mode), 2, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->port),    0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->open),    1, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->mode),    2, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->factory), 3, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->restart), 4, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
 
 	uiBoxAppend(port->hbox, uiControl(port->g), 1);
 	uiGroupSetChild(port->grp, uiControl(port->hbox));
@@ -198,10 +221,17 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 static void on_sett_set_fn(uiButton* b, void* data)
 {
 	setts_t *setts=&curParas.setts;
-	if (!com_get_paras_flag()) {
+	if (!paras_rx_flag) {
 		uiMsgBoxError(grp.win, "Set Failed", "Paras not received!");
 		return;
 	}
+	
+	setts->sett->pres = atof((const char*)uiEntryText(grp.para.sett.vacuum->entry));
+	setts->sett->maxVol = atof((const char*)uiEntryText(grp.para.sett.vacuum->entry));
+	setts->sett->mode = uiComboboxSelected(grp.para.sett.mode->combo);
+	setts->sett->time.work_time = atoi((const char*)uiEntryText(grp.para.sett.w_time->entry));
+	setts->sett->time.stop_time = atoi((const char*)uiEntryText(grp.para.sett.s_time->entry));
+	setts->sett->time.total_time = atoi((const char*)uiEntryText(grp.para.sett.t_time->entry));
 	com_send_data(TYPE_SETT, 1, setts, sizeof(setts_t));
 }
 static void on_sett_valve_fn(uiButton* b, void* data)
@@ -212,7 +242,7 @@ static void on_sett_valve_fn(uiButton* b, void* data)
 	cmd_t cmd = { CMD_VALVE_SET , valve_open };
 	com_send_data(TYPE_CMD, 0, &cmd, sizeof(cmd));
 
-	uiButtonSetText(para->sett.valve, valve_open?"Valve Open":"Valve Close");
+	uiButtonSetText(para->sett.valve, valve_open?"Vlv: Open":"Vlv: Close");
 	uiButtonSetText(para->sett.start, "Start");
 }
 
@@ -261,7 +291,7 @@ static int para_grp_init(uiWindow* win, para_grp_t* para)
 	para->sett.vacuum = label_input_new("Pres ", "0", "kpa");
 	para->sett.maxVol = label_input_new("Vol  ", "0", "ml");
 	para->sett.set    = uiNewButton("Set");   uiButtonOnClicked(para->sett.set, on_sett_set_fn, NULL);
-	para->sett.valve  = uiNewButton("Valve Close"); uiButtonOnClicked(para->sett.valve, on_sett_valve_fn, para);
+	para->sett.valve  = uiNewButton("Vlv: Close"); uiButtonOnClicked(para->sett.valve, on_sett_valve_fn, para);
 	para->sett.start  = uiNewButton("Start"); uiButtonOnClicked(para->sett.start, on_sett_start_btn_fn, NULL);
 
 	uiGridAppend(para->sett.grid, uiControl(para->sett.mode->grid),   0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
@@ -366,7 +396,7 @@ static int hdr_check(void *data, int len)
 	LOG("fwinfo.version: %s\n", hdr->fwInfo.version);
 	LOG("fwinfo.buildtime: %s\n", hdr->fwInfo.bldtime);
 
-	LOG("upgctl.obj: %d\n", hdr->upgCtl.obj);
+	LOG("upgctl.goal: %d\n", hdr->upgCtl.goal);
 	LOG("upgctl.force: %d\n", hdr->upgCtl.force);
 	LOG("upgctl.action: %d\n", hdr->upgCtl.action);
 	LOG("upgctl.erase: %d\n", hdr->upgCtl.erase);
@@ -455,14 +485,20 @@ static void on_upg_start_btn_fn(uiButton* b, void* data)
 	}
 
 	if (strcmp(uiButtonText(b), "Start") == 0) {
-		upgInfo.start = 1;
-		upgrade_ack = -1;
+		
+		upgInfo.pktId = 0;
+		upgrade_ack_error = 1;
 		upgInfo.sendLen = 0;
-		start_upg_timer();
+		upgInfo.pktId = 0;
+		upgrade_start = 1;
+
+		upgInfo.pkts = (U16)ceil((double)(upgInfo.fileLen - sizeof(md5_t)) / UPG_DATA_LEN);
 		uiButtonSetText(b, "Stop");
+
+		com_send_data(TYPE_UPGRADE, 0, NULL, 0);
 	}
 	else {
-		upgInfo.start = 0;
+		upgrade_start = 0;
 		uiButtonSetText(b, "Start");
 	}
 }
@@ -547,8 +583,7 @@ static int log_grp_init(uiWindow* win, log_grp_t* log)
 	return 0;
 }
 
-#define UPG_TIMER_MS		100
-#define UPG_DATA_LEN		500
+
 #define UPG_PKT_LEN			sizeof(upgrade_pkt_t)
 static char upgSendBuf[UPG_PKT_LEN+UPG_DATA_LEN+10];
 static int ui_timer_callback(void* arg)
@@ -556,47 +591,51 @@ static int ui_timer_callback(void* arg)
 	int r,slen;
 	upgrade_pkt_t* pkt = (upgrade_pkt_t*)upgSendBuf;
 
-	if (upgInfo.start>0) {
+	if (upgrade_start >0) {
 
-		if (upgrade_ack == -1) {
-			upgInfo.pktId = 0;
-			upgInfo.pkts = (U16)ceil((double)(upgInfo.fileLen - sizeof(md5_t))/ UPG_DATA_LEN);
-			r = com_send_data(TYPE_UPGRADE, 1, NULL, 0);
-			upgrade_ack = 0;
+		if (curStat.sysState != STAT_UPGRADE) {
+			com_send_data(TYPE_STAT, 0, NULL, 0);
 		}
+		else {
+			if (upgrade_ack_error==1) {
 
-		if (upgrade_ack > 0) {
-			if (upgInfo.sendLen >= (upgInfo.fileLen-sizeof(md5_t))) {
-				upgInfo.start = 0;
-				upgInfo.sendLen = 0;
+				if (upgInfo.sendLen >= (upgInfo.fileLen - sizeof(md5_t))) {
+					upgrade_start = 0;
+					upgInfo.sendLen = 0;
 
-				uiButtonSetText(grp.upg.start, "Start");
-				LOG("upgrade finished!\n");
-			}
-			else {
-
-				if ((upgInfo.sendLen + UPG_DATA_LEN) < (upgInfo.fileLen - sizeof(md5_t))) {
-					slen = UPG_DATA_LEN;
+					uiButtonSetText(grp.upg.start, "Start");
+					LOG("upgrade finished!\n");
 				}
 				else {
-					slen = upgInfo.fileLen - sizeof(md5_t) - upgInfo.sendLen;
+
+					if ((upgInfo.sendLen + UPG_DATA_LEN) < (upgInfo.fileLen - sizeof(md5_t))) {
+						slen = UPG_DATA_LEN;
+					}
+					else {
+						slen = upgInfo.fileLen - sizeof(md5_t) - upgInfo.sendLen;
+					}
+
+					pkt->dataLen = slen;
+					pkt->pid = upgInfo.pktId;
+					pkt->pkts = upgInfo.pkts;
+					memcpy(pkt->data, upgInfo.fileBuf + sizeof(md5_t) + upgInfo.sendLen, slen);
+
+					upgrade_ack_error = 0;
+					com_send_data(TYPE_UPGRADE, 1, pkt, UPG_PKT_LEN + slen);
+
+					upgInfo.sendLen += slen;
+					upgInfo.pktId++;
+					uiProgressBarSetValue(grp.upg.pgbar, (upgInfo.sendLen * 100) / (upgInfo.fileLen - sizeof(md5_t)));
 				}
-
-				upgrade_ack = 0;
-				pkt->dataLen = slen;
-				pkt->pid = upgInfo.pktId;
-				pkt->pkts = upgInfo.pkts;
-				memcpy(pkt->data, upgInfo.fileBuf + sizeof(md5_t) + upgInfo.sendLen, slen);
-				com_send_data(TYPE_UPGRADE, 1, pkt, UPG_PKT_LEN + slen);
-
-				upgInfo.sendLen += slen;
-				upgInfo.pktId++;
-				uiProgressBarSetValue(grp.upg.pgbar, (upgInfo.sendLen * 100) / (upgInfo.fileLen - sizeof(md5_t)));
+			}
+			else {
+				upgrade_ack_error = 0;
+				pkt_resend(TYPE_UPGRADE);
 			}
 		}
-
-		start_upg_timer();
 	}
+
+	start_upg_timer();
 
 	return 0;
 }
@@ -636,6 +675,8 @@ static void ui_init(void)
 	uiGridAppend(grp.grid, uiControl(grp.log.grid),  0, 3, 1, 1, 1, uiAlignFill, 1, uiAlignFill);
 
 	uiControlShow(uiControl(grp.win));
+
+	start_upg_timer();
 }
 
 

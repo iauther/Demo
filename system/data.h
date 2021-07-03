@@ -65,7 +65,8 @@ enum {
     CMD_VALVE_SET,
     
     CMD_SYS_RESTART,
-    CMD_SET_FACTORY,
+    CMD_SYS_FACTORY,
+    CMD_SYS_POWEROFF,
 };
 
 #pragma pack (1)
@@ -108,6 +109,7 @@ typedef struct {
 
 typedef struct {
     U8              type;
+    U8              error;      //refer to error.h
 }ack_t;
 
 typedef struct {
@@ -135,7 +137,7 @@ typedef struct {
 }upgrade_pkt_t;
 
 typedef struct {
-    U8              obj;            //0: boot   1: app
+    U8              goal;            //0: boot   1: app
     U8              force;
     U8              erase;          //0: not erase   1: do erase
     U8              action;         //0: do nothing  1: restart   0x3f: run app

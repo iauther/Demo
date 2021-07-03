@@ -125,5 +125,11 @@
     <ClCompile Include="..\..\system\md5.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\port3.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\port.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

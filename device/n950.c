@@ -186,8 +186,7 @@ int n950_init(void)
     uartHandle = uart_init(&uc);
     
     pwmHandle = pwm_init(&cfg);
-    
-    //n950_test();
+    n950_stop();
     
     return 0;
 }
@@ -272,7 +271,8 @@ void n950_test(void)
 {
     int r, cnt=0;
     U8 tmp[50];
-    
+
+#if 0    
     //set_speed(100);
     while(1) {
         sprintf((char*)tmp, "______test cnt: %d\r\n", cnt++);
@@ -280,6 +280,17 @@ void n950_test(void)
         //LOGD("______test cnt: %d\r\n", cnt++);
         delay_ms(100);
     }
+#else
+    while(1) {
+        pwm_set_speed(1500);
+        delay_ms(100);
+        pwm_set_speed(0);
+        delay_ms(100);
+    }
+    
+#endif
+    
+    
 }
 
 

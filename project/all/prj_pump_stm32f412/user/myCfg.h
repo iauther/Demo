@@ -7,9 +7,9 @@
 
 
 
-#define VERSION                     "V1.0.0"
+#define VERSION                     "V1.0.0.0"
 
-#define BOOT_OFFSET                 (0)                 //32KB
+#define BOOT_OFFSET                 (0)                 //32KB space reserved
 #define COM_BAUDRATE                (115200)
 
 
@@ -105,7 +105,7 @@
     
 #else
     #ifndef _WIN32
-    error "must define board!!"
+    error "must define a board!!"
     #endif
 #endif
 

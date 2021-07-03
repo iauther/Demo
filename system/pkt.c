@@ -70,7 +70,7 @@ static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
     return uart_write(myCfg.handle, buf, totalLen + 1);
 #endif
 }
-static int send_ack(U8 type)
+static int send_ack(U8 type, U8 error)
 {
     U8* buf = pkt_tx_buf;
     pkt_hdr_t* p = (pkt_hdr_t*)buf;
@@ -84,6 +84,7 @@ static int send_ack(U8 type)
     p->dataLen = sizeof(ack_t);
 
     ack->type = type;
+    ack->error = error;
     buf[totalLen] = get_sum(buf, totalLen);
 #ifdef _WIN32
     return port_send(buf, totalLen + 1);
@@ -208,10 +209,10 @@ int pkt_ack_reset(U8 type)
 static int need_wait_ack(U8 type)
 {
     int r=0;
-    
-    if(myCache[type].askAck>0) {
-        if(ackTimeout.set[type].enable) {
-            if(myCache[type].retries<ackTimeout.set[type].retryTimes) {
+
+    if (myCache[type].askAck > 0) {
+        if (ackTimeout.set[type].enable) {
+            if (myCache[type].retries < ackTimeout.set[type].retryTimes) {
                 r = 1;
             }
         }
@@ -255,10 +256,15 @@ int pkt_send(U8 type, U8 nAck, void* data, U16 len)
 {
     int r=0;
     
-    if(!need_wait_ack(type)) {
+    if (sysState == STAT_UPGRADE) {
         r = send_pkt(type, nAck, data, len);
-        if(r==0) {
-            cache_update();
+    }
+    else {
+        if (!need_wait_ack(type)) {
+            r = send_pkt(type, nAck, data, len);
+            if (r == 0) {
+                cache_update();
+            }
         }
     }
     
@@ -279,9 +285,9 @@ int pkt_resend(U8 type)
 }
 
 
-int pkt_send_ack(U8 type)
+int pkt_send_ack(U8 type, U8 error)
 {
-    return send_ack(type);
+    return send_ack(type, error);
 }
 
 

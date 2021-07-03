@@ -15,6 +15,7 @@ enum {
     ERROR_PKT_MAGIC,
     ERROR_PKT_LENGTH,
     ERROR_PKT_CHECKSUM,
+    ERROR_PKT_ID,
     ERROR_PKT_TYPE_UNSUPPORT,
     
     //data

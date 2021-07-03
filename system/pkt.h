@@ -29,7 +29,7 @@ int pkt_send(U8 type, U8 nAck, void* data, U16 len);
 
 int pkt_resend(U8 type);
 
-int pkt_send_ack(U8 type);
+int pkt_send_ack(U8 type, U8 error);
 
 int pkt_send_err(U8 type, U8 error);
                             

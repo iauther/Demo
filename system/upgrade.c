@@ -1,8 +1,10 @@
 #include <stddef.h>
 #include "at24cxx.h"
 #ifndef _WIN32
+#include "board.h"
 #include "drv/jump.h"
 #include "drv/flash.h"
+#include "notice.h"
 #endif
 #include "myCfg.h"
 #include "data.h"
@@ -10,12 +12,17 @@
 #include "upgrade.h"
 
 static U32 upgrade_addr=0;
-int upgrade_init(U8 obj)
+static int upgrade_start(U8 goal)
 {
     int r=0;
-    U32 from=(obj==OBJ_BOOT)?BOOT_OFFSET:APP_OFFSET;
     
-    upgrade_addr = from;
+    if(goal==GOAL_BOOT) {
+        upgrade_addr = BOOT_OFFSET;
+    }
+    else {
+        upgrade_addr = APP_OFFSET;
+    }
+    
 #ifndef _WIN32
     r = flash_init();
 #endif
@@ -24,7 +31,7 @@ int upgrade_init(U8 obj)
 }
 
 
-int upgrade_write(U8 *data, U32 len)
+static int upgrade_write(U8 *data, U32 len)
 {
     int r=0;
 
@@ -41,10 +48,11 @@ int upgrade_write(U8 *data, U32 len)
 
 int upgrade_is_need(void)
 {
+    int r;
     U32 fwMagic;
     
-    paras_get_fwmagic(&fwMagic);
-    if(fwMagic==UPG_MAGIC) {
+    r = paras_get_fwmagic(&fwMagic);
+    if(r==0 && fwMagic==UPG_MAGIC) {
         return 1;
     }
     
@@ -52,33 +60,37 @@ int upgrade_is_need(void)
 }
 
 
-
+static U8 upgFinished=0;
 static U32 upgRecvedLen=0;
+static U16 upgCurPktId=0;
 static upgrade_hdr_t upgHeader;
 U8 upgrade_proc(void *data)
 {
     int r=0;
     U8  err=0;
-    static U16 upg_pkt_pid=0;
     U8  *pHdr=(U8*)&upgHeader;
     upgrade_pkt_t *upg=(upgrade_pkt_t*)data;
 
-#ifdef OS_KERNEL
     if(upg->dataLen==0) {
-
-        paras_set_upg();
-        reboot();               //jump_to_boot();
-        return 0;
+        return ERROR_PKT_LENGTH;
     }
-#else
     
-    if(upg->dataLen==0) {
-        return 0;
+    if(upg->pkts==0 || (upg->pid>0 && upg->pkts>0 && upg->pid>=upg->pkts)) {
+        return ERROR_PKT_ID;
     }
     
     if(upg->pid==0) {
-        upg_pkt_pid = 0;
+        upgCurPktId = 0;
+        upgFinished = 0;
         upgRecvedLen = 0;
+        
+#ifndef _WIN32
+        notice_start(DEV_LED, LEV_UPGRADE);
+#endif
+    }
+    
+    if(upg->pid!=upgCurPktId) {
+        return ERROR_FW_PKT_ID;
     }
     
     if(upgRecvedLen<sizeof(upgrade_hdr_t)) {
@@ -94,28 +106,29 @@ U8 upgrade_proc(void *data)
             if(upgHeader.upgCtl.erase>0) {
                 paras_erase();
             }
-            upgrade_init(upgHeader.upgCtl.obj);
+            upgrade_start(upgHeader.upgCtl.goal);
             upgrade_write(upg->data+len, upg->dataLen-len);
         }
     }
-            
-    if(upg->pid!=upg_pkt_pid) {
-        return ERROR_FW_PKT_ID;
+    else {
+        upgrade_write(upg->data, upg->dataLen);
     }
-    
-    upgrade_write(upg->data, upg->dataLen);
-    upg_pkt_pid++;
+    upgCurPktId++;
     
     if(upg->pid==upg->pkts-1) {
-
-    #ifndef _WIN32
-        jump_to_app();
-    #endif
-    }
-    
+        upgFinished = 1;
+#ifndef _WIN32
+        notice_stop(DEV_LED);
 #endif
+    }
     
     return r;
 }
 
+
+
+U8 upgrade_is_finished(void)
+{
+    return upgFinished;
+}
 

@@ -21,7 +21,60 @@ static U32 modeMap[GPIO_MODE_MAX]={GPIO_MODE_INPUT,GPIO_MODE_OUTPUT_PP,GPIO_MODE
                                    GPIO_MODE_IT_RISING_FALLING,GPIO_MODE_EVT_RISING,GPIO_MODE_EVT_FALLING,GPIO_MODE_EVT_RISING_FALLING};
                                             
 
+static uint32_t gpioPin[16]={GPIO_PIN_0,GPIO_PIN_1,GPIO_PIN_2,GPIO_PIN_3,GPIO_PIN_4,GPIO_PIN_5,GPIO_PIN_6,GPIO_PIN_7,
+                             GPIO_PIN_8,GPIO_PIN_9,GPIO_PIN_10,GPIO_PIN_11,GPIO_PIN_12,GPIO_PIN_13,GPIO_PIN_14,GPIO_PIN_15};
+static void gpio_irq_handle(void)
+{
+    int i;
+    for(i=0;i<16;i++) {
+        HAL_GPIO_EXTI_IRQHandler(gpioPin[i]);
+    }
+}
 
+void EXTI0_IRQHandler(void)
+{
+    gpio_irq_handle();
+}
+void EXTI1_IRQHandler(void)
+{
+    gpio_irq_handle();
+}
+void EXTI2_IRQHandler(void)
+{
+    gpio_irq_handle();
+}
+void EXTI3_IRQHandler(void)
+{
+    gpio_irq_handle();
+}
+void EXTI4_IRQHandler(void)
+{
+    gpio_irq_handle();
+}
+void EXTI5_IRQHandler(void)
+{
+    gpio_irq_handle();
+}
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
+                                   
 void HAL_GPIO_EXTI_Callback(uint16_t pin)
 {
     int x=log2(pin);
