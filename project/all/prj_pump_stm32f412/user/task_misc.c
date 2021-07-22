@@ -2,7 +2,8 @@
 #include "paras.h"
 #include "queue.h"
 #include "wdog.h"
- 
+#include "power.h"
+
 
 #define TIMER_MS                        200         //ms
 #define PAD_POWERON_DELAY_MS            1000
@@ -17,6 +18,7 @@ static void pad_poweron_check(void)
     if(!pad_poweron_flag) {
         pad_poweron_delay += ACK_POLL_MS;
         if(pad_poweron_delay>=TIMER_MS) {
+            power_on(PDEV_PAD, 0, 0);
             pad_poweron_flag = 1;
             pad_poweron_delay = 0;
         }
