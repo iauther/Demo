@@ -7,6 +7,11 @@
 typedef void (*htimer_callback_t)(void *user_data);
 
 typedef struct {
+    U8                  port;
+}htimer_cfg_t;
+
+
+typedef struct {
     int                 ms;
     int                 freq;
     int                 repeat;
@@ -14,7 +19,7 @@ typedef struct {
     void                *user_data;
 }htimer_set_t;
 
-int htimer_init(U8 port);
+int htimer_init(htimer_cfg_t *cfg);
 
 handle_t htimer_new(void);
 

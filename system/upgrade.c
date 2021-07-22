@@ -49,10 +49,10 @@ static int upgrade_write(U8 *data, U32 len)
 int upgrade_is_need(void)
 {
     int r;
-    U32 fwMagic;
+    U32 magic;
     
-    r = paras_get_fwmagic(&fwMagic);
-    if(r==0 && fwMagic==UPG_MAGIC) {
+    r = paras_get_magic(&magic);
+    if(r==0 && magic==UPG_MAGIC) {
         return 1;
     }
     
@@ -72,11 +72,11 @@ U8 upgrade_proc(void *data)
     upgrade_pkt_t *upg=(upgrade_pkt_t*)data;
 
     if(upg->dataLen==0) {
-        return ERROR_PKT_LENGTH;
+        return ERROR_FW_PKT_LENGTH;
     }
     
     if(upg->pkts==0 || (upg->pid>0 && upg->pkts>0 && upg->pid>=upg->pkts)) {
-        return ERROR_PKT_ID;
+        return ERROR_FW_PKT_ID;
     }
     
     if(upg->pid==0) {
@@ -117,9 +117,6 @@ U8 upgrade_proc(void *data)
     
     if(upg->pid==upg->pkts-1) {
         upgFinished = 1;
-#ifndef _WIN32
-        notice_stop(DEV_LED);
-#endif
     }
     
     return r;
@@ -131,4 +128,12 @@ U8 upgrade_is_finished(void)
 {
     return upgFinished;
 }
+
+
+U8 upgrade_is_app(void)
+{
+    return upgHeader.upgCtl.goal;
+}
+
+
 

@@ -203,7 +203,7 @@ int htimer_stop(HTIMER tmr)
 
 
 
-#define HTIMER_MAX      10
+#define HTIMER_MAX      4
 typedef struct {
     int                 used;
     int                 start;
@@ -249,12 +249,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 
 
-int htimer_init(void)
+int htimer_init(htimer_cfg_t *cfg)
 {
     TIM_MasterConfigTypeDef sMasterConfig = {0};
 
     __HAL_RCC_TIM6_CLK_ENABLE();
-    
     
     htim6.Instance = TIM6;
     htim6.Init.Prescaler = 99;
@@ -297,7 +296,7 @@ int htimer_deinit(void)
 
 
 
-int htimer_new(void)
+handle_t htimer_new(void)
 {
     int i;
     
@@ -306,63 +305,70 @@ int htimer_new(void)
             htimerHandle[i].used = 1;
             htimerHandle[i].start = 0;
             htimerHandle[i].done = 0;
-            return i;
+            return &htimerHandle[i];
         }
     }
     
-    return -1;
+    return NULL;
 }
 
 
-int htimer_set(int htimer_id, htimer_set_t *set)
+int htimer_free(handle_t *h)
 {
-    if((htimer_id<0 && htimer_id>=HTIMER_MAX) || !set) {
+    htimer_handle_t **hh=(htimer_handle_t**)h;
+    
+    if(!hh || *hh) {
         return -1;
     }
     
-    if(htimerHandle[htimer_id].used==0) {
+    (*hh)->used = 0;
+    
+    return 0;
+}
+
+
+int htimer_set(handle_t h, htimer_set_t *set)
+{
+    htimer_handle_t *hh=(htimer_handle_t*)h;
+    
+    if((!hh) || !set) {
         return -1;
     }
     
-    htimerHandle[htimer_id].set = *set;
+    if(hh->used==0) {
+        return -1;
+    }
+    
+    hh->set = *set;
+    
+    return 0;
+}
+
+
+int htimer_start(handle_t h)
+{
+    htimer_handle_t *hh=(htimer_handle_t*)h;
+    
+    if(!hh) {
+        return -1;
+    }
+    
+    hh->start = 1;
     
     return 0;
 }
 
 
 
-int htimer_free(int htimer_id)
+int htimer_stop(handle_t h)
 {
-    if(htimer_id<0 && htimer_id>=HTIMER_MAX) {
+    htimer_handle_t *hh=(htimer_handle_t*)h;
+    
+    if(!hh) {
         return -1;
     }
     
-    htimerHandle[htimer_id].used = 0;
-    
-    return 0;
-}
-
-
-int htimer_start(int htimer_id)
-{
-    if(htimer_id<0 && htimer_id>=HTIMER_MAX) {
-        return -1;
-    }
-    
-    htimerHandle[htimer_id].start = 1;
-    
-    return 0;
-}
-
-
-
-int htimer_stop(int htimer_id)
-{
-    if(htimer_id<0 && htimer_id>=HTIMER_MAX) {
-        return -1;
-    }
-    
-    htimerHandle[htimer_id].start = 0;
+    hh->start = 0;
     
     return 0;
 }

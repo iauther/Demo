@@ -10,7 +10,6 @@
 #define TEMP_HIGH       (70.0F)
 
 
-extern handle_t i2c2Handle;
 static handle_t asHandle=NULL;
 
 //////////////////////////////////////////////////////////
@@ -44,7 +43,7 @@ static int reg_write(U8 reg, U16 data)
 }
 /////////////////////////////////////////////////////////
 
-int as62xx_init(void)
+int as62xx_init(handle_t h)
 {
     int r;
     U16 tmp=0x40a0,tmp2=0;
@@ -58,7 +57,7 @@ int as62xx_init(void)
         .singleShot = 0,
     };
     
-    asHandle = i2c2Handle;
+    asHandle = h;
     
     tmp |= cfg.cr | cfg.alert_mode | cfg.alert_polarity | cfg.cf | cfg.state;
     if(cfg.singleShot){

@@ -2,12 +2,15 @@
 #include "log.h"
 #include "drv/delay.h"
 #include "bio/bio.h"
+#include "myCfg.h"
 
 typedef struct {
     hal_eint_number_t   num;
     U8                  mode;
 }gpio_eint_t;
 
+#ifdef USE_TCA6424A
+volatile int bioDevice=0;
 static gpio_eint_t gpio_eint[HAL_GPIO_MAX] = {
     {HAL_EINT_NUMBER_0 ,  HAL_GPIO_0_EINT0  },                   //HAL_GPIO_0,   
     {HAL_EINT_NUMBER_1 ,  HAL_GPIO_1_EINT1  },                   //HAL_GPIO_1,   
@@ -212,9 +215,6 @@ gpio_ext_cfg_t ads129x_gpio_cfg[ADS129X_GPIO_EXT_MAX] = {
     {ADS129X_GPIO_EXT_PIN_P27,                      {TCA6424A_ADDR_L,  2,  7},        1,          1,          0,          0},           //not use  
 };
 
-
-
-
 static void set_bit(U8 *data, U8 bit, U8 v)
 {
     if(v==0) {
@@ -258,8 +258,6 @@ static void ads129x_cfg_conv(tca6424a_reg_t *reg)
         set_bit(&reg->config[cfg->tca.index],   cfg->tca.bit, cfg->dir);
     }
 }
-
-
 static int load_setting(void)
 {
     int r=0;
@@ -279,17 +277,20 @@ static int load_setting(void)
     
     return r;
 }
+#endif
 
 ////////////////////////////////////////////////////////////
 int gpio_ext_init(void)
 {
     int r;
     
+#ifdef USE_TCA6424A
     r = tca6424a_init();
     r |= load_setting();
     if(r) {
         LOGE("___ load_setting error\r\n");
     }
+#endif
     
     return 0;
 }
@@ -305,6 +306,8 @@ int gpio_ext_set_hl(U8 pin, U8 hl)
 {
     int r;
     U8 reg;
+    
+#ifdef USE_TCA6424A
     tca6424a_set_t *tca;
     
     if(bioDevice==AD8233) {
@@ -328,6 +331,7 @@ int gpio_ext_set_hl(U8 pin, U8 hl)
     if(r) {
         LOGE("___ gpio_ext_set_hl error£¬ pin: %d, hl: %d\r\n", pin, hl);
     }
+#endif
     
     return r;
 }
@@ -346,71 +350,103 @@ int gpio_ext_test(void)
 }
 
 
-int gpio_init(hal_gpio_pin_t pin, hal_gpio_direction_t dir, hal_gpio_data_t hl)
+int gpio_init(gpio_pin_t *pin, U8 dir)
 {
-    hal_gpio_init(pin);
-	hal_pinmux_set_function(pin, 0);
-    
-	hal_gpio_set_direction(pin, dir);
-    if(dir==HAL_GPIO_DIRECTION_OUTPUT) {
-        hal_gpio_set_output(pin, hl);
+    if(!pin) {
+        return -1;
     }
     
+    hal_gpio_init(pin->pin);
+	hal_pinmux_set_function(pin->pin, 0);
+    
+	hal_gpio_set_direction(pin->pin, (hal_gpio_direction_t)dir);
+    hal_gpio_set_output(pin->pin, (hal_gpio_data_t)0);
+    
     return 0;
 }
 
 
-int gpio_deinit(hal_gpio_pin_t pin)
+int gpio_deinit(gpio_pin_t *pin)
 {
-    return hal_gpio_deinit(pin);
+    if(!pin) {
+        return -1;
+    }
+    
+    return hal_gpio_deinit(pin->pin);
 }
 
 
-int gpio_pull_up(hal_gpio_pin_t pin)
+int gpio_pull_up(gpio_pin_t *pin)
 {
-    hal_gpio_pull_up(pin);
+    if(!pin) {
+        return -1;
+    }
+    
+    hal_gpio_pull_up(pin->pin);
     return 0;
 }
 
 
-int gpio_pull_down(hal_gpio_pin_t pin)
+int gpio_pull_down(gpio_pin_t *pin)
 {
-    hal_gpio_pull_down(pin);
+    if(!pin) {
+        return -1;
+    }
+    
+    hal_gpio_pull_down(pin->pin);
     return 0;
 }
 
 
-int gpio_get_hl(hal_gpio_pin_t pin)
+int gpio_get_hl(gpio_pin_t *pin)
 {
+    if(!pin) {
+        return -1;
+    }
+    
     hal_gpio_data_t gData;
-    hal_gpio_get_input(pin, &gData);
+    hal_gpio_get_input(pin->pin, &gData);
     
     return (int)gData;
 }
 
-int gpio_set_dir(hal_gpio_pin_t pin, hal_gpio_direction_t dir)
+int gpio_set_dir(gpio_pin_t *pin, U8 dir)
 {
-    hal_gpio_set_direction(pin, dir);
+    if(!pin) {
+        return -1;
+    }
+    
+    hal_gpio_set_direction(pin->pin, (hal_gpio_direction_t)dir);
     return 0;
 }
 
 
-int gpio_set_hl(hal_gpio_pin_t pin, hal_gpio_data_t hl)
+int gpio_set_hl(gpio_pin_t *pin, U8 hl)
 {
-    hal_gpio_set_output(pin, hl);
+    if(!pin) {
+        return -1;
+    }
+    
+    hal_gpio_set_output(pin->pin, (hal_gpio_data_t)hl);
     return 0;
 }
 
 
-int gpio_int_init(hal_gpio_pin_t pin, gpio_callback_t *cb)
+int gpio_int_init(gpio_pin_t *pin, gpio_callback_t *cb)
 {
     hal_eint_config_t cfg;
-    gpio_eint_t  *ge=&gpio_eint[pin];
+    gpio_eint_t  *ge=NULL;
     
-    hal_gpio_init(pin);
-    hal_pinmux_set_function(pin, ge->mode);
-    hal_gpio_set_direction(pin, HAL_GPIO_DIRECTION_INPUT);
-    hal_gpio_disable_pull(pin);
+    if(!pin) {
+        return -1;
+    }
+    
+    ge = &gpio_eint[pin->pin];
+    
+    hal_gpio_init(pin->pin);
+    hal_pinmux_set_function(pin->pin, ge->mode);
+    hal_gpio_set_direction(pin->pin, HAL_GPIO_DIRECTION_INPUT);
+    hal_gpio_disable_pull(pin->pin);
     
     cfg.debounce_time = 0;
     cfg.trigger_mode = cb->mode;
@@ -424,9 +460,15 @@ int gpio_int_init(hal_gpio_pin_t pin, gpio_callback_t *cb)
 }
 
 
-int gpio_int_en(hal_gpio_pin_t pin, U8 on)
+int gpio_int_en(gpio_pin_t *pin, U8 on)
 {
-    hal_eint_number_t num=gpio_eint[pin].num;
+    hal_eint_number_t num;
+    
+    if(!pin) {
+        return -1;
+    }
+    
+    num=gpio_eint[pin->pin].num;
     if(on) {
         hal_eint_unmask(num);
     }

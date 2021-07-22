@@ -1,4 +1,3 @@
-#include "bio/bio.h"
 #include "drv/gpio.h"
 #include "drv/htimer.h"
 #include "drv/delay.h"
@@ -30,7 +29,7 @@ typedef struct {
     htimer_set_t    sett;
 }led_info_t;
 
-static int led_tmr_id=0;
+static handle_t led_handle=NULL;
 static led_info_t led_info;
 
 
@@ -54,7 +53,7 @@ static void led_tmr_callback(void *user_data)
     }
     
     if(info->cfg.total_time>0 && info->time.light_time+info->time.dark_time >= info->cfg.total_time) {
-        htimer_stop(led_tmr_id);
+        htimer_stop(led_handle);
         led_set_color(info->cfg.stop_color);
         info->stat = 0;
         info->time.light_time = 0;
@@ -80,7 +79,7 @@ int led_init(void)
     gpio_init(&pin.b, MODE_OUTPUT);
     led_set_color(BLANK);
     
-    led_tmr_id = htimer_new();
+    led_handle = htimer_new();
     //led_test();
     
 #endif
@@ -91,7 +90,7 @@ int led_init(void)
 
 int led_deinit(void)
 {
-    return htimer_free(led_tmr_id);
+    return htimer_free(&led_handle);
 }
 
 
@@ -187,16 +186,16 @@ int led_blink_start(led_cfg_t *cfg)
     
     led_info.time.light_time = 0;
     led_info.time.dark_time = 0;
-    htimer_set(led_tmr_id, &led_info.sett);
+    htimer_set(led_handle, &led_info.sett);
     
-    htimer_stop(led_tmr_id);
-    return htimer_start(led_tmr_id);
+    htimer_stop(led_handle);
+    return htimer_start(led_handle);
 }
 
 
 int led_blink_stop(void)
 {
-    return htimer_stop(led_tmr_id);
+    return htimer_stop(led_handle);
 }
 
 

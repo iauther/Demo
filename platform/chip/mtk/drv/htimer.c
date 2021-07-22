@@ -7,10 +7,10 @@
 
 typedef struct {
     hal_gpt_port_t  port;
-    htimer_set_t     set;
+    htimer_set_t    set;
     U8              stop;
     U32             tmr_id;
-}hhtimer_handle_t;
+}htimer_handle_t;
 
 static hal_gpt_port_t timer_port;
 static void htimer_hw_callback(void *user_data)
@@ -24,11 +24,15 @@ static void htimer_hw_callback(void *user_data)
 
 
 
-int timer_init(hal_gpt_port_t port)
+int htimer_init(htimer_cfg_t *cfg)
 {
     hal_gpt_status_t st;
 
-    timer_port = port;
+    if(!cfg) {
+        return -1;
+    }
+    
+    timer_port = (hal_gpt_port_t)cfg->port;
     st = hal_gpt_init(timer_port);
     if(st) {
         LOGE("timer_start %d, error\r\n", st);

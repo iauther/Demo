@@ -1,11 +1,7 @@
 #include "drv/delay.h"
 #include "drv/clk.h"
-#include "cfg.h"
-
-#ifdef USE_FREERTOS
-#include "FreeRTOS.h"
-#include "task.h"
-#endif
+#include "myCfg.h"
+#include "cmsis_os2.h" 
 
 void delay_ns(int ns)
 {

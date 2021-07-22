@@ -1,8 +1,9 @@
-#include "sys.h"
+#include "board.h"
 
 int main(void)
 {
-    sys_init();
+    board_init();
+    
     while(1);
     
     return 0;

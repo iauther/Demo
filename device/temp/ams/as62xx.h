@@ -79,7 +79,7 @@ typedef struct {
 /////////////////////////////////////////////
 
 
-int as62xx_init(void);
+int as62xx_init(handle_t h);
 int as62xx_test(void);
 int as62xx_get(F32 *temp);
 

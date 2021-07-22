@@ -41,9 +41,11 @@ int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop);
 
 int i2c_set_callback(handle_t h, i2c_callback callback);
 
+int i2c_at_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len);
+int i2c_at_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len);
+
 int i2c_mem_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len);
 int i2c_mem_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len);
-int i2c_mem_is_ready(handle_t h, U16 devAddr);
 
 
 

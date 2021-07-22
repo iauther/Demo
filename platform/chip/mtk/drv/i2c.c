@@ -94,32 +94,30 @@ static int get_pinmux(i2c_pin_t *pin, i2c_pinmux_t *mux, hal_i2c_port_t *port)
             if(i2c_pin[i].scl[j].pin.pin==pin->scl.pin) {
                 p1 = i;
                 scl_fun = i2c_pin[i].scl[j].fun;
-                find = 1;
+                find |= 1;
                 break;
             }
         }
         
-        if(find==1) {
-            for(j=0;; j++) {
-                if(i2c_pin[i].sda[j].pin.pin==HAL_GPIO_MAX){
-                    break;
-                }
-                
-                if(i2c_pin[i].sda[j].pin.pin==pin->sda.pin) {
-                    p2 = i;
-                    sda_fun = i2c_pin[i].sda[j].fun;
-                    find = 2;
-                    break;
-                }
+        for(j=0; j<I2C_PIN_GRP; j++) {
+            if(i2c_pin[i].sda[j].pin.pin==HAL_GPIO_MAX){
+                break;
+            }
+            
+            if(i2c_pin[i].sda[j].pin.pin==pin->sda.pin) {
+                p2 = i;
+                sda_fun = i2c_pin[i].sda[j].fun;
+                find |= 2;
+                break;
             }
         }
         
-        if(find==2) {
+        if(find==3) {
             break;
         }
     }
     
-    if(find==2 && p1==p2) {
+    if(find==3 && p1==p2) {
         if(mux) {
             mux->scl.pin = pin->scl;
             mux->scl.fun = scl_fun;
@@ -127,8 +125,8 @@ static int get_pinmux(i2c_pin_t *pin, i2c_pinmux_t *mux, hal_i2c_port_t *port)
             mux->sda.pin = pin->sda;
             mux->sda.fun = sda_fun;
             
-            LOGI("___ scl.pin: %d, scl.fun: %d\r\n", mux->scl.pin.pin, mux->scl.fun);
-            LOGI("___ sda.pin: %d, sda.fun: %d\r\n", mux->sda.pin.pin, mux->sda.fun);
+            //LOGI("___ scl.pin: %d, scl.fun: %d\r\n", mux->scl.pin.pin, mux->scl.fun);
+            //LOGI("___ sda.pin: %d, sda.fun: %d\r\n", mux->sda.pin.pin, mux->sda.fun);
         }
         if(port) *port = p1;
         
@@ -187,7 +185,7 @@ handle_t i2c_init(i2c_cfg_t *cfg)
         goto failed;
     }
     
-    cf.frequency = cfg->freq;
+    cf.frequency = (hal_i2c_frequency_t)cfg->freq;
     
     hal_i2c_master_deinit(port);
     st = hal_i2c_master_init(port, &cf);
@@ -350,7 +348,6 @@ int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop)
         return -1;
     }
     
-    
     int lenMax=(ih->useDMA>0)?DMA_PKT_LEN_MAX:MCU_PKT_BYTE_MAX;
     i2c_write_ptr i2c_w=(ih->useDMA>0)?i2c_dma_write:i2c_mcu_write;
     
@@ -379,29 +376,28 @@ int i2c_set_callback(handle_t h, i2c_callback callback)
     return 0;
 }
 
-
+#define SWAP16(x)   (((U16)x)<<8)|(((U16)x)>>8)
 int i2c_mem_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len)
 {
+    int r;
+    U16 addr=SWAP16(memAddr);
+    hal_i2c_send_to_receive_config_t cfg;
     i2c_handle_t *ih=(i2c_handle_t*)h;
     
     if(!h) {
         return -1;
     }
     
-    return 0;
+    cfg.receive_buffer = data;
+    cfg.receive_length = len;
+    cfg.send_data = (U8*)&addr;
+    cfg.send_length = memAddrSize;
+    cfg.slave_address = devAddr;
+    r = hal_i2c_master_send_to_receive_polling(ih->port, &cfg);
+    
+    return r;
 }
 
-
-int i2c_mem_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len)
-{
-    i2c_handle_t *ih=(i2c_handle_t*)h;
-    
-    if(!h) {
-        return -1;
-    }
-    
-    return 0;
-}
 
 
 

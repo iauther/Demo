@@ -1,5 +1,5 @@
 #include "jump.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 
 #define APP_ADDR     (HAL_FLASH_BASE_ADDRESS+APP_OFFSET)

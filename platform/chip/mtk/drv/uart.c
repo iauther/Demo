@@ -234,7 +234,7 @@ int uart_write(handle_t h, U8 *data, U32 len)
     }
     uh->w_busying = 0;
         
-    return length;
+    return (int)length;
 }
 
 

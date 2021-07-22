@@ -3,16 +3,17 @@
 #include <errno.h>
 #include "drv/delay.h"
 #include "drv/i2c.h"
+#include "drv/si2c.h"
 #include "drv/gpio.h"
 #include "temp/mlx/mlx90632.h"
 #include "temp/mlx/mlx90632_extended_meas.h"
 
-
 #define MLX_ADDR    0x3A
+
+
 #define POW10 10000000000LL
 
 
-extern handle_t i2c2Handle;
 static handle_t mlxHandle=NULL;
 
 #if defined(__CC_ARM)
@@ -25,7 +26,7 @@ int32_t mlx_read(int16_t reg, uint16_t *data)
 {
     int r;
     U8 tmp[2];
-    
+
     r = i2c_mem_read(mlxHandle, MLX_ADDR, reg, 2, tmp, sizeof(tmp));
     if(r==0) {
         *data = tmp[1]|(tmp[0]<<8);
@@ -36,12 +37,13 @@ int32_t mlx_read(int16_t reg, uint16_t *data)
 int32_t mlx_write(int16_t reg, uint16_t data)
 {
     int r;
-    U8 tmp[3];
+    U8 tmp[4];
     
-    tmp[0] = reg;
-    tmp[1] = data>>8;
-    tmp[2] = data;
-    r = i2c_mem_write(mlxHandle, MLX_ADDR, reg, 2, tmp, sizeof(tmp));
+    tmp[0] = reg>>8;
+    tmp[1] = reg;
+    tmp[2] = data>>8;
+    tmp[3] = data;
+    r = i2c_write(mlxHandle, MLX_ADDR, tmp, sizeof(tmp), 1);
     
     return r;
 }
@@ -49,7 +51,7 @@ int mlx_read32(int16_t reg, uint32_t *value)
 {
     int r;
 	U8  tmp[4];
-    
+
 	r = i2c_mem_read(mlxHandle, MLX_ADDR, reg, 2, tmp, sizeof(tmp));
 	if(r==0) {
         *value = tmp[2]<<24|tmp[3]<<16|tmp[0]<<8|tmp[1];
@@ -644,20 +646,19 @@ static mlx90632_meas_t mlx90632_get_refresh_rate(void)
 
 /////////////////////////////////////////////////////////////////////////
 
-int mlx90632_init(void)
+int mlx90632_init(handle_t h)
 {
     int r;
     uint16_t eeprom_version=0, reg_status=0;
 
-    mlxHandle = i2c2Handle;
+    mlxHandle = h;
     
     r = mlx_read(MLX90632_EE_VERSION, &eeprom_version);
     if (r < 0) {
         return r;
     }
 
-    if ((eeprom_version & 0x00FF) != MLX90632_DSPv5)
-    {
+    if ((eeprom_version & 0x00FF) != MLX90632_DSPv5) {
         // this here can fail because of big/little endian of cpu/i2c
         return -EPROTONOSUPPORT;
     }
@@ -671,12 +672,9 @@ int mlx90632_init(void)
     if (r < 0)
         return r;
 
-    if ((eeprom_version & 0x7F00) == MLX90632_XTD_RNG_KEY)
-    {
+    if ((eeprom_version & 0x7F00) == MLX90632_XTD_RNG_KEY) {
         return ERANGE;
     }
-
-    //mlx90632_test();
     
     return 0;
 }
@@ -689,7 +687,7 @@ void mlx90632_test(void)
     static F32 temp;
     
     while(1) {
-        //mlx_read(reg, &tmp);
+        //mlx_read(MLX90632_EE_VERSION, &tmp);
         mlx90632_get(&temp);
         delay_ms(50);
     }
@@ -697,6 +695,7 @@ void mlx90632_test(void)
 }
 
 
+//https://github.com/melexis/mlx90632-example/blob/master/Src/main.c
 int mlx90632_get(F32 *temp)
 {
     int32_t ret = 0; 

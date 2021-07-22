@@ -146,11 +146,12 @@ static int pwm_send_cmd(U8 cmd, U32 speed)
 
 static int send_cmd(U8 cmd, U32 speed)
 {
-#ifdef PUMP_USE_UART
-    return uart_send_cmd(cmd, speed);
-#else
-    return pwm_send_cmd(cmd, speed);
-#endif
+    int r;
+    
+    r = uart_send_cmd(cmd, speed);
+    r = pwm_send_cmd(cmd, speed);
+    
+    return r;
 }
 
 static int uart_rx_wait(int ms)

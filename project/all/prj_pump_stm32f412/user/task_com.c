@@ -4,17 +4,18 @@
 #include "data.h"
 #include "com.h"
 #include "led.h"
+#include "power.h"
 #include "paras.h"
 
-static int rflag=0;
+
+
 static void com_tmr_callback(void *arg)
 {
     task_msg_post(TASK_COM, EVT_TIMER, 0, NULL, 0);
 }
 static void com_rx_callback(U8 *data, U16 len)
 {
-    rflag = task_msg_post(TASK_COM, EVT_COM, 0, data, len);
-    rflag=0;
+    task_msg_post(TASK_COM, EVT_COM, 0, data, len);
 }
 static void task_com_init(void)
 {
@@ -46,7 +47,7 @@ void task_com_fn(void *arg)
                 
                 case EVT_TIMER:
                 {
-                    err = com_ack_poll();
+                    err = com_ack_poll();    
                 }
                 break;
                 

@@ -20,8 +20,7 @@ typedef struct {
         ack_t       ack;
         sett_t      sett;
         error_t     err;
-        upgrade_pkt_t upg;
-        paras_t     paras;
+        para_t      para;
         fw_info_t   fwinfo;
     }data;
 }cache_t;

@@ -11,6 +11,9 @@
 #include "drv/clk.h"
 #include "drv/htimer.h"
 #include "paras.h"
+#include "power.h"
+#include "wdog.h"
+#include "task.h"
 #include "myCfg.h"
 
 handle_t i2c1Handle=NULL;
@@ -58,6 +61,8 @@ static int dev_init(void)
 {
     int r=0;
 
+    r = wdog_init();
+    r = power_init();
     r = nvm_init();
     r = led_init();
     r = buzzer_init();
@@ -97,24 +102,23 @@ void HAL_MspInit(void)
 int board_init(void)
 {
     int r;
-    U8  color;
     
-#ifdef OS_KERNEL
     SCB->VTOR = FLASH_BASE | APP_OFFSET;
     __enable_irq();
-#endif
     
     r = HAL_Init();
     r = clk2_init();
-    r = htimer_init();
+    r = htimer_init(NULL);
     
     r = bus_init();
     r = dev_init();
     
     r = paras_load();
 
-    color = (sysState==STAT_UPGRADE)?BLUE:GREEN;
-    led_set_color(color);
+#ifdef OS_KERNEL
+    led_set_color(GREEN);
+    task_start();
+#endif
    
     return r;
 }

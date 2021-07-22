@@ -10,10 +10,10 @@
 #define VMAX(v)             (v+ACC)
 
 
-#define TIMER_MS            (50)         //ms
-#define STAT_MS             (TIMER_MS*4)
-#define STAT_CNT            (STAT_MS/TIMER_MS)
-#define TEMP_CNT            (300/TIMER_MS)
+#define TIMER_MS            (100)           //ms
+
+#define PARA_STAT_MS        (300)
+#define PARA_STAT_CNT       (PARA_STAT_MS/TIMER_MS)
 
 
 enum {
@@ -21,12 +21,6 @@ enum {
     PRES_LEAK,
     PRES_KEEP,
 };
-
-
-typedef struct {
-    F32     as;
-    F32     mlx;
-}temp_t;
 
 
 
@@ -38,7 +32,7 @@ static U16 prevSpeed=0;
 static void auto_pres(stat_t *st)
 {
     U16 speed=0;
-    sett_t *set=&curParas.setts.sett[curParas.setts.mode];
+    sett_t *set=&curPara.setts.sett[curPara.setts.mode];
     F32 setPres=set->pres;
     F32 curPres=st->dPres;
     
@@ -102,19 +96,6 @@ static void auto_pres(stat_t *st)
         
 }
 
-#if 0
-static int get_temp(temp_t *temp)
-{
-    int r;
-    
-    r = as62xx_get(&temp->as);
-    if(r==0) {
-        mlx90632_get(&temp->mlx);
-    }
-    
-    return r;
-}
-#endif
 
 static int stat_cmp(stat_t *prev, stat_t *now)
 {
@@ -166,15 +147,23 @@ static void dev_tmr_callback(void *arg)
 
 
 
-
+static U32 tmr_cnt=0;
 static int timer_proc(void)
 {
     int r;
     
     get_stat(&curStat);
-    
-    if(sysState==STAT_RUNNING && adjMode==ADJ_AUTO) {
-        auto_pres(&curStat);
+    if(sysState==STAT_POWEROFF) {
+        paras_set_state(STAT_STOP);
+        if(curStat.aPres>0 && curStat.dPres>0 && (curStat.aPres-curStat.dPres<2.0F)) {
+            valve_set(VALVE_CLOSE);
+        }
+    }
+    else if(sysState!=STAT_UPGRADE) {
+        paras_set_state(sysState);
+        if(sysState==STAT_RUNNING && adjMode==ADJ_AUTO) {
+            auto_pres(&curStat);
+        }
     }
               
     return r;

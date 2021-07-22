@@ -38,6 +38,7 @@ typedef struct {
 
 	uiButton*			restart;
 	uiButton*			factory;
+	uiButton*			poweroff;
 }port_grp_t;
 
 typedef struct {
@@ -117,7 +118,7 @@ typedef struct {
 
 
 void win_init(int mcu);
-void win_paras_update(paras_t* paras);
+void win_paras_update(para_t* paras);
 void win_stat_update(stat_t* stat);
 
 #endif

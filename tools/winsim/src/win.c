@@ -34,6 +34,7 @@ static int       mcuSim;
 int paras_rx_flag = 0;
 int upgrade_ack_error = 1;
 int upgrade_start = 0;
+int upgrade_pre_slen = 0;
 upg_info_t upgInfo = {.fileLen=0, .sendLen=0, .fileBuf=NULL};
 
 uiMultilineEntry* logEntry = NULL;
@@ -170,6 +171,11 @@ static void on_port_restart_btn_fn(uiButton* b, void* data)
 	cmd_t cmd = { CMD_SYS_RESTART, 0 };
 	com_send_data(TYPE_CMD, 0, &cmd, sizeof(cmd));
 }
+static void on_port_poweroff_btn_fn(uiButton* b, void* data)
+{
+	cmd_t cmd = { CMD_SYS_POWEROFF, 0 };
+	com_send_data(TYPE_CMD, 0, &cmd, sizeof(cmd));
+}
 
 
 static int port_grp_init(uiWindow* win, port_grp_t* port)
@@ -195,6 +201,7 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 
 	port->factory = uiNewButton("Factory");		uiButtonOnClicked(port->factory, on_port_factory_btn_fn, NULL);
 	port->restart = uiNewButton("Restart");		uiButtonOnClicked(port->restart, on_port_restart_btn_fn, NULL);
+	port->poweroff = uiNewButton("Poweroff");	uiButtonOnClicked(port->poweroff, on_port_poweroff_btn_fn, NULL);
 
 	if (mcuSim) {
 		task_dev_start();
@@ -203,11 +210,12 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 		task_app_start();
 	}
 	                                            
-	uiGridAppend(port->g, uiControl(port->port),    0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(port->g, uiControl(port->open),    1, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(port->g, uiControl(port->mode),    2, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(port->g, uiControl(port->factory), 3, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
-	uiGridAppend(port->g, uiControl(port->restart), 4, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->port),     0, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->open),     1, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->mode),     2, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->factory),  3, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->restart),  4, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
+	uiGridAppend(port->g, uiControl(port->poweroff), 5, 0, 1, 1, 0, uiAlignFill, 0, uiAlignFill);
 
 	uiBoxAppend(port->hbox, uiControl(port->g), 1);
 	uiGroupSetChild(port->grp, uiControl(port->hbox));
@@ -220,7 +228,7 @@ static int port_grp_init(uiWindow* win, port_grp_t* port)
 
 static void on_sett_set_fn(uiButton* b, void* data)
 {
-	setts_t *setts=&curParas.setts;
+	setts_t *setts=&curPara.setts;
 	if (!paras_rx_flag) {
 		uiMsgBoxError(grp.win, "Set Failed", "Paras not received!");
 		return;
@@ -602,6 +610,7 @@ static int ui_timer_callback(void* arg)
 				if (upgInfo.sendLen >= (upgInfo.fileLen - sizeof(md5_t))) {
 					upgrade_start = 0;
 					upgInfo.sendLen = 0;
+					curStat.sysState = 0;
 
 					uiButtonSetText(grp.upg.start, "Start");
 					LOG("upgrade finished!\n");
@@ -621,6 +630,7 @@ static int ui_timer_callback(void* arg)
 					memcpy(pkt->data, upgInfo.fileBuf + sizeof(md5_t) + upgInfo.sendLen, slen);
 
 					upgrade_ack_error = 0;
+					upgrade_pre_slen = slen;
 					com_send_data(TYPE_UPGRADE, 1, pkt, UPG_PKT_LEN + slen);
 
 					upgInfo.sendLen += slen;
@@ -628,9 +638,16 @@ static int ui_timer_callback(void* arg)
 					uiProgressBarSetValue(grp.upg.pgbar, (upgInfo.sendLen * 100) / (upgInfo.fileLen - sizeof(md5_t)));
 				}
 			}
+			else if (upgrade_ack_error == 2) {
+				if (upgInfo.pktId>0) {
+					upgInfo.pktId--;
+					upgInfo.sendLen -= upgrade_pre_slen;
+				}
+			}
 			else {
 				upgrade_ack_error = 0;
 				pkt_resend(TYPE_UPGRADE);
+				LOG("pktId %d resend!\n", upgInfo.pktId-1);
 			}
 		}
 	}
@@ -712,7 +729,7 @@ const char* modeString[MODE_MAX] = {
 };
 
 
-void win_paras_update(paras_t* paras)
+void win_paras_update(para_t* paras)
 {
 	char tmp[100];
 #if 1

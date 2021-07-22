@@ -23,8 +23,10 @@ int paras_read(U32 addr, void *data, U32 len);
 int paras_write(U32 addr, void *data, U32 len);
 int paras_write_node(node_t *n);
 
-int paras_get_fwmagic(U32 *fwmagic);
-int paras_set_fwmagic(U32 *fwmagic);
+int paras_get_magic(U32 *magic);
+int paras_set_magic(U32 *magic);
+int paras_get_state(U8 *state);
+int paras_set_state(U8 state);
 int paras_get_fwinfo(fw_info_t *fwinfo);
 int paras_set_fwinfo(fw_info_t *fwinfo);
 int paras_set_upg(void);
@@ -35,10 +37,9 @@ extern U8 adjMode;
 extern U8 sysState;
 extern U8 sysMode;
 extern stat_t curStat;
-extern paras_t curParas;
+extern para_t curPara;
 extern ack_timeout_t ackTimeout;
 extern notice_t allNotice[LEV_MAX];
-extern paras_t DEFAULT_PARAS;
 
 #endif
 

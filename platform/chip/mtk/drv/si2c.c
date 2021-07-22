@@ -30,17 +30,17 @@ static U32 i2c_us=0;
 static U32 i2c_cnt=0;
 static si2c_cfg_t s_si2c;
 
-#define SCL_OUT()          gpio_set_dir(s_si2c.scl_pin, HAL_GPIO_DIRECTION_OUTPUT)
-#define SCL_IN()           gpio_set_dir(s_si2c.scl_pin, HAL_GPIO_DIRECTION_INPUT)
-#define SCL_HIGH()         gpio_set_hl(s_si2c.scl_pin, HAL_GPIO_DATA_HIGH)
-#define SCL_LOW()          gpio_set_hl(s_si2c.scl_pin, HAL_GPIO_DATA_LOW)
-#define SCL_READ()         gpio_get_hl(s_si2c.scl_pin)
+#define SCL_OUT()          gpio_set_dir(&s_si2c.scl, MODE_OUTPUT)
+#define SCL_IN()           gpio_set_dir(&s_si2c.scl, MODE_INPUT)
+#define SCL_HIGH()         gpio_set_hl(&s_si2c.scl, 1)
+#define SCL_LOW()          gpio_set_hl(&s_si2c.scl, 0)
+#define SCL_READ()         gpio_get_hl(&s_si2c.scl)
 
-#define SDA_OUT()          gpio_set_dir(s_si2c.sda_pin, HAL_GPIO_DIRECTION_OUTPUT)
-#define SDA_IN()           gpio_set_dir(s_si2c.sda_pin, HAL_GPIO_DIRECTION_INPUT)
-#define SDA_HIGH()         gpio_set_hl(s_si2c.sda_pin, HAL_GPIO_DATA_HIGH)
-#define SDA_LOW()          gpio_set_hl(s_si2c.sda_pin, HAL_GPIO_DATA_LOW)
-#define SDA_READ()         gpio_get_hl(s_si2c.sda_pin)
+#define SDA_OUT()          gpio_set_dir(&s_si2c.sda, MODE_OUTPUT)
+#define SDA_IN()           gpio_set_dir(&s_si2c.sda, MODE_INPUT)
+#define SDA_HIGH()         gpio_set_hl(&s_si2c.sda, 1)
+#define SDA_LOW()          gpio_set_hl(&s_si2c.sda, 0)
+#define SDA_READ()         gpio_get_hl(&s_si2c.sda)
 
 #define SYS_FREQ()         hal_clock_get_mcu_clock_frequency()
 
@@ -215,15 +215,19 @@ int si2c_init(si2c_cfg_t *si)
     s_si2c = *si;
     i2c_us = 1000000/(s_si2c.freq*4);
     i2c_cnt = sys_freq/(s_si2c.freq*2)+1;
-    gpio_init(s_si2c.scl_pin, HAL_GPIO_DIRECTION_OUTPUT, HAL_GPIO_DATA_HIGH);
-    gpio_init(s_si2c.sda_pin, HAL_GPIO_DIRECTION_OUTPUT, HAL_GPIO_DATA_HIGH);
+    gpio_init(&s_si2c.scl, MODE_OUTPUT);
+    gpio_set_hl(&s_si2c.scl, 1);
+    
+    gpio_init(&s_si2c.sda, MODE_OUTPUT);
+    gpio_set_hl(&s_si2c.sda, 1);
+    
     i2c_reset();
     
     return 0;
 }
 
 
-int si2c_read(U8 addr, U8 *data, U32 len)
+int si2c_read(U8 addr, U8 *data, U32 len, U8 stop)
 {
     int r=0;
     U32 i;
@@ -239,13 +243,16 @@ int si2c_read(U8 addr, U8 *data, U32 len)
     else {
         return -1;
     }
-    i2c_stop();
+    
+    if(stop) {
+        i2c_stop();
+    }
     
     return 0;
 }
 
 
-int si2c_write(U8 addr, U8 *data, U32 len)
+int si2c_write(U8 addr, U8 *data, U32 len, U8 stop)
 {
     int r=0;
     U32 i;
@@ -264,7 +271,10 @@ int si2c_write(U8 addr, U8 *data, U32 len)
     else {
       r = -1;  
     }
-    i2c_stop();
+    
+    if(stop) {
+        i2c_stop();
+    }
     
     return r;
 }

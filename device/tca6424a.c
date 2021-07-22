@@ -4,10 +4,10 @@
 #include "drv/delay.h"
 #include "drv/i2c.h"
 #include "log.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 
-extern handle_t i2c0handle;
+extern handle_t i2c0Handle;
 
 int tca6424a_init(void)
 {
@@ -18,7 +18,7 @@ int tca6424a_init(void)
     cfg.pin.sda.pin = TEA6424A_I2C_SDA_PIN;
     cfg.freq = TEA6424A_I2C_FREQ;
     cfg.useDMA = 0;
-    i2c0handle = i2c_init(&cfg);
+    i2c0Handle = i2c_init(&cfg);
 #endif
     return 0;
 }
@@ -26,11 +26,11 @@ int tca6424a_init(void)
 
 int tca6424a_reset(TCA6424A_ADDR addr)
 {
-    //hal_gpio_pin_t reset_pin=(addr==TCA6424A_ADDR_L)?TCA6424A_L_RESET_PIN:TCA6424A_H_RESET_PIN;
+    //gpio_pin_t reset_pin={(addr==TCA6424A_ADDR_L)?TCA6424A_L_RESET_PIN:TCA6424A_H_RESET_PIN};
     
-	//gpio_init(reset_pin, HAL_GPIO_DIRECTION_OUTPUT, HAL_GPIO_DATA_LOW);
+	//gpio_init(&reset_pin, MODE_OUTPUT, 0);
     //delay_ms(1);
-	//gpio_set(reset_pin, HAL_GPIO_DATA_HIGH);
+	//gpio_set(&reset_pin, 1);
     
     return 0;
 }
@@ -90,9 +90,9 @@ int tca6424a_read(TCA6424A_ADDR addr, U8 reg, U8 *data, U32 len)
     int r;
     U8 cmd = 0x80|reg;;
     
-    r = i2c_write(i2c0handle, addr, &cmd, 1);
+    r = i2c_write(i2c0Handle, addr, &cmd, 1, 1);
     //LOGD("______ i2c_write r: %d\r\n", r);
-    r |= i2c_read(i2c0handle, addr, data, len);
+    r |= i2c_read(i2c0Handle, addr, data, len, 1);
     //LOGI("______ i2c_read r: %d\r\n", r);
     
     return r;
@@ -106,7 +106,7 @@ int tca6424a_write(TCA6424A_ADDR addr, U8 reg, U8 *data, U32 len)
     
     tmp[0] = 0x80|reg;
     memcpy(tmp+1, data, len);
-    r = i2c_write(i2c0handle, addr, tmp, len+1);
+    r = i2c_write(i2c0Handle, addr, tmp, len+1, 1);
     
     return r;
 }

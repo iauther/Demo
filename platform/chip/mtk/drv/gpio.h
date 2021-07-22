@@ -3,7 +3,13 @@
 
 #include "types.h"
 #include "tca6424a.h"
-#include "cfg.h"
+#include "myCfg.h"
+
+enum {
+    MODE_INPUT=0,              /**<  GPIO input direction. */
+    MODE_OUTPUT               /**<  GPIO output direction. */
+};
+
 
 typedef void (*gpio_callback)(void *user_data);
 typedef struct {
@@ -12,7 +18,9 @@ typedef struct {
     void                        *user_data;
 }gpio_callback_t;
 
-
+typedef struct {
+    hal_gpio_pin_t      pin;
+}gpio_pin_t;
 
 typedef struct {
     U8                  pin;
@@ -161,14 +169,14 @@ int gpio_ext_set_hl(U8 pin, U8 hl);
 int gpio_ext_int_init(U8 pin, gpio_callback_t *cb);
 int gpio_ext_test(void);
 
-int gpio_init(hal_gpio_pin_t pin, hal_gpio_direction_t dir, hal_gpio_data_t hl);
-int gpio_deinit(hal_gpio_pin_t pin);
-int gpio_pull_up(hal_gpio_pin_t pin);
-int gpio_pull_down(hal_gpio_pin_t pin);
-int gpio_get_hl(hal_gpio_pin_t pin);
-int gpio_set_dir(hal_gpio_pin_t pin, hal_gpio_direction_t dir);
-int gpio_set_hl(hal_gpio_pin_t pin,  hal_gpio_data_t hl);
-int gpio_int_init(hal_gpio_pin_t pin, gpio_callback_t *cb);
-int gpio_int_en(hal_gpio_pin_t pin, U8 on);
+int gpio_init(gpio_pin_t *pin, U8 dir);
+int gpio_deinit(gpio_pin_t *pin);
+int gpio_pull_up(gpio_pin_t *pin);
+int gpio_pull_down(gpio_pin_t *pin);
+int gpio_get_hl(gpio_pin_t *pin);
+int gpio_set_dir(gpio_pin_t *pin, U8 dir);
+int gpio_set_hl(gpio_pin_t *pin,  U8 hl);
+int gpio_int_init(gpio_pin_t *pin, gpio_callback_t *cb);
+int gpio_int_en(gpio_pin_t *pin, U8 on);
 
 #endif

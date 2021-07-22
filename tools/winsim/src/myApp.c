@@ -146,13 +146,13 @@ void pkt_print(pkt_hdr_t* p, U16 len)
     }
     break;
 
-    case TYPE_PARAS:
+    case TYPE_PARA:
     {
-        if (p->dataLen == sizeof(paras_t)) {
-            paras_t* paras = (paras_t*)p->data;
+        if (p->dataLen == sizeof(para_t)) {
+            para_t* para = (paras_t*)p->data;
             LOG("_____ type_paras\n");
-            LOG("_____ version: %s\n", paras->fwInfo.version);
-            LOG("_____ build time: %s\n", paras->fwInfo.bldtime);
+            LOG("_____ version: %s\n", para->fwInfo.version);
+            LOG("_____ build time: %s\n", para->fwInfo.bldtime);
         }
     }
     break;
@@ -212,7 +212,7 @@ static U8 timer_proc(void)
 
     //if (curStat.sysState != STAT_UPGRADE) {
     if(!upgrade_start) {
-        //err = com_send_data(TYPE_STAT, 0, NULL, 0);
+        err = com_send_data(TYPE_STAT, 0, NULL, 0);
         if (cnt % LEAP_CNT == 0) {
             //err = com_send_data(TYPE_LEAP, 1, NULL, 0);
             //LOG("____ send a leap\n");

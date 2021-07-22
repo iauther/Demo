@@ -7,11 +7,8 @@
 #include "valve.h"
 #include "led.h"
 #include "buzzer.h"
-#include "ft32xx.h"
 #include "nvm.h"
 #include "bmp280/bmp280.h"
-#include "temp/mlx/mlx90632.h"
-#include "temp/ams/as62xx.h"
 
 #define FW_MAGIC            0xFACEBEAD
 #define UPG_MAGIC           0xABCD1234
@@ -33,6 +30,7 @@ enum {
     STAT_RUNNING,
     STAT_UPGRADE,
     
+    STAT_POWEROFF=0x10,
     STAT_MAX
 };
 
@@ -50,7 +48,7 @@ enum {
     TYPE_STAT,
     TYPE_ACK,
     TYPE_SETT,
-    TYPE_PARAS,
+    TYPE_PARA,
     TYPE_ERROR,
     TYPE_UPGRADE,
     TYPE_LEAP,
@@ -156,6 +154,16 @@ typedef struct {
 typedef struct {
     fw_info_t       fwInfo;
     setts_t         setts;
+}para_t;
+
+typedef struct {
+    U32             magic;
+    U8              state;
+}flag_t;
+
+typedef struct {
+    flag_t          flag;
+    para_t          para;
 }paras_t;
 
 #pragma pack ()

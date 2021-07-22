@@ -169,7 +169,7 @@ int32_t mlx90632_start_measurement_burst(void);
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-int mlx90632_init(void);
+int mlx90632_init(handle_t h);
 void mlx90632_test(void);
 int mlx90632_get(F32 *temp);
 

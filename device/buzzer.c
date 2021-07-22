@@ -21,7 +21,7 @@ typedef struct {
     htimer_set_t    sett;
 }buzzer_info_t;
 
-static int buzzer_tmr_id=0;
+static handle_t buzzer_handle=NULL;
 static buzzer_info_t buzzer_info;
 
 
@@ -49,7 +49,7 @@ static void buzzer_tmr_callback(void *user_data)
     }
     
     if(info->time.ring_time+info->time.quiet_time >= info->cfg.total_time) {
-        htimer_stop(buzzer_tmr_id);
+        htimer_stop(buzzer_handle);
         gpio_set_hl(&pin, 0);
         info->stat = 0;
         info->time.ring_time = 0;
@@ -65,7 +65,7 @@ int buzzer_init(void)
     gpio_init(&pin, MODE_OUTPUT);
     gpio_set_hl(&pin, 0);
     
-    buzzer_tmr_id = htimer_new();
+    buzzer_handle = htimer_new();
     //buzzer_test();
     
     return 0;
@@ -97,16 +97,16 @@ int buzzer_start(buzzer_cfg_t *cfg)
     
     buzzer_info.time.ring_time = 0;
     buzzer_info.time.quiet_time = 0;
-    htimer_set(buzzer_tmr_id, &buzzer_info.sett);
+    htimer_set(buzzer_handle, &buzzer_info.sett);
     
-    htimer_stop(buzzer_tmr_id);
-    return htimer_start(buzzer_tmr_id);
+    htimer_stop(buzzer_handle);
+    return htimer_start(buzzer_handle);
 }
 
 
 int buzzer_stop(void)
 {
-    return htimer_stop(buzzer_tmr_id);
+    return htimer_stop(buzzer_handle);
 }
 
 

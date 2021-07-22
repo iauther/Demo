@@ -13,6 +13,7 @@ int upgrade_is_need(void);
 int upgrade_check(void);
 U8 upgrade_proc(void *data);
 U8 upgrade_is_finished(void);
+U8 upgrade_is_app(void);
 
 #endif
 

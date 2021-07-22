@@ -1,13 +1,27 @@
 #include "task.h"                          // CMSIS RTOS header file
 #include "paras.h"
 #include "queue.h"
+#include "wdog.h"
  
 
-#define TIMER_MS            200         //ms
+#define TIMER_MS                        200         //ms
+#define PAD_POWERON_DELAY_MS            1000
 
 static handle_t mq=NULL;
 
 
+static U8 pad_poweron_flag=0;
+static U32 pad_poweron_delay=0;
+static void pad_poweron_check(void)
+{
+    if(!pad_poweron_flag) {
+        pad_poweron_delay += ACK_POLL_MS;
+        if(pad_poweron_delay>=TIMER_MS) {
+            pad_poweron_flag = 1;
+            pad_poweron_delay = 0;
+        }
+    }
+}
 
 static int my_qiterater(handle_t h, int index, void *p1, void *p2)
 {
@@ -25,22 +39,35 @@ static int my_qiterater(handle_t h, int index, void *p1, void *p2)
 
 static void misc_tmr_callback(void *arg)
 {
-    task_msg_post(TASK_MISC, EVT_EEPROM, 0, NULL, 0);
+    task_msg_post(TASK_MISC, EVT_TIMER, 0, NULL, 0);
 }
+
+static void eeprom_proc(evt_t *e)
+{
+    int r;
+    node_t n,node;
+    
+    node.ptr = &n;
+    node.len = sizeof(n);
+    if(e->type==0) {
+        r = queue_get(mq, &node, NULL);
+        if(r==0) {
+            paras_write_node(&n);
+        }
+    }
+}
+
 
 
 void task_misc_fn(void *arg)
 {
     int r;
     evt_t e;
-    node_t node,n;
+    
     osTimerId_t tmrId;
     task_handle_t *h=(task_handle_t*)arg;
     
     mq = queue_init(10, sizeof(node_t));
-    node.ptr = &n;
-    node.len = sizeof(n);
-    
     tmrId = osTimerNew(misc_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, TIMER_MS);
     
@@ -49,21 +76,11 @@ void task_misc_fn(void *arg)
         if(r==0) {
             
             switch(e.evt) {
-                case EVT_EEPROM:
+                case EVT_TIMER:
                 {
-                    if(e.type==0) {
-                        r = queue_get(mq, &node, NULL);
-                        if(r==0) {
-                            paras_write_node(&n);
-                        }
-                    }
-                    else if(e.type==1) {
-                        
-                    }
-                    else if(e.type==2) {
-                        
-                    }
-                    
+                    eeprom_proc(&e);
+                    //pad_poweron_check();
+                    wdog_feed();
                 }
                 break;
                 
