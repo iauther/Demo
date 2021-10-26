@@ -10,7 +10,7 @@
 //KNF±Ã  ×î´ó¸ºÑ¹: 2mbar=2*100pa=0.2kpa
 
 
-#define PWM_FREQ            100
+#define PWM_FREQ            5000
 #define N950_BAUDRATE       57600
 
 handle_t uartHandle=NULL;
@@ -83,7 +83,7 @@ static pwm_cfg_t cfg={
                 {
                     .pwm_pin  = GPIO_PUMP_PWM_PIN,            //set speed
                     .type = TYPE_OC,
-                    .mode = MODE_PP,
+                    .mode = MODE_OD,
                 },
                 
                 {
@@ -99,7 +99,7 @@ static pwm_cfg_t cfg={
                 },
             },
         
-            .freq  = PWM_FREQ, .dr = 0,
+            .freq  = PWM_FREQ, .dr = 0.0,
         },
         
         .useDMA = 0,
@@ -117,7 +117,6 @@ static int pwm_set_speed(U32 speed)
     int r;
     F32 dr;
     
-    //dr = 2.1/5.0;
     dr = DRATIO_OF(speed);
     r = pwm_set(pwmHandle, GPIO_PUMP_PWM_PIN, PWM_FREQ, dr);
     
@@ -248,21 +247,26 @@ int n950_get(n950_stat_t *st)
     int r;
     
     r = uart_send_cmd(CMD_GET_STAT, 0);
-    uart_rx_wait(20);
-    //rx_buf[0~5]       min speed;       r/min
-    //rx_buf[6~11]      operate current; mA
-    //rx_buf[12~19]     temperature of controller; 
-    //rx_buf[20~24]     fault status;
-    //rx_buf[25]        0: command not complete  1: command complete  ?: command unclear
-    //rx_buf[26]        0x0d: end sympol
+    if(r==0) {
+        r = uart_rx_wait(20);
+        if(r>0) {
+            //rx_buf[0~5]       min speed;       r/min
+            //rx_buf[6~11]      operate current; mA
+            //rx_buf[12~19]     temperature of controller; 
+            //rx_buf[20~24]     fault status;
+            //rx_buf[25]        0: command not complete  1: command complete  ?: command unclear
+            //rx_buf[26]        0x0d: end sympol
 #if 1
-    n950_tmp_buf[5]=n950_tmp_buf[11]=n950_tmp_buf[19]=n950_tmp_buf[24]=0;
-    st->speed = atoi((char*)n950_tmp_buf);
-    st->current = atof((char*)(n950_tmp_buf+6));
-    st->temp = atof((char*)(n950_tmp_buf+12));
-    st->fault = atoi((char*)(n950_tmp_buf+20));
-    st->cmdAck = (n950_tmp_buf[25]=='?')?2:n950_tmp_buf[25];
+            n950_tmp_buf[5]=n950_tmp_buf[11]=n950_tmp_buf[19]=n950_tmp_buf[24]=0;
+            st->speed = atoi((char*)n950_tmp_buf);
+            st->current = atof((char*)(n950_tmp_buf+6));
+            st->temp = atof((char*)(n950_tmp_buf+12));
+            st->fault = atoi((char*)(n950_tmp_buf+20));
+            st->cmdAck = (n950_tmp_buf[25]=='?')?2:n950_tmp_buf[25];
+            r = 0;
+        }
 #endif
+    }
     
     return r;
 }

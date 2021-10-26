@@ -18,8 +18,8 @@ static handle_t bmpHandle=NULL;
 
 static int8_t i2c_reg_read(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t length)
 {
-    i2c_write(bmpHandle, i2c_addr, &reg_addr, 1, 1);
-    return i2c_read(bmpHandle, i2c_addr, reg_data, length, 1);
+    i2c_write(bmpHandle, i2c_addr, &reg_addr, 1, 1, length);
+    return i2c_read(bmpHandle, i2c_addr, reg_data, length, 1, length);
 }
 static int8_t i2c_reg_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t length)
 {
@@ -27,7 +27,7 @@ static int8_t i2c_reg_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_dat
     
     tmp[0] = reg_addr;
     memcpy(tmp+1, reg_data, length);
-    return i2c_write(bmpHandle, i2c_addr, tmp, length+1, 1);
+    return i2c_write(bmpHandle, i2c_addr, tmp, length+1, 1, length);
 }
 
 
@@ -59,6 +59,7 @@ static struct bmp280_dev bmp280;
 int bmp280_init(void)
 {
     int8_t r;
+    bmp280_t b;
     struct bmp280_config conf;
 
     bmpHandle = i2c1Handle;
@@ -90,6 +91,10 @@ int bmp280_init(void)
 
     /* Always set the power mode after setting the configuration */
     r = bmp280_set_power_mode(BMP280_FORCED_MODE, &bmp280);
+    
+    if(r==BMP280_OK) {
+        bmp280_get(&b);
+    }
 
     return 0;
 }

@@ -7,6 +7,28 @@
 
 task_handle_t *task_handle[TASK_MAX];
 
+
+handle_t task_new(osThreadFunc_t task, U32 stack_size)
+{
+    osThreadId_t  tid;
+
+    osThreadAttr_t attr = {
+        .attr_bits  = 0U,
+        .cb_mem     = NULL, //?
+        .cb_size    = 0,
+        .stack_mem  = NULL,
+        .stack_size = stack_size,
+        .priority   = osPriorityNormal,
+        .tz_module  = 0,
+    };
+    
+
+    tid = osThreadNew(task, NULL, (const osThreadAttr_t*)&attr);
+    
+    return tid;
+}
+
+
 handle_t task_create(int id, osThreadFunc_t task, U32 stack_size)
 {
     task_handle_t *h;
@@ -29,8 +51,6 @@ handle_t task_create(int id, osThreadFunc_t task, U32 stack_size)
     h->msg = msg_init(5, sizeof(evt_t));
     h->thread_id = osThreadNew(h->thread_fn, h, (const osThreadAttr_t*)&attr);
     task_handle[id] = h;
-    
-    //if(id!=TASK_MAIN) while(!h->running);
     
     return h;
 }
@@ -90,13 +110,18 @@ void task_wait(int task_id)
 void task_start_others(void)
 {
     task_create(TASK_DEV,  task_dev_fn,  2048);
-    task_create(TASK_MISC, task_misc_fn, 1024);
+}
+
+
+int task_init(void)
+{
+    osKernelInitialize();
+    return 0;
 }
 
 
 int task_start(void)
 {
-    osKernelInitialize();                 // Initialize CMSIS-RTOS
     task_create(TASK_COM,  task_com_fn,  2048);
     osKernelStart();
     

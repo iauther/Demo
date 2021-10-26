@@ -25,6 +25,13 @@ enum {
     MODE_MAX
 };
 
+
+enum {
+    AIR_KEEP=0,
+    AIR_PUMP,
+    AIR_LEAK,
+};
+
 enum {
     STAT_STOP=0,
     STAT_RUNNING,

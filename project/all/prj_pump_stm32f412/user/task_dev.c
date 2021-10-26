@@ -1,19 +1,20 @@
 #include "task.h"                          // CMSIS RTOS header file
 #include "paras.h"
-#include "data.h" 
+#include "data.h"
+#include "wdog.h"
 #include "pkt.h"
 
-
-#define ACC                 1.0F        //accuracy, 1kpa
+#define ACC0                  0.5F
+#define ACC1                  5.0F        //accuracy, 1kpa
 
 #define VMIN(v)             (v-ACC)
 #define VMAX(v)             (v+ACC)
 
 
-#define TIMER_MS            (100)           //ms
+#define TIMER_MS       (100)           //ms
 
-#define PARA_STAT_MS        (300)
-#define PARA_STAT_CNT       (PARA_STAT_MS/TIMER_MS)
+#define STAT_MS        (300)
+#define STAT_CNT       (STAT_MS/TIMER_MS)
 
 
 enum {
@@ -24,76 +25,80 @@ enum {
 
 
 
-static U8 presMode=PRES_RAISE;
-static U8 vacuum_ever_reached=0;
 static U16 prevSpeed=0;
+static ms4525_t ms={0};
+static handle_t mq=NULL;
 
 
-static void auto_pres(stat_t *st)
+static void auto_adjust(F32 dpres)
 {
     U16 speed=0;
     sett_t *set=&curPara.setts.sett[curPara.setts.mode];
     F32 setPres=set->pres;
-    F32 curPres=st->dPres;
+    F32 curPres=dpres;
     
-    if(presMode==PRES_LEAK) {
-        if(curPres<setPres) {
-            presMode = PRES_KEEP;
-        }
-    }
-    else {
-        if(curPres<setPres-ACC) {
-            presMode = PRES_RAISE;
-        }
-        else if(curPres>setPres+ACC) {
-            presMode = PRES_LEAK;
-        }
-        else {
-            presMode = PRES_KEEP;
-        }
-    }
-    
-    switch(presMode) {
+#if 1    
+    if(curPres<setPres) {
+        valve_set(VALVE_CLOSE);
         
-        case PRES_RAISE:
-        {
-            speed = N950_SPEED_MAX;
-            vacuum_ever_reached = 0;
-            valve_set(VALVE_CLOSE);
+        if(air_act==AIR_LEAK) {
+            vacuum_reached = 1;
         }
-        break;
         
-        case PRES_LEAK:
-        {
-            speed = 0;
-            valve_set(VALVE_OPEN);
-        }
-        break;
-        
-        case PRES_KEEP:
-        {
-            valve_set(VALVE_CLOSE);
-            
-            if(curPres>setPres) {
+        if(vacuum_reached) {
+            if(curPres>=setPres-ACC0) {
+                air_act = AIR_KEEP;
                 speed = 0;
-                vacuum_ever_reached = 1;
             }
-            else if(setPres-ACC<curPres && curPres<setPres) {
+            else if(curPres<setPres-ACC0 && curPres<setPres-ACC1) {   //ษýัน
                 speed = N950_SPEED_MIN;
             }
-            
-            if(!vacuum_ever_reached) {
+            else {
                 speed = N950_SPEED_MAX;
             }
         }
-        break;
+        else {
+            if(curPres>=setPres-ACC0) {
+                air_act = AIR_KEEP;
+                speed = N950_SPEED_MIN;
+            }
+            else {
+                speed = N950_SPEED_MAX;
+            }
+        }
     }
+    else {
+        if(air_act==AIR_PUMP) {
+            vacuum_reached = 1;
+        }
+        
+        speed = 0;
+        if(curPres<=setPres+ACC0) {  //ฝตัน
+            air_act = AIR_KEEP;
+            valve_set(VALVE_CLOSE);
+        }
+        else {
+            valve_set(VALVE_OPEN);
+        }
+    }
+#endif
+    
+    //the fllowing add for test
+#if 0
+    if(curPres>90.0F) {
+        speed = 0;
+        valve_set(VALVE_OPEN);
+    }
+    else if(curPres<30.0F) {
+        speed = N950_SPEED_MAX;
+        valve_set(VALVE_CLOSE);
+    }
+#endif
     
     if(speed!=prevSpeed) {
         n950_set_speed(speed);
         prevSpeed = speed;
     }
-        
 }
 
 
@@ -111,27 +116,28 @@ static int stat_cmp(stat_t *prev, stat_t *now)
 
 static int get_stat(stat_t *st)
 {
-    ms4525_t ms;
+    int r;
+    F32 x;
     bmp280_t bmp;
-    static U32 cnt=0;
     stat_t tmpStat={0};
     
-    ms4525_get(&ms);
-    bmp280_get(&bmp);
+    r = bmp280_get(&bmp);
     n950_get(&st->pump);
     
     st->adjMode  = adjMode;
     st->sysState = sysState;
-    st->dPres = ABS(ms.pres);
-    st->aPres = bmp.pres;
-    st->temp  = bmp.temp;
-
-#if 0    
-    cnt++;
-    if(cnt%STAT_CNT==0 && stat_cmp(&tmpStat, st)) {
-        pkt_send(TYPE_STAT, 0, st, sizeof(stat_t));
+    st->dPres = ms.pres;
+    if(r==0 && bmp.pres<101.F) {
+        x = ABS(bmp.pres-st->aPres);
+        if(st->aPres>0.1F && x>1.0F) {
+            ;
+        }
+        else {
+            st->aPres = bmp.pres;
+        }
+        
+        st->temp  = bmp.temp;
     }
-#endif
     
     return 0;
 }
@@ -142,31 +148,68 @@ static void dev_tmr_callback(void *arg)
     task_msg_post(TASK_DEV, EVT_TIMER, 0, NULL, 0);
 }
 
-////////////////////////////////////////////////
 
-
-
-
+static U8  color=GREEN;
 static U32 tmr_cnt=0;
-static int timer_proc(void)
+static void timer_proc(evt_t *e)
 {
-    int r;
+    wdog_feed();
     
     get_stat(&curStat);
     if(sysState==STAT_POWEROFF) {
         paras_set_state(STAT_STOP);
-        if(curStat.aPres>0 && curStat.dPres>0 && (curStat.aPres-curStat.dPres<2.0F)) {
+        if(curStat.aPres>0 && curStat.dPres>0 && (curStat.dPres<2.0F)) {
             valve_set(VALVE_CLOSE);
         }
     }
     else if(sysState!=STAT_UPGRADE) {
         paras_set_state(sysState);
-        if(sysState==STAT_RUNNING && adjMode==ADJ_AUTO) {
-            auto_pres(&curStat);
-        }
     }
-              
-    return r;
+    
+#if 1   //for test
+    tmr_cnt++;
+    if(tmr_cnt%STAT_CNT==0) {
+        pkt_send(TYPE_STAT, 0, &curStat, sizeof(curStat));
+        
+        color = (color==GREEN)?BLUE:GREEN;
+        led_set_color(color);
+    }
+#endif
+}
+static void valve_adjust(void)
+{
+    int r=1;
+    ms4525_t m;
+    
+    r = ms4525_get(&m, 1);
+    if(r==0) {
+
+        if(curStat.aPres>0 && m.pres>curStat.aPres) {
+            r++;
+            return;
+        }
+        
+        if(m.pres>0 && ms.pres>0 && ABS(ms.pres-ms.pres)>1.0F) {
+            r++;
+            return;
+        }
+        
+        if(sysState==STAT_RUNNING && adjMode==ADJ_AUTO) {
+            auto_adjust(ms.pres);
+        }
+        
+        ms = m;
+    }
+}
+
+
+
+static void task_valve(void *arg)
+{
+    while(1) {
+        valve_adjust();
+        delay_ms(20);
+    }
 }
 
 
@@ -180,6 +223,7 @@ void task_dev_fn(void *arg)
     tmrId = osTimerNew(dev_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, TIMER_MS);
     
+    task_new(task_valve, 512);
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));
         if(r==0) {
@@ -187,7 +231,7 @@ void task_dev_fn(void *arg)
             switch(e.evt) {
                 case EVT_TIMER:
                 {
-                    r = timer_proc();
+                    timer_proc(&e);
                 }
                 break;
                 

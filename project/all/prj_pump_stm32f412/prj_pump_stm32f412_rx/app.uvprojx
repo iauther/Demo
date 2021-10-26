@@ -313,7 +313,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>0</Optim>
+            <Optim>1</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -422,11 +422,6 @@
               <FileName>task_dev.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user\task_dev.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_misc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\user\task_misc.c</FilePath>
             </File>
             <File>
               <FileName>board.c</FileName>
@@ -542,11 +537,6 @@
               <FileName>msg.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\system\msg.c</FilePath>
-            </File>
-            <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\queue.c</FilePath>
             </File>
             <File>
               <FileName>main_app.c</FileName>

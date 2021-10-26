@@ -327,7 +327,8 @@ void TIM2_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_1]->htim);}
 void TIM3_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_2]->htim);}
 void TIM4_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_3]->htim);}
 void TIM5_IRQHandler(void){HAL_TIM_IRQHandler(&pwm_handle[TIMER_4]->htim);}
-#define PERIOD_OF(freq)             ((sys_freq)/(freq)-1)
+
+#define PERIOD_OF(freq)             ((sys_freq)/(freq))
 #define PULSE_OF(period, dr)        ((U32)((period)*(dr)))
 
 static int base_init(pwm_handle_t *h)
@@ -418,9 +419,9 @@ static int oc_ic_init(pwm_handle_t *h)
                     if (HAL_TIM_PWM_ConfigChannel(&h->htim, &oc, info->chn) != HAL_OK) {
                         return -1;
                     }
-                    HAL_TIM_PWM_Start(&h->htim, info->chn);
                     
                     pin_init(&pCh[i], 1);
+                    HAL_TIM_PWM_Start(&h->htim, info->chn);
                 }
                 
                 default:

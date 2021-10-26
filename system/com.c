@@ -155,7 +155,7 @@ static int cmd_proc(void *data)
         #ifndef _WIN32
             sysState = STAT_POWEROFF;
             notice_stop(DEV_LED|DEV_BUZZER);led_set_color(BLANK); buzzer_stop();
-            power_on(PDEV_PAD, 0, 0);
+            power_on(PDEV_PAD, 0);
         #endif
         }
         break;
@@ -315,6 +315,14 @@ static U8 normal_data_proc(pkt_hdr_t *p)
                         err = ERROR_DAT_VACUUM;
                     }
                     else {
+                        sett_t *s1=sett;
+                        sett_t *s2=&curPara.setts.sett[sett->mode];
+                        
+                        if(s1->pres != s2->pres) {
+                            vacuum_reached = 0;
+                            air_act = (s1->pres>s2->pres)?AIR_PUMP:AIR_LEAK;
+                        }
+                        
                         curPara.setts.sett[sett->mode] = *sett;
                         nd.ptr = &curPara.setts.sett[sett->mode];
                         nd.len = sizeof(curPara.setts.sett[sett->mode]);
@@ -326,28 +334,43 @@ static U8 normal_data_proc(pkt_hdr_t *p)
                     if(mode>=MODE_MAX) {
                         err = ERROR_DAT_MODE;
                     }
-                    else {
+                    else if(curPara.setts.mode!=mode){
+                        sett_t *s1=&curPara.setts.sett[mode];
+                        sett_t *s2=&curPara.setts.sett[curPara.setts.mode];
+                        
+                        if(s1->pres != s2->pres) {
+                            vacuum_reached = 0;
+                            air_act = (s1->pres>s2->pres)?AIR_PUMP:AIR_LEAK;
+                        }
+                        
                         curPara.setts.mode = mode;
                         nd.ptr = &curPara.setts.mode;
                         nd.len = sizeof(curPara.setts.mode);
                     }
                 }
-                else {
+                else if (p->dataLen == sizeof(setts_t)){
                     setts_t* setts = (setts_t*)p->data;
                     
                     if(setts->mode>=MODE_MAX) {
                         err = ERROR_DAT_MODE;
                     }
                     else {
+                        
+                        sett_t *s1=setts[setts->mode].sett;
+                        sett_t *s2=&curPara.setts.sett[curPara.setts.mode];
+                        
+                        if(s1->pres != s2->pres) {
+                            vacuum_reached = 0;
+                            air_act = (s1->pres>s2->pres)?AIR_PUMP:AIR_LEAK;
+                        }
+                        
                         curPara.setts = *setts;
                         nd.ptr = &curPara.setts;
                         nd.len = sizeof(curPara.setts);
                     }
                 }
                 
-                #ifdef OS_KERNEL
-                task_misc_save_paras(&nd);
-                #endif
+                paras_write_node(&nd);
             }
             else {
                 r = pkt_send(TYPE_SETT, 0, &curPara.setts, sizeof(curPara.setts));

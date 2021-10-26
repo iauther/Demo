@@ -13,7 +13,7 @@ enum {
 
 int power_init(void);
 
-int power_on(U8 pdev, U8 on, U32 dlyms);
+int power_on(U8 pdev, U8 on);
 
 #endif
 

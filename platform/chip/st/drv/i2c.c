@@ -265,7 +265,14 @@ int i2c_deinit(handle_t *h)
 }
 
 
-int i2c_read(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop)
+static void i2c_reset(i2c_handle_t *h)
+{
+    HAL_I2C_DeInit(&h->hi2c);
+    HAL_I2C_Init(&h->hi2c);
+}
+
+
+int i2c_read(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop, U32 timeout)
 {
     int r;
     i2c_handle_t *ih=(i2c_handle_t*)h;
@@ -275,14 +282,17 @@ int i2c_read(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop)
     }
     
     lock_dynamic_hold(ih->lock);
-    r = HAL_I2C_Master_Receive2(&ih->hi2c, (addr<<1), data, len, HAL_MAX_DELAY, bStop);
+    r = HAL_I2C_Master_Receive2(&ih->hi2c, (addr<<1), data, len, timeout, bStop);
+    if(r!=HAL_OK) {
+        i2c_reset(ih);
+    }
     lock_dynamic_release(ih->lock);
     
     return r;
 }
 
 
-int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop)
+int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop, U32 timeout)
 {
     int r;
     i2c_handle_t *ih=(i2c_handle_t*)h;
@@ -292,7 +302,10 @@ int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop)
     }
     
     lock_dynamic_hold(ih->lock);
-    r = HAL_I2C_Master_Transmit2(&ih->hi2c, (addr<<1), data, len, HAL_MAX_DELAY, bStop);
+    r = HAL_I2C_Master_Transmit2(&ih->hi2c, (addr<<1), data, len, timeout, bStop);
+    if(r!=HAL_OK) {
+        i2c_reset(ih);
+    }
     lock_dynamic_release(ih->lock);
     
     return r;
@@ -307,7 +320,7 @@ int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop)
 #define CALC_DEVADD_8BIT(dev_add , mem_add)   ((dev_add) | (uint8_t)(((mem_add) >> _P0_SHIFT_VAL_MEMADD_SIZE_8BIT) & _P0_BIT_SEL_MEMADD_SIZE_8BIT)) /* Calculating new address */
 #define CALC_DEVADD_16BIT(dev_add , mem_add)  ((dev_add) | (uint8_t)(((mem_add) >> _P0_SHIFT_VAL_MEMADD_SIZE_16BIT) & _P0_BIT_SEL_MEMADD_SIZE_16BIT)) /* Calculating new address */
 
-int i2c_at_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len)
+int i2c_at_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len, U32 timeout)
 {
     int r;
     U16 deviceAddr=(devAddr<<1);
@@ -319,14 +332,17 @@ int i2c_at_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data,
     
     lock_dynamic_hold(ih->lock);
     deviceAddr = (memAddrSize==I2C_MEMADD_SIZE_8BIT)?CALC_DEVADD_8BIT(deviceAddr,memAddr):CALC_DEVADD_16BIT(deviceAddr,memAddr);
-    r = HAL_I2C_Mem_Read(&ih->hi2c, deviceAddr, memAddr, memAddrSize, data, len, HAL_MAX_DELAY);
+    r = HAL_I2C_Mem_Read(&ih->hi2c, deviceAddr, memAddr, memAddrSize, data, len, timeout);
+    if(r!=HAL_OK) {
+        i2c_reset(ih);
+    }
     lock_dynamic_release(ih->lock);
     
     return r;
 }
 
 
-int i2c_at_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len)
+int i2c_at_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len, U32 timeout)
 {
     int r;
     U16 deviceAddr=(devAddr<<1);
@@ -338,14 +354,17 @@ int i2c_at_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data
     
     lock_dynamic_hold(ih->lock);
     deviceAddr = (memAddrSize==I2C_MEMADD_SIZE_8BIT)?CALC_DEVADD_8BIT(deviceAddr,memAddr):CALC_DEVADD_16BIT(deviceAddr,memAddr);
-    r = HAL_I2C_Mem_Write(&ih->hi2c, deviceAddr, memAddr, memAddrSize, data, len, HAL_MAX_DELAY);
+    r = HAL_I2C_Mem_Write(&ih->hi2c, deviceAddr, memAddr, memAddrSize, data, len, timeout);
+    if(r!=HAL_OK) {
+        i2c_reset(ih);
+    }
     lock_dynamic_release(ih->lock);
     
     return r;
 }
 
 
-int i2c_mem_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len)
+int i2c_mem_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len, U32 timeout)
 {
     int r;
     U16 deviceAddr=(devAddr<<1);
@@ -356,14 +375,17 @@ int i2c_mem_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data
     }
     
     lock_dynamic_hold(ih->lock);
-    r = HAL_I2C_Mem_Read(&ih->hi2c, deviceAddr, memAddr, memAddrSize, data, len, HAL_MAX_DELAY);
+    r = HAL_I2C_Mem_Read(&ih->hi2c, deviceAddr, memAddr, memAddrSize, data, len, timeout);
+    if(r!=HAL_OK) {
+        i2c_reset(ih);
+    }
     lock_dynamic_release(ih->lock);
     
     return r;
 }
 
 
-int i2c_mem_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len)
+int i2c_mem_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len, U32 timeout)
 {
     int r;
     U16 deviceAddr=(devAddr<<1);
@@ -374,7 +396,10 @@ int i2c_mem_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *dat
     }
     
     lock_dynamic_hold(ih->lock);
-    r = HAL_I2C_Mem_Write(&ih->hi2c, deviceAddr, memAddr, memAddrSize, data, len, HAL_MAX_DELAY);
+    r = HAL_I2C_Mem_Write(&ih->hi2c, deviceAddr, memAddr, memAddrSize, data, len, timeout);
+    if(r!=HAL_OK) {
+        i2c_reset(ih);
+    }
     lock_dynamic_release(ih->lock);
     
     return r;

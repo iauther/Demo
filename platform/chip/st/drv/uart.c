@@ -459,6 +459,12 @@ int uart_deinit(handle_t *h)
 }
 
 
+static void uart_reset(uart_handle_t *h)
+{
+    HAL_UART_DeInit(&h->huart);
+    HAL_UART_Init(&h->huart);
+}
+
 int uart_read(handle_t h, U8 *data, U32 len)
 {
     int r;
@@ -478,6 +484,11 @@ int uart_read(handle_t h, U8 *data, U32 len)
     else {
         r = HAL_UART_Receive_DMA(&uh->huart, data, len);
     }
+    
+    if(r!=HAL_OK) {
+        uart_reset(uh);
+    }
+    
     lock_dynamic_release(uh->lock);
     
     return r;
@@ -526,6 +537,11 @@ int uart_write(handle_t h, U8 *data, U32 len)
     {
         r = HAL_UART_Transmit(&uh->huart, data, len, HAL_MAX_DELAY);
     }
+    
+    if(r!=HAL_OK) {
+        uart_reset(uh);
+    }
+    
     lock_dynamic_release(uh->lock);
     
     return r;

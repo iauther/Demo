@@ -38,6 +38,9 @@ extern U8 sysState;
 extern U8 sysMode;
 extern stat_t curStat;
 extern para_t curPara;
+extern U8 air_act;
+extern U8 vacuum_reached;
+extern F32 bias_value;
 extern ack_timeout_t ackTimeout;
 extern notice_t allNotice[LEV_MAX];
 

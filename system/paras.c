@@ -105,7 +105,9 @@ U8 sysState=STAT_UPGRADE;
 
 stat_t  curStat;
 para_t  curPara;
-
+U8 air_act=AIR_PUMP;
+U8 vacuum_reached=0;
+F32 bias_value=0.77F;
 
 ////////////////////////////////////////////////////////////
 int paras_load(void)

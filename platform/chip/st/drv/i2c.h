@@ -36,16 +36,16 @@ handle_t i2c_init(i2c_cfg_t *cfg);
 
 int i2c_deinit(handle_t *h);
     
-int i2c_read(handle_t h, U16 addr, U8 *data,  U32 len, U8 bStop);
-int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop);
+int i2c_read(handle_t h, U16 addr, U8 *data,  U32 len, U8 bStop, U32 timeout);
+int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop, U32 timeout);
 
 int i2c_set_callback(handle_t h, i2c_callback callback);
 
-int i2c_at_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len);
-int i2c_at_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len);
+int i2c_at_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len, U32 timeout);
+int i2c_at_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len, U32 timeout);
 
-int i2c_mem_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len);
-int i2c_mem_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len);
+int i2c_mem_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len, U32 timeout);
+int i2c_mem_write(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len, U32 timeout);
 
 
 

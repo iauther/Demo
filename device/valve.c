@@ -11,7 +11,7 @@ int valve_init(void)
     gpio_pin_t pin=GPIO_VALVE_PIN;
     
     gpio_init(&pin, MODE_OUTPUT);
-    valve_set(VALVE_CLOSE);
+    valve_set(VALVE_CLOSE);   
     
     return 0;
 }

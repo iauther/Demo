@@ -10,7 +10,6 @@
 enum {
     TASK_COM=0,
     TASK_DEV,
-    TASK_MISC,
     
     TASK_MAX
 };
@@ -26,17 +25,16 @@ typedef struct {
 
 void task_com_fn(void *arg);
 void task_dev_fn(void *arg);
-void task_misc_fn(void *arg);
 
+handle_t task_new(osThreadFunc_t task, U32 stack_size);
 handle_t task_create(int id, osThreadFunc_t task, U32 stack_size);
 int task_msg_send(int task_id, U8 evt, U8 type, void *data, U16 len);
 int task_msg_post(int task_id, U8 evt, U8 type, void *data, U16 len);
 
-int task_misc_save_paras(node_t *n);
 void task_start_others(void);
 
+int task_init(void);
 int task_start(void);
-int task_new(osThreadFunc_t fn, void *arg);
 #endif
 
 #endif

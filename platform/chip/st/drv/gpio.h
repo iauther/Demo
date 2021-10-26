@@ -11,6 +11,14 @@ enum {
     OUTPUT,
 };
 
+
+enum {
+    PULL_NONE=0,
+    PULL_UP,
+    PULL_DOWN,
+};
+
+
 enum {
     MODE_INPUT=0,
     MODE_OUTPUT,

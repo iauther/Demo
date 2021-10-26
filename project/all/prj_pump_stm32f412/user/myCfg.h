@@ -88,8 +88,8 @@
     
     #define GPIO_WDG_PIN            {GPIOA, GPIO_PIN_0}
     #define GPIO_AT24CXX_PIN        {GPIOA, GPIO_PIN_1}
-    #define GPIO_PAD_PWR1_PIN       {GPIOA, GPIO_PIN_4}    //PAD POWER CONTROL PIN1
-    #define GPIO_PAD_PWR2_PIN       {GPIOA, GPIO_PIN_6}    //PAD POWER CONTROL PIN2
+    #define GPIO_PAD_PWR_PIN        {GPIOA, GPIO_PIN_4}    //PAD POWER CONTROL PIN
+    #define GPIO_PAD_PWR2_PIN       {GPIOC, GPIO_PIN_4}
     
     #define GPIO_BUZZER_PIN         {GPIOA, GPIO_PIN_5}
     

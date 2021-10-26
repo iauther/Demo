@@ -19,13 +19,13 @@ int at24cxx_init(void)
 
 int at24cxx_read_byte(U16 addr, U8 *data)
 {
-    return i2c_at_read(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1); 
+    return i2c_at_read(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1, 10); 
 }
 
 
 int at24cxx_write_byte(U16 addr, U8 *data)
 {
-    return i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1); 
+    return i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1, 10); 
 }
 
 
@@ -39,7 +39,7 @@ int at24cxx_read(U16 addr, U8 *data, U16 len)
         return -1;
     }
     
-    r = i2c_at_read(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
+    r = i2c_at_read(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len, len); /* Write data */
     //delay_ms(MEM_STWC); /* Delay for Self Timed Write Cycle */
     
     return r;
@@ -58,11 +58,11 @@ int at24cxx_write(U16 addr, U8 *data, U16 len)
     }
     
     if (page_capacity >= len) {/* Check memory page capacity */
-        r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
+        r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len, 20); /* Write data */
         delay_ms(MEM_STWC); /* Delay for Self Timed Write Cycle */
     }
     else {
-        r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, page_capacity); /* Write data */
+        r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, page_capacity, 20); /* Write data */
         delay_ms(MEM_STWC); /* Delay for Self Timed Write Cycle */
 
         if (r == 0) {/* Check i2c status */
@@ -73,10 +73,10 @@ int at24cxx_write(U16 addr, U8 *data, U16 len)
             
             for (; (start_page <= end_page) && (r == 0) ;start_page++) {/* Loop for write data */
                 if (len < MEM_PAGE_SIZE) {/* Check data length */
-                    r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len); /* Write data */
+                    r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len, 20); /* Write data */
                 }
                 else {
-                    r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, MEM_PAGE_SIZE); /* Write data */
+                    r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, MEM_PAGE_SIZE, 20); /* Write data */
                     addr    += MEM_PAGE_SIZE; /* Set new address */
                     data    += MEM_PAGE_SIZE; /* Set new data address */
                     len     -= MEM_PAGE_SIZE; /* Set new data length */

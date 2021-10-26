@@ -5,9 +5,9 @@
 #endif
 
 
-
-#define INDEXOF(grp) ((U8)(((U32)(grp)-GPIOA_BASE)/0x400))
-#define DATAOF(pin)  (&gpioData[(int)log2(pin)])
+#define INDEX(gpio)     ((int)log2(gpio))
+#define GRP_INDEX(grp)  ((U8)(((U32)(grp)-GPIOA_BASE)/0x400))
+#define DATA_OF(gpio)   (&gpioData[INDEX(gpio)])
 typedef struct {
     gpio_pin_t          pin;
     GPIO_InitTypeDef    init;
@@ -58,23 +58,6 @@ void EXTI5_IRQHandler(void)
                                    
                                    
                                    
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
-                                   
 void HAL_GPIO_EXTI_Callback(uint16_t pin)
 {
     int x=log2(pin);
@@ -103,12 +86,12 @@ int gpio_init(gpio_pin_t *pin, U8 mode)
 
     init.Pin = pin->pin;
     init.Mode = modeMap[mode];
-    init.Pull = GPIO_PULLUP;
+    init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_DeInit(pin->grp, pin->pin);
     HAL_GPIO_Init(pin->grp, &init);
     
-    pGpio = DATAOF(pin->pin);
+    pGpio = DATA_OF(pin->pin);
     pGpio->callback = NULL;
     pGpio->enable = 0;
     pGpio->init = init;
@@ -145,7 +128,7 @@ int gpio_set_dir(gpio_pin_t *pin, U8 dir)
     HAL_GPIO_DeInit(pin->grp, pin->pin);
     HAL_GPIO_Init(pin->grp, &init);
     
-    DATAOF(pin->pin)->init = init;
+    DATA_OF(pin->pin)->init = init;
     
     return 0;
 }
@@ -157,7 +140,7 @@ int gpio_get_dir(gpio_pin_t *pin, U8 *hl)
         return -1;
     }
     
-    *hl = (DATAOF(pin->pin)->init.Mode==GPIO_MODE_INPUT)?INPUT:OUTPUT;
+    *hl = (DATA_OF(pin->pin)->init.Mode==GPIO_MODE_INPUT)?INPUT:OUTPUT;
     
     return 0;
 }
@@ -188,14 +171,14 @@ int gpio_pull(gpio_pin_t *pin, U8 type)
         return -1;
     }
     
-    init = DATAOF(pin->pin)->init;
+    init = DATA_OF(pin->pin)->init;
     
     init.Pin = pin->pin;
     init.Pull = type;
     init.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_DeInit(pin->grp, pin->pin);
     HAL_GPIO_Init(pin->grp, &init);
-    DATAOF(pin->pin)->init = init;
+    DATA_OF(pin->pin)->init = init;
     
     return 0;
 }
@@ -203,12 +186,14 @@ int gpio_pull(gpio_pin_t *pin, U8 type)
 
 
 int gpio_set_callback(gpio_pin_t *pin, gpio_callback cb)
-{   
+{
+    int index;
+    
     if(!pin) {
         return -1;
     }
     
-    DATAOF(pin->pin)->callback = cb;
+    DATA_OF(pin->pin)->callback = cb;
     
     //NVIC_SetPriorityGrouping(NVIC_PriorityGroup_4);
     //HAL_EXTI_RegisterCallback();

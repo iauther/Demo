@@ -90,6 +90,33 @@ static int dev_deinit(void)
     return r;
 }
 
+static int tight_check(void)
+{
+    int cnt=150;
+    ms4525_t m;
+    F32 prev;
+    
+    ms4525_get(&m, 0);
+    prev = m.pres;
+    
+    valve_set(VALVE_OPEN);
+    while(cnt-->0) {
+        
+        delay_ms(1000);
+        ms4525_get(&m, 0);
+        if((m.pres<1.0F) && (prev-m.pres<0.01F)) {
+            bias_value = m.pres;
+            break;
+        }
+        
+        prev = m.pres;
+    }
+    valve_set(VALVE_CLOSE);
+    
+    return 0;
+}
+
+
 
 
 
@@ -103,17 +130,25 @@ int board_init(void)
 {
     int r;
     
+#ifdef OS_KERNEL
     SCB->VTOR = FLASH_BASE | APP_OFFSET;
     __enable_irq();
+#endif
     
     r = HAL_Init();
     r = clk2_init();
-    r = htimer_init(NULL);
+
+#ifdef OS_KERNEL
+    task_init();
+#endif
     
+    r = htimer_init(NULL);
     r = bus_init();
     r = dev_init();
     
     r = paras_load();
+    
+    //tight_check();
 
 #ifdef OS_KERNEL
     led_set_color(GREEN);

@@ -14,7 +14,7 @@ typedef struct {
 
 int ms4525_init(void);
 int ms4525_deinit(void);
-int ms4525_get(ms4525_t *m);
+int ms4525_get(ms4525_t *m, U8 use_bias);
 void ms4525_test(void);
 
 #endif
