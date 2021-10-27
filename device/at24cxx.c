@@ -10,6 +10,11 @@ static handle_t atHandle=NULL;
 
 int at24cxx_init(void)
 {
+    gpio_pin_t p=GPIO_AT24CXX_PIN;
+    
+    gpio_init(&p, MODE_OUTPUT);
+    gpio_set_hl(&p, 1);
+    
     atHandle = i2c2Handle;
     //at24cxx_test();
     
@@ -25,7 +30,14 @@ int at24cxx_read_byte(U16 addr, U8 *data)
 
 int at24cxx_write_byte(U16 addr, U8 *data)
 {
-    return i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1, 10); 
+    int r;
+    gpio_pin_t p=GPIO_AT24CXX_PIN;
+    
+    gpio_set_hl(&p, 0);
+    r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, 1, 10); 
+    gpio_set_hl(&p, 1);
+    
+    return r;
 }
 
 
@@ -34,6 +46,7 @@ int at24cxx_write_byte(U16 addr, U8 *data)
 int at24cxx_read(U16 addr, U8 *data, U16 len)
 {
     int r;
+    gpio_pin_t p=GPIO_AT24CXX_PIN;
     
     if ( !atHandle || (addr + len) >= MEM_MAX_SIZE ) {/* Check data length */
         return -1;
@@ -49,6 +62,7 @@ int at24cxx_read(U16 addr, U8 *data, U16 len)
 int at24cxx_write(U16 addr, U8 *data, U16 len)
 {
     int r;
+    gpio_pin_t p=GPIO_AT24CXX_PIN;
     U16  start_page    = addr / MEM_PAGE_SIZE; /* Calculating memory starting page */
 	U16  end_page      = (addr + len) / MEM_PAGE_SIZE; /* Calculating memory end page */
 	U16  page_capacity = ((start_page + 1) * MEM_PAGE_SIZE) - addr; /* Calculating memory page capacity */
@@ -57,6 +71,7 @@ int at24cxx_write(U16 addr, U8 *data, U16 len)
         return -1;
     }
     
+    gpio_set_hl(&p, 0);
     if (page_capacity >= len) {/* Check memory page capacity */
         r = i2c_at_write(atHandle, AT24CXX_ADDR, addr, MEMADD_SIZE, data, len, 20); /* Write data */
         delay_ms(MEM_STWC); /* Delay for Self Timed Write Cycle */
@@ -89,6 +104,7 @@ int at24cxx_write(U16 addr, U8 *data, U16 len)
             }
         }
     }
+    gpio_set_hl(&p, 1);
     
     return r;
 }

@@ -166,7 +166,7 @@ static void timer_proc(evt_t *e)
         paras_set_state(sysState);
     }
     
-#if 1   //for test
+#if 0   //for test
     tmr_cnt++;
     if(tmr_cnt%STAT_CNT==0) {
         pkt_send(TYPE_STAT, 0, &curStat, sizeof(curStat));

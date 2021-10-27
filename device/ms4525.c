@@ -7,8 +7,7 @@
 #include "myCfg.h"
 
 //²îÑ¹¼Æ
-
-//#define USE_SI2C
+//#define USE_CALIBRATION
 
 
 
@@ -41,8 +40,13 @@ static int ms_read(ms4525_t *m, U8 use_bias)
         
         if(m) {
             if(use_bias) {
+            #ifdef USE_CALIBRATION
                 pres = ABS(KPA_OF(v1))-bias_value;
                 m->pres = (ABS(pres)<0.2F)?0:pres;
+            #else
+                pres = ABS(KPA_OF(v1));
+                m->pres = (ABS(pres)<1.0F)?0:pres;
+            #endif
             }
             else {
                 m->pres = ABS(KPA_OF(v1));

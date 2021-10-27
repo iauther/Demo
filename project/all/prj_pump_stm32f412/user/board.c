@@ -90,7 +90,7 @@ static int dev_deinit(void)
     return r;
 }
 
-static int tight_check(void)
+static int do_calibration(void)
 {
     int cnt=150;
     ms4525_t m;
@@ -148,7 +148,7 @@ int board_init(void)
     
     r = paras_load();
     
-    //tight_check();
+    //do_calibration();
 
 #ifdef OS_KERNEL
     led_set_color(GREEN);

@@ -61,9 +61,11 @@ void task_com_fn(void *arg)
                 continue;
             }
             
-            if(err && !(err>=ERROR_PKT_TYPE && err<ERROR_FW_INFO_VERSION)) {
-                //do something here
-                //led_set_color(RED);
+            if(err==0) {
+                led_set_color(GREEN);
+            }
+            else if(err && !(err>=ERROR_PKT_TYPE && err<ERROR_FW_INFO_VERSION)) {
+                led_set_color(RED);
             }
         }
     }
