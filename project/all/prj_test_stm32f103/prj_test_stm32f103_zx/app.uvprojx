@@ -14,16 +14,16 @@
       <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
-          <Device>STM32F412RETx</Device>
+          <Device>STM32F103ZE</Device>
           <Vendor>STMicroelectronics</Vendor>
-          <PackID>Keil.STM32F4xx_DFP.2.14.0</PackID>
+          <PackID>Keil.STM32F1xx_DFP.2.3.0</PackID>
           <PackURL>http://www.keil.com/pack/</PackURL>
-          <Cpu>IRAM(0x20000000,0x00040000) IROM(0x08000000,0x00080000) CPUTYPE("Cortex-M4") FPU2 CLOCK(12000000) ELITTLE</Cpu>
+          <Cpu>IRAM(0x20000000,0x00010000) IROM(0x08000000,0x00080000) CPUTYPE("Cortex-M3") CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
-          <FlashDriverDll>UL2CM3(-S0 -C0 -P0 -FD20000000 -FC1000 -FN1 -FF0STM32F4xx_512 -FS08000000 -FL080000 -FP0($$Device:STM32F412RETx$CMSIS\Flash\STM32F4xx_512.FLM))</FlashDriverDll>
+          <FlashDriverDll>UL2CM3(-S0 -C0 -P0 -FD20000000 -FC1000 -FN1 -FF0STM32F10x_512 -FS08000000 -FL080000 -FP0($$Device:STM32F103ZE$Flash\STM32F10x_512.FLM))</FlashDriverDll>
           <DeviceId>0</DeviceId>
-          <RegisterFile>$$Device:STM32F412RETx$Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f4xx.h</RegisterFile>
+          <RegisterFile>$$Device:STM32F103ZE$Device\Include\stm32f10x.h</RegisterFile>
           <MemoryEnv></MemoryEnv>
           <Cmp></Cmp>
           <Asm></Asm>
@@ -33,7 +33,7 @@
           <SLE66CMisc></SLE66CMisc>
           <SLE66AMisc></SLE66AMisc>
           <SLE66LinkerMisc></SLE66LinkerMisc>
-          <SFDFile>$$Device:STM32F412RETx$CMSIS\SVD\STM32F412xG.svd</SFDFile>
+          <SFDFile>$$Device:STM32F103ZE$SVD\STM32F103xx.svd</SFDFile>
           <bCustSvd>0</bCustSvd>
           <UseEnv>0</UseEnv>
           <BinPath></BinPath>
@@ -81,9 +81,9 @@
           </BeforeMake>
           <AfterMake>
             <RunUserProg1>1</RunUserProg1>
-            <RunUserProg2>1</RunUserProg2>
+            <RunUserProg2>0</RunUserProg2>
             <UserProg1Name>fromelf.exe --bin -o "$L@L.bin" "$L@L.axf"</UserProg1Name>
-            <UserProg2Name>..\mk.bat 1 "$L@L.bin"</UserProg2Name>
+            <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopA1X>0</nStopA1X>
@@ -110,13 +110,13 @@
         </CommonProperty>
         <DllOption>
           <SimDllName>SARMCM3.DLL</SimDllName>
-          <SimDllArguments> -REMAP -MPU</SimDllArguments>
+          <SimDllArguments> -REMAP</SimDllArguments>
           <SimDlgDll>DCM.DLL</SimDlgDll>
-          <SimDlgDllArguments>-pCM4</SimDlgDllArguments>
+          <SimDlgDllArguments>-pCM3</SimDlgDllArguments>
           <TargetDllName>SARMCM3.DLL</TargetDllName>
-          <TargetDllArguments> -MPU</TargetDllArguments>
+          <TargetDllArguments></TargetDllArguments>
           <TargetDlgDll>TCM.DLL</TargetDlgDll>
-          <TargetDlgDllArguments>-pCM4</TargetDlgDllArguments>
+          <TargetDlgDllArguments>-pCM3</TargetDlgDllArguments>
         </DllOption>
         <DebugOption>
           <OPTHX>
@@ -174,7 +174,7 @@
             <AdsLsxf>1</AdsLsxf>
             <RvctClst>0</RvctClst>
             <GenPPlst>0</GenPPlst>
-            <AdsCpuType>"Cortex-M4"</AdsCpuType>
+            <AdsCpuType>"Cortex-M3"</AdsCpuType>
             <RvctDeviceName></RvctDeviceName>
             <mOS>0</mOS>
             <uocRom>0</uocRom>
@@ -183,7 +183,7 @@
             <hadIRAM>1</hadIRAM>
             <hadXRAM>0</hadXRAM>
             <uocXRam>0</uocXRam>
-            <RvdsVP>2</RvdsVP>
+            <RvdsVP>0</RvdsVP>
             <RvdsMve>0</RvdsMve>
             <RvdsCdeCp>0</RvdsCdeCp>
             <hadIRAM2>0</hadIRAM2>
@@ -246,7 +246,7 @@
               <IRAM>
                 <Type>0</Type>
                 <StartAddress>0x20000000</StartAddress>
-                <Size>0x40000</Size>
+                <Size>0x10000</Size>
               </IRAM>
               <IROM>
                 <Type>1</Type>
@@ -275,8 +275,8 @@
               </OCR_RVCT3>
               <OCR_RVCT4>
                 <Type>1</Type>
-                <StartAddress>0x8008000</StartAddress>
-                <Size>0x78000</Size>
+                <StartAddress>0x8000000</StartAddress>
+                <Size>0x80000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
@@ -301,7 +301,7 @@
               <OCR_RVCT9>
                 <Type>0</Type>
                 <StartAddress>0x20000000</StartAddress>
-                <Size>0x40000</Size>
+                <Size>0x10000</Size>
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
@@ -337,9 +337,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress=177,1296</MiscControls>
-              <Define>USE_HAL_DRIVER,BOARD_PUMP_F412RET6,OS_KERNEL=1</Define>
+              <Define>USE_HAL_DRIVER,STM32F103xE,OS_KERNEL=1</Define>
               <Undefine></Undefine>
-              <IncludePath>../user;../../../../device;../../../../system;../../../../platform/chip/st/stm32f4xx;../../../../platform/chip/st/stm32f4xx/inc;../../../../platform/chip/st/stm32f4xx/inc/Legacy;../../../../platform/os;../../../../platform/core/inc</IncludePath>
+              <IncludePath>../user;../../../../device;../../../../system;../../../../platform/chip/st/stm32f1xx;../../../../platform/chip/st/stm32f1xx/inc;../../../../platform/os;../../../../platform/core/inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -414,16 +414,6 @@
               <FilePath>..\user\task.c</FilePath>
             </File>
             <File>
-              <FileName>task_com.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\user\task_com.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_dev.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\user\task_dev.c</FilePath>
-            </File>
-            <File>
               <FileName>board.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user\board.c</FilePath>
@@ -434,61 +424,14 @@
               <FilePath>..\..\..\..\system\error.h</FilePath>
             </File>
             <File>
-              <FileName>data.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\..\system\data.h</FilePath>
-            </File>
-            <File>
-              <FileName>paras.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\..\system\paras.h</FilePath>
+              <FileName>task_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user\task_test.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
           <GroupName>device</GroupName>
-          <Files>
-            <File>
-              <FileName>at24cxx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\device\at24cxx.c</FilePath>
-            </File>
-            <File>
-              <FileName>buzzer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\device\buzzer.c</FilePath>
-            </File>
-            <File>
-              <FileName>led.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\device\led.c</FilePath>
-            </File>
-            <File>
-              <FileName>ms4525.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\device\ms4525.c</FilePath>
-            </File>
-            <File>
-              <FileName>n950.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\device\n950.c</FilePath>
-            </File>
-            <File>
-              <FileName>valve.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\device\valve.c</FilePath>
-            </File>
-            <File>
-              <FileName>bmp280.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\device\bmp280\bmp280.c</FilePath>
-            </File>
-            <File>
-              <FileName>bmp280_ori.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\device\bmp280\bmp280_ori.c</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>system</GroupName>
@@ -497,21 +440,6 @@
               <FileName>log.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\system\log.c</FilePath>
-            </File>
-            <File>
-              <FileName>upgrade.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\upgrade.c</FilePath>
-            </File>
-            <File>
-              <FileName>pkt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\pkt.c</FilePath>
-            </File>
-            <File>
-              <FileName>paras.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\paras.c</FilePath>
             </File>
             <File>
               <FileName>lock.c</FileName>
@@ -524,16 +452,6 @@
               <FilePath>..\..\..\..\system\date.c</FilePath>
             </File>
             <File>
-              <FileName>com.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\com.c</FilePath>
-            </File>
-            <File>
-              <FileName>nvm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\nvm.c</FilePath>
-            </File>
-            <File>
               <FileName>msg.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\system\msg.c</FilePath>
@@ -544,24 +462,9 @@
               <FilePath>..\..\..\..\system\main_app.c</FilePath>
             </File>
             <File>
-              <FileName>data.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\..\system\data.h</FilePath>
-            </File>
-            <File>
-              <FileName>notice.c</FileName>
+              <FileName>key.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\notice.c</FilePath>
-            </File>
-            <File>
-              <FileName>power.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\power.c</FilePath>
-            </File>
-            <File>
-              <FileName>wdog.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\system\wdog.c</FilePath>
+              <FilePath>..\..\..\..\system\key.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -571,162 +474,97 @@
             <File>
               <FileName>delay.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\delay.c</FilePath>
-            </File>
-            <File>
-              <FileName>flash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\flash.c</FilePath>
-            </File>
-            <File>
-              <FileName>i2c.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\i2c.c</FilePath>
-            </File>
-            <File>
-              <FileName>uart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\uart.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\delay.c</FilePath>
             </File>
             <File>
               <FileName>clk.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\clk.c</FilePath>
-            </File>
-            <File>
-              <FileName>jump.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\jump.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\clk.c</FilePath>
             </File>
             <File>
               <FileName>gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\gpio.c</FilePath>
-            </File>
-            <File>
-              <FileName>pwm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\pwm.c</FilePath>
-            </File>
-            <File>
-              <FileName>htimer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\htimer.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\gpio.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>chip/stm32f4xx</GroupName>
+          <GroupName>chip/stm32f1xx</GroupName>
           <Files>
             <File>
-              <FileName>stm32f4xx_hal.c</FileName>
+              <FileName>stm32f1xx_hal.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_cortex.c</FileName>
+              <FileName>stm32f1xx_hal_cortex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_cortex.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_cortex.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_dma.c</FileName>
+              <FileName>stm32f1xx_hal_dma.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_dma.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_dma.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_dma_ex.c</FileName>
+              <FileName>stm32f1xx_hal_exti.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_dma_ex.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_exti.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_exti.c</FileName>
+              <FileName>stm32f1xx_hal_flash.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_exti.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_flash.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_flash.c</FileName>
+              <FileName>stm32f1xx_hal_flash_ex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_flash.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_flash_ex.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_flash_ex.c</FileName>
+              <FileName>stm32f1xx_hal_gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_flash_ex.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_gpio.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_flash_ramfunc.c</FileName>
+              <FileName>stm32f1xx_hal_pwr.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_flash_ramfunc.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_pwr.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_gpio.c</FileName>
+              <FileName>stm32f1xx_hal_rcc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_gpio.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_rcc.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_i2c.c</FileName>
+              <FileName>stm32f1xx_hal_rcc_ex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_i2c.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_rcc_ex.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_i2c_ex.c</FileName>
+              <FileName>stm32f1xx_hal_tim.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_i2c_ex.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_tim.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_pwr.c</FileName>
+              <FileName>stm32f1xx_hal_tim_ex.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_pwr.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_tim_ex.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_pwr_ex.c</FileName>
+              <FileName>stm32f1xx_it.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_pwr_ex.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_it.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_rcc.c</FileName>
+              <FileName>stm32f1xx_sys.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_rcc.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_sys.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f4xx_hal_rcc_ex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_rcc_ex.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_hal_spi.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_spi.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_hal_tim.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_tim.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_hal_tim_ex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_tim_ex.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_hal_uart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_hal_uart.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_it.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_it.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_sys.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_startup.s</FileName>
+              <FileName>stm32f1xx_startup.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_startup.s</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_startup.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -799,9 +637,9 @@
               <FilePath>..\..\..\..\platform\os\rtx\rtx_timer.c</FilePath>
             </File>
             <File>
-              <FileName>irq_cm4f_armcc.s</FileName>
+              <FileName>irq_cm3_armcc.s</FileName>
               <FileType>2</FileType>
-              <FilePath>..\..\..\..\platform\core\asm\irq_cm4f_armcc.s</FilePath>
+              <FilePath>..\..\..\..\platform\core\asm\irq_cm3_armcc.s</FilePath>
             </File>
           </Files>
         </Group>

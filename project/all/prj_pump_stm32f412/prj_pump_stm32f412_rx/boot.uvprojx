@@ -339,7 +339,7 @@
               <MiscControls>--diag_suppress=177,1296</MiscControls>
               <Define>USE_HAL_DRIVER,BOARD_PUMP_F412RET6</Define>
               <Undefine></Undefine>
-              <IncludePath>../user;../../../../device;../../../../system;../../../../platform/chip/st;../../../../platform/chip/st/stm32f4xx/inc;../../../../platform/chip/st/stm32f4xx/inc/Legacy</IncludePath>
+              <IncludePath>../user;../../../../device;../../../../system;../../../../platform/chip/st/stm32f4xx;../../../../platform/chip/st/stm32f4xx/inc;../../../../platform/chip/st/stm32f4xx/inc/Legacy</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -496,42 +496,42 @@
             <File>
               <FileName>delay.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\drv\delay.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\delay.c</FilePath>
             </File>
             <File>
               <FileName>flash.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\drv\flash.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\flash.c</FilePath>
             </File>
             <File>
               <FileName>i2c.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\drv\i2c.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\i2c.c</FilePath>
             </File>
             <File>
               <FileName>uart.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\drv\uart.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\uart.c</FilePath>
             </File>
             <File>
               <FileName>clk.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\drv\clk.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\clk.c</FilePath>
             </File>
             <File>
               <FileName>jump.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\drv\jump.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\jump.c</FilePath>
             </File>
             <File>
               <FileName>gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\drv\gpio.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\gpio.c</FilePath>
             </File>
             <File>
               <FileName>htimer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\drv\htimer.c</FilePath>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\drv\htimer.c</FilePath>
             </File>
           </Files>
         </Group>

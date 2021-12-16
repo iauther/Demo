@@ -379,7 +379,7 @@ int i2c_set_callback(handle_t h, i2c_callback callback)
 #define SWAP16(x)   (((U16)x)<<8)|(((U16)x)>>8)
 int i2c_mem_read(handle_t h, U16 devAddr, U16 memAddr, U16 memAddrSize, U8 *data, U32 len)
 {
-    int r;
+    int r; 
     U16 addr=SWAP16(memAddr);
     hal_i2c_send_to_receive_config_t cfg;
     i2c_handle_t *ih=(i2c_handle_t*)h;
