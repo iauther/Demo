@@ -6,7 +6,6 @@
 enum {
     I2C_1=0,
     I2C_2,
-    I2C_3,
     
     I2C_MAX
 };

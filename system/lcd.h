@@ -66,7 +66,7 @@ typedef struct {
 void lcd_init(lcd_cfg_t *cfg);
 void lcd_rotate(U8 angle);
 void lcd_set_backlight(U8 on);
-void lcd_clear(U16 color);
+void lcd_fill(U16 color);
 void lcd_draw_line(U16 x1, U16 y1, U16 x2, U16 y2, U16 color);
 void lcd_draw_rect(U16 x1, U16 y1, U16 w, U16 h, uint16_t color);
 void lcd_fill_rect(U16 x1, U16 y1, U16 w, U16 h, U16 color);

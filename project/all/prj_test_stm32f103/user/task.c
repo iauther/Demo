@@ -116,7 +116,7 @@ int task_init(void)
 
 int task_start(void)
 {
-    task_create(TASK_COM,  task_test_fn,  2048);
+    task_create(TASK_COM,  task_test_fn,  1024);
     osKernelStart();
     
     return 0;

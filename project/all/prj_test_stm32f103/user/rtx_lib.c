@@ -27,6 +27,9 @@
 #include "RTX_Config.h"
 #include "rtx_os.h"
 
+#ifdef OS_KERNEL
+
+
 #ifdef    RTE_Compiler_EventRecorder
 #include "EventRecorder.h"
 #include "EventRecorderConf.h"
@@ -769,5 +772,9 @@ void _mutex_free(mutex *m) {
 }
 
 //lint -restore
+
+#endif   //OS_KERNEL
+
+
 
 #endif

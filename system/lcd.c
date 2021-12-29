@@ -4,7 +4,12 @@
 #include "font.h"
 #include "st7789.h"
 
-#define LCD_BUF_SIZE 1000
+
+
+#define SWAP16(a)   ((U16)((a<<8)|(a>>8)))
+
+
+#define LCD_BUF_SIZE (1000*4)
 static U8 lcd_buf[LCD_BUF_SIZE];
 static lcd_cfg_t lcdCfg={0};
 
@@ -13,19 +18,19 @@ static void lcd_write_dat(U8 *data, U32 len)
 {
     st7789_write(ST7789_DAT, data, len);
 }
-static void lcd_set_address(U16 x1, U16 y1, U16 x2, U16 y2)
+static void lcd_set_rect(U16 x1, U16 y1, U16 x2, U16 y2)
 {
-    st7789_set_address(x1, y1, x2, y2);
+    st7789_set_rect(x1, y1, x2, y2);
 }
 
 
-static void lcd_draw_point(U16 x, U16 y, U16 color)
+static inline void lcd_draw_pixel(U16 x, U16 y, U16 color)
 {
-    lcd_set_address(x, y, x, y);
-    st7789_write_data(color >> 8);
-    st7789_write_data(color & 0x00ff); 
+    U16 c=SWAP16(color);
+    
+    lcd_set_rect(x, y, x, y);
+    lcd_write_dat((U8*)&c, 2);
 }
-
 
 
 ////////////////////////////////////////////////////////////
@@ -34,9 +39,9 @@ void lcd_init(lcd_cfg_t *cfg)
     if(!cfg) {
         return;
     }
+    lcdCfg = *cfg;
     
     st7789_init();
-    lcdCfg = *cfg;
 }
 
 
@@ -48,14 +53,11 @@ void lcd_rotate(U8 angle)
 
 void lcd_set_backlight(U8 on)
 {
-    U8 cmd=on?0x29:0x28;
-    
-    st7789_write_cmd(cmd);
-    st7789_set_blk(on); 
+    st7789_set_blk(on);
 }
 
 
-void lcd_clear(U16 color)
+void lcd_fill(U16 color)
 {   
     lcd_fill_rect(0, 0, lcdCfg.width-1, lcdCfg.height-1, color);
 }
@@ -114,7 +116,7 @@ void lcd_draw_line(U16 x1, U16 y1, U16 x2, U16 y2, U16 color)
     y = y1;
     //第一个点无效，所以t的次数加一
     for(t = 0; t <= distance + 1;t++) {
-        lcd_draw_point(x, y, color);
+        lcd_draw_pixel(x, y, color);
     
         /* 判断离实际值最近的像素点 */
         x_temp += delta_x;  
@@ -152,20 +154,18 @@ void lcd_draw_rect(U16 x1, U16 y1, U16 w, U16 h, U16 color)
 
 void lcd_fill_rect(U16 x1, U16 y1, U16 w, U16 h, U16 color)
 {
-    U16 i = 0;
+    U16 i,j;
     U16 x2,y2;
-    U32 size = 0, size_remain = 0;
+    U16 c=SWAP16(color);
+    U32 size = 0, size_remain = 0; 
     
-    x2 = x1 + w;
-    y2 = y1 + h;
-    size = (x2 - x1 + 1) * (y2 - y1 + 1) * 2;
-
+    size = (w + 1) * (h + 1) * 2;
     if(size > LCD_BUF_SIZE) {
         size_remain = size - LCD_BUF_SIZE;
         size = LCD_BUF_SIZE;
     }
-
-    lcd_set_address(x1, y1, x2, y2);
+    
+    lcd_set_rect(x1, y1, x2, y2);
 
     while(1) {
         for(i = 0; i < size / 2; i++) {
@@ -181,7 +181,6 @@ void lcd_fill_rect(U16 x1, U16 y1, U16 w, U16 h, U16 color)
         if(size_remain > LCD_BUF_SIZE) {
             size_remain = size_remain - LCD_BUF_SIZE;
         }
-
         else {
             size = size_remain;
             size_remain = 0;
@@ -190,44 +189,34 @@ void lcd_fill_rect(U16 x1, U16 y1, U16 w, U16 h, U16 color)
 }
 
 
+static U16 chrBuf[2000];
 void lcd_draw_char(U16 x, U16 y, U8 c, U8 font, U16 color, U16 bgcolor)
-{                             
-    U16 temp, t1, t;
-    U16 y0 = y;
-    font_info_t inf = font_get(font);
+{
+    U8 tmp;
+    U16 i, j;
+    U16 x0=x,y0=y;
+    const U8* fontDat;
+    font_info_t info = font_get_info(font);
     
-    c = c - ' ';    /* 得到偏移后的值（ASCII字库是从空格开始取模，所以-' '就是对应字符的字库） */
-    for(t = 0; t < inf.size; t++)  {/*遍历打印所有像素点到LCD */
-       
-        if(FONT_16 == font) {
-            temp = font_1608[c][t];   /* 调用1608字体 */
-        }
-        else if(FONT_24 == font) {
-            temp = font_2412[c][t];   /* 调用2412字体 */
-        }
-        else if(FONT_32 == font) {
-            temp = font_3216[c][t];   /* 调用3216数码管字体 */
-        }
-        else if(FONT_48 == font) {
-            temp = font_4824[c][t];   /* 调用4824数码管字体 */
-        }
-        else {   
-            return;     /* 没有找到对应的字库 */
-        }
-        
-        for(t1 = 0; t1 < 8; t1++)  { /* 打印一个像素点到液晶 */
+    fontDat = font_get_data(c, font);
+    for(i = 0; i < info.size; i++)  {/*遍历打印所有像素点到LCD */
+        tmp = fontDat[i];
+        for(j = 0; j < 8; j++)  { /* 打印一个像素点到液晶 */
                        
-            if(temp & 0x80) {
-                lcd_draw_point(x, y, color);
+            if(tmp & 0x80) {
+                chrBuf[(y-y0)*info.width+x-x0] = SWAP16(color);
             }
-            temp <<= 1;
+            else {
+                chrBuf[(y-y0)*info.width+x-x0] = SWAP16(bgcolor);
+            }
+            tmp <<= 1;
             y++;
             
             if(y >= lcdCfg.height) {
                 return;     /* 超区域了 */
             }
             
-            if((y - y0) == inf.height) {
+            if((y - y0) == info.height) {
                 y = y0;
                 x++;
                 if(x >= lcdCfg.width) {
@@ -236,30 +225,30 @@ void lcd_draw_char(U16 x, U16 y, U8 c, U8 font, U16 color, U16 bgcolor)
                 break;
             }
         }    
-    }                     
+    }
+    
+    lcd_set_rect(x, y, x+info.width-1, y+info.height-1);
+    lcd_write_dat((U8*)chrBuf, info.width*info.height*2);
 } 
 
 
 static void draw_string(U16 x, U16 y, U16 w, U16 h, U8 *str, U8 font, U16 color, U16 bgcolor)
 {
-    U16 x0 = x;
-    font_info_t inf = font_get(font);
+    U16 x0=x;
+    U16 xmax,ymax;
+    font_info_t info = font_get_info(font);
     
-    w += x;
-    h += y;
+    xmax = x+w;
+    ymax = y+h;
     
     while((*str<='~') && (*str>=' '))  {      /* 判断是不是非法字符! */
           
-        if(x >= w) {
-            x = x0; 
-            y += inf.height;
-        }
-        
-        if(y >= h) {   
+        if(x >= xmax || y >= ymax) {
             break;
         }
+        
         lcd_draw_char(x, y, *str, font, color, bgcolor);
-        x += inf.height/2;
+        x += info.width;
         str++;
     }  
 }
@@ -270,13 +259,13 @@ void lcd_draw_string(U16 x, U16 y, U16 w, U16 h, U8 *str, U8 font, U16 color, U1
 {
     U16  sw;
     rect_t rect;
-    font_info_t inf=font_get(font);
+    font_info_t info=font_get_info(font);
     
-    if(inf.height>h) {
+    if(info.height>h) {
         return;
     }
     
-    sw = strlen((char*)str)*inf.width;
+    sw = strlen((char*)str)*info.width;
     if(sw>w) {
         sw = w;
     }
@@ -298,16 +287,16 @@ void lcd_draw_string(U16 x, U16 y, U16 w, U16 h, U8 *str, U8 font, U16 color, U1
         rect.y = y;
     }
     else if(vert==VERTICAL_BOTTOM) {
-        rect.y = y+h-inf.height;
+        rect.y = y+h-info.height;
     }
     else if(vert==VERTICAL_CENTER) {
-        rect.y = y+(h-inf.height)/2;
+        rect.y = y+(h-info.height)/2;
     }
     else {
         return;
     }
     
-    rect.h = inf.height;
+    rect.h = info.height;
     
     
     if(rect.x+sw>=lcdCfg.width) {

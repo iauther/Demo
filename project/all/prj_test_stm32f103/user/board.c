@@ -14,27 +14,26 @@
 #include "myCfg.h"
 
 handle_t i2c1Handle=NULL;
-handle_t adc1Handle=NULL;
-handle_t adc2Handle=NULL;
-
 
 ////////////////////////////////////////////
-
-
 
 void HAL_MspInit(void)
 {
     __HAL_RCC_SYSCFG_CLK_ENABLE();
     __HAL_RCC_PWR_CLK_ENABLE();
+    
+    __HAL_RCC_AFIO_CLK_ENABLE();
+    __HAL_AFIO_REMAP_SWJ_NOJTAG();
 }
 
 int board_init(void)
 {
     int r;
+    lcd_cfg_t cfg={LCD_COLOR, LCD_WIDTH, LCD_HEIGHT};
     
     r = HAL_Init();
     r = clk2_init();
-
+    
 #ifdef OS_KERNEL
     task_init();
     task_start();

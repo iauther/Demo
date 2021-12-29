@@ -15,7 +15,7 @@ typedef struct {
     U8                  enable;
 }gpio_data_t;
 
-static gpio_data_t gpioData[16]={0};
+static gpio_data_t gpioData[6][16]={0};
 IRQn_Type gpioIRQn[4]={EXTI0_IRQn,EXTI1_IRQn,EXTI2_IRQn,EXTI3_IRQn};
 static U32 modeMap[GPIO_MODE_MAX]={GPIO_MODE_INPUT,GPIO_MODE_OUTPUT_PP,GPIO_MODE_IT_RISING,GPIO_MODE_IT_FALLING,
                                    GPIO_MODE_IT_RISING_FALLING,GPIO_MODE_EVT_RISING,GPIO_MODE_EVT_FALLING,GPIO_MODE_EVT_RISING_FALLING};
@@ -23,49 +23,58 @@ static U32 modeMap[GPIO_MODE_MAX]={GPIO_MODE_INPUT,GPIO_MODE_OUTPUT_PP,GPIO_MODE
 
 static uint32_t gpioPin[16]={GPIO_PIN_0,GPIO_PIN_1,GPIO_PIN_2,GPIO_PIN_3,GPIO_PIN_4,GPIO_PIN_5,GPIO_PIN_6,GPIO_PIN_7,
                              GPIO_PIN_8,GPIO_PIN_9,GPIO_PIN_10,GPIO_PIN_11,GPIO_PIN_12,GPIO_PIN_13,GPIO_PIN_14,GPIO_PIN_15};
-static void gpio_irq_handle(void)
+
+static void my_gpio_callback(uint16_t pin)
+{
+    int x=log2(pin);
+//    if(gpioData[x].callback) {
+//        gpioData[x].callback(&pin);
+//    }
+}
+static void my_gpio_handler(GPIO_TypeDef *grp, U16 pin)
+{
+  if (__HAL_GPIO_EXTI_GET_IT(pin) != 0x00u) {
+        __HAL_GPIO_EXTI_CLEAR_IT(pin);
+        my_gpio_callback(pin);
+  }
+    
+    
+}
+
+
+static void gpio_irq_handle(GPIO_TypeDef *grp)
 {
     int i;
     for(i=0;i<16;i++) {
-        HAL_GPIO_EXTI_IRQHandler(gpioPin[i]);
+        my_gpio_handler(grp, gpioPin[i]);
     }
 }
 
 void EXTI0_IRQHandler(void)
 {
-    gpio_irq_handle();
+    gpio_irq_handle(GPIOA);
 }
 void EXTI1_IRQHandler(void)
 {
-    gpio_irq_handle();
+    gpio_irq_handle(GPIOB);
 }
 void EXTI2_IRQHandler(void)
 {
-    gpio_irq_handle();
+    gpio_irq_handle(GPIOC);
 }
 void EXTI3_IRQHandler(void)
 {
-    gpio_irq_handle();
+    gpio_irq_handle(GPIOD);
 }
 void EXTI4_IRQHandler(void)
 {
-    gpio_irq_handle();
+    gpio_irq_handle(GPIOE);
 }
 void EXTI5_IRQHandler(void)
 {
-    gpio_irq_handle();
+    gpio_irq_handle(GPIOF);
 }
                                    
-                                   
-                                   
-void HAL_GPIO_EXTI_Callback(uint16_t pin)
-{
-    int x=log2(pin);
-    if(gpioData[x].callback) {
-        gpioData[x].callback(&pin);
-    }
-}
-
 
 
 
@@ -90,12 +99,13 @@ int gpio_init(gpio_pin_t *pin, U8 mode)
     init.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_DeInit(pin->grp, pin->pin);
     HAL_GPIO_Init(pin->grp, &init);
-    
+/*    
     pGpio = DATA_OF(pin->pin);
     pGpio->callback = NULL;
     pGpio->enable = 0;
     pGpio->init = init;
     pGpio->pin  = *pin;
+*/
     
     return 0;
 }
@@ -128,7 +138,7 @@ int gpio_set_dir(gpio_pin_t *pin, U8 dir)
     HAL_GPIO_DeInit(pin->grp, pin->pin);
     HAL_GPIO_Init(pin->grp, &init);
     
-    DATA_OF(pin->pin)->init = init;
+//    DATA_OF(pin->pin)->init = init;
     
     return 0;
 }
@@ -140,7 +150,7 @@ int gpio_get_dir(gpio_pin_t *pin, U8 *hl)
         return -1;
     }
     
-    *hl = (DATA_OF(pin->pin)->init.Mode==GPIO_MODE_INPUT)?INPUT:OUTPUT;
+//    *hl = (DATA_OF(pin->pin)->init.Mode==GPIO_MODE_INPUT)?INPUT:OUTPUT;
     
     return 0;
 }
@@ -171,14 +181,14 @@ int gpio_pull(gpio_pin_t *pin, U8 type)
         return -1;
     }
     
-    init = DATA_OF(pin->pin)->init;
+//  init = DATA_OF(pin->pin)->init;
     
     init.Pin = pin->pin;
     init.Pull = type;
     init.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_DeInit(pin->grp, pin->pin);
     HAL_GPIO_Init(pin->grp, &init);
-    DATA_OF(pin->pin)->init = init;
+//    DATA_OF(pin->pin)->init = init;
     
     return 0;
 }
@@ -193,7 +203,7 @@ int gpio_set_callback(gpio_pin_t *pin, gpio_callback cb)
         return -1;
     }
     
-    DATA_OF(pin->pin)->callback = cb;
+//    DATA_OF(pin->pin)->callback = cb;
     
     //NVIC_SetPriorityGrouping(NVIC_PriorityGroup_4);
     //HAL_EXTI_RegisterCallback();

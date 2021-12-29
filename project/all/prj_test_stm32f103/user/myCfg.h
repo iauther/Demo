@@ -15,9 +15,10 @@
 
     #define LCD_RST_PIN                 {GPIOC, GPIO_PIN_0}
     #define LCD_CMD_PIN                 {GPIOC, GPIO_PIN_1}
+    #define LCD_BLK_PIN                 {GPIOC, GPIO_PIN_13}
     #define LCD_CLK_PIN                 {GPIOA, GPIO_PIN_5}
     #define LCD_DAT_PIN                 {GPIOA, GPIO_PIN_7}
-    #define LCD_BLK_PIN                 {GPIOC, GPIO_PIN_13}
+    
 
     #define I2C1_FREQ                   (100*1000)
     #define I2C1_SCL_PIN                {GPIOB, GPIO_PIN_6}
@@ -26,7 +27,7 @@
     #define VOLT_S0_PIN                 {GPIOB, GPIO_PIN_0}
     #define VOLT_S1_PIN                 {GPIOB, GPIO_PIN_1}
     #define VOLT_S2_PIN                 {GPIOB, GPIO_PIN_2}
-    #define VOLT_S3_PIN                 {GPIOB, GPIO_PIN_3}
+    #define VOLT_S3_PIN                 {GPIOA, GPIO_PIN_2}//{GPIOB, GPIO_PIN_3}
 
     #define VOLT_ADC1                   {GPIOA, GPIO_PIN_0}
     #define VOLT_ADC2                   {GPIOA, GPIO_PIN_1}
@@ -42,6 +43,10 @@
     #define KEY4_PIN                    {GPIOC, GPIO_PIN_6}
     #define KEY5_PIN                    {GPIOC, GPIO_PIN_7}
     #define KEY6_PIN                    {GPIOC, GPIO_PIN_8}
+    
+    #define POWER_EN                    {GPIOB, GPIO_PIN_8}
+    
+    
 
     #define AT24CXX_ADDR                0x23
     #define GPIO_AT24CXX_PIN            {GPIOC, GPIO_PIN_14}

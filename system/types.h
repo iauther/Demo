@@ -38,6 +38,14 @@ typedef struct _lnode {
     struct _lnode   *next;
 }lnode_t;
 
+typedef struct {
+    U16             x;
+    U16             y;
+    U16             w;
+    U16             h;
+}rect_t;
+
+
 
 #ifndef _WIN32
 #include "platform.h"

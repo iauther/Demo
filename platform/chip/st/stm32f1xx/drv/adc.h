@@ -4,9 +4,24 @@
 #include "types.h"
 #include "drv/gpio.h"
 
-int adc_init(gpio_pin_t *pin);
+#define ADC_CH      2
 
-int adc_get(U32 *adc);
+
+typedef struct {
+    gpio_pin_t  pin;
+    U8          usbDMA;
+}adc_cfg_t;
+
+typedef struct {
+    U32         adc[ADC_CH];
+}adc_data_t;
+
+
+handle_t adc_init(adc_cfg_t *cfg);
+
+int adc_deinit(handle_t *h);
+
+U32 adc_read(handle_t h, U32 ch);
 
 #endif
 

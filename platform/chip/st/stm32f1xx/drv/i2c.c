@@ -9,7 +9,7 @@
 #endif
 
 
-#define NMAX    5
+#define NMAX    2
 
 #ifndef GPIOF
 #define GPIOF 0
@@ -44,24 +44,20 @@ typedef struct {
 
 static i2c_pin_info_t pin_info[I2C_MAX]= {
     {//I2C_1
-        {{GPIOB, GPIO_PIN_6, GPIO_AF4_I2C1}, {GPIOB, GPIO_PIN_8, GPIO_AF4_I2C1}, {NULL, 0, 0}},
-        {{GPIOB, GPIO_PIN_7, GPIO_AF4_I2C1}, {GPIOB, GPIO_PIN_9, GPIO_AF4_I2C1}, {NULL, 0, 0}}
+        {{GPIOB, GPIO_PIN_6, 0}, {GPIOB, GPIO_PIN_8, 0}},
+        {{GPIOB, GPIO_PIN_7, 0}, {GPIOB, GPIO_PIN_9, 0}}
     },
     
     {//I2C_2
-        {{GPIOB, GPIO_PIN_10, GPIO_AF4_I2C2}, {GPIOF, GPIO_PIN_1, GPIO_AF4_I2C2}, {NULL, 0, 0}},
-        {{GPIOB, GPIO_PIN_3,  GPIO_AF9_I2C2}, {GPIOB, GPIO_PIN_9, GPIO_AF9_I2C2}, {GPIOB, GPIO_PIN_11, GPIO_AF4_I2C2}, {GPIOF, GPIO_PIN_0, GPIO_AF4_I2C2}, {NULL, 0, 0}}
+        {{GPIOB, GPIO_PIN_10, 0}, {NULL, 0, 0}},
+        {{GPIOB, GPIO_PIN_11, 0}, {NULL, 0, 0}}
     },
     
-    {//I2C_3
-        {{GPIOA, GPIO_PIN_8, GPIO_AF4_I2C3}, {NULL, 0, 0}},
-        {{GPIOB, GPIO_PIN_8, GPIO_AF4_I2C3}, {GPIOC, GPIO_PIN_9, GPIO_AF4_I2C3}, {NULL, 0, 0}},
-    }
 };
 
 
 
-I2C_TypeDef *i2cDef[I2C_MAX]={I2C1, I2C2, I2C3};
+I2C_TypeDef *i2cDef[I2C_MAX]={I2C1, I2C2};
 static i2c_handle_t *allHandle[I2C_MAX];
 void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
 {
@@ -70,7 +66,7 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
   
     init.Mode = GPIO_MODE_AF_OD;
     init.Pull = GPIO_PULLUP;
-    init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    init.Speed = GPIO_SPEED_FREQ_HIGH;
     switch((U32)i2cHandle->Instance) {
         case (U32)I2C1:
         {
@@ -92,17 +88,6 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
         }
         break;
         
-        case (U32)I2C3:
-        {
-            h = allHandle[I2C_3];
-            __HAL_RCC_I2C3_CLK_ENABLE();
-            __HAL_RCC_GPIOA_CLK_ENABLE();
-            __HAL_RCC_GPIOC_CLK_ENABLE();
-            init.Alternate = GPIO_AF4_I2C3;
-            
-        }
-        break;
-        
         default:
         return;
     }
@@ -110,16 +95,13 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
     
     if(h->info.scl.grp==h->info.sda.grp && h->info.scl.alt==h->info.sda.alt) {
         init.Pin = h->info.scl.pin | h->info.sda.pin;
-        init.Alternate = h->info.scl.alt;
         HAL_GPIO_Init(h->info.scl.grp, &init);
     }
     else {
         init.Pin = h->info.scl.pin;
-        init.Alternate = h->info.scl.alt;
         HAL_GPIO_Init(h->info.scl.grp, &init);
         
         init.Pin = h->info.sda.pin;
-        init.Alternate = h->info.sda.alt;
         HAL_GPIO_Init(h->info.sda.grp, &init);
     }
     
@@ -143,16 +125,8 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
         {
             h = allHandle[I2C_2];
             __HAL_RCC_I2C2_CLK_DISABLE();
-  
         }
-        break;
-        
-        case (U32)I2C3:
-        {
-            h = allHandle[I2C_3];
-            __HAL_RCC_I2C3_CLK_DISABLE();
-        }
-        break;
+        break;        
         
         default:
         return;
