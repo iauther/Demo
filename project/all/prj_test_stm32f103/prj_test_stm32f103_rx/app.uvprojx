@@ -428,6 +428,21 @@
               <FileType>1</FileType>
               <FilePath>..\user\task_test.c</FilePath>
             </File>
+            <File>
+              <FileName>stm32f1xx_hal_conf.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\user\stm32f1xx_hal_conf.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_tcp232.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user\task_tcp232.c</FilePath>
+            </File>
+            <File>
+              <FileName>startup_stm32f103xe.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>.\startup_stm32f103xe.s</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -565,7 +580,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
+                  <IncludeInBuild>1</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -719,11 +734,6 @@
               <FileName>stm32f1xx_sys.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_sys.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f1xx_startup.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_startup.s</FilePath>
             </File>
             <File>
               <FileName>stm32f1xx_hal_adc.c</FileName>

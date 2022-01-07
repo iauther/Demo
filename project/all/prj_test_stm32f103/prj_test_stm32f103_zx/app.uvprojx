@@ -424,9 +424,14 @@
               <FilePath>..\..\..\..\system\error.h</FilePath>
             </File>
             <File>
-              <FileName>task_test2.c</FileName>
+              <FileName>leadswitch.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\user\task_test2.c</FilePath>
+              <FilePath>..\user\leadswitch.c</FilePath>
+            </File>
+            <File>
+              <FileName>startup_stm32f103xe.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>.\startup_stm32f103xe.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -560,11 +565,6 @@
               <FileName>stm32f1xx_sys.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_sys.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f1xx_startup.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_startup.s</FilePath>
             </File>
           </Files>
         </Group>

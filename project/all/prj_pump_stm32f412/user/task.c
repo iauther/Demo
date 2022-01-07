@@ -107,11 +107,6 @@ void task_wait(int task_id)
 }
 
 
-void task_start_others(void)
-{
-    task_create(TASK_DEV,  task_dev_fn,  2048);
-}
-
 
 int task_init(void)
 {

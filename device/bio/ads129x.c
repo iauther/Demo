@@ -1,10 +1,10 @@
 #include "drv/spim.h"
 #include "drv/gpio.h"
 #include "drv/delay.h"
-#include "log.h"
-#include "bio/bio.h"
-#include "tca6424a.h"
-#include "bio/ads129x.h"
+#include "drv/log.h"
+#include "dev/bio/bio.h"
+#include "dev/tca6424a.h"
+#include "dev/bio/ads129x.h"
 #include "cfg.h"
 
 
@@ -809,9 +809,9 @@ static int ads129x_send_cmd(bio_cmd_t *cmd)
         ads129x_reset();
         break;
         
-        case CMD_REG_PRINT:
-        print_regs(1);
-        break;
+        //case CMD_REG_PRINT:
+        //print_regs(1);
+        //break;
         
         default:
         return -1;

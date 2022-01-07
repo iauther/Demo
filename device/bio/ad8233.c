@@ -2,29 +2,44 @@
 #include "bio/ads8866.h"
 #include "tca6424a.h"
 #include "drv/gpio.h"
-#include "drv/timer.h"
+#include "drv/htimer.h"
 #include "log.h"
 #include "drv/delay.h"
 #include "bio/bio.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 
 //#define USE_TIMER
 
-
-
 #define LOFF_INT_PIN        HAL_GPIO_24
 
-bio_stat_t bio_stat={
-    LOFF_CURRENT_DC,
-    LEAD_MAX
-};
+
+typedef enum {
+    DIY_FB_I=0,
+    DIY_FB_II,
+    DIY_FB_III,
+    DIY_WCT,
+}DIY;
+typedef enum {
+    LA,
+    RA,
+    LL,
+}WCT;
 
 static int ad8233_read_ecg(ecg_data_t *ecg);
-
+static void set_lead_current(U8 lead, U8 current);
+static void set_pullup(U8 on);
+static void set_ad8244_bypass(U8 on);
+static void set_wct(WCT wct, U8 on);
+static void set_diy(DIY diy, U8 on);
+static void select_rld(U8 fun);
 
 static bio_setting_t ad8233_sett={
+#ifdef DC_LOFF_DETECT
+    DC,
+#else
     AC,
+#endif
     
     {//wct_set_t
         {1, 1, 1, 0, 0, 0, 0, 0},       //
@@ -36,7 +51,19 @@ static bio_setting_t ad8233_sett={
     },
 };
 
+
 static U8 ad8233_lead_index[LEAD_MAX]={
+#ifdef BOARD_V01_02
+    6,        //LEAD_I
+    5,        //LEAD_II
+    4,        //LEAD_III
+    3,        //LEAD_V1
+    2,        //LEAD_V2
+    1,        //LEAD_V3
+    0,        //LEAD_V4
+    
+    LEAD_MAX
+#else
     7,        //LEAD_I
     6,        //LEAD_II
     5,        //LEAD_III
@@ -46,6 +73,8 @@ static U8 ad8233_lead_index[LEAD_MAX]={
     1,        //LEAD_V4
               
     0,        //LEAD_RLD
+#endif
+    
 };
 
 
@@ -64,8 +93,10 @@ static void data_convert(U16 *data, ecg_data_t *ecg)
     int i;
     U16 adc;
     for(i=0; i<LEAD_MAX; i++) {
-        adc = SWAP16(data[ad8233_lead_index[i]]);
-        ecg->adc[i] = adc;
+        if(ad8233_lead_index[i]<LEAD_MAX) {
+            adc = SWAP16(data[ad8233_lead_index[i]]);
+            ecg->adc[i] = adc;
+        }
     }
 }
 static void ad8233_timer_callback(void *user_data)
@@ -87,12 +118,13 @@ static void set_setting(bio_setting_t *sett)
 
 static void ad8233_loff_callback(void *user_data)
 {
+    gpio_pin_t p={LOFF_INT_PIN};
     //LOGD("_____ loff callback\r\n");
-    gpio_int_en(LOFF_INT_PIN, 0);
+    gpio_int_en(&p, 0);
     if(ad8233_callback.loffCallback) {
         ad8233_callback.loffCallback(user_data);
     }
-    gpio_int_en(LOFF_INT_PIN, 1);
+    gpio_int_en(&p, 1);
 }
 //////////////////////////////////////////////////
 
@@ -167,8 +199,12 @@ static int ad8233_read_ecg(ecg_data_t *ecg)
     if(!ecg) {
         return -1;
     }
-    
-    ads8866_read((U8*)ad8233_buffer, sizeof(ad8233_buffer));
+
+#ifdef BOARD_V01_02
+    ads8866_read((U8*)ad8233_buffer, sizeof(U16)*(LEAD_MAX-1));
+#else
+    ads8866_read((U8*)ad8233_buffer, sizeof(U16)*LEAD_MAX);
+#endif
     if(ecg) {
         ecg->bits = 16;
         data_convert(ad8233_buffer, ecg);
@@ -178,86 +214,181 @@ static int ad8233_read_ecg(ecg_data_t *ecg)
 }
 
 
-
-static void loff_lead_to_etrode(U8 *lead, loff_data_t *loff)
+#define SET_BIT(d,b,v)  \
+        if(v) d |= 1<<b;\
+        else  d &= ~(1<<b)
+static U8 loff_lead_to_etrode(U8 *lead)
 {
+    U8 loff = 0;
     if(lead[LEAD_I] && lead[LEAD_II]) {
-        loff->etrode[ET_RA] = 1;
+        SET_BIT(loff, ET_RA, 1);
         if(lead[LEAD_III]) {
-            loff->etrode[ET_LA] = 1;
-            loff->etrode[ET_LL] = 1;
+            SET_BIT(loff, ET_LA, 1);
+            SET_BIT(loff, ET_LL, 1);
         }
     }
     else if(lead[LEAD_I] && lead[LEAD_III]) {
-        loff->etrode[ET_LA] = 1;
+        SET_BIT(loff, ET_LA, 1);
         if(lead[LEAD_II]) {
-            loff->etrode[ET_RA] = 1;
-            loff->etrode[ET_LL] = 1;
+            SET_BIT(loff, ET_RA, 1);
+            SET_BIT(loff, ET_LL, 1);
         }
     }
     else if(lead[LEAD_II] && lead[LEAD_III]) {
-        loff->etrode[ET_LL] = 1;
+        SET_BIT(loff, ET_LL, 1);
         if(lead[LEAD_I]) {
-            loff->etrode[ET_LA] = 1;
-            loff->etrode[ET_RA] = 1;
+            SET_BIT(loff, ET_LA, 1);
+            SET_BIT(loff, ET_RA, 1);
+        }
+    }
+
+#ifndef BOARD_V01_02
+    SET_BIT(loff, ET_RLD, lead[LEAD_RLD]);
+#endif
+    
+    SET_BIT(loff, ET_V1,  lead[LEAD_V1]);
+    SET_BIT(loff, ET_V2,  lead[LEAD_V2]);
+    SET_BIT(loff, ET_V3,  lead[LEAD_V3]);
+    SET_BIT(loff, ET_V4,  lead[LEAD_V4]);
+    
+    return loff;
+}
+
+static U8 rld_is_off(U8 v)
+{
+    int r;
+    F32 vol;
+    U16 dat;
+
+    r = ads8866_read((U8*)&dat, 2);
+    if(r==0) {
+        vol = SWAP16(dat)*LSB;
+        //LOGD("______vol: %0.2f V\r\n", vol);
+        if(vol<0.1F) {
+            return 1;
         }
     }
     
-    loff->etrode[ET_RLD] = lead[LEAD_RLD];
-    loff->etrode[ET_V1]  = lead[LEAD_V1];
-    loff->etrode[ET_V2]  = lead[LEAD_V2];
-    loff->etrode[ET_V3]  = lead[LEAD_V3];
-    loff->etrode[ET_V4]  = lead[LEAD_V4];
+    return 0;
 }
+
+static void set_all_wct(U8 on)
+{
+    set_wct(LA, on);
+    set_wct(RA, on);
+    set_wct(LL, on);
+}
+static U8 get_lead_loff(U8 lead)
+{
+    U8  x,tmp=0;
+    int dly=5;
+    
+    switch(lead) {
+        case LEAD_I:
+        set_lead_current(LEAD_I, AC);set_lead_current(LEAD_II, DC);set_lead_current(LEAD_III, DC);
+        select_rld(RLD_SRC_I);
+        break;
+        
+        case LEAD_II:
+        set_lead_current(LEAD_I, DC);set_lead_current(LEAD_II, AC);set_lead_current(LEAD_III, DC);
+        select_rld(RLD_SRC_II);
+        break;
+        
+        case LEAD_III:
+        set_lead_current(LEAD_I, DC);set_lead_current(LEAD_II, DC);set_lead_current(LEAD_III, AC);
+        select_rld(RLD_SRC_III);
+        break;
+        
+        default:
+        return 0;
+    }
+    
+    delay_ms(dly);
+    tca6424a_read(TCA6424A_ADDR_L, TCA6424A_INPUT_REG0+2, &tmp, 1);
+    x = (tmp&(1<<lead))?1:0;
+    
+    set_lead_current(LEAD_I, AC);set_lead_current(LEAD_II, AC);set_lead_current(LEAD_III, AC);
+    select_rld(RLD_SRC_DIY);
+    
+    return x;
+}
+static void ac_get_loff(U8 *lead)
+{
+    U8 i,tmp;
+    int dly=20;
+    
+    set_ad8244_bypass(1);
+    
+    tca6424a_read(TCA6424A_ADDR_L, TCA6424A_INPUT_REG0+2, &tmp, 1);
+    for(i=LEAD_V1; i<=LEAD_V4; i++) {
+        lead[i] = (tmp&(1<<i))?1:0;
+    }
+    
+    lead[LEAD_I] = get_lead_loff(LEAD_I);
+    lead[LEAD_II] = get_lead_loff(LEAD_II);
+    lead[LEAD_III] = get_lead_loff(LEAD_III);
+    
+#ifndef BOARD_V01_02 
+    lead[LEAD_RLD] = 0;
+#endif
+
+    set_ad8244_bypass(0);
+    
+}
+
+
+static void dc_get_loff(U8 *lead)
+{
+    U8 i,tmp,dly=5;
+    
+    //set_ad8244_bypass(1);
+    set_pullup(1);
+    delay_ms(5);
+    
+    tca6424a_read(TCA6424A_ADDR_L, TCA6424A_INPUT_REG0+2, &tmp, 1);
+    for(i=LEAD_I; i<=LEAD_V4; i++) {  
+        lead[i] = (tmp&(1<<i))?1:0;
+    }
+    
+#ifndef BOARD_V01_02 
+    lead[LEAD_RLD] = 0;
+#endif
+    
+    set_pullup(0);
+    //set_ad8244_bypass(0);
+}
+
+
 
 static int ad8233_read_loff(loff_data_t *loff)
 {
     int r=-1;
-    F64 vol;
-    U16 dat;
-    U8  lead[LEAD_MAX];
-    U8 i,tmp,rld_off=0;
+    U8  lead[LEAD_MAX]={0};
+    U8 i,t,tmp,rld_off=0;
     
     if(!loff) {
         return -1;
     }
-    
     memset(loff, 0, sizeof(loff_data_t));
-    if(bio_stat.current==DC) {
-        int r1 = ads8866_read((U8*)&dat, 2);
-        if(r1==0) {
-            vol = SWAP16(dat)*LSB;
-            //LOGD("______adc: 0x%04x vol: %0.2f V\r\n", SWAP16(dat), vol);
-            if(vol<0.1) {
-                rld_off = 1;
-            }
-        }
-        
-        r = tca6424a_read(TCA6424A_ADDR_L, TCA6424A_INPUT_REG0+2, &tmp, 1);
-        if(r==0) {
-            for(i=0; i<LEAD_MAX; i++) {
-                lead[i] = (tmp&(1<<i))?1:0;
-                 if(rld_off) {
-                    lead[i] = 1;
-                }
-            }
-            
-            loff_lead_to_etrode(lead, loff);
-            //LOGD("__vol: %0.2f__ lead  : %d, %d, %d, %d, %d, %d, %d, %d\r\n", vol, lead[0], lead[1], lead[2], lead[3], lead[4], lead[5], lead[6], lead[7]);
-            //LOGD("__vol: %0.2f__ etrode: %d, %d, %d, %d, %d, %d, %d, %d\r\n", vol, loff->etrode[0], loff->etrode[1], loff->etrode[2], loff->etrode[3], loff->etrode[4], loff->etrode[5], loff->etrode[6], loff->etrode[7]);
-        }
-        
-        //tca6424a_print_reg("", TCA6424A_ADDR_L);
-    }
-    else if(bio_stat.current==AC && bio_stat.ac_lead<LEAD_MAX) {
-        r = tca6424a_read(TCA6424A_ADDR_L, TCA6424A_INPUT_REG0+2, &tmp, 1);
-        if(r==0) {
-            lead[bio_stat.ac_lead] = (tmp&(1<<bio_stat.ac_lead))?1:0;
-        }
+    
+    return 0;           //因为脱落检测对信号采集有影响，暂不做检测，直接返回 @2021.02.27
+    
+    rld_off = rld_is_off(tmp);
+    if(rld_off) {
+        loff->loff = 0xff;
     }
     else {
-        return -1;
+        
+        if(ad8233_sett.current==AC) {
+            ac_get_loff(lead);
+        }
+        else {
+            dc_get_loff(lead);
+        }
+        
+        loff->loff = loff_lead_to_etrode(lead);
     }
+    //LOGD("lead: %d, %d, %d, %d, %d, %d, %d, %d, loff: 0x%02x\r\n", lead[0], lead[1], lead[2], lead[3], lead[4], lead[5], lead[6], lead[7], loff->loff);
 
     return r;
 }
@@ -312,9 +443,9 @@ static int ad8233_start(void)
 {
     int r=0;
     
-    #ifdef USE_TIMER
+#ifdef USE_TIMER
     r = timer_start(ad8233_tmr_handle);
-    #endif
+#endif
     
     return r;
 }
@@ -324,9 +455,9 @@ static int ad8233_stop(void)
 {
     int r=0;
     
-    #ifdef USE_TIMER
+#ifdef USE_TIMER
     r = timer_stop(ad8233_tmr_handle);
-    #endif
+#endif
     
     return r;
 }
@@ -334,7 +465,7 @@ static int ad8233_stop(void)
 
 static int ad8233_set_callback(bio_callback_t *cb)
 {
-    timer_set_t set;
+    htimer_set_t set;
     gpio_callback_t gc;
     
     if(!cb) {
@@ -355,7 +486,7 @@ static int ad8233_set_callback(bio_callback_t *cb)
     set.repeat = 1;
     set.callback = ad8233_timer_callback;
     
-    timer_set(ad8233_tmr_handle, &set);
+    htimer_set(ad8233_tmr_handle, &set);
 #endif
     
     return 0;
@@ -365,13 +496,13 @@ static int ad8233_get_stat(bio_stat_t *stat)
 {
     int r;
     U16 vol;
+    static int stat_cnt=0;
     
     if(!stat) {
         return -1;
     }
     
-    stat->current = bio_stat.current;
-    stat->ac_lead = bio_stat.ac_lead;
+    stat->current = ad8233_sett.current;
     r = ad8233_read_loff(&stat->loff);
     
     return r;
@@ -405,12 +536,7 @@ static void select_rld(U8 fun)
     }
 }
 
-typedef enum {
-    DIY_FB_I=0,
-    DIY_FB_II,
-    DIY_FB_III,
-    DIY_WCT,
-}DIY;
+
 static void set_diy(DIY diy, U8 on)
 {
     U8 hl=on?1:0;
@@ -454,11 +580,6 @@ static void select_rld_diy(U8 fun)
 }
 
 
-typedef enum {
-    LA,
-    RA,
-    LL,
-}WCT;
 static void set_wct(WCT wct, U8 on)
 {
     U8 hl=on?1:0;
@@ -509,90 +630,62 @@ static void messure_rld(U8 on)
     }
 }
 
-static void select_messure_lead(U8 fun)
+static void set_pullup(U8 on)
 {
-
-    switch(fun) {
-        case MESSURE_LEAD_NORMAL:
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LOFPU_SEL, 1);
-        break;
-        
-        case MESSURE_LEAD_RLD:
-        messure_rld(1);
-        break;
-        
-        case MESSURE_LEAD_NONE:
-        messure_rld(0);
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LOFPU_SEL, 0);
-        break;
-    }
+    U8 hl=on?1:0;
+    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LOFPU_SEL, hl);
 }
 
-
-static void set_tmux(U8 fun)
+static void set_ad8244_bypass(U8 on)
 {
-    if(fun==LOFF_CURRENT_AC) {
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_DC_SEL,  0);              //TMUX1136, 高直流，低交流
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_AC_SEL,  0);
-    }
-    else {
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_DC_SEL,  1);              //TMUX1136, 高直流，低交流
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_AC_SEL,  1);
-    }
+    U8 hl=on?0:1;
+    
+    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_DC_SEL,  hl);
+    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_AC_SEL,  hl);
 }
-static void set_loff_current(U8 fun)
+
+static void set_loff_current(U8 current)
 {
-    U8 hl=0;
+    U8 hl=(current==AC)?1:0;
     
-    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH1, hl);             //AD8233,   高交流，低直流
-    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH2, hl);             //AD8233,   高交流，低直流
-    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH3, hl);
-    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH4, hl);
-    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH5, hl);
-    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH6, hl);
-    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH7, hl);
-    
-    set_tmux(fun);
-    if(fun==LOFF_CURRENT_AC) {
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_DC_SEL,  0);              //TMUX1136, 高直流，低交流
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_AC_SEL,  0);
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LOFPU_SEL, 0);
+    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH1, 0);             //AD8233,   高交流，低直流
+    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH2, 0);             //AD8233,   高交流，低直流
+    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH3, 0);
+    if(current==AC) {
+        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH4, 1);
+        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH5, 1);
+        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH6, 1);
+        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH7, 1);
     }
     else {
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_DC_SEL,  1);              //TMUX1136, 高直流，低交流
-        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LEAD_AC_SEL,  1);
-        
-        if(fun==LOFF_CURRENT_DC_PULLUP) {
-            gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LOFPU_SEL, 1);             //直流检测脱落时才开启上拉
-            //printf("____ FUN_LOFF_DC_PULLUP\r\n");
-        }
-        else {
-            gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_LOFPU_SEL, 0);
-            //printf("____ FUN_LOFF_DC\r\n");
-        }
+        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH4, 0);
+        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH5, 0);
+        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH6, 0);
+        gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_ACDC_SEL_CH7, 0);
     }
 }
 
 
 static U8 pin_map[LEAD_MAX]={AD8233_GPIO_EXT_PIN_ACDC_SEL_CH1, AD8233_GPIO_EXT_PIN_ACDC_SEL_CH2, AD8233_GPIO_EXT_PIN_ACDC_SEL_CH3, AD8233_GPIO_EXT_PIN_ACDC_SEL_CH4,
                              AD8233_GPIO_EXT_PIN_ACDC_SEL_CH5, AD8233_GPIO_EXT_PIN_ACDC_SEL_CH6, AD8233_GPIO_EXT_PIN_ACDC_SEL_CH7, AD8233_GPIO_EXT_PIN_MAX};
-static void select_ac_loff_lead(U8 lead)
+static void set_lead_current(U8 lead, U8 current)
 {
-    U8 hl=0;
-    U8 p1=pin_map[bio_stat.ac_lead];
-    U8 p2=pin_map[lead];
+    U8 hl=(current==AC)?1:0;
+    U8 p=pin_map[lead];    
     
-    if(bio_stat.ac_lead>=LEAD_MAX) {
+    if(p<AD8233_GPIO_EXT_PIN_ACDC_SEL_CH1 || p>AD8233_GPIO_EXT_PIN_ACDC_SEL_CH7) {
         return;
     }
     
-    if(p1>=AD8233_GPIO_EXT_PIN_ACDC_SEL_CH1 && p1<=AD8233_GPIO_EXT_PIN_ACDC_SEL_CH7 ) {
-        gpio_ext_set_hl(p1, 0);         //AD8233,   高交流，低直流
-    }
+    gpio_ext_set_hl(p, hl);         //AD8233,   高交流，低直流
     
-    if(p2>=AD8233_GPIO_EXT_PIN_ACDC_SEL_CH1 && p2<=AD8233_GPIO_EXT_PIN_ACDC_SEL_CH7 ) {
-        gpio_ext_set_hl(p2, 1);         //AD8233,   高交流，低直流
-    }
+    
+}
+
+static void set_fast_recover(U8 v)
+{
+    U8 hl=v?1:0;
+    gpio_ext_set_hl(AD8233_GPIO_EXT_PIN_FR_CH_SEL, hl);
 }
 
 
@@ -617,17 +710,16 @@ static int ad8233_send_cmd(bio_cmd_t *cmd)
         break;
         
         case CMD_SET_LOFF_CURRENT:
-        bio_stat.current = cmd->para;
+        ad8233_sett.current = cmd->para;
         set_loff_current(cmd->para);
         break;
         
-        case CMD_SEL_LOFF_AC_LEAD:
-        bio_stat.ac_lead = cmd->para;
-        select_ac_loff_lead(cmd->para);
+        case CMD_SET_FAST_RECOVER:
+        set_fast_recover(cmd->para);
         break;
         
-        case CMD_MESA_LEAD:
-        select_messure_lead(cmd->para);
+        case CMD_SET_LOFF_PULLUP:
+        set_pullup(cmd->para);
         break;
         
         default:

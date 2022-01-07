@@ -57,7 +57,7 @@ enum {
     LEAD_V1,
     LEAD_V2,
     LEAD_V3,
-    LEAD_V4,    
+    LEAD_V4,
     LEAD_RLD,
     
     LEAD_MAX
@@ -70,10 +70,9 @@ enum {
     CMD_SEL_DIY_SRC,
     CMD_SEL_WCT_SRC,
     CMD_SET_LOFF_CURRENT,
-    CMD_SEL_LOFF_AC_LEAD,
-    CMD_MESA_LEAD,
     CMD_DEV_RESET,
-    CMD_REG_PRINT,
+    CMD_SET_FAST_RECOVER,
+    CMD_SET_LOFF_PULLUP,
 };
 
 enum {      //CMD_SEL_RLD_SRC
@@ -92,11 +91,6 @@ enum {
     RLD_DIY_SRC_WCT_RA=(1<<0),
     RLD_DIY_SRC_WCT_LA=(1<<1),
     RLD_DIY_SRC_WCT_LL=(1<<2),
-};
-enum {
-    LOFF_CURRENT_DC=0,
-    LOFF_CURRENT_DC_PULLUP,
-    LOFF_CURRENT_AC,
 };
 enum {
     MESSURE_LEAD_NONE=0,
@@ -126,7 +120,7 @@ typedef struct {
 }ecg_data_t;
 
 typedef struct {
-    U8        etrode[ET_MAX];           //0: on     1: off,     ads129x use it
+    U8        loff;                 //0: on     1: off
 }loff_data_t;
 
 typedef struct {
@@ -136,8 +130,7 @@ typedef struct {
 }bio_setting_t;
 
 typedef struct {
-    U8          current;            //当前电流，默认直流
-    U8          ac_lead;            //当前使能的交流脱检导联
+    U8          current;            //脱落检测电流，默认交流
     
     loff_data_t loff;
 }bio_stat_t;

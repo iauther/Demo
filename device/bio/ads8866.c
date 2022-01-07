@@ -2,7 +2,7 @@
 #include "drv/gpio.h"
 #include "drv/spim.h"
 #include "log.h"
-#include "cfg.h"
+#include "myCfg.h"
 
 
 
@@ -10,6 +10,7 @@ static handle_t ads8866_spi_handle;
 int ads8866_init(void)
 {
     int r;
+    gpio_pin_t p={SPI_CS_PIN};
     spim_cfg_t cfg;
     
     cfg.pin.cs   = HAL_GPIO_MAX;//here we control cs by user
@@ -31,7 +32,7 @@ int ads8866_init(void)
     ads8866_spi_handle = spim_init(&cfg);
     LOGI("ads8866_init %s\r\n", (ads8866_spi_handle)?"ok":"failed");
     
-    gpio_init(SPI_CS_PIN, HAL_GPIO_DIRECTION_OUTPUT, HAL_GPIO_DATA_LOW);
+    gpio_init(&p, MODE_OUTPUT);
     
     return ads8866_spi_handle?0:-1;
 }
@@ -40,11 +41,12 @@ int ads8866_init(void)
 int ads8866_read(U8 *data, U32 len)
 {
     int r;
+    gpio_pin_t p={SPI_CS_PIN};
     
-    gpio_set_hl(SPI_CS_PIN, HAL_GPIO_DATA_HIGH);
+    gpio_set_hl(&p, 1);
     //r = spim_read(ads8866_spi_info.port, data, len);
     r = spim_read(ads8866_spi_handle, data, len);
-    gpio_set_hl(SPI_CS_PIN, HAL_GPIO_DATA_LOW);
+    gpio_set_hl(&p, 0);
     return r; 
 }
 
@@ -53,10 +55,11 @@ int ads8866_check(void)
 {
     int r;
     U8  tmp[8];
+    gpio_pin_t p={SPI_CS_PIN};
     
-    gpio_set_hl(SPI_CS_PIN, HAL_GPIO_DATA_HIGH);
+    gpio_set_hl(&p, 1);
     r = spim_read(ads8866_spi_handle, tmp, sizeof(tmp));
-    gpio_set_hl(SPI_CS_PIN, HAL_GPIO_DATA_LOW);
+    gpio_set_hl(&p, 0);
     return r; 
 }
 

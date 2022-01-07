@@ -6,13 +6,8 @@
 
 
 enum {
-    MODE_INT=0,
+    MODE_ISR=0,
     MODE_SCAN,
-};
-
-enum {
-    PRESS_LONG=0,
-    PRESS_SHORT,
 };
 
 enum {
@@ -21,41 +16,53 @@ enum {
 };
 
 enum {
-    KEY_UP=0,
+    KEY_NONE=0,
+    
+    KEY_UP,
     KEY_DOWN,
     KEY_LEFT,
     KEY_RIGHT,
     KEY_EXIT,
     KEY_BACK,
     KEY_ENTER,
+    
+    KEY_MAX
 };
 
 typedef struct {
     U8          key;
-    gpio_pin_t  pin;
-}key_map_t;
-
-typedef struct {
-    U8 key;
-    U8 updown;
-    U8 bLongPress;
+    U8          updown;
+    U8          bLongPress;
 }key_t;
 
-typedef int (*key_cb_fn)(key_t *key);
+typedef struct {
+    U8              cnt;
+    key_t           tab[KEY_MAX];
+}key_tab_t;
 
+typedef int (*key_callback_t)(key_t *key);
 
 typedef struct {
-    U8  mode;               //int or scan
-    key_cb_fn cb;
-    U16 longPressTime;       //ms
-    U8 longPressBurst;
-    key_map_t *map;
-}key_cfg_t;
+    U8          key;
+    gpio_pin_t  pin;
+    
+    U8          mode;               //int or scan
+    U8          pressLevel;
+    U16         longPressTime;      //how long time is long press
+    U8          longPressBurst;
+    U16         longPressBurstTimes;
+    
+    key_callback_t callback;
+}key_set_t;
 
 
-int key_init(key_cfg_t *cfg);
+int key_init(key_set_t *set);
 
-int key_set_callback(key_cb_fn cb);
+int key_set_callback(key_callback_t kcb);
+
+int key_get(key_tab_t *tab);
+
+void key_test(void);
 
 #endif
 

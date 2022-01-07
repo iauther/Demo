@@ -7,18 +7,25 @@
 #include "myCfg.h"
 
 
-extern handle_t i2c0Handle;
+extern handle_t i2c0_handle;
+static handle_t tca6424a_handle=NULL;
 
 int tca6424a_init(void)
 {
-#ifdef BOARD_V00_02
+    if(tca6424a_handle) {
+        return -1;
+    }
+    
+#ifdef TCA6424A_ENABLE
     i2c_cfg_t cfg;
     
-    cfg.pin.scl.pin = TEA6424A_I2C_SCL_PIN;
-    cfg.pin.sda.pin = TEA6424A_I2C_SDA_PIN;
-    cfg.freq = TEA6424A_I2C_FREQ;
+    cfg.pin.scl.pin = TCA6424A_SCL_PIN;
+    cfg.pin.sda.pin = TCA6424A_SDA_PIN;
+    cfg.freq = TCA6424A_FREQ;
     cfg.useDMA = 0;
-    i2c0Handle = i2c_init(&cfg);
+    tca6424a_handle = i2c_init(&cfg);
+#else
+    tca6424a_handle = i2c0_handle;
 #endif
     return 0;
 }
@@ -26,11 +33,11 @@ int tca6424a_init(void)
 
 int tca6424a_reset(TCA6424A_ADDR addr)
 {
-    //gpio_pin_t reset_pin={(addr==TCA6424A_ADDR_L)?TCA6424A_L_RESET_PIN:TCA6424A_H_RESET_PIN};
+    //hal_gpio_pin_t reset_pin=(addr==TCA6424A_ADDR_L)?TCA6424A_L_RESET_PIN:TCA6424A_H_RESET_PIN;
     
-	//gpio_init(&reset_pin, MODE_OUTPUT, 0);
+	//gpio_init(reset_pin, HAL_GPIO_DIRECTION_OUTPUT, HAL_GPIO_DATA_LOW);
     //delay_ms(1);
-	//gpio_set(&reset_pin, 1);
+	//gpio_set(reset_pin, HAL_GPIO_DATA_HIGH);
     
     return 0;
 }
@@ -90,10 +97,10 @@ int tca6424a_read(TCA6424A_ADDR addr, U8 reg, U8 *data, U32 len)
     int r;
     U8 cmd = 0x80|reg;;
     
-    r = i2c_write(i2c0Handle, addr, &cmd, 1, 1);
+    r = i2c_write(tca6424a_handle, addr, &cmd, 1, 1);
     //LOGD("______ i2c_write r: %d\r\n", r);
-    r |= i2c_read(i2c0Handle, addr, data, len, 1);
-    //LOGI("______ i2c_read r: %d\r\n", r);
+    r |= i2c_read(tca6424a_handle, addr, data, len, 1);
+    //LOGD("______ i2c_read r: %d\r\n", r);
     
     return r;
 }
@@ -106,7 +113,7 @@ int tca6424a_write(TCA6424A_ADDR addr, U8 reg, U8 *data, U32 len)
     
     tmp[0] = 0x80|reg;
     memcpy(tmp+1, data, len);
-    r = i2c_write(i2c0Handle, addr, tmp, len+1, 1);
+    r = i2c_write(tca6424a_handle, addr, tmp, len+1, 1);
     
     return r;
 }

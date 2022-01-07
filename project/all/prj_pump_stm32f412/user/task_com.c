@@ -29,6 +29,12 @@ static void task_com_init(void)
 }
 
 
+static void task_start_others(void)
+{
+    task_create(TASK_DEV,  task_dev_fn,  2048);
+}
+
+
 void task_com_fn(void *arg)
 {
     int i,r;

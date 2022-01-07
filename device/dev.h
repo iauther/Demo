@@ -14,6 +14,8 @@ enum {
     DEV_BIOSIG,
 };
 
+int dev_init(void);
+
 int dev_check(U8 dev);
 
 

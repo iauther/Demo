@@ -360,7 +360,7 @@
 
 /** BMI160 unique chip identifier */
 #define BMI160_CHIP_ID                       UINT8_C(0xD1)
-#define BMX160_CHIP_ID                       UINT8_C(0xD9)
+#define BMX160_CHIP_ID                       UINT8_C(0xD8)
 
 /** Soft reset command */
 #define BMI160_SOFT_RESET_CMD                UINT8_C(0xb6)

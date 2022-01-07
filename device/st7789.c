@@ -11,6 +11,17 @@ typedef struct {
     U8      data;
 }st_reg_t;
 
+enum {
+    PIN_RST=0,
+    PIN_CMD,
+    PIN_BLK,
+    
+    PIN_MAX
+};
+
+
+static handle_t pinHandle[PIN_MAX]={NULL};
+
 
 static st_reg_t init_data[]={
     
@@ -156,21 +167,20 @@ static int set_rect(U16 x1, U16 y1, U16 x2, U16 y2)
 static void io_init(void)
 {
     int i;
-    gpio_pin_t clk=LCD_CLK_PIN;
-    gpio_pin_t p[]={
+    gpio_cfg_t cfg;
+    gpio_pin_t p[PIN_MAX]={
         LCD_RST_PIN,
         LCD_CMD_PIN,
         LCD_BLK_PIN,
-        
-        {NULL, 0},
+
     };
 
-    for(i=0;; i++) {
-        if(p[i].grp==NULL) {
-            break;
-        }
-        gpio_init(&p[i], MODE_OUTPUT);
-        gpio_set_hl(&p[i], (i==2)?0:1);
+    for(i=0; i<PIN_MAX; i++) {
+        
+        cfg.pin = p[i];
+        cfg.mode = MODE_OUTPUT;
+        pinHandle[i] = gpio_init(&cfg);
+        gpio_set_hl(pinHandle[i], (i==PIN_BLK)?0:1);
     }
 }
 
@@ -220,28 +230,25 @@ static void port_init(void)
 
 static int set_blk(U8 onoff)
 {
-    gpio_pin_t p=LCD_BLK_PIN;
-    
-    gpio_set_hl(&p, onoff);
+    gpio_set_hl(pinHandle[PIN_BLK], onoff);
     return 0;
 }
 
 
 static void set_dc(U8 mode)
 {
-    gpio_pin_t p=LCD_CMD_PIN;
     U8 hl=(mode==ST7789_CMD)?0:1;
     
-    gpio_set_hl(&p, mode);
+    gpio_set_hl(pinHandle[PIN_CMD], mode);
 }
 
 static int st_reset(void)
 {
     gpio_pin_t p=LCD_RST_PIN;
     
-    gpio_set_hl(&p, 0);
+    gpio_set_hl(pinHandle[PIN_RST], 0);
     delay_ms(100);
-    gpio_set_hl(&p, 1);
+    gpio_set_hl(pinHandle[PIN_RST], 1);
     delay_ms(5000);
     
     return 0;

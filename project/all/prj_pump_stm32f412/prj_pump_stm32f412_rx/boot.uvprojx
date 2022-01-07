@@ -337,7 +337,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress=177,1296</MiscControls>
-              <Define>USE_HAL_DRIVER,BOARD_PUMP_F412RET6</Define>
+              <Define>USE_HAL_DRIVER,STM32F412Rx,BOARD_PUMP_F412RET6</Define>
               <Undefine></Undefine>
               <IncludePath>../user;../../../../device;../../../../system;../../../../platform/chip/st/stm32f4xx;../../../../platform/chip/st/stm32f4xx/inc;../../../../platform/chip/st/stm32f4xx/inc/Legacy</IncludePath>
             </VariousControls>
@@ -402,6 +402,11 @@
               <FileName>data.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\..\..\..\system\data.h</FilePath>
+            </File>
+            <File>
+              <FileName>startup_stm32f412rx.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>.\startup_stm32f412rx.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -642,11 +647,6 @@
               <FileName>stm32f4xx_sys.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_sys.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_startup.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f4xx\src\stm32f4xx_startup.s</FilePath>
             </File>
           </Files>
         </Group>
