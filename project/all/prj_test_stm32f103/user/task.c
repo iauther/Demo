@@ -116,7 +116,11 @@ int task_init(void)
 
 int task_start(void)
 {
-    task_create(TASK_COM,  task_test_fn,  1024);
+#ifdef TEST_BOARD_3IN1
+    task_create(TASK_TEST,  task_test,  1024);
+    //task_create(TASK_TCP232,  task_tcp232,  1024);
+#endif
+    
     osKernelStart();
     
     return 0;

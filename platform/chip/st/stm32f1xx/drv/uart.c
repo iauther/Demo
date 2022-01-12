@@ -24,19 +24,19 @@ typedef struct {
     USART_TypeDef           *usart;
     IRQn_Type               uartIRQ;
     
-    U32                     channel;
-    DMA_Stream_TypeDef      *dmaRx;
+    DMA_Channel_TypeDef     *dmaRxCh;
     IRQn_Type               dmaRxIRQ;
     
-    DMA_Stream_TypeDef      *dmaTx;
+    DMA_Channel_TypeDef     *dmaTxCh;
     IRQn_Type               dmaTxIRQ;
 }uart_map_t;
 
+
 uart_map_t UART_MAP[UART_MAX]={
-    {USART1, USART1_IRQn, DMA_CHANNEL_4, DMA2_Stream2, DMA2_Stream2_IRQn, DMA2_Stream7, DMA2_Stream7_IRQn},          
-    {USART2, USART2_IRQn, DMA_CHANNEL_4, DMA1_Stream5, DMA1_Stream5_IRQn, DMA1_Stream6, DMA1_Stream6_IRQn},          
-    {USART3, USART3_IRQn, DMA_CHANNEL_4, DMA1_Stream1, DMA1_Stream1_IRQn, DMA1_Stream3, DMA1_Stream3_IRQn},          
-    {USART6, USART6_IRQn, DMA_CHANNEL_5, DMA2_Stream1, DMA2_Stream1_IRQn, DMA2_Stream6, DMA2_Stream6_IRQn},
+    {USART1, USART1_IRQn, DMA1_Channel5, DMA1_Channel5_IRQn, DMA1_Channel4, DMA1_Channel4_IRQn},          
+    {USART2, USART2_IRQn, DMA1_Channel6, DMA1_Channel6_IRQn, DMA1_Channel7, DMA1_Channel7_IRQn},          
+    {USART3, USART3_IRQn, DMA1_Channel3, DMA1_Channel3_IRQn, DMA1_Channel3, DMA1_Channel3_IRQn},          
+    {UART4,  UART4_IRQn,  DMA2_Channel3, DMA2_Channel3_IRQn, DMA2_Channel5, DMA2_Channel4_5_IRQn},
 };
 
 uart_handle_t *uart_handle[UART_MAX]={NULL};
@@ -53,8 +53,8 @@ static void HAL_UART_IDLE_CALLBACK(uart_handle_t *h)
     if(__HAL_UART_GET_FLAG(&h->huart, UART_FLAG_IDLE)!=RESET)  {//发生IDLE
         __HAL_UART_CLEAR_IDLEFLAG(&h->huart);
         
-        st = h->huart.Instance->SR;
-		st = h->huart.Instance->DR;
+//st = h->huart.Instance->SR;
+//st = h->huart.Instance->DR;
         //HAL_NVIC_DisableIRQ(map->dmaRxIRQ);		//如果不关中断、那么__HAL_DMA_DISABLE会触发DMA2_Stream2_IRQHandler
 		//
         
@@ -76,7 +76,7 @@ static void HAL_UART_IDLE_CALLBACK(uart_handle_t *h)
         }
         
         if(h->mode==MODE_DMA) {
-            __HAL_DMA_SET_COUNTER(h->huart.hdmarx, h->para.blen);
+            //__HAL_DMA_SET_COUNTER(h->huart.hdmarx, h->para.blen);
             HAL_UART_Receive_DMA(&h->huart, h->para.buf, h->para.blen);
             //__HAL_DMA_ENABLE(h->huart.hdmarx);
         }
@@ -97,72 +97,36 @@ static void uart_handler(int uart)
 
 }
 
+enum{RX=0, TX};
 static void uart_dma_handler(char rxtx, int uart)
 {
     uart_handle_t *h=uart_handle[uart];
     
     if(!h) return;
     
-    if(rxtx>0) {
-        HAL_DMA_IRQHandler(&h->hdmaTx);
-    }
-    else {
+    if(rxtx==RX) {
         HAL_DMA_IRQHandler(&h->hdmaRx);
     }
+    else if(rxtx==TX){
+        HAL_DMA_IRQHandler(&h->hdmaTx);
+    }
 }
 
+   
+void USART1_IRQHandler(void){uart_handler(UART_1);}
+void USART2_IRQHandler(void){uart_handler(UART_2);}
+void USART3_IRQHandler(void){uart_handler(UART_3);}
+void UART4_IRQHandler(void) {uart_handler(UART_4);}
+void DMA1_Channel2_IRQHandler(void){uart_dma_handler(TX,   UART_3);}
+void DMA1_Channel3_IRQHandler(void){uart_dma_handler(RX,   UART_3);}
+void DMA1_Channel4_IRQHandler(void){uart_dma_handler(TX,   UART_1);}
+void DMA1_Channel5_IRQHandler(void){uart_dma_handler(RX,   UART_1);}
+void DMA1_Channel6_IRQHandler(void){uart_dma_handler(RX,   UART_2);}
+void DMA1_Channel7_IRQHandler(void){uart_dma_handler(TX,   UART_2);}
+void DMA2_Channel3_IRQHandler(void){uart_dma_handler(RX,   UART_4);}
+void DMA2_Channel4_5_IRQHandler(void){uart_dma_handler(TX, UART_4);}
 
-void USART1_IRQHandler(void)
-{
-    uart_handler(UART_1);
-}
-void USART2_IRQHandler(void)
-{
-    uart_handler(UART_2);
-}
-void USART3_IRQHandler(void)
-{
-    uart_handler(UART_3);
-}
 
-void DMA2_Stream2_IRQHandler(void)
-{
-    uart_dma_handler(0, UART_1);    //rx
-}
-void DMA2_Stream5_IRQHandler(void)
-{
-    uart_dma_handler(0, UART_1);    //rx
-}
-void DMA2_Stream7_IRQHandler(void)
-{
-    uart_dma_handler(1, UART_1);    //tx
-}
-
-void DMA1_Stream5_IRQHandler(void)
-{
-    uart_dma_handler(0, UART_2);    //rx
-}
-void DMA1_Stream7_IRQHandler(void)
-{
-    uart_dma_handler(0, UART_2);    //rx
-}
-void DMA1_Stream6_IRQHandler(void)
-{
-    uart_dma_handler(1, UART_2);    //tx
-}
-
-void DMA1_Stream1_IRQHandler(void)
-{
-    uart_dma_handler(0, UART_3);    //rx
-}
-void DMA1_Stream3_IRQHandler(void)
-{
-    uart_dma_handler(1, UART_3);    //tx
-}
-void DMA1_Stream4_IRQHandler(void)
-{
-    uart_dma_handler(1, UART_3);    //tx
-}
 //////////////////////////////////////////////////////////
 
 static U8 get_uart(UART_HandleTypeDef *huart)
@@ -170,29 +134,10 @@ static U8 get_uart(UART_HandleTypeDef *huart)
     U8 uart;
 
     switch((U32)huart->Instance) {
-        case (U32)USART1:
-        {
-            uart = UART_1;
-        }
-        break;
-
-        case (U32)USART2:
-        {
-            uart = UART_2;
-        }
-        break;
-
-        case (U32)USART3:
-        {
-            uart = UART_3;
-        }
-        break;
-
-        case (U32)USART6:
-        {
-            uart = UART_6;
-        }
-        break;
+        case (U32)USART1: uart = UART_1; break;
+        case (U32)USART2: uart = UART_2; break;
+        case (U32)USART3: uart = UART_3; break;
+        case (U32)UART4:  uart = UART_4; break;
     }
     return uart;
 }
@@ -203,17 +148,21 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
     U8 port=0;
     GPIO_InitTypeDef init = {0};
 
-    init.Mode = GPIO_MODE_AF_PP;
+    
     init.Pull = GPIO_NOPULL;
-    init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    init.Speed = GPIO_SPEED_FREQ_HIGH;
     switch((U32)huart->Instance) {
         case (U32)USART1:
         port = UART_1;
         __HAL_RCC_USART1_CLK_ENABLE();
         __HAL_RCC_GPIOA_CLK_ENABLE();
 
-        init.Pin = GPIO_PIN_9|GPIO_PIN_10;
-        init.Alternate = GPIO_AF7_USART1;
+        init.Pin = GPIO_PIN_9;
+        init.Mode = GPIO_MODE_AF_PP;
+        HAL_GPIO_Init(GPIOA, &init);
+        
+        init.Pin = GPIO_PIN_10;
+        init.Mode = GPIO_MODE_INPUT;
         HAL_GPIO_Init(GPIOA, &init);
         break;
         
@@ -222,35 +171,42 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
         __HAL_RCC_USART2_CLK_ENABLE();
         __HAL_RCC_GPIOA_CLK_ENABLE();
 
-        init.Pin = GPIO_PIN_2|GPIO_PIN_3;
-        init.Alternate = GPIO_AF7_USART2;
+        init.Pin = GPIO_PIN_2;
+        init.Mode = GPIO_MODE_AF_PP;
+        HAL_GPIO_Init(GPIOA, &init);
+        
+        init.Pin = GPIO_PIN_3;
+        init.Mode = GPIO_MODE_INPUT;
         HAL_GPIO_Init(GPIOA, &init);
         break;
         
         case (U32)USART3:
         port = UART_3;
         __HAL_RCC_USART3_CLK_ENABLE();
-        __HAL_RCC_GPIOC_CLK_ENABLE();
         __HAL_RCC_GPIOB_CLK_ENABLE();
 
-        init.Pin = GPIO_PIN_5;
-        init.Alternate = GPIO_AF7_USART3;
-        HAL_GPIO_Init(GPIOC, &init);
-
         init.Pin = GPIO_PIN_10;
-        init.Alternate = GPIO_AF7_USART3;
+        init.Mode = GPIO_MODE_AF_PP;
+        HAL_GPIO_Init(GPIOB, &init);
+        
+        init.Pin = GPIO_PIN_11;
+        init.Mode = GPIO_MODE_INPUT;
         HAL_GPIO_Init(GPIOB, &init);
         break;
         
-        case (U32)USART6:
-        port = UART_6;
-        __HAL_RCC_USART6_CLK_ENABLE();
+        case (U32)UART4:
+        port = UART_4;
+        __HAL_RCC_UART4_CLK_ENABLE();
         __HAL_RCC_GPIOC_CLK_ENABLE();
 
-        init.Pin = GPIO_PIN_6|GPIO_PIN_7;
-        init.Alternate = GPIO_AF8_USART6;
+        init.Pin = GPIO_PIN_10;
+        init.Mode = GPIO_MODE_AF_PP;
         HAL_GPIO_Init(GPIOC, &init);
-        break;
+        
+        init.Pin = GPIO_PIN_11;
+        init.Mode = GPIO_MODE_INPUT;
+        HAL_GPIO_Init(GPIOC, &init);
+        break;     
         
         default:
         return;
@@ -284,9 +240,9 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
         HAL_GPIO_DeInit(GPIOB, GPIO_PIN_10);
         break;
         
-        case (U32)USART6:
-        port = UART_6;
-        __HAL_RCC_USART6_CLK_DISABLE();
+        case (U32)UART4:
+        port = UART_4;
+        __HAL_RCC_UART4_CLK_DISABLE();
         HAL_GPIO_DeInit(GPIOC, GPIO_PIN_6|GPIO_PIN_7);
         break;
         
@@ -307,7 +263,7 @@ static void dma_irq_en(U8 port, int on)
     uart_map_t *map=&UART_MAP[port];
     
     if(on) {
-        if(port==UART_1 || port==UART_6) {
+        if(port==UART_4) {
             __HAL_RCC_DMA2_CLK_ENABLE();
         }
         else {
@@ -321,7 +277,7 @@ static void dma_irq_en(U8 port, int on)
         HAL_NVIC_EnableIRQ(map->dmaTxIRQ);
     }
     else {
-        if(port==UART_1 || port==UART_6) {
+        if(port==UART_4) {
             __HAL_RCC_DMA2_CLK_DISABLE();
         }
         else {
@@ -358,8 +314,7 @@ static int uart_dma_init(uart_handle_t *h)
     
     dma_irq_en(h->port, 1);
     
-    h->hdmaRx.Instance = map->dmaRx;
-    h->hdmaRx.Init.Channel = map->channel;
+    h->hdmaRx.Instance = map->dmaRxCh;
     h->hdmaRx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     h->hdmaRx.Init.PeriphInc = DMA_PINC_DISABLE;
     h->hdmaRx.Init.MemInc = DMA_MINC_ENABLE;
@@ -367,15 +322,14 @@ static int uart_dma_init(uart_handle_t *h)
     h->hdmaRx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
     h->hdmaRx.Init.Mode = DMA_NORMAL;
     h->hdmaRx.Init.Priority = DMA_PRIORITY_HIGH;
-    h->hdmaRx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    h->hdmaRx.Init.Mode = DMA_CIRCULAR;   //DMA_NORMAL
     if (HAL_DMA_Init(&h->hdmaRx) != HAL_OK) {
         return -1;
     }
     __HAL_LINKDMA(&h->huart, hdmarx, h->hdmaRx);
     
 #if 1
-    h->hdmaTx.Instance = map->dmaTx;
-    h->hdmaTx.Init.Channel = map->channel;
+    h->hdmaTx.Instance = map->dmaTxCh;
     h->hdmaTx.Init.Direction = DMA_MEMORY_TO_PERIPH;
     h->hdmaTx.Init.PeriphInc = DMA_PINC_DISABLE;
     h->hdmaTx.Init.MemInc = DMA_MINC_ENABLE;
@@ -383,12 +337,11 @@ static int uart_dma_init(uart_handle_t *h)
     h->hdmaTx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
     h->hdmaTx.Init.Mode = DMA_NORMAL;
     h->hdmaTx.Init.Priority = DMA_PRIORITY_LOW;
-    h->hdmaTx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    h->hdmaTx.Init.Mode = DMA_CIRCULAR;   //DMA_NORMAL
     if (HAL_DMA_Init(&h->hdmaTx) != HAL_OK) {
         return -1;
     }
     __HAL_LINKDMA(&h->huart, hdmatx, h->hdmaTx);
-    
 #endif    
     
     return 0;
@@ -436,8 +389,7 @@ handle_t uart_init(uart_cfg_t *cfg)
         HAL_UART_Receive_IT(&h->huart, h->para.buf, h->para.blen);
     }
     h->lock = lock_dynamic_new();
-    
-    uart_irq_en(h, 1);
+
     
     return h;
 }

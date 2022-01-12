@@ -13,7 +13,7 @@ enum {
     UART_1=0,
     UART_2,
     UART_3,
-    UART_6,
+    UART_4,
 
     UART_MAX
 };

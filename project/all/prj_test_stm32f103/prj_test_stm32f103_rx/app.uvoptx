@@ -157,34 +157,34 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>33</LineNumber>
+          <LineNumber>306</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134232728</Address>
+          <Address>134248228</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_it.c</Filename>
+          <Filename>&lt;1&gt;..\..\..\..\device\tcp232.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\app\../../../../platform/chip/st/stm32f1xx/src/stm32f1xx_it.c\33</Expression>
+          <Expression>\\app\../../../../device/tcp232.c\306</Expression>
         </Bp>
         <Bp>
           <Number>1</Number>
           <Type>0</Type>
-          <LineNumber>112</LineNumber>
+          <LineNumber>305</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134240614</Address>
+          <Address>134248224</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;..\..\..\..\system\key.c</Filename>
+          <Filename>&lt;1&gt;..\..\..\..\device\tcp232.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\app\../../../../system/key.c\112</Expression>
+          <Expression>\\app\../../../../device/tcp232.c\305</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -201,32 +201,27 @@
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>kd</ItemText>
+          <ItemText>atBuf</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>gh</ItemText>
+          <ItemText>tcp232_rx_len</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>GPIOC</ItemText>
+          <ItemText>remain</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
           <WinNumber>1</WinNumber>
-          <ItemText>pinHandle</ItemText>
+          <ItemText>cmd</ItemText>
         </Ww>
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>tab</ItemText>
-        </Ww>
-        <Ww>
-          <count>7</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>kd</ItemText>
+          <ItemText>AT_CMD[AT_ENTM]</ItemText>
         </Ww>
       </WatchWindow1>
       <MemoryWindow1>
@@ -406,24 +401,24 @@
     <File>
       <GroupNumber>1</GroupNumber>
       <FileNumber>10</FileNumber>
-      <FileType>5</FileType>
-      <tvExp>0</tvExp>
-      <tvExpOptDlg>0</tvExpOptDlg>
-      <bDave2>0</bDave2>
-      <PathWithFileName>..\user\stm32f1xx_hal_conf.h</PathWithFileName>
-      <FilenameWithoutPath>stm32f1xx_hal_conf.h</FilenameWithoutPath>
-      <RteFlg>0</RteFlg>
-      <bShared>0</bShared>
-    </File>
-    <File>
-      <GroupNumber>1</GroupNumber>
-      <FileNumber>11</FileNumber>
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
       <PathWithFileName>..\user\task_tcp232.c</PathWithFileName>
       <FilenameWithoutPath>task_tcp232.c</FilenameWithoutPath>
+      <RteFlg>0</RteFlg>
+      <bShared>0</bShared>
+    </File>
+    <File>
+      <GroupNumber>1</GroupNumber>
+      <FileNumber>11</FileNumber>
+      <FileType>5</FileType>
+      <tvExp>0</tvExp>
+      <tvExpOptDlg>0</tvExpOptDlg>
+      <bDave2>0</bDave2>
+      <PathWithFileName>..\user\stm32f1xx_hal_conf.h</PathWithFileName>
+      <FilenameWithoutPath>stm32f1xx_hal_conf.h</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -671,7 +666,7 @@
 
   <Group>
     <GroupName>chip/stm32f1xx</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>

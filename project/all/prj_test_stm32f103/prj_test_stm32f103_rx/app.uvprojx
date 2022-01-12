@@ -429,14 +429,14 @@
               <FilePath>..\user\task_test.c</FilePath>
             </File>
             <File>
-              <FileName>stm32f1xx_hal_conf.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\user\stm32f1xx_hal_conf.h</FilePath>
-            </File>
-            <File>
               <FileName>task_tcp232.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user\task_tcp232.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_conf.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\user\stm32f1xx_hal_conf.h</FilePath>
             </File>
             <File>
               <FileName>startup_stm32f103xe.s</FileName>
