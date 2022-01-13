@@ -18,7 +18,7 @@ static handle_t urtHandle=NULL;
 static handle_t cfgHandle=NULL;
 static handle_t rstHandle=NULL;
 
-
+static U8 in_at_mode=0;
 static U8 tcp232_buf[TCP232_BUF_LEN];
 
 
@@ -73,7 +73,7 @@ static char* AT_CMD[AT_MAX]={
 };
 
 
-#define ATBUF_LEN   500
+#define ATBUF_LEN   200
 static U8 atBuf[ATBUF_LEN];
 static U16 tcp232_rx_len=0;
 static tcp232_rx_t tcp232_rx_fn=NULL;
@@ -84,7 +84,7 @@ static void tcp232_uart_rx(U8 *data, U16 data_len)
     }
     
     tcp232_rx_len = data_len;
-    if(tcp232_rx_len<=ATBUF_LEN) {
+    if(in_at_mode && tcp232_rx_len<=ATBUF_LEN) {
         memcpy(atBuf, data, tcp232_rx_len);
     }
 }
@@ -157,15 +157,18 @@ static int enter_at_mode(void)
 {
     int r=0;
     
+    in_at_mode = 1;
     send_at_cmd("+++");
     r = wait_at_ack("a", WAIT_ACK_TIME);
     if(r==0) {
+        in_at_mode = 0;
         return -1;
     }
     
     send_at_cmd("a");
     r = wait_at_ack("+ok", WAIT_ACK_TIME);
     if(r==0) {
+        in_at_mode = 0;
         return -1;
     }
     
@@ -182,6 +185,7 @@ static int exit_at_mode(void)
     if(r==0) {
         return -1;
     }
+    in_at_mode = 0;
     
     return 0;
 }
