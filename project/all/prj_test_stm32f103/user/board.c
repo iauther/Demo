@@ -29,7 +29,7 @@ void HAL_MspInit(void)
 int board_init(void)
 {
     int r;
-    lcd_cfg_t cfg={LCD_COLOR, LCD_WIDTH, LCD_HEIGHT};
+    //lcd_cfg_t cfg={LCD_COLOR, LCD_WIDTH, LCD_HEIGHT};
     
     r = HAL_Init();
     r = clk2_init();

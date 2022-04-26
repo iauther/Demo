@@ -41,7 +41,14 @@ typedef struct {
     U32              pin;
 }gpio_pin_t;
 
-int gpio_init(gpio_pin_t *pin, U8 mode);
+typedef struct {
+    
+    U8              mode;
+    gpio_pin_t      pin;
+}gpio_cfg_t;
+
+
+int gpio_init(gpio_cfg_t *cfg);
 int gpio_deinit(gpio_pin_t *pin);
 
 int gpio_set_dir(gpio_pin_t *pin, U8 dir);

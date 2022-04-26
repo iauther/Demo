@@ -78,27 +78,27 @@ void EXTI5_IRQHandler(void)
 
 
 
-int gpio_init(gpio_pin_t *pin, U8 mode)
+int gpio_init(gpio_cfg_t *cfg)
 {
     int r;
     gpio_data_t *pGpio;
     GPIO_InitTypeDef init={0};
     
-    if(!pin) {
+    if(!cfg) {
         return -1;
     }
     
-    r = gpio_clk_en(pin, 1);
+    r = gpio_clk_en(&cfg->pin, 1);
     if(r) {
         return -1;
     }
 
-    init.Pin = pin->pin;
-    init.Mode = modeMap[mode];
+    init.Pin = cfg->pin.pin;
+    init.Mode = modeMap[cfg->mode];
     init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_DeInit(pin->grp, pin->pin);
-    HAL_GPIO_Init(pin->grp, &init);
+    HAL_GPIO_DeInit(cfg->pin.grp, cfg->pin.pin);
+    HAL_GPIO_Init(cfg->pin.grp, &init);
 /*    
     pGpio = DATA_OF(pin->pin);
     pGpio->callback = NULL;

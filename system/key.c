@@ -150,8 +150,8 @@ int key_init(key_set_t *set)
         if(set[i].mode==MODE_ISR) {
             cfg.pin = set[i].pin;
             cfg.mode = MODE_EVT_BOTH;
-            cfg.irq.prep = 6;
-            cfg.irq.subp = 0;
+            //cfg.irq.prep = 6;
+            //cfg.irq.subp = 0;
             
             pd = &all->isr;
         }
@@ -163,7 +163,7 @@ int key_init(key_set_t *set)
         }
         
         if(pd) {
-            all->data[i].handle = gpio_init(&cfg);
+            //all->data[i].handle = gpio_init(&cfg);
             
             pd->data[pd->cnt] = &all->data[i];
             pd->cnt++;

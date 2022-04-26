@@ -45,7 +45,6 @@ int clk2_init(void)
     //HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
 #elif defined STM32F103xE
 
-    #ifdef TEST_BOARD_3IN1
         /** Initializes the CPU, AHB and APB busses clocks */
         RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
         RCC_OscInitStruct.HSIState = RCC_HSI_ON;
@@ -73,11 +72,8 @@ int clk2_init(void)
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK){
             return -1;
         }
-    #else  //TEST_BOARD_LEADSWITCH
     
         //add the clock setting
-        
-    #endif
 
 #else
     return -1;
@@ -91,6 +87,12 @@ int clk2_init(void)
 U32 clk2_get_freq(void)
 {
     return HAL_RCC_GetSysClockFreq();
+}
+
+
+U32 clk2_get_tick(void)
+{
+    return HAL_GetTick();
 }
 
 

@@ -7,5 +7,7 @@ int clk2_init(void);
 
 U32 clk2_get_freq(void);
 
+U32 clk2_get_tick(void);
+
 #endif
 
