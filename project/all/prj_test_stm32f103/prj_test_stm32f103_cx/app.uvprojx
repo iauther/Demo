@@ -313,7 +313,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>1</Optim>
+            <Optim>0</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -337,7 +337,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress=177,1296</MiscControls>
-              <Define>MISTRIG_BOX_TEST,USE_HAL_DRIVER,STM32F103xE,OS_KERNEL=1</Define>
+              <Define>MISTRIG_BOX_TEST,USE_HAL_DRIVER,STM32F103xE</Define>
               <Undefine></Undefine>
               <IncludePath>../user;../../../../device;../../../../system;../../../../platform/chip/st/stm32f1xx;../../../../platform/chip/st/stm32f1xx/inc;../../../../platform/os;../../../../platform/core/inc</IncludePath>
             </VariousControls>
@@ -355,7 +355,7 @@
             <ClangAsOpt>4</ClangAsOpt>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>OS_KERNEL=1</Define>
+              <Define></Define>
               <Undefine></Undefine>
               <IncludePath></IncludePath>
             </VariousControls>
@@ -493,6 +493,21 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\system\lcd2.c</FilePath>
             </File>
+            <File>
+              <FileName>pkt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\pkt.c</FilePath>
+            </File>
+            <File>
+              <FileName>paras.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\paras.c</FilePath>
+            </File>
+            <File>
+              <FileName>nvm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\nvm.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -528,6 +543,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\i2c.c</FilePath>
             </File>
+            <File>
+              <FileName>uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\flash.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -557,11 +582,6 @@
               <FileName>stm32f1xx_hal_flash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_flash.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f1xx_hal_flash_ex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_flash_ex.c</FilePath>
             </File>
             <File>
               <FileName>stm32f1xx_hal_gpio.c</FileName>
@@ -622,6 +642,16 @@
               <FileName>stm32f1xx_hal_i2c.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_i2c.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_flash_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_flash_ex.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -2,6 +2,7 @@
 #include "drv/flash.h"
 #include "paras.h"
 #include "myCfg.h"
+#include "Legacy/stm32f1xx_hal_can_legacy.h"
 
 #define FLASH_CACHE_SIZE 1000
 
@@ -52,6 +53,8 @@ static U32 sector_size[SECTOR_MAX]={
 
 #else    //STM32F103xE
 #define SECTOR_MAX  12
+#define PAGE_MAX    10
+
 static U32 sector_size[SECTOR_MAX]={
     16*1024,
     16*1024,
@@ -68,6 +71,22 @@ static U32 sector_size[SECTOR_MAX]={
     128*1024,
     128*1024,
 };
+
+static U32 page_size[PAGE_MAX]={
+    16*1024,
+    16*1024,
+    16*1024,
+    16*1024,
+    
+    64*1024,
+    
+    128*1024,
+    128*1024,
+    128*1024,
+    128*1024,
+    128*1024,
+};
+
 #endif
 
 static U32 get_sector_addr(int sector)
@@ -102,6 +121,24 @@ static int get_sector(U32 addr)
     return -1;
 }
 
+static int get_page(U32 addr)
+{
+    int i;
+    U32 s0=0,s1=0;
+    
+    for(i=0; i<PAGE_MAX; i++) {
+        
+        s1 += sector_size[i];
+        if(addr>=s0 && addr<s1) {
+            return i;
+        }
+        s0 = s1;
+    }
+    
+    return -1;
+}
+
+
 static int __read_data(U32 offset, U8 *data, U32 len)
 {
     U32 i=0;
@@ -125,7 +162,7 @@ static int __write_data(U32 offset, U8 *data, U32 len)
 
     HAL_FLASH_Unlock();
 	for(i=0; i<len;) {
-		if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_BYTE, addr+i, data[i])!= HAL_OK) {
+		if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr+i, data[i])!= HAL_OK) {
             if(++n>3) {
                 err = -1;
                 break;
@@ -142,17 +179,16 @@ static int __write_data(U32 offset, U8 *data, U32 len)
 }
 
 
-static int __erase_sector(int sec)
+static int __erase_page(int page)
 {
     int r,i;
 	uint32_t sectorError = 0;
 	FLASH_EraseInitTypeDef pEraseInit;
 	
-	pEraseInit.TypeErase = TYPEERASE_SECTORS;
+	pEraseInit.TypeErase = TYPEERASE_PAGEERASE;
 	pEraseInit.Banks = FLASH_BANK_1;
-	pEraseInit.Sector = sec;
-    pEraseInit.NbSectors = 1;
-    pEraseInit.VoltageRange = VOLTAGE_RANGE_3;
+	pEraseInit.PageAddress = page;
+    pEraseInit.NbPages = 1;
 	
     HAL_FLASH_Unlock();
     for(i=0; i<3; i++) {
@@ -168,14 +204,7 @@ static int __erase_sector(int sec)
 
 static void __reset_cache(void)
 {
-    __HAL_FLASH_DATA_CACHE_DISABLE();
-    __HAL_FLASH_INSTRUCTION_CACHE_DISABLE();
-
-    __HAL_FLASH_DATA_CACHE_RESET();
-    __HAL_FLASH_INSTRUCTION_CACHE_RESET();
-
-    __HAL_FLASH_INSTRUCTION_CACHE_ENABLE();
-    __HAL_FLASH_DATA_CACHE_ENABLE();
+    
 }
 
 
@@ -183,10 +212,10 @@ static U8 erase_flag[SECTOR_MAX]={0};
 static void set_erase_flag(U32 from, U32 to)
 {
     int i;
-    int s1=get_sector(from);
-    int s2=get_sector(to);
-    for(i=s1; i<=s2; i++) {
-        if(i>=SECTOR_MAX) {
+    int p1=get_page(from);
+    int p2=get_page(to);
+    for(i=p1; i<=p2; i++) {
+        if(i>=PAGE_MAX) {
             return;
         }
         
@@ -245,16 +274,16 @@ int flash_write(U32 offset, U8 *data, U32 len)
 int flash_erase(U32 from, U32 to)
 {
     int i,r=-1;
-    int s1=get_sector(from);
-    int s2=get_sector(to);
+    int p1=get_page(from);
+    int p2=get_page(to);
     
-    for(i=s1; i<=s2; i++) {
-        if(i>=SECTOR_MAX) {
+    for(i=p1; i<=p2; i++) {
+        if(i>=PAGE_MAX) {
             return -1;
         }
         
         if(!erase_flag[i]) {
-            r = __erase_sector(i);
+            r = __erase_page(i);
             if(r!=HAL_OK) {
                 return -1;
             }

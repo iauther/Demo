@@ -94,7 +94,7 @@ static void refresh_volt(void)
 
 void test_main(void *arg)
 {
-    task_handle_t *h=(task_handle_t*)arg;
+    //task_handle_t *h=(task_handle_t*)arg;
     
     my_init();
     while(1) {

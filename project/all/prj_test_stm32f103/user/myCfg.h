@@ -81,6 +81,16 @@
 #else
     error "must define a board first!!"
 #endif
+
+    
+#ifdef  USE_EEPROM
+    #define UPGRADE_INFO_ADDR       0
+    #define APP_OFFSET              (0x8000)            //32KB--->The End
+#else
+    #define UPGRADE_INFO_ADDR       (0x8000)
+    #define APP_OFFSET              (0x10000)           //64KB--->The End
+#endif
+    
     
     
 

@@ -5,7 +5,7 @@
 
 enum {
     PKT_TYPE_PUMP=0,
-    PKT_TYPE_LIGHT
+    PKT_TYPE_LIGHT,
 
 
     PKT_TYPE_MAX
@@ -20,7 +20,7 @@ typedef struct {
 }pkt_cfg_t;
 
 
-#define PKT_BUFLEN           1000
+#define PKT_BUFLEN           100
 extern U8 pkt_rx_buf[PKT_BUFLEN];
 extern U8 pkt_tx_buf[PKT_BUFLEN];
 
@@ -29,7 +29,7 @@ int pkt_init(U8 ptype, pkt_cfg_t *cfg);
 
 U8 pkt_hdr_check(U8 ptype, void *data, U16 len);
 
-void pkt_cache_reset(void);
+void pkt_cache_reset(U8 ptype);
 
 int pkt_ack_reset(U8 ptype, U8 type);
 
