@@ -8,8 +8,7 @@
 #include "msg.h"
 
 enum {
-    TASK_COM=0,
-    TASK_DEV,
+    TASK_TEST=0,
     
     TASK_MAX
 };
@@ -23,7 +22,7 @@ typedef struct {
     osThreadFunc_t  thread_fn;
 }task_handle_t;
 
-void task_test_fn(void *arg);
+void test_main(void *arg);
 
 handle_t task_new(osThreadFunc_t task, U32 stack_size);
 handle_t task_create(int id, osThreadFunc_t task, U32 stack_size);

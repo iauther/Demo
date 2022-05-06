@@ -51,9 +51,33 @@
     #define AT24CXX_ADDR                0x23
     #define GPIO_AT24CXX_PIN            {GPIOC, GPIO_PIN_14}
 
-#elif defined TEST_BOARD_LEAD_SWITCH
+#elif defined MISTRIG_BOX_TEST
+
+    #define LCD_YAOXY
+    #ifdef LCD_YAOXY
+        #define BUILTIN_FONT
+    #endif
     
     
+    #define LCD_WIDTH                   (240)
+    #define LCD_HEIGHT                  (240)
+    #define LCD_COLOR                   (COLOR_RGB565)
+    
+    #define VOLT_ADC1                   {GPIOA, GPIO_PIN_0}
+    #define VOLT_ADC2                   {GPIOA, GPIO_PIN_1}
+    #define VOLT_ADC3                   {GPIOA, GPIO_PIN_2}
+    
+    
+    #define PSEL_PIN                    {GPIOA, GPIO_PIN_0}
+    #define FSEL_PIN                    {GPIOA, GPIO_PIN_0}
+    
+    #define I2C1_FREQ                   (100*1000)
+    #define I2C1_SCL_PIN                {GPIOB, GPIO_PIN_6}
+    #define I2C1_SDA_PIN                {GPIOB, GPIO_PIN_7}
+    
+    #define SPI_FREQ                    (500*1000)
+    #define SPI_PORT                    SPI_1
+
 #else
     error "must define a board first!!"
 #endif

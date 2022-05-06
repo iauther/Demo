@@ -7,6 +7,13 @@
 #pragma diag_suppress 1296
 #endif
 
+
+typedef struct {
+    SPI_HandleTypeDef hspi;
+    DMA_HandleTypeDef rx; 
+}spi_handle_t;
+
+
 DMA_HandleTypeDef hdma_spi1_rx;
 SPI_HandleTypeDef hspi[SPI_MAX];
 SPI_TypeDef  *spiDef[SPI_MAX]={SPI1, SPI2, SPI3};
@@ -86,35 +93,70 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
 }
 
 
-int spi_init(eSPI spi, SPI_InitTypeDef *init)
+handle_t spi_init(spi_cfg_t *cfg)
 {
-    hspi[spi].Instance = spiDef[spi];
-    hspi[spi].Init = *init;
+    spi_handle_t *h=calloc(1, sizeof(spi_handle_t));
+    
+    if(!h) {
+        return NULL;
+    }
+    
+    h->hspi.Instance = spiDef[cfg->port];
+    h->hspi.Init = cfg->init;
+    HAL_SPI_Init(&h->hspi);
 
-    return (int)HAL_SPI_Init(&hspi[spi]);
+    return h;
 }
 
 
-int spi_deinit(eSPI spi)
+int spi_deinit(handle_t *h)
 {
-    return (int)HAL_SPI_DeInit(&hspi[spi]);
+    spi_handle_t **sh=(spi_handle_t**)h;
+    
+    if(!sh || !(*sh)) {
+        return -1;
+    }
+    
+    HAL_SPI_DeInit(&(*sh)->hspi);
+    free(*sh);
+    
+    return 0;
 }
 
 
-int spi_read(eSPI spi, U8 *data, U16 len, U32 timeout)
+int spi_read(handle_t h, U8 *data, U16 len, U32 timeout)
 {
-    return (int)HAL_SPI_Receive(&hspi[spi], data, len, timeout);//HAL_MAX_DELAY);
+    spi_handle_t *sh=(spi_handle_t*)h;
+    
+    if(!sh || !data || !len) {
+        return -1;
+    }
+    
+    return (int)HAL_SPI_Receive(&sh->hspi, data, len, timeout);//HAL_MAX_DELAY);
+    
 }
 
 
-int spi_write(eSPI spi, U8 *data, U16 len, U32 timeout)
+int spi_write(handle_t h, U8 *data, U16 len, U32 timeout)
 {
-    return (int)HAL_SPI_Transmit(&hspi[spi], data, len, timeout);//HAL_MAX_DELAY);
+    spi_handle_t *sh=(spi_handle_t*)h;
+    
+    if(!sh || !data || !len) {
+        return -1;
+    }
+    
+    return (int)HAL_SPI_Transmit(&sh->hspi, data, len, timeout);//HAL_MAX_DELAY);
 }
 
 
-int spi_readwrite(eSPI spi, U8 *wdata, U8 *rdata, U16 len, U32 timeout)
+int spi_readwrite(handle_t h, U8 *wdata, U8 *rdata, U16 len, U32 timeout)
 {
-    return (int)HAL_SPI_TransmitReceive(&hspi[spi], wdata, rdata, len, timeout);//HAL_MAX_DELAY);
+    spi_handle_t *sh=(spi_handle_t*)h;
+    
+    if(!sh || !wdata || !rdata || !len) {
+        return -1;
+    }
+    
+    return (int)HAL_SPI_TransmitReceive(&sh->hspi, wdata, rdata, len, timeout);//HAL_MAX_DELAY);
 }
 

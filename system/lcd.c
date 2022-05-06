@@ -5,12 +5,11 @@
 #include "st7789.h"
 
 
-
 #define SWAP16(a)   ((U16)((a<<8)|(a>>8)))
-
 
 #define LCD_BUF_SIZE (1000*4)
 static U8 lcd_buf[LCD_BUF_SIZE];
+
 static lcd_cfg_t lcdCfg={0};
 
 
@@ -40,7 +39,7 @@ void lcd_init(lcd_cfg_t *cfg)
         return;
     }
     lcdCfg = *cfg;
-    
+
     st7789_init();
 }
 

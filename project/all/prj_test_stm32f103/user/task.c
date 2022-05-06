@@ -105,31 +105,30 @@ void task_wait(int task_id)
         osThreadYield();
     }
 }
+#endif
 
 
 int task_init(void)
 {
+#ifdef OS_KERNEL
     osKernelInitialize();
+#endif
+    
     return 0;
 }
 
 
 int task_start(void)
 {
-#ifdef TEST_BOARD_3IN1
-    task_create(TASK_TEST,  task_test,  1024);
-    //task_create(TASK_TCP232,  task_tcp232,  1024);
-#endif
-    
+#ifdef OS_KERNEL
+    task_create(TASK_TEST,  test_main,  1024);
     osKernelStart();
+#else
+    test_main(NULL);
+#endif  
     
     return 0;
 }
-
-
-#endif
-
-
 
 
 

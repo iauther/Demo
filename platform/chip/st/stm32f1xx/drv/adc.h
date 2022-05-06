@@ -21,7 +21,7 @@ handle_t adc_init(adc_cfg_t *cfg);
 
 int adc_deinit(handle_t *h);
 
-U32 adc_read(handle_t h, U32 ch);
+U32 adc_read(handle_t h);
 
 #endif
 

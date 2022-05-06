@@ -185,22 +185,25 @@ static void io_init(void)
 }
 
 
+static handle_t stHandle=NULL;
 static void hw_init(void)
 {
-    SPI_InitTypeDef init;
+    spi_cfg_t cfg;
     
-    init.Mode = SPI_MODE_MASTER;
-    init.Direction = SPI_DIRECTION_2LINES;
-    init.DataSize = SPI_DATASIZE_8BIT;
-    init.CLKPolarity = SPI_POLARITY_LOW;
-    init.CLKPhase = SPI_PHASE_1EDGE;
-    init.NSS = SPI_NSS_SOFT;
-    init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-    init.FirstBit = SPI_FIRSTBIT_MSB;
-    init.TIMode = SPI_TIMODE_DISABLE;
-    init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-    init.CRCPolynomial = 10;
-    spi_init(SPI_1, &init);
+    cfg.port = SPI_1;
+    cfg.init.Mode = SPI_MODE_MASTER;
+    cfg.init.Direction = SPI_DIRECTION_2LINES;
+    cfg.init.DataSize = SPI_DATASIZE_8BIT;
+    cfg.init.CLKPolarity = SPI_POLARITY_LOW;
+    cfg.init.CLKPhase = SPI_PHASE_1EDGE;
+    cfg.init.NSS = SPI_NSS_SOFT;
+    cfg.init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+    cfg.init.FirstBit = SPI_FIRSTBIT_MSB;
+    cfg.init.TIMode = SPI_TIMODE_DISABLE;
+    cfg.init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+    cfg.init.CRCPolynomial = 10;
+    
+    stHandle = spi_init(&cfg);
 }
 
 
@@ -208,7 +211,7 @@ static void hw_init(void)
 
 static int st_write(U8 *data, U32 len)
 {
-    return spi_write(SPI_1, data, len, HAL_MAX_DELAY);
+    return spi_write(stHandle, data, len, HAL_MAX_DELAY);
 }
 
 

@@ -92,7 +92,7 @@ static ADC_TypeDef* getADC(gpio_pin_t *pin)
         
         case (U32)GPIOA:
         {
-            if(pin->pin==GPIO_PIN_0 || pin->pin==GPIO_PIN_1) {
+            if(pin->pin==GPIO_PIN_0 || pin->pin==GPIO_PIN_1 || pin->pin==GPIO_PIN_2) {
                 return ADC1;
             }
         }
@@ -115,6 +115,9 @@ static U32 getChannel(gpio_pin_t *pin)
             else if(pin->pin==GPIO_PIN_1) {
                 return ADC_CHANNEL_1;
             }
+            else if(pin->pin==GPIO_PIN_2) {
+                return ADC_CHANNEL_2;
+            }
         }
         break;
     }
@@ -132,6 +135,7 @@ handle_t adc_init(adc_cfg_t *cfg)
         return NULL;
     }
     
+    h->channel = getChannel(&cfg->pin);
     h->hadc.Instance = getADC(&cfg->pin);
     h->hadc.Init.ScanConvMode = ADC_SCAN_DISABLE;
     h->hadc.Init.ContinuousConvMode = DISABLE;
@@ -174,14 +178,14 @@ int adc_deinit(handle_t *h)
     return 0;
 }
 
-U32 adc_read(handle_t h, U32 ch)
+U32 adc_read(handle_t h)
 {
     U32 i,v=0;
     adc_data_t dat;
     ADC_ChannelConfTypeDef sc = {0};
     adc_handle_t *ah=(adc_handle_t*)h;
     
-    sc.Channel = ch;
+    sc.Channel = ah->channel;
     sc.Rank = ADC_REGULAR_RANK_1;
     sc.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
     if (HAL_ADC_ConfigChannel(&ah->hadc, &sc) != HAL_OK) {
@@ -203,8 +207,7 @@ U32 adc_read(handle_t h, U32 ch)
 void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-    if(adcHandle->Instance==ADC1)
-    {
+    if(adcHandle->Instance==ADC1) {
         /* ADC1 clock enable */
         __HAL_RCC_ADC1_CLK_ENABLE();
 

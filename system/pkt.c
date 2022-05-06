@@ -117,7 +117,7 @@ static int send_err(U8 type, U8 error)
 
 
 
-int pkt_init(pkt_cfg_t *cfg)
+int pkt_init(U8 ptype, pkt_cfg_t *cfg)
 {
     int i;
     if(!cfg) {
@@ -133,7 +133,7 @@ int pkt_init(pkt_cfg_t *cfg)
 }
 
 
-U8 pkt_hdr_check(void *data, U16 len)
+U8 pkt_hdr_check(U8 ptype, void *data, U16 len)
 {
     U8 sum1,sum2,err=ERROR_NONE;
     U8 *p8=(U8*)data;
@@ -167,7 +167,7 @@ U8 pkt_hdr_check(void *data, U16 len)
 }
 
 
-void pkt_cache_reset(void)
+void pkt_cache_reset(U8 ptype)
 {
     memset(myCache, 0, sizeof(myCache));
 }
@@ -188,7 +188,7 @@ static void cache_update(void)
 }
 
 
-int pkt_ack_reset(U8 type)
+int pkt_ack_reset(U8 ptype, U8 type)
 {
     cache_t *c;
     
@@ -221,7 +221,7 @@ static int need_wait_ack(U8 type)
 }
 
 
-int pkt_check_timeout(U8 type)
+int pkt_check_timeout(U8 ptype, U8 type)
 {
     int r=0;
     U8 send=0;
@@ -251,7 +251,7 @@ int pkt_check_timeout(U8 type)
 }
 
 
-int pkt_send(U8 type, U8 nAck, void* data, U16 len)
+int pkt_send(U8 ptype, U8 type, U8 nAck, void* data, U16 len)
 {
     int r=0;
     
@@ -271,7 +271,7 @@ int pkt_send(U8 type, U8 nAck, void* data, U16 len)
 }
 
 
-int pkt_resend(U8 type)
+int pkt_resend(U8 ptype, U8 type)
 {
     cache_t* c=NULL;
 
@@ -284,13 +284,13 @@ int pkt_resend(U8 type)
 }
 
 
-int pkt_send_ack(U8 type, U8 error)
+int pkt_send_ack(U8 ptype, U8 type, U8 error)
 {
     return send_ack(type, error);
 }
 
 
-int pkt_send_err(U8 type, U8 error)
+int pkt_send_err(U8 ptype, U8 type, U8 error)
 {
     return send_err(type, error);
 }

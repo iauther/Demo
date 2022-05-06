@@ -134,11 +134,11 @@
             <RunIndependent>0</RunIndependent>
             <UpdateFlashBeforeDebugging>1</UpdateFlashBeforeDebugging>
             <Capability>1</Capability>
-            <DriverSelection>4101</DriverSelection>
+            <DriverSelection>4096</DriverSelection>
           </Flash1>
           <bUseTDR>1</bUseTDR>
           <Flash2>BIN\UL2CM3.DLL</Flash2>
-          <Flash3></Flash3>
+          <Flash3>"" ()</Flash3>
           <Flash4></Flash4>
           <pFcarmOut></pFcarmOut>
           <pFcarmGrp></pFcarmGrp>
@@ -324,7 +324,7 @@
             <Rwpi>0</Rwpi>
             <wLevel>2</wLevel>
             <uThumb>0</uThumb>
-            <uSurpInc>0</uSurpInc>
+            <uSurpInc>1</uSurpInc>
             <uC99>1</uC99>
             <uGnu>1</uGnu>
             <useXO>0</useXO>
@@ -337,7 +337,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress=177,1296</MiscControls>
-              <Define>TEST_BOARD_LEAD_SWITCH,USE_HAL_DRIVER,STM32F103xE,OS_KERNEL=1</Define>
+              <Define>MISTRIG_BOX_TEST,USE_HAL_DRIVER,STM32F103xE,OS_KERNEL=1</Define>
               <Undefine></Undefine>
               <IncludePath>../user;../../../../device;../../../../system;../../../../platform/chip/st/stm32f1xx;../../../../platform/chip/st/stm32f1xx/inc;../../../../platform/os;../../../../platform/core/inc</IncludePath>
             </VariousControls>
@@ -428,10 +428,32 @@
               <FileType>2</FileType>
               <FilePath>.\startup_stm32f103xe.s</FilePath>
             </File>
+            <File>
+              <FileName>task_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user\task_test.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
           <GroupName>device</GroupName>
+          <Files>
+            <File>
+              <FileName>ad9834.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\device\ad9834.c</FilePath>
+            </File>
+            <File>
+              <FileName>esp8266.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\device\esp8266.c</FilePath>
+            </File>
+            <File>
+              <FileName>yaoxy.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\device\yaoxy.c</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>system</GroupName>
@@ -466,6 +488,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\system\key.c</FilePath>
             </File>
+            <File>
+              <FileName>lcd2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\lcd2.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -485,6 +512,21 @@
               <FileName>gpio.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\i2c.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -560,6 +602,26 @@
               <FileName>stm32f1xx_sys.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_sys.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_adc_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_adc_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_i2c.c</FilePath>
             </File>
           </Files>
         </Group>
