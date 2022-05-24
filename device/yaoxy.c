@@ -50,13 +50,15 @@ int yaoxy_write(U16 x, U16 y, U8 *data)
     for(i=0 ;; i++) {
         if(data[i]) {
             yaoxy_write_byte(YAOXY_DAT, data[i]);
-        }
+            
+            if(data[i+1]==0)
+                break;
         
-        if(data[i+1]==0) {
-            break;
+            yaoxy_write_byte(YAOXY_DAT, data[i+1]);
         }
-        
-        yaoxy_write_byte(YAOXY_DAT, data[i+1]);
+        else {
+            yaoxy_write_byte(YAOXY_DAT, data[i+1]+0x30);
+        }
     }
     
     return 0;
