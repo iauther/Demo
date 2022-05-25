@@ -74,9 +74,8 @@
     #define AT24CXX_A2_PIN              0
     #define GPIO_AT24CXX_WP_PIN         {GPIOD, GPIO_PIN_9}
     
-    
-    #define WIFI_PORT                   UART_3
-    
+    #define ESP8266_PORT                UART_3
+    #define ESP8266_BAUDRATE            115200
     
     
 #else

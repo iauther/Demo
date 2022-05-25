@@ -1,12 +1,16 @@
 #include "task.h"                          // CMSIS RTOS header file
-#include "log.h"
-#include "error.h"
-#include "power.h"
 #include "lcd.h"
-#include "font.h"
+#include "error.h"
+#include "log.h"
+#include "paras.h"
+#include "myCfg.h"
+
 #include "drv/adc.h"
 #include "drv/gpio.h"
-#include "myCfg.h"
+#include "drv/i2c.h"
+
+
+
 
 #define ADC_MAX     3
 #define VOLT_MAX    10
@@ -20,6 +24,39 @@ typedef struct {
 
 
 handle_t adcHandle[ADC_MAX]={NULL};
+handle_t i2c1Handle=NULL;
+static void hw_i2c_init(void)
+{
+    i2c_cfg_t  ic;
+    i2c_pin_t  p1={I2C1_SCL_PIN,I2C1_SDA_PIN};
+    
+    
+    ic.pin= p1;
+    ic.freq = I2C1_FREQ;
+    ic.useDMA = 0;;
+    ic.callback = NULL;
+    ic.finish_flag=0;
+    i2c1Handle = i2c_init(&ic); 
+}
+
+typedef struct {
+    gpio_pin_t      pin;
+    U8              mode;
+}gpio_init_t;
+static gpio_init_t gpioInit[]={
+    {},
+    
+};
+static void hw_gpio_init(void)
+{
+    
+}
+
+
+
+
+
+
 
 void my_init(void)
 {
@@ -30,6 +67,18 @@ void my_init(void)
         //{.pin=VOLT_ADC3},
     };
     lcd_cfg_t lc={LCD_COLOR, 0, 0};
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     lcd_init(&lc);
     lcd_fill(COLOR_BLUE);
