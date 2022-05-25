@@ -25,9 +25,9 @@ void my_init(void)
 {
     int i;
     adc_cfg_t ac[ADC_MAX]={
-        {.pin=VOLT_ADC1},
-        {.pin=VOLT_ADC2},
-        {.pin=VOLT_ADC3},
+        //{.pin=VOLT_ADC1},
+        //{.pin=VOLT_ADC2},
+        //{.pin=VOLT_ADC3},
     };
     lcd_cfg_t lc={LCD_COLOR, 0, 0};
     
@@ -60,7 +60,7 @@ static void update_volt(volt_t *volt)
 
 
 
-void test_main(void *arg)
+void task_test(void *arg)
 {
     //task_handle_t *h=(task_handle_t*)arg;
     

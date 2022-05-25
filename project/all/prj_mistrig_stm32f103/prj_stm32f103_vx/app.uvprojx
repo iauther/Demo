@@ -10,7 +10,7 @@
       <TargetName>app</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060750::V5.06 update 6 (build 750)::.\ARMCC</pCCUsed>
+      <pCCUsed>5060960::V5.06 update 7 (build 960)::.\ARMCC</pCCUsed>
       <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
@@ -337,7 +337,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress=177,1296</MiscControls>
-              <Define>TEST_BOARD_LEAD_SWITCH,USE_HAL_DRIVER,STM32F103xE,OS_KERNEL=1</Define>
+              <Define>TEST_MISTRIG_BOX,USE_HAL_DRIVER,STM32F103xE,OS_KERNEL=1</Define>
               <Undefine></Undefine>
               <IncludePath>../user;../../../../device;../../../../system;../../../../platform/chip/st/stm32f1xx;../../../../platform/chip/st/stm32f1xx/inc;../../../../platform/os;../../../../platform/core/inc</IncludePath>
             </VariousControls>
@@ -424,19 +424,56 @@
               <FilePath>..\..\..\..\system\error.h</FilePath>
             </File>
             <File>
-              <FileName>leadswitch.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\user\leadswitch.c</FilePath>
-            </File>
-            <File>
               <FileName>startup_stm32f103xe.s</FileName>
               <FileType>2</FileType>
               <FilePath>.\startup_stm32f103xe.s</FilePath>
+            </File>
+            <File>
+              <FileName>task_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user\task_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_com.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user\task_com.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_conf.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\user\stm32f1xx_hal_conf.h</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
           <GroupName>device</GroupName>
+          <Files>
+            <File>
+              <FileName>ad9834.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\device\ad9834.c</FilePath>
+            </File>
+            <File>
+              <FileName>at24cxx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\device\at24cxx.c</FilePath>
+            </File>
+            <File>
+              <FileName>esp8266.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\device\esp8266.c</FilePath>
+            </File>
+            <File>
+              <FileName>led.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\device\led.c</FilePath>
+            </File>
+            <File>
+              <FileName>yaoxy.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\device\yaoxy.c</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>system</GroupName>
@@ -471,6 +508,31 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\system\key.c</FilePath>
             </File>
+            <File>
+              <FileName>lcd2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\lcd2.c</FilePath>
+            </File>
+            <File>
+              <FileName>paras.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\paras.c</FilePath>
+            </File>
+            <File>
+              <FileName>wdog.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\wdog.c</FilePath>
+            </File>
+            <File>
+              <FileName>nvm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\nvm.c</FilePath>
+            </File>
+            <File>
+              <FileName>pkt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\system\pkt.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -490,6 +552,36 @@
               <FileName>gpio.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\i2c.c</FilePath>
+            </File>
+            <File>
+              <FileName>spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>dac.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\dac.c</FilePath>
+            </File>
+            <File>
+              <FileName>htimer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\drv\htimer.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -565,6 +657,46 @@
               <FileName>stm32f1xx_sys.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_sys.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_wwdg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_wwdg.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_i2c.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_adc_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_adc_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_dac.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_dac.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f1xx_hal_dac_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\platform\chip\st\stm32f1xx\src\stm32f1xx_hal_dac_ex.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -667,11 +799,6 @@
     <Layers>
       <Layer>
         <LayName>&lt;Project Info&gt;</LayName>
-        <LayDesc></LayDesc>
-        <LayUrl></LayUrl>
-        <LayKeys></LayKeys>
-        <LayCat></LayCat>
-        <LayLic></LayLic>
         <LayTarg>0</LayTarg>
         <LayPrjMark>1</LayPrjMark>
       </Layer>

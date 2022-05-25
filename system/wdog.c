@@ -8,10 +8,7 @@
 
 int wdog_init(void)
 {
-    gpio_pin_t pin=GPIO_WDG_PIN;
     
-    gpio_init(&pin, MODE_OUTPUT);
-    gpio_set_hl(&pin, 0);
     
     return 0;
 }
@@ -19,11 +16,7 @@ int wdog_init(void)
 
 int wdog_feed(void)
 {
-    gpio_pin_t pin=GPIO_WDG_PIN;
     
-    gpio_set_hl(&pin, 1);
-    delay_us(1);
-    gpio_set_hl(&pin, 0);
     
     return 0;
 }

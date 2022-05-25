@@ -4,14 +4,12 @@
 #include "types.h"
 
 enum {
-    PKT_TYPE_PUMP=0,
+    PKT_TYPE_TRIGGER=0,
     PKT_TYPE_LIGHT,
 
 
     PKT_TYPE_MAX
 };
-
-
 
 
 typedef struct {

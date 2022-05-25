@@ -1,59 +1,81 @@
-/***************************************************************************//**
- *   @file   ad9834.c
- *   @brief  Implementation of ad9834 Driver.
- *   @author Mihai Bancisor
- *   SVN Revision: 538
-*******************************************************************************/
-
 //https://blog.csdn.net/qq_36024066/article/details/89667751
-//
+//https://blog.csdn.net/weixin_46708355/article/details/108000440
 
 
 #include "ad9834.h"		//ad9834 definitions
 #include "drv/spi.h"
 #include "drv/gpio.h"
+#include "drv/dac.h"
+#include "drv/delay.h"
 #include "myCfg.h"
 
 
 /* GPIO pins */
-
-
 #define PSEL_LOW        	// Add your code here
 #define PSEL_HIGH       	// Add your code here
 #define FSEL_LOW        	// Add your code here
 #define FSEL_HIGH       	// Add your code here
 
+typedef struct {
+    
+    handle_t    hspi;
+    handle_t    hdac;
+    
+    ad9834_para_t para;
+}ad9834_handle_t;
+static ad9834_handle_t adHandle={0};
 
 
-extern handle_t spi1Handle;
-static handle_t adHandle=NULL;
-static void Gpio_Init(void)
+static void ad_gpio_init(void)
 {
     
 }
-static U8 SPI_Init(U8 lsbFirst, U32 clockFreq, U8 clockPol, U8 clockPha)
+//static int ad_spi_init(U8 lsbFirst, U32 clockFreq, U8 clockPol, U8 clockPha)
+//SPI_Init(0, 1000000, 0, 1);
+static int ad_spi_init(void)
 {
     spi_cfg_t cfg;
     
-    cfg.port = SPI_1;
+    cfg.port = AD9834_SPI_PORT;
+    cfg.init.Mode = SPI_MODE_MASTER;
+    cfg.init.Direction = SPI_DIRECTION_2LINES;
+    cfg.init.DataSize = SPI_DATASIZE_8BIT;
+    cfg.init.CLKPolarity = SPI_POLARITY_LOW;
+    //cfg.init.CLKPhase = SPI_PHASE_1EDGE;  //LCD: 1EDGE
+    cfg.init.CLKPhase = SPI_PHASE_2EDGE;    //AD9834: 2EDGE
+    cfg.init.NSS = SPI_NSS_SOFT;
+    cfg.init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+    cfg.init.FirstBit = SPI_FIRSTBIT_MSB;
+    cfg.init.TIMode = SPI_TIMODE_DISABLE;
+    cfg.init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+    cfg.init.CRCPolynomial = 10;
     
-    
-    
-    //adHandle = spi_init();
+    adHandle.hspi = spi_init(&cfg);
+
     return 0;
 }
-static U8 SPI_Write(U8* data, U8 bytesNumber)
+static int ad_dac_init(void)
 {
-
+    dac_cfg_t cfg;
+    
+    adHandle.hdac = dac_init(&cfg);
+    
     return 0;
 }
-static U8 SPI_Read(U8* data, U8 bytesNumber)
+
+
+
+
+static int ad_write(U8* data, U8 bytesNumber)
 {
-
+    spi_write(adHandle.hspi, data, bytesNumber, 100);
     return 0;
 }
-
-//////////////////////////////////////////////////
+static int ad_read(U8* data, U8 bytesNumber)
+{
+    spi_read(adHandle.hspi, data, bytesNumber, 100);
+    return 0;
+}
 static void write_reg(U16 value)
 {
 	U8 data[2];	
@@ -62,16 +84,24 @@ static void write_reg(U16 value)
 	data[1] = (U8)((value & 0x00FF));
 	
 	//ADI_CS_LOW;	    
-	SPI_Write(data, 2);
+	ad_write(data, 2);
 	//ADI_CS_HIGH;
 }
+static int ad_reset(void)
+{
+    write_reg(AD9834_REG_CMD | AD9834_RESET);
+    delay_ms(1);
+    write_reg(AD9834_REG_CMD);
+    
+    return 0;
+}
 
+//////////////////////////////////////////////////
 int ad9834_init(void)
 {
-    adHandle = spi1Handle;
-    
-    Gpio_Init();
-    //SPI_Init(0, 1000000, 0, 1);
+    ad_gpio_init();
+    ad_spi_init();
+    ad_dac_init();
     
     write_reg(AD9834_REG_CMD | AD9834_RESET);
 	
@@ -80,72 +110,75 @@ int ad9834_init(void)
 
 
 
-void ad9834_set_reset(void)
+int ad9834_reset(void)
 {
-    write_reg(AD9834_REG_CMD | AD9834_RESET);
+    ad_reset();
+    
+    return 0;
 }
 
 
-
-void ad9834_clr_reset(void)
+static void set_type(U8 type)
 {
-	write_reg(AD9834_REG_CMD);
+    U16 val[AD9834_TYPE_MAX]={0,0,0};
+
+    if(type != adHandle.para.type) {
+        write_reg(AD9834_REG_CMD | val[type]);
+        
+        adHandle.para.type = type;
+    }
 }
-
-
-
-
-
-
-void ad9834_set_freq(U16 reg, U32 val)
+static void set_freq(U32 freq)
 {
-	U16 freqHi = reg;
-	U16 freqLo = reg;
-	gpio_pin_t psel=PSEL_PIN;
-	gpio_pin_t fsel=FSEL_PIN;
+    U16 fh,fl;
 	
-	gpio_set_hl(&psel, 0);
-	gpio_set_hl(&fsel, 0);
-	
-	freqHi |= (val & 0xFFFC000) >> 14 ;
-	freqLo |= (val & 0x3FFF);
-	write_reg(AD9834_B28);
-	write_reg(freqLo);
-	write_reg(freqHi);
+    if(freq != adHandle.para.freq) {
+        fh = AD9834_REG_FREQ0 | ((freq & 0xFFFC000) >> 14);
+        fl = AD9834_REG_FREQ1 | (freq & 0x3FFF);
+        write_reg(AD9834_B28);
+        write_reg(fh);
+        write_reg(fl);
+        adHandle.para.freq = freq;
+    }
 }
 
-
-
-void ad9834_set_phase(U16 reg, U16 val)
+static void set_phase(U16 phase)
 {
-	U16 phase = reg|val;
+	U16 v = AD9834_REG_PHASE0|phase;
 	
-	write_reg(phase);
+    if(phase != adHandle.para.phase) {
+        write_reg(phase);
+        adHandle.para.phase = phase;
+    }
 }
 
-
-void ad9834_setup(U16 freq, U16 phase, U16 type, U16 cmdType)
+int set_amplitude(F32 amp)
 {
-	U16 val = 0;
-	gpio_pin_t psel=PSEL_PIN;
-	gpio_pin_t fsel=FSEL_PIN;
-	
-	val = freq | phase | type | cmdType;
-	if(cmdType) {
-		if(freq) {
-			gpio_set_hl(&fsel, 1);
-		}	
-		else {
-			gpio_set_hl(&fsel, 0);
-		}
-		
-		if(phase) {
-			gpio_set_hl(&psel, 1);
-		}	
-		else {
-			gpio_set_hl(&psel, 0);
-		}
-	}
-	write_reg(val);
+    if(amp != adHandle.para.amplitude) {
+        dac_set(adHandle.hdac, amp);
+        adHandle.para.amplitude = amp;
+    }
+    
+    return 0;
 }
+
+
+int ad9834_set(ad9834_para_t *ad)
+{
+	if(!ad) {
+        return -1;
+    }
+    
+    set_type(ad->type);
+    set_freq(ad->freq);
+    set_phase(ad->phase);
+    set_amplitude(ad->amplitude);
+    
+    return 0;
+}
+
+
+
+
+
 

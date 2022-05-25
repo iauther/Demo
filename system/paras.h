@@ -4,17 +4,6 @@
 #include "data.h"
 #include "notice.h"
 
-#define ACK_POLL_MS     300
-
-
-typedef struct {
-    struct {
-        U8          enable;
-        int         resendIvl;       //resend interval time,  unit: ms
-        int         retryTimes;      //retry max
-    }set[TYPE_MAX];
-}ack_timeout_t;
-
 
 int paras_load(void);
 int paras_erase(void);
@@ -33,15 +22,10 @@ int paras_set_upg(void);
 int paras_clr_upg(void);
 
 
-extern U8 adjMode;
 extern U8 sysState;
 extern U8 sysMode;
 extern stat_t curStat;
 extern para_t curPara;
-extern U8 air_act;
-extern U8 vacuum_reached;
-extern F32 bias_value;
-extern ack_timeout_t ackTimeout;
 extern notice_t allNotice[LEV_MAX];
 
 #endif

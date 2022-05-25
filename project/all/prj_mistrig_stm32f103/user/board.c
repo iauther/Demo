@@ -43,32 +43,11 @@ static void i2c_bus_init(void)
     i2c1Handle = i2c_init(&ic); 
 }
 
-static void spi_bus_init(void)
-{
-    spi_cfg_t cfg;
-    
-    cfg.port = SPI_PORT;
-    cfg.init.Mode = SPI_MODE_MASTER;
-    cfg.init.Direction = SPI_DIRECTION_2LINES;
-    cfg.init.DataSize = SPI_DATASIZE_8BIT;
-    cfg.init.CLKPolarity = SPI_POLARITY_LOW;
-    //cfg.init.CLKPhase = SPI_PHASE_1EDGE;  //LCD: 1EDGE
-    cfg.init.CLKPhase = SPI_PHASE_2EDGE;    //AD9834: 2EDGE
-    cfg.init.NSS = SPI_NSS_SOFT;
-    cfg.init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-    cfg.init.FirstBit = SPI_FIRSTBIT_MSB;
-    cfg.init.TIMode = SPI_TIMODE_DISABLE;
-    cfg.init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-    cfg.init.CRCPolynomial = 10;
-    
-    spi1Handle = spi_init(&cfg);
-}
 
 
 static void bus_init(void)
 {
     i2c_bus_init();
-    spi_bus_init();
 }
 
 
@@ -77,14 +56,11 @@ static void bus_init(void)
 int board_init(void)
 {
     int r;
-    //lcd_cfg_t cfg={LCD_COLOR, LCD_WIDTH, LCD_HEIGHT};
     
     r = HAL_Init();
     r = clk2_init();
     
     bus_init();
-    
-    task_init();
     task_start();  
     
    

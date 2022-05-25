@@ -9,28 +9,11 @@
 #include "drv/uart.h"
 #endif
 
-typedef struct {
-    int             askAck;
-    int             cnt;
-    int             retries;
-    U16             dataLen;
-    union {
-        cmd_t       cmd;
-        stat_t      stat;
-        ack_t       ack;
-        sett_t      sett;
-        error_t     err;
-        para_t      para;
-        fw_info_t   fwinfo;
-    }data;
-}cache_t;
-
 
 
 U8 pkt_rx_buf[PKT_BUFLEN];
 U8 pkt_tx_buf[PKT_BUFLEN];
 static pkt_cfg_t myCfg;
-static cache_t myCache[TYPE_MAX]={0};
 
 
 
@@ -125,9 +108,6 @@ int pkt_init(U8 ptype, pkt_cfg_t *cfg)
     }
     
     myCfg = *cfg;
-    for (i = 0; i < TYPE_MAX; i++) {
-        myCache[i].askAck = -1;
-    }
     
     return 0;
 }
@@ -167,90 +147,6 @@ U8 pkt_hdr_check(U8 ptype, void *data, U16 len)
 }
 
 
-void pkt_cache_reset(U8 ptype)
-{
-    memset(myCache, 0, sizeof(myCache));
-}
-
-
-static void cache_update(void)
-{
-    pkt_hdr_t *p=(pkt_hdr_t*)pkt_tx_buf;
-    cache_t *c=&myCache[p->type];
-    c->askAck = p->askAck;
-    c->cnt = 0;
-    c->retries = 0;
-    c->dataLen = 0;
-    if(p->dataLen<=sizeof(c->data)) {
-        memcpy(&c->data, p->data, p->dataLen);
-        c->dataLen = p->dataLen;
-    }
-}
-
-
-int pkt_ack_reset(U8 ptype, U8 type)
-{
-    cache_t *c;
-    
-    if(type>=TYPE_MAX) {
-        return -1;
-    }
-    
-    c = &myCache[type];
-    c->askAck = -1;
-    c->cnt = 0;
-    c->retries = 0;
-    
-    return 0;
-}
-
-
-static int need_wait_ack(U8 type)
-{
-    int r=0;
-
-    if (myCache[type].askAck > 0) {
-        if (ackTimeout.set[type].enable) {
-            if (myCache[type].retries < ackTimeout.set[type].retryTimes) {
-                r = 1;
-            }
-        }
-    }
-    
-    return r;
-}
-
-
-int pkt_check_timeout(U8 ptype, U8 type)
-{
-    int r=0;
-    U8 send=0;
-    cache_t *c=&myCache[type];
-    
-    if(c->askAck>0) {
-        if(ackTimeout.set[type].enable) {
-            if((c->cnt*myCfg.period) % ackTimeout.set[type].resendIvl==0) {
-
-                if (ackTimeout.set[type].retryTimes > 0) {
-                    if (c->retries < ackTimeout.set[type].retryTimes) {
-                        c->retries++;
-                    }
-                    else {
-                        r = 1;
-                    }
-                }
-                else {
-                    r = 1;
-                }
-            }
-            c->cnt++;
-        }
-    }  
-
-    return r;
-}
-
-
 int pkt_send(U8 ptype, U8 type, U8 nAck, void* data, U16 len)
 {
     int r=0;
@@ -259,28 +155,10 @@ int pkt_send(U8 ptype, U8 type, U8 nAck, void* data, U16 len)
         r = send_pkt(type, nAck, data, len);
     }
     else {
-        if (!need_wait_ack(type)) {
-            r = send_pkt(type, nAck, data, len);
-            if (r == 0) {
-                cache_update();
-            }
-        }
+        r = send_pkt(type, nAck, data, len);
     }
     
     return r;
-}
-
-
-int pkt_resend(U8 ptype, U8 type)
-{
-    cache_t* c=NULL;
-
-    if (type>=TYPE_MAX) {
-        return 1;
-    }
-
-    c = &myCache[type];
-    return send_pkt(type, 1, &c->data, c->dataLen);
 }
 
 

@@ -9,6 +9,7 @@
 
 enum {
     TASK_TEST=0,
+    TASK_COM,
     
     TASK_MAX
 };
@@ -22,14 +23,14 @@ typedef struct {
     osThreadFunc_t  thread_fn;
 }task_handle_t;
 
-void test_main(void *arg);
+void task_test(void *arg);
+void task_com(void *arg);
 
 handle_t task_new(osThreadFunc_t task, U32 stack_size);
 handle_t task_create(int id, osThreadFunc_t task, U32 stack_size);
 int task_msg_send(int task_id, U8 evt, U8 type, void *data, U16 len);
 int task_msg_post(int task_id, U8 evt, U8 type, void *data, U16 len);
 
-int task_init(void);
 int task_start(void);
 #endif
 

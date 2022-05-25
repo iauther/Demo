@@ -73,13 +73,28 @@
 #define AD9834_OUT_TRIANGLE	((0 << 5) | (1 << 1))
 
 
+enum {
+    AD9834_TYPE_SQUARE=0,
+    AD9834_TYPE_SINUS,
+    AD9834_TYPE_TRIANGLE,
+    
+    AD9834_TYPE_MAX,
+};
+
+
+typedef struct {
+    U8      type;
+    U32     freq;
+    U16     phase;
+    F32     amplitude;
+}ad9834_para_t;
+
 
 int ad9834_init(void);
-void ad9834_set_reset(void);
-void ad9834_clr_reset(void);
-void ad9834_set_reg(U16 value);
-void ad9834_set_freq(U16 reg, U32 val);
-void ad9834_set_phase(U16 reg, U16 val);
-void ad9834_setup(U16 freq, U16 phase, U16 type, U16 cmdType);
+int ad9834_set_reset(void);
+int ad9834_clr_reset(void);
+int ad9834_set_reg(U16 value);
+int ad9834_set_freq(ad9834_para_t *ad);
+
 
 #endif // __AD9834_Hx__

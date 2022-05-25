@@ -17,55 +17,24 @@ paras_t DEFAULT_PARAS={
             .bldtime=__DATE__,
         },
         
-        .setts={
-            .mode=MODE_CONTINUS,
-            {
-                {
-                    .mode=MODE_CONTINUS,
-                    .time={0,0,0},
-                    .pres=90.0F,
-                    .maxVol=100.0F
-                 },
+        .sett = {
+            .ad9834={
                 
-                 {
-                    .mode=MODE_INTERVAL,
-                    .time={0,0,0},
-                    .pres=90.0F,
-                    .maxVol=100.0F
-                 },
-                 
-                 {
-                    .mode=MODE_FIXED_TIME,
-                    .time={0,0,0},
-                    .pres=90.0F,
-                    .maxVol=100.0F
-                 },
-                 
-                 {
-                    .mode=MODE_FIXED_VOLUME,
-                    .time={0,0,0},
-                    .pres=90.0F,
-                    .maxVol=100.0F
-                 },
+            },
+            .module ={
+               .model="EDCXXX",
+                .volt=3.3,
+               .port={
+                   .R=IO_UART_INPUT,
+                   .O=IO_LV_OUTPUT,
+                   .Z=IO_LV_OUTPUT,
+               }
             },
         }
     }
 };
 
 
-ack_timeout_t ackTimeout={
-    {
-        //enable      resendIvl         retryTimes
-         {1,         ACK_POLL_MS*5,        2},       //TYPE_CMD
-         {1,         ACK_POLL_MS*5,        2},       //TYPE_STAT
-         {1,         ACK_POLL_MS*5,        2},       //TYPE_ACK
-         {1,         ACK_POLL_MS*5,        2},       //TYPE_SETT
-         {1,         ACK_POLL_MS*5,        -1},      //TYPE_PARAS
-         {1,         ACK_POLL_MS*5,        -1},      //TYPE_ERROR
-         {1,         ACK_POLL_MS*5,        2},       //TYPE_UPGRADE
-         {1,         ACK_POLL_MS*10,       2},       //TYPE_LEAP
-     }
-};
 
 notice_t allNotice[LEV_MAX]={
     {//warn
@@ -96,18 +65,14 @@ notice_t allNotice[LEV_MAX]={
 
 
 #ifdef OS_KERNEL
-U8 adjMode=ADJ_AUTO;
 U8 sysState=STAT_STOP;
 #else
-U8 adjMode=ADJ_MANUAL;
 U8 sysState=STAT_UPGRADE;
 #endif
 
 stat_t  curStat;
 para_t  curPara;
-U8 air_act=AIR_PUMP;
-U8 vacuum_reached=0;
-F32 bias_value=0.77F;
+
 
 ////////////////////////////////////////////////////////////
 int paras_load(void)

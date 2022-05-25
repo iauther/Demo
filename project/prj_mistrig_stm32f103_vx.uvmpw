@@ -8,7 +8,7 @@
   <WorkspaceName>WorkSpace</WorkspaceName>
 
   <project>
-    <PathAndName>.\all\prj_mistrig_stm32f103\prj_test_stm32f103_vx\app.uvprojx</PathAndName>
+    <PathAndName>.\all\prj_mistrig_stm32f103\prj_stm32f103_vx\app.uvprojx</PathAndName>
     <NodeIsActive>1</NodeIsActive>
     <NodeIsExpanded>1</NodeIsExpanded>
   </project>

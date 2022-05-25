@@ -14,7 +14,8 @@ static FILE* paras_fp;
 int nvm_init(void)
 {
     int r;
-    #ifdef _WIN32
+    
+#ifdef _WIN32
     paras_fp = fopen("paras.dat", "wb");
     r = paras_fp?0:-1;
 #else

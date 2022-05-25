@@ -5,53 +5,8 @@
 #define VERSION                         "V1.0"
 
 
-#ifdef TEST_BOARD_3IN1
 
-    #define LCD_ST7789
-    #define LCD_WIDTH                   (240)
-    #define LCD_HEIGHT                  (240)
-    #define LCD_COLOR                   (COLOR_RGB565)
-
-
-    #define LCD_RST_PIN                 {GPIOC, GPIO_PIN_0}
-    #define LCD_CMD_PIN                 {GPIOC, GPIO_PIN_1}
-    #define LCD_BLK_PIN                 {GPIOC, GPIO_PIN_13}
-    #define LCD_CLK_PIN                 {GPIOA, GPIO_PIN_5}
-    #define LCD_DAT_PIN                 {GPIOA, GPIO_PIN_7}
-    
-
-    #define I2C1_FREQ                   (100*1000)
-    #define I2C1_SCL_PIN                {GPIOB, GPIO_PIN_6}
-    #define I2C1_SDA_PIN                {GPIOB, GPIO_PIN_7}
-
-    #define VOLT_S0_PIN                 {GPIOB, GPIO_PIN_0}
-    #define VOLT_S1_PIN                 {GPIOB, GPIO_PIN_1}
-    #define VOLT_S2_PIN                 {GPIOB, GPIO_PIN_2}
-    #define VOLT_S3_PIN                 {GPIOA, GPIO_PIN_2}//{GPIOB, GPIO_PIN_3}
-
-    #define VOLT_ADC1                   {GPIOA, GPIO_PIN_0}
-    #define VOLT_ADC2                   {GPIOA, GPIO_PIN_1}
-
-    #define TCP232_RX_PIN               {GPIOA, GPIO_PIN_10}
-    #define TCP232_TX_PIN               {GPIOA, GPIO_PIN_9}
-    #define TCP232_RST_PIN              {GPIOD, GPIO_PIN_2}
-    #define TCP232_CFG_PIN              {GPIOC, GPIO_PIN_15}
-
-    #define KEY1_PIN                    {GPIOC, GPIO_PIN_3}
-    #define KEY2_PIN                    {GPIOC, GPIO_PIN_4}
-    #define KEY3_PIN                    {GPIOC, GPIO_PIN_5}
-    #define KEY4_PIN                    {GPIOC, GPIO_PIN_6}
-    #define KEY5_PIN                    {GPIOC, GPIO_PIN_7}
-    #define KEY6_PIN                    {GPIOC, GPIO_PIN_8}
-    
-    #define POWER_EN                    {GPIOB, GPIO_PIN_8}
-    
-    
-
-    #define AT24CXX_ADDR                0x23
-    #define GPIO_AT24CXX_PIN            {GPIOC, GPIO_PIN_14}
-
-#elif defined TEST_MISTRIG_BOX
+#ifdef TEST_MISTRIG_BOX
 
     #define LCD_YAOXY
     #ifdef LCD_YAOXY
@@ -63,9 +18,9 @@
     //#define LCD_HEIGHT                  (8)
     #define LCD_COLOR                   (COLOR_RGB565)
     
-    #define VOLT_ADC1                   {GPIOA, GPIO_PIN_0}
-    #define VOLT_ADC2                   {GPIOA, GPIO_PIN_1}
-    #define VOLT_ADC3                   {GPIOA, GPIO_PIN_2}
+    //LCD SPI
+    #define LCD_SPI_FREQ                (500*1000)
+    #define LCD_SPI_PORT                 SPI_1   
     
     
     #define PSEL_PIN                    {GPIOA, GPIO_PIN_0}
@@ -75,9 +30,55 @@
     #define I2C1_SCL_PIN                {GPIOB, GPIO_PIN_6}
     #define I2C1_SDA_PIN                {GPIOB, GPIO_PIN_7}
     
-    #define SPI_FREQ                    (500*1000)
-    #define SPI_PORT                    SPI_1
-
+    //AD9834 SPI
+    #define AD9834_SPI_FREQ              (500*1000)
+    #define AD9834_SPI_PORT              SPI_1
+    #define AD9834_SPI_CS_PIN           {GPIOB, GPIO_PIN_12}
+    #define AD9834_RESET_PIN            {GPIOD, GPIO_PIN_13}
+    
+    
+    #define KEY_CLR_PIN                 {GPIOE, GPIO_PIN_2}     //KEY1
+    #define KEY_REC_PIN                 {GPIOE, GPIO_PIN_0}     //KEY2
+    
+    
+    
+    
+    //module 4 lines interface
+    #define MOD_O_PIN                   {GPIOA, GPIO_PIN_3}     //ADC_O1
+    #define MOD_R_PIN                   {GPIOA, GPIO_PIN_2}     //RX1
+    #define MOD_Z_PIN                   {GPIOC, GPIO_PIN_5}     //Z1
+    
+    
+    #define VCTL_DAC_PIN                {GPIOA, GPIO_PIN_4}     //DA_V
+    //#define VOUT_DET_PIN                {GPIOC, GPIO_PIN_5}
+    
+    
+    //magnet trigger pin
+    #define MOTION_TRIG_PIN             {GPIOA, GPIO_PIN_0}     //high on, low off
+    
+    #define BUZZER_PIN                  {GPIOD, GPIO_PIN_14}    //BUZ_PWM
+    #define SYS_LED_PIN                 {GPIOE, GPIO_PIN_1}     //LED, system status led, 1: on, 0: off
+    #define MOD_LED_PIN                 {GPIOXX, GPIO_PIN_XXX}     //????
+    
+    
+    #define ADC1_OUT_PIN                {GPIOC, GPIO_PIN_0}     //ADC_UOUT, master voltage capture
+    #define ADC2_OUT_PIN                {GPIOA, GPIO_PIN_6}     //ADC_VT,   module io voltage capture
+    #define ADC3_OUT_PIN                {GPIOC, GPIO_PIN_4}     //ADC_V,    module input voltage capture
+    #define ADC4_OUT_PIN                {GPIOA, GPIO_PIN_1}     //ADC_IOUT, module current capture
+    
+    
+    #define USE_EEPROM
+    #define USE_AT24C02
+    #define AT24CXX_A0_PIN              0
+    #define AT24CXX_A1_PIN              0
+    #define AT24CXX_A2_PIN              0
+    #define GPIO_AT24CXX_WP_PIN         {GPIOD, GPIO_PIN_9}
+    
+    
+    #define WIFI_PORT                   UART_3
+    
+    
+    
 #else
     error "must define a board first!!"
 #endif
