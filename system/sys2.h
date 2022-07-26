@@ -1,5 +1,5 @@
-#ifndef __SYS_Hx__
-#define __SYS_Hx__
+#ifndef __SYS2_Hx__
+#define __SYS2_Hx__
 
 #include "types.h"
 
