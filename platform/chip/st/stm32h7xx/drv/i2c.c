@@ -1,4 +1,5 @@
 #include "drv/i2c.h"
+#include "drv/gpio.h"
 #include "drv/delay.h"
 #include "lock.h"
 #include "cfg.h"
@@ -109,72 +110,14 @@ static void set_i2c_clk(int port, int on)
         break;
     }
 }
-static void set_gpio_clk(GPIO_TypeDef *grp, int on)
-{
-    switch((U32)grp) {
-        case (U32)GPIOA:
-        if(on) __HAL_RCC_GPIOA_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOA_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOB:
-        if(on) __HAL_RCC_GPIOB_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOB_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOC:
-        if(on) __HAL_RCC_GPIOC_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOC_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOD:
-        if(on) __HAL_RCC_GPIOD_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOD_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOE:
-        if(on) __HAL_RCC_GPIOE_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOE_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOF:
-        if(on) __HAL_RCC_GPIOF_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOF_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOG:
-        if(on) __HAL_RCC_GPIOG_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOG_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOH:
-        if(on) __HAL_RCC_GPIOH_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOH_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOI:
-        if(on) __HAL_RCC_GPIOI_CLK_ENABLE();
-        else   __HAL_RCC_GPIOI_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOJ:
-        if(on) __HAL_RCC_GPIOJ_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOJ_CLK_DISABLE();
-        break;
-        
-        case (U32)GPIOK:
-        if(on) __HAL_RCC_GPIOK_CLK_ENABLE();
-        //else   __HAL_RCC_GPIOK_CLK_DISABLE();
-        break;
-    }
-}
+
 
 static void enable_clock(i2c_handle_t *h, int on)
 {
     set_i2c_clk(h->port, on);
     
-    set_gpio_clk(h->info.scl.grp, on);
-    set_gpio_clk(h->info.sda.grp, on);
+    gpio_en_clk(h->info.scl.grp, on);
+    gpio_en_clk(h->info.sda.grp, on);
 }
 void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
 {

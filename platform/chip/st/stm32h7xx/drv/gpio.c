@@ -112,6 +112,67 @@ int gpio_deinit(gpio_pin_t *pin)
 }
 
 
+void gpio_en_clk(GPIO_TypeDef *grp, int on)
+{
+    switch((U32)grp) {
+        case (U32)GPIOA:
+        if(on) __HAL_RCC_GPIOA_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOA_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOB:
+        if(on) __HAL_RCC_GPIOB_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOB_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOC:
+        if(on) __HAL_RCC_GPIOC_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOC_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOD:
+        if(on) __HAL_RCC_GPIOD_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOD_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOE:
+        if(on) __HAL_RCC_GPIOE_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOE_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOF:
+        if(on) __HAL_RCC_GPIOF_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOF_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOG:
+        if(on) __HAL_RCC_GPIOG_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOG_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOH:
+        if(on) __HAL_RCC_GPIOH_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOH_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOI:
+        if(on) __HAL_RCC_GPIOI_CLK_ENABLE();
+        else   __HAL_RCC_GPIOI_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOJ:
+        if(on) __HAL_RCC_GPIOJ_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOJ_CLK_DISABLE();
+        break;
+        
+        case (U32)GPIOK:
+        if(on) __HAL_RCC_GPIOK_CLK_ENABLE();
+        //else   __HAL_RCC_GPIOK_CLK_DISABLE();
+        break;
+    }
+}
+
+
 
 int gpio_set_dir(gpio_pin_t *pin, U8 dir)
 {
