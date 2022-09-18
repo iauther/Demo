@@ -1,7 +1,7 @@
 #include "paras.h"
 #include "date.h"
 #include "nvm.h"
-#include "myCfg.h"
+#include "cfg.h"
 
 paras_t DEFAULT_PARAS={
     
@@ -18,50 +18,10 @@ paras_t DEFAULT_PARAS={
         },
         
         .sett = {
-            .ad9834={
-                
-            },
-            .module ={
-               .model="EDCXXX",
-                .volt=3.3,
-               .port={
-                   .R=IO_UART_INPUT,
-                   .O=IO_LV_OUTPUT,
-                   .Z=IO_LV_OUTPUT,
-               }
-            },
+            .mode = 0,
         }
     }
 };
-
-
-
-notice_t allNotice[LEV_MAX]={
-    {//warn
-        //blink_color   stop_color      light_time      dark_time       total_time
-        {BLUE,          BLANK,          100,            100,            5000},
-        
-        //ring_time     quiet_time      total_time
-        {200,           200,            5000},
-    },
-    
-    {//error
-        //blink_color   stop_color      light_time      dark_time       total_time
-        {BLUE,          BLANK,          100,            100,            5000},
-        
-        //ring_time     quiet_time      total_time
-        {100,           100,            5000},
-    },
-    
-    {//upgrade
-        //blink_color   stop_color      light_time      dark_time       total_time
-        {BLUE,          BLANK,          100,            100,            -1},
-        
-        //ring_time     quiet_time      total_time
-        {30,            30,             -1},
-    },
-};
-
 
 
 #ifdef OS_KERNEL

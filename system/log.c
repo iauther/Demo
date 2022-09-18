@@ -1,6 +1,6 @@
 #include "log.h"
 #include "drv/uart.h"
-#include "myCfg.h"
+#include "cfg.h"
 
 
 

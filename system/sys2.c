@@ -7,10 +7,6 @@ int sys_init(void)
 {
     board_init();
     
-#ifdef OS_KERNEL
-    task_start();
-#endif
-    
     return 0;
 }
 

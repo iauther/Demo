@@ -1,5 +1,5 @@
-#ifndef __TYPES_H__
-#define __TYPES_H__
+#ifndef __TYPES_Hx__
+#define __TYPES_Hx__
 
 #include <stdint.h>
 #include <stdio.h>
@@ -10,19 +10,40 @@
 #include "error.h"
 
 
+typedef int8_t      INT8,  int8,  int8_t,  s8,  S8;
+typedef int16_t     INT16, int16, int16_t, s16, S16;
+typedef int32_t     INT32, int32, int32_t, s32, S32;
 
-typedef int8_t          S8;
-typedef uint8_t         U8;
-typedef int16_t         S16;
-typedef uint16_t        U16;
-typedef int32_t         S32;
-typedef uint32_t        U32;
-typedef int64_t         S64;
-typedef uint64_t        U64;
-typedef float           F32;
-typedef double          F64;
+#ifdef _WIN32
+typedef uint8_t     UINT8,  INT8U,  uint8,  u8,  U8;
+typedef uint16_t    UINT16, INT16U, uint16, u16, U16;
+typedef uint32_t    UINT32, INT32U, uint32, u32, U32;
+#else
+typedef uint8_t     UINT8,  INT8U,  uint8,  BYTE,  u8,  U8;
+typedef uint16_t    UINT16, INT16U, uint16, WORD,  u16, U16;
+typedef uint32_t    UINT32, INT32U, uint32, DWORD, u32, U32;
 
-typedef void*           handle_t;
+typedef uint8_t* PBYTE, * PUINT8, * PINT8U;
+typedef uint16_t* PWORD, * PUINT16, * PINT16U;
+typedef uint32_t* PDWORD, * PUINT32, * PINT32U;
+
+typedef float       f32, F32;
+typedef double      f64, F64;
+
+typedef uint8_t	    BOOL;
+
+#endif
+
+
+#ifndef FALSE
+#define FALSE   (0)
+#endif
+
+#ifndef TRUE
+#define TRUE    (1)
+#endif
+
+typedef void*  handle_t;
 
 #define MAX(a,b)    ((a>b)?a:b)
 #define MIN(a,b)    ((a<b)?a:b)

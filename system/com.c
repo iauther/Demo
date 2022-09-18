@@ -1,13 +1,12 @@
-#include "data.h"
 #include "error.h"
 #include "com.h"
 #include "paras.h"
 #include "upgrade.h"
-#include "myCfg.h"
+#include "cfg.h"
 #include "log.h"
 #include "task.h"
-#include "power.h"
 #include "board.h"
+#include "pkt.h"
 
 #ifdef _WIN32
 #include "win.h"
@@ -22,35 +21,14 @@
 static handle_t comHandle=NULL;
 
 
-static handle_t pt_init(com_callback cb)
-{
-#ifdef _WIN32
-    return NULL;
-#else
-    uart_cfg_t uc;
-    
-    uc.mode = MODE_DMA;
-    uc.port = COM_UART_PORT;               //PA2: TX   PA3: RX
-    uc.baudrate = COM_BAUDRATE;
-    uc.para.rx = cb;
-    uc.para.buf = pkt_rx_buf;
-    uc.para.blen = sizeof(pkt_rx_buf);
-    uc.para.dlen = 0;
-    
-    return uart_init(&uc);
-#endif
-
-}
-
-
-int com_init(com_callback cb, int loop_period)
+int com_init(U8 port, port_callback_t cb, int loop_period)
 {
     int r;
     stat_t stat={0};
     pkt_cfg_t cfg;
     
-    comHandle = pt_init(cb);
-    
+    cfg.period = port;
+    cfg.cb     = cb;
     cfg.handle  = comHandle;
     cfg.period  = loop_period;
     r = pkt_init(&cfg);
@@ -82,86 +60,8 @@ static int cmd_proc(void *data)
     cmd_t *c=(cmd_t*)data;
     
     switch(c->cmd) {
-#ifdef OS_KERNEL
-        case CMD_PUMP_START:
-        {
-            if(sysState!=STAT_RUNNING) {
-                r = n950_start();
-                if(r<0) {
-                    err = ERROR_PWM_PUMP;       //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                }
-                else {
-                    sysState = STAT_RUNNING;
-                }
-            }
-        }
-        break;
-        
-        case CMD_PUMP_STOP:
-        {
-            if(sysState!=STAT_STOP) {
-                r = n950_stop();
-                if(r<0) {
-                    err = ERROR_PWM_PUMP;       //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                }
-                else {
-                    sysState = STAT_STOP;
-                }
-            }
-        }
-        break;
-        
-        case CMD_PUMP_SPEED:
-        {
-            r = n950_set_speed(c->para);
-            if(r<0) {
-                err = (r==-2)?ERROR_CMD_PARA:ERROR_PWM_PUMP;
-            }
-        }
-        break;
-        
-        case CMD_VALVE_SET:
-        {
-            if(c->para) {
-                valve_set(VALVE_OPEN);
-                adjMode = ADJ_MANUAL;
-                err = n950_send_cmd(CMD_PUMP_STOP, 0);
-                sysState = STAT_STOP;
-            }
-            else {
-                valve_set(VALVE_CLOSE);
-                adjMode = ADJ_AUTO;
-            }
-        }
-        break;
-        
-        case CMD_SYS_FACTORY:
-        {
-            r = paras_reset();
-            if(r==0) {
-                r = pkt_send(TYPE_PARA, 1, &curPara, sizeof(curPara));
-                if(r) {
-                    err = ERROR_UART2_COM;
-                }
-            }
-            else {
-                err = ERROR_I2C2_E2P;
-            }
-        }
-        break;
-        
-        case CMD_SYS_POWEROFF:
-        {
-        #ifndef _WIN32
-            sysState = STAT_POWEROFF;
-            notice_stop(DEV_LED|DEV_BUZZER);led_set_color(BLANK); buzzer_stop();
-            power_on(PDEV_PAD, 0);
-        #endif
-        }
-        break;
-#endif
 
-        case CMD_SYS_RESTART:
+        case 0xff:
         {
 #ifndef _WIN32
             reboot();
@@ -303,113 +203,10 @@ static U8 normal_data_proc(pkt_hdr_t *p)
     switch (p->type) {
         case TYPE_SETT:
         {
-            node_t nd;
-            if (p->dataLen > 0) {
-                if (p->dataLen == sizeof(sett_t)) {
-                    sett_t* sett = (sett_t*)p->data;
-                    
-                    if(sett->mode>=MODE_MAX) {
-                        err = ERROR_DAT_MODE;
-                    }
-                    else if(sett->pres<=1.0F || sett->pres>110.0F) {
-                        err = ERROR_DAT_VACUUM;
-                    }
-                    else {
-                        sett_t *s1=sett;
-                        sett_t *s2=&curPara.setts.sett[sett->mode];
-                        
-                        if(s1->pres != s2->pres) {
-                            vacuum_reached = 0;
-                            air_act = (s1->pres>s2->pres)?AIR_PUMP:AIR_LEAK;
-                        }
-                        
-                        curPara.setts.sett[sett->mode] = *sett;
-                        nd.ptr = &curPara.setts.sett[sett->mode];
-                        nd.len = sizeof(curPara.setts.sett[sett->mode]);
-                    }   
-                }
-                else if (p->dataLen == sizeof(curPara.setts.mode)) {
-                    U8 mode = *((U8*)p->data);
-                    
-                    if(mode>=MODE_MAX) {
-                        err = ERROR_DAT_MODE;
-                    }
-                    else if(curPara.setts.mode!=mode){
-                        sett_t *s1=&curPara.setts.sett[mode];
-                        sett_t *s2=&curPara.setts.sett[curPara.setts.mode];
-                        
-                        if(s1->pres != s2->pres) {
-                            vacuum_reached = 0;
-                            air_act = (s1->pres>s2->pres)?AIR_PUMP:AIR_LEAK;
-                        }
-                        
-                        curPara.setts.mode = mode;
-                        nd.ptr = &curPara.setts.mode;
-                        nd.len = sizeof(curPara.setts.mode);
-                    }
-                }
-                else if (p->dataLen == sizeof(setts_t)){
-                    setts_t* setts = (setts_t*)p->data;
-                    
-                    if(setts->mode>=MODE_MAX) {
-                        err = ERROR_DAT_MODE;
-                    }
-                    else {
-                        
-                        sett_t *s1=setts[setts->mode].sett;
-                        sett_t *s2=&curPara.setts.sett[curPara.setts.mode];
-                        
-                        if(s1->pres != s2->pres) {
-                            vacuum_reached = 0;
-                            air_act = (s1->pres>s2->pres)?AIR_PUMP:AIR_LEAK;
-                        }
-                        
-                        curPara.setts = *setts;
-                        nd.ptr = &curPara.setts;
-                        nd.len = sizeof(curPara.setts);
-                    }
-                }
-                
-                paras_write_node(&nd);
-            }
-            else {
-                r = pkt_send(TYPE_SETT, 0, &curPara.setts, sizeof(curPara.setts));
-                if(r) {
-                    err = ERROR_UART2_COM;
-                }
-            }
+            
         }
         break;
-
-        case TYPE_PARA:
-        {
-            if (p->dataLen > 0) {
-                if (p->dataLen == sizeof(para_t)) {
-                    paras_t* paras = (paras_t*)p->data;
-                    //curParas = *paras;
-                }
-                else {
-                    err = ERROR_PKT_LENGTH;
-                }
-            }
-            else {
-                r = pkt_send(TYPE_PARA, 0, &curPara, sizeof(curPara));
-                if(r) {
-                    err = ERROR_UART2_COM;
-                }
-            }
-        }
-        break;
-        
-        case TYPE_STAT:
-        {
-            r = pkt_send(TYPE_STAT, 0, &curStat, sizeof(curStat));
-            if(r) {
-                err = ERROR_UART2_COM;
-            }
-        }
-        break;
-        
+				
         case TYPE_UPGRADE:
         {
             upgrade_flag = 1;
@@ -420,7 +217,7 @@ static U8 normal_data_proc(pkt_hdr_t *p)
         {
             ack_t* ack = (ack_t*)p->data;
 
-            pkt_ack_reset(ack->type);
+            //pkt_ack_reset(ack->type);
         }
         break;
         
@@ -493,7 +290,7 @@ static U8 upgrade_data_proc(pkt_hdr_t *p)
         {
             ack_t* ack = (ack_t*)p->data;
 
-            pkt_ack_reset(ack->type);
+            //pkt_ack_reset(ack->type);
         }
         break;
         
@@ -503,9 +300,6 @@ static U8 upgrade_data_proc(pkt_hdr_t *p)
         }
         break;
         
-        case TYPE_LEAP:
-        case TYPE_SETT:
-        case TYPE_PARA:
         case TYPE_ERROR:
         {
             err = ERROR_PKT_TYPE_UNSUPPORT;
@@ -596,7 +390,7 @@ U8 com_send_data(U8 type, U8 nAck, void* data, U16 len)
 
 int com_check_timeout(U8 type)
 {
-    return  pkt_check_timeout(type);
+    return 0;//pkt_check_timeout(type);
 }
 
 
@@ -613,25 +407,4 @@ int com_get_buf(U8** data, U16 *len)
     return 0;
 }
 
-
-
-U8 com_ack_poll(void)
-{
-    int i,r;
-    U8 err = 0;
-
-    if(curStat.sysState!=STAT_UPGRADE) {
-        for (i = 0; i < TYPE_MAX; i++) {
-            r = com_check_timeout(i);
-            if (r > 0) { //timeout
-                r = pkt_resend(i);
-                if (r) {
-                    err = ERROR_UART2_COM;
-                }
-            }
-        }
-    }
-
-    return err;
-}
 

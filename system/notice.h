@@ -1,7 +1,6 @@
 #ifndef __NOTICE_Hx__
 #define __NOTICE_Hx__
 
-#include "led.h"
 #include "buzzer.h"
 
 

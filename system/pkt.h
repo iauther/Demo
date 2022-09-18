@@ -3,43 +3,55 @@
 
 #include "types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
-    PKT_TYPE_TRIGGER=0,
+    PKT_TYPE_TRIGGER = 0,
     PKT_TYPE_LIGHT,
 
 
     PKT_TYPE_MAX
 };
 
+enum {
+    PORT_USB=0,
+    PORT_ETH,
+    PORT_WIFI,
+    PORT_UART,
+};
 
-typedef struct {
-    handle_t    handle;
-    int         period;
-}pkt_cfg_t;
-
-
-#define PKT_BUFLEN           100
+#define PKT_BUFLEN           500
 extern U8 pkt_rx_buf[PKT_BUFLEN];
 extern U8 pkt_tx_buf[PKT_BUFLEN];
 
+typedef void (*port_callback_t)(U8 *data, U16 len);
 
-int pkt_init(U8 ptype, pkt_cfg_t *cfg);
+typedef struct {
+    U8              port;
+    handle_t        handle;
+    int             period;
+    port_callback_t cb;
+}pkt_cfg_t;
 
-U8 pkt_hdr_check(U8 ptype, void *data, U16 len);
 
-void pkt_cache_reset(U8 ptype);
+int pkt_init(pkt_cfg_t *cfg);
 
-int pkt_ack_reset(U8 ptype, U8 type);
+U8 pkt_hdr_check(void* data, U16 len);
 
-int pkt_check_timeout(U8 ptype, U8 type);
+int pkt_send(U8 type, U8 nAck, void* data, U16 len);
 
-int pkt_send(U8 ptype, U8 type, U8 nAck, void* data, U16 len);
+int pkt_send_ack(U8 type, U8 error);
 
-int pkt_resend(U8 ptype, U8 type);
+int pkt_send_err(U8 type, U8 error);
 
-int pkt_send_ack(U8 ptype, U8 type, U8 error);
 
-int pkt_send_err(U8 ptype, U8 type, U8 error);
+#ifdef __cplusplus
+    }
+#endif
+
+
                             
 #endif
 

@@ -6,7 +6,7 @@
 
 list_t* list_init(int max, int node_size)
 {
-    u8 *ps;
+    U8 *ps;
     int i,hlen,nlen;
     list_t *l=NULL;
     lnode_t *pn;

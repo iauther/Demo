@@ -2,6 +2,9 @@
 #include "paras.h"
 #include "data.h"
 #include "log.h"
+#include "cfg.h"
+#include "drv/uart.h"
+
 
 #ifdef _WIN32
 #include "port.h"
@@ -10,11 +13,9 @@
 #endif
 
 
-
 U8 pkt_rx_buf[PKT_BUFLEN];
 U8 pkt_tx_buf[PKT_BUFLEN];
 static pkt_cfg_t myCfg;
-
 
 
 static U8 get_sum(void* data, U16 len)
@@ -27,6 +28,35 @@ static U8 get_sum(void* data, U16 len)
     }
     return sum;
 }
+static handle_t port_init(U8 port, port_callback_t cb)
+{
+#ifdef _WIN32
+    return NULL;
+#else
+    switch(port) {
+        
+        case PORT_UART:
+            uart_cfg_t uc;
+            
+            uc.mode = MODE_DMA;
+            uc.port = COM_UART_PORT;               //PA2: TX   PA3: RX
+            uc.baudrate = COM_BAUDRATE;
+            uc.para.rx = cb;
+            uc.para.buf = pkt_rx_buf;
+            uc.para.blen = sizeof(pkt_rx_buf);
+            uc.para.dlen = 0;
+            
+            return uart_init(&uc);
+    }
+#endif
+
+}
+
+
+
+
+
+
 static int send_pkt(U8 type, U8 nAck, void* data, U16 len)
 {
     U8* buf = pkt_tx_buf;
@@ -98,9 +128,7 @@ static int send_err(U8 type, U8 error)
 }
 
 
-
-
-int pkt_init(U8 ptype, pkt_cfg_t *cfg)
+int pkt_init(pkt_cfg_t *cfg)
 {
     int i;
     if(!cfg) {
@@ -113,7 +141,8 @@ int pkt_init(U8 ptype, pkt_cfg_t *cfg)
 }
 
 
-U8 pkt_hdr_check(U8 ptype, void *data, U16 len)
+
+U8 pkt_hdr_check(void *data, U16 len)
 {
     U8 sum1,sum2,err=ERROR_NONE;
     U8 *p8=(U8*)data;
@@ -137,7 +166,7 @@ U8 pkt_hdr_check(U8 ptype, void *data, U16 len)
         sum2 = get_sum(p, p->dataLen + PKT_HDR_LENGTH);
         if (sum1 != sum2) {
             #ifdef _WIN32
-            LOG("____checksum: 0x%02x, p8 0x%02x\n", sum1, sum2);
+            //LOG("____checksum: 0x%02x, p8 0x%02x\n", sum1, sum2);
             #endif
             err = ERROR_PKT_CHECKSUM;
         }
@@ -147,7 +176,7 @@ U8 pkt_hdr_check(U8 ptype, void *data, U16 len)
 }
 
 
-int pkt_send(U8 ptype, U8 type, U8 nAck, void* data, U16 len)
+int pkt_send(U8 type, U8 nAck, void* data, U16 len)
 {
     int r=0;
     
@@ -162,13 +191,13 @@ int pkt_send(U8 ptype, U8 type, U8 nAck, void* data, U16 len)
 }
 
 
-int pkt_send_ack(U8 ptype, U8 type, U8 error)
+int pkt_send_ack(U8 type, U8 error)
 {
     return send_ack(type, error);
 }
 
 
-int pkt_send_err(U8 ptype, U8 type, U8 error)
+int pkt_send_err(U8 type, U8 error)
 {
     return send_err(type, error);
 }

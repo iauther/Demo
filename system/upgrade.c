@@ -4,9 +4,9 @@
 #include "board.h"
 #include "drv/jump.h"
 #include "drv/flash.h"
-#include "notice.h"
+//#include "notice.h"
 #endif
-#include "myCfg.h"
+#include "cfg.h"
 #include "data.h"
 #include "paras.h"
 #include "upgrade.h"
@@ -85,7 +85,7 @@ U8 upgrade_proc(void *data)
         upgRecvedLen = 0;
         
 #ifndef _WIN32
-        notice_start(DEV_LED, LEV_UPGRADE);
+        //notice_start(DEV_LED, LEV_UPGRADE);
 #endif
     }
     
