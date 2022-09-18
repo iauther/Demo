@@ -20,11 +20,10 @@ enum {
 
 typedef struct {
     gpio_pin_t          pin;
-    U32                 chn;        //adc channel
+    U32                 ch;         //adc channel
     U32                 freq;
     U32                 reso;       //resolution
     
-    ADC_TypeDef         *adc;
     U32                 rank;
     U32                 sigdiff;
     U32                 polar;
@@ -35,16 +34,19 @@ typedef struct {
     IRQn_Type           IRQn;
     U32                 request;
     void                *stream;
-}dma_para_t;
+}adc_info_t;
 
 typedef struct {
     U8                   dural;
 }adc_cfg_t;
 
 
-int adc_init(adc_cfg_t *cfg);
+int adc_init(void);
 
 int adc_start(void);
+int adc2_start(void);
+int adc3_start(void);
+
 int adc_stop(void);
 
 int adc_get(U32 *adc);

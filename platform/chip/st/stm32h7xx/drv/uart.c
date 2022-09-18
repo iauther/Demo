@@ -149,7 +149,7 @@ void DMA1_Stream0_IRQHandler(void)
 {
     uart_dma_handler(0, UART_1);    //rx
 }
-void DMA1_Stream1_IRQHandler(void)
+void DMA19_Stream1_IRQHandler(void)
 {
     uart_dma_handler(0, UART_2);    //rx
 }
@@ -165,7 +165,7 @@ void DMA2_Stream3_IRQHandler(void)
 {
     uart_dma_handler(0, UART_5);    //rx
 }
-void DMA1_Stream3_IRQHandler(void)
+void DMA9_Stream3_IRQHandler(void)
 {
     uart_dma_handler(0, UART_6);    //rx
 }

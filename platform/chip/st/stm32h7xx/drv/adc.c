@@ -1,8 +1,13 @@
 #include "drv/adc.h"
 #include "drv/gpio.h"
+#include "drv/delay.h"
+#include "sys.h"
 #include "cfg.h"
 
 //http://t.zoukankan.com/armfly-p-12180331.html
+//http://www.bepat.de/tag/adc-dual-regular-simultaneous-mode/
+
+
 /*
     A0:    {GPIOA, GPIO_PIN_0}   ADC1_P_16  
     A1:    {GPIOA, GPIO_PIN_1}   ADC1_N_16  ADC1_P_17             
@@ -47,11 +52,19 @@
 extern U32 sys_freq;
 static U32 adcValue=0;
 static adc_pin_t adcPins[]=ADC_SAMPLE_CHANS;
-static dma_para_t adcDMAPara[ADC_MAX]={
+static adc_info_t adcInfo[ADC_MAX]={
     {ADC1, DMA2_Stream0_IRQn,  DMA_REQUEST_ADC1,   DMA2_Stream0},
-    {ADC2, DMA1_Stream0_IRQn,  DMA_REQUEST_ADC2,   DMA1_Stream0}, 
-    //{ADC3, BDMA_Channel0_IRQn, BDMA_REQUEST_ADC3,  MDMA_Channel0} 
+    {ADC2, DMA2_Stream2_IRQn,  DMA_REQUEST_ADC2,   DMA2_Stream2}, 
+    {ADC3, BDMA_Channel0_IRQn, BDMA_REQUEST_ADC3,  MDMA_Channel0} 
 };
+
+//#define STORE_DATA_IN_SDRAM
+#define STORE_LEN_MAX       (10*1024*1024)
+static int store_data_len=0;
+static F32 sdram_store_data[STORE_LEN_MAX] __attribute__ ((at(0xD3200000))); // SDRAM
+
+#define ADC_BUF_LEN    256
+
 
 
 #define VDD_APPLI           ((U32) 3300)    /* Value of analog voltage supply Vdda (unit: mV) */
@@ -59,11 +72,11 @@ static dma_para_t adcDMAPara[ADC_MAX]={
 #define RANGE_12BITS        ((U32) 4095)    /* Max digital value with a full range of 12 bits */
 #define RANGE_16BITS        ((U32)65535)    /* Max digital value with a full range of 16 bits */
 
-#define BUF_LEN             1000
-#define S_ADCTO(v)          ((3.3F/65535)*v)
-#define D_ADCTO(v)          (((2.0F*v)/65536-1)*3.3F)
 
-#define ADC_TRIGGER_FROM_TIMER
+#define S_ADCTO(v)          ((3.3F/65535)*v)
+#define D_ADCTO(v)          (((2.0F*v)/65535-1)*3.3F)
+
+//#define ADC_TRIGGER_FROM_TIMER
 
 
 
@@ -72,349 +85,35 @@ typedef struct {
     DMA_HandleTypeDef hdma;
 }adc_t;
 typedef struct {
-    U8      dural;
-    adc_t   adc[ADC_MAX];
+    U16     adc;
+    F32     vol;
+}ch_data_t;
+
+
+typedef struct {
+    U8                  dural;
+    ADC_HandleTypeDef   master;
+    ADC_HandleTypeDef   slave;
+    
+    DMA_HandleTypeDef   hdma;
+    
     TIM_HandleTypeDef htim;
     
-    U32     adcBuf[BUF_LEN];
-    F32     volBuf[BUF_LEN];
+    U32         buf[ADC_BUF_LEN*2];
+    F32         vol[ADC_BUF_LEN*2];
+    
 }adc_handle_t;
 
 
-static adc_handle_t adcHandle={0};
-
-static void get_adc(void)
-{
-    int i;
-    
-    adcValue = 0;
-    for(i=0; ; i++) {
-        if(adcPins[i].pin.grp==0) {
-            break;
-        }
-        
-        if(adcPins[i].adc==ADC1) {
-            adcValue |= (1<<ADC_1);
-        }
-        else if(adcPins[i].adc==ADC2) {
-            adcValue |= (1<<ADC_2);
-        }
-        else if(adcPins[i].adc==ADC3) {
-            adcValue |= (1<<ADC_3);
-        }   
-    }
-
-}
-static void adc_val_conv(adc_handle_t *h)
-{
-    int i;
-    
-    for(i=0; i<BUF_LEN; i++) {
-        h->volBuf[i] = D_ADCTO(h->adcBuf[i]);
-    }
-}
-
-static int adc_set_clk(void)
-{
-    RCC_PeriphCLKInitTypeDef Perip;
-    
-    HAL_RCCEx_GetPeriphCLKConfig(&Perip);
-    Perip.PeriphClockSelection = RCC_PERIPHCLK_ADC;
-    
-    Perip.PLL2.PLL2M = 2;
-	Perip.PLL2.PLL2N = 15;
-	Perip.PLL2.PLL2P = 2; // 92.16MHz
-	Perip.PLL2.PLL2Q = 16; // 11.52MHz
-	Perip.PLL2.PLL2R = 3;
-	Perip.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_3;
-	Perip.PLL2.PLL2VCOSEL = RCC_PLL2VCOMEDIUM;
-	Perip.PLL2.PLL2FRACN = 0;
-	Perip.PLL3.PLL3M = 3;
-	Perip.PLL3.PLL3N = 80;
-	Perip.PLL3.PLL3P = 25; // 26.2144MHz
-	Perip.PLL3.PLL3Q = 8;
-	Perip.PLL3.PLL3R = 32; // 20.48MHz
-	Perip.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_3;
-	Perip.PLL3.PLL3VCOSEL = RCC_PLL3VCOWIDE;
-	Perip.PLL3.PLL3FRACN = 0;
-    
-	
-	//Perip.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLL3;                // Vib SAI
-	//Perip.Sai4AClockSelection = RCC_SAI4ACLKSOURCE_PLL3;              // Vib SAI MCLK & FS & SCK
-	//Perip.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_PLL2;  // RS232 USART3
-	//Perip.Usart16ClockSelection = RCC_USART16CLKSOURCE_PLL2;          // RS485 USART6
-    //Perip.UsbClockSelection = RCC_USBCLKSOURCE_PLL;
-	Perip.AdcClockSelection = RCC_ADCCLKSOURCE_PLL2;                    // RCC_ADCCLKSOURCE_PLL3 RCC_ADCCLKSOURCE_CLKP
-	//Perip.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL;
-	//Perip.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;            // SPI 92.16MHz
-	//Perip.QspiClockSelection = RCC_QSPICLKSOURCE_CLKP;                // QSPI PSRAM 64MHz
-	//Perip.CkperClockSelection = RCC_CLKPSOURCE_HSI;
-    if (HAL_RCCEx_PeriphCLKConfig(&Perip) != HAL_OK) {
-        return -1;
-    }
-    
-    return 0;
-}
+static adc_handle_t adcHandle={
+    .dural = ADC_DURAL_MODE,
+    .master = {0},
+    .slave  = {0},
+};
 
 
-static void adc_en_clk(U8 adc, U8 on)
-{
-    if(adc==ADC_1 || adc==ADC_2) {
-        if(on) __HAL_RCC_ADC12_CLK_ENABLE();
-        else   __HAL_RCC_ADC12_CLK_DISABLE();
-    }
-    else if(adc==ADC_3) {
-        if(on) __HAL_RCC_ADC3_CLK_ENABLE();
-        else   __HAL_RCC_ADC3_CLK_DISABLE();
-    }
-}
-static void dma_en_clk(U8 adc)
-{
-    if(adc==ADC_1) {
-        __HAL_RCC_DMA2_CLK_ENABLE();
-    }
-    else if(adc==ADC_2) {
-        __HAL_RCC_DMA1_CLK_ENABLE();
-    }
-    else if(adc==ADC_3) {
-        __HAL_RCC_BDMA_CLK_ENABLE();
-    }
-}
-
-
-static int adc_dma_init(adc_handle_t *h)
-{
-    int i;
-    ADC_HandleTypeDef *phadc;
-    DMA_HandleTypeDef *phdma,hdma={0};
-    
-    hdma.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    hdma.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma.Init.MemInc = DMA_MINC_ENABLE;
-    hdma.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-    hdma.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    hdma.Init.Mode = DMA_CIRCULAR;
-    hdma.Init.Priority = DMA_PRIORITY_LOW;
-    hdma.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-    
-    for(i=ADC_1; i<ADC_MAX; i++) {
-        if(adcValue & (1<<i)) {
-            hdma.Instance = adcDMAPara[i].stream;
-            hdma.Init.Request = adcDMAPara[i].request;
-            
-            h->adc[i].hdma = hdma; phadc = &h->adc[i].hadc; phdma = &h->adc[i].hdma;
-            dma_en_clk(i);
-            
-            HAL_NVIC_SetPriority(adcDMAPara[i].IRQn, 0, 0);
-            HAL_NVIC_EnableIRQ(adcDMAPara[i].IRQn);
-            
-            __HAL_LINKDMA(phadc, DMA_Handle, *phdma);
-        }
-        
-    }
-    
-    return 0;
-}
-static int adc_add_channel(ADC_HandleTypeDef *hadc, U8 dural)
-{
-    int i;
-    adc_pin_t *ap = adcPins;
-    ADC_ChannelConfTypeDef sConfig = {0};
-    
-    sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-    sConfig.OffsetNumber = ADC_OFFSET_NONE;
-    sConfig.Offset = 0;
-    sConfig.OffsetRightShift = DISABLE;
-    sConfig.OffsetSignedSaturation = DISABLE;
-    for(i=0;; i++) {
-        if(ap[i].pin.grp==0) {
-            break;
-        }
-        
-        if((dural && ((ap[i].adc==ADC1) ||(ap[i].adc==ADC2))) 
-            || (ap[i].adc==hadc->Instance)) {
-            sConfig.Channel = ap[i].chn;
-            sConfig.Rank = ap[i].rank;;
-            sConfig.SingleDiff = ap[i].sigdiff;
-            if (HAL_ADC_ConfigChannel(hadc, &sConfig) != HAL_OK) {
-                continue;
-            }
-        }
-    }
-    
-    return 0;
-}
-
-
-static int adc_ctl_init(adc_handle_t *h)
-{
-    int i;
-    ADC_MultiModeTypeDef   mInit = {0};
-    
-    ADC_HandleTypeDef hadc,*phadc;
-    
-#ifdef ADC_TRIGGER_FROM_TIMER
-    hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;                //AHB clock
-    hadc.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T4_TRGO;
-    hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-    hadc.Init.ContinuousConvMode = DISABLE;
-#else
-    hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-    hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-    hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIG_EDGE_NONE;
-    hadc.Init.ContinuousConvMode = ENABLE;
-#endif
-    
-    hadc.Init.Resolution = ADC_RESOLUTION_16B;
-    hadc.Init.ScanConvMode = ADC_SCAN_ENABLE;
-    hadc.Init.EOCSelection = ADC_EOC_SEQ_CONV;
-    hadc.Init.LowPowerAutoWait = DISABLE;
-    
-    hadc.Init.NbrOfConversion = sizeof(adcPins)/sizeof(adc_pin_t)-1;
-    hadc.Init.DiscontinuousConvMode = DISABLE;
-    hadc.Init.NbrOfDiscConversion = 0;
-    
-    hadc.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
-    hadc.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-    
-    hadc.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;   //ADC_OVR_DATA_PRESERVED
-    hadc.Init.OversamplingMode = DISABLE;
-    
-    hadc.Init.Oversampling.Ratio = 1023;
-    hadc.Init.Oversampling.RightBitShift  = ADC_RIGHTBITSHIFT_1;
-    hadc.Init.Oversampling.TriggeredMode  = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
-    
-    hadc.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
-
-    if(adcHandle.dural) {
-        for(i=ADC_1; i<ADC_3; i++) {
-            hadc.Instance = adcDMAPara[i].adc; h->adc[i].hadc  = hadc; phadc = &h->adc[i].hadc;
-            if(i==ADC_2) {
-                phadc->Init.ContinuousConvMode = DISABLE;
-                phadc->Init.ExternalTrigConv = ADC_SOFTWARE_START;
-            }
-            
-            if (HAL_ADC_Init(phadc) != HAL_OK) {
-                return -1;
-            }
-            adc_add_channel(phadc, 1);
-            
-            HAL_ADCEx_Calibration_Start(phadc, ADC_CALIB_OFFSET, ADC_SIGNAL_MODE);
-        }
-    }
-    else {
-        for(i=ADC_1; i<ADC_MAX; i++) {
-            if(adcValue & (1<<i)) {
-                hadc.Instance = adcDMAPara[i].adc; h->adc[i].hadc  = hadc; phadc = &h->adc[i].hadc;
-                
-                if (HAL_ADC_Init(phadc) != HAL_OK) {
-                    return -1;
-                }
-                
-                adc_add_channel(phadc, 0);
-                HAL_ADCEx_Calibration_Start(phadc, ADC_CALIB_OFFSET, ADC_SIGNAL_MODE);
-                //__HAL_ADC_ENABLE_IT(&h->adc[i].hadc, ADC_IT_EOS);
-            } 
-        }
-    }
-
-    if(adcHandle.dural) {
-        mInit.Mode = ADC_DUALMODE_REGSIMULT;                        // ADC_MODE_INDEPENDENT
-        mInit.DualModeData = ADC_DUALMODEDATAFORMAT_32_10_BITS;     /* ADC and DMA configured in resolution 32 bits to match with both ADC master and slave resolution */
-        mInit.TwoSamplingDelay = ADC_TWOSAMPLINGDELAY_1CYCLE;
-        if (HAL_ADCEx_MultiModeConfigChannel(&h->adc[ADC_1].hadc, &mInit) != HAL_OK) {return -1;}
-    }
-    
-    return 0;
-}
-
-
-void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
-{
-    int i;
-    adc_pin_t *ap = adcPins;
-    GPIO_InitTypeDef init = {0};
-    
-    init.Mode = GPIO_MODE_ANALOG;
-    init.Pull = GPIO_NOPULL;
-    for(i=ADC_1; i<ADC_MAX; i++) {
-        
-        if(adcValue & (1<<i)) {
-            if(ap[i].pin.grp==0) {
-                break;
-            }
-        }
-            
-        adc_en_clk(i, 1);
-        gpio_en_clk(ap[i].pin.grp, 1);
-        HAL_GPIO_Init(ap[i].pin.grp, &init);
-        HAL_DMA_DeInit(&adcHandle.adc[i].hdma);
-    }
-}
-
-
-void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
-{
-    int i;
-    adc_pin_t *ap = adcPins;
-    
-    for(i=ADC_1; i<ADC_MAX; i++) {
-        
-        if(adcValue & (1<<i)) {
-            if(ap[i].pin.grp==0) {
-                break;
-            }
-        }
-            
-        adc_en_clk(i, 0);
-        gpio_en_clk(ap[i].pin.grp, 0);
-        HAL_GPIO_DeInit(ap[i].pin.grp, ap[i].pin.pin);
-        HAL_DMA_DeInit(&adcHandle.adc[i].hdma);
-    }
-}
-
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-{
-    
-    //SCB_InvalidateDCache_by_Addr((uint32_t *) &aADCDualConvertedValues[ADCCONVERTEDVALUES_BUFFER_SIZE/2], 4*ADCCONVERTEDVALUES_BUFFER_SIZE/2);
-
-#ifdef ADC_TRIGGER_FROM_TIMER
-    adc_val_conv(&adcHandle);
-#endif
-}
-
-/*void DMA1_Stream0_IRQHandler(void)  //ADC2
-{
-    HAL_DMA_IRQHandler(&adcHandle.adc2.hdma);
-}*/
-void DMA2_Stream0_IRQHandler(void)  //ADC1
-{
-    int i;
-
-    if(adcHandle.dural) {
-        if(adcValue&(1<<ADC_1)) {
-            HAL_DMA_IRQHandler(&adcHandle.adc[ADC_1].hdma);
-        }
-    }
-    else {
-        if(adcValue&(1<<ADC_1)) {
-            HAL_DMA_IRQHandler(&adcHandle.adc[ADC_1].hdma);
-        }
-        
-        if(adcValue&(1<<ADC_2)) {
-            HAL_DMA_IRQHandler(&adcHandle.adc[ADC_2].hdma);
-        }
-    }
-}
-void BDMA_Channel0_IRQHandler(void) //ADC3
-{
-    if(adcValue&(1<<ADC_3)) {
-        HAL_DMA_IRQHandler(&adcHandle.adc[ADC_3].hdma);
-    }
-}
-
-
-
+///////////////timer function start/////////////////////////
+//TIM2~7,12~14     TIM1,8,15~17 equal sys_freq/2
 void TIM4_IRQHandler(void)
 {
     HAL_TIM_IRQHandler(&adcHandle.htim);
@@ -432,16 +131,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     
 }
-static int tim_init(void)
+static int tim_init(U32 freq)
 {
     TIM_HandleTypeDef *htim=&adcHandle.htim;
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     TIM_MasterConfigTypeDef sMasterConfig = {0};
+    U32 prescaler,period,total=(sys_freq>>1)/freq;
 
+    //(Prescaler + 1)*(Period + 1) = TimeClockFreq/freq;
+    prescaler = (total>0xffff)?total/0xffff:0;
+    period = (total/(prescaler+1))-1;
+    
     htim->Instance = TIM4;
-    htim->Init.Prescaler = 36000-1;
+    htim->Init.Prescaler = prescaler;
     htim->Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim->Init.Period = 2000-1;
+    htim->Init.Period = period;
     htim->Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim->Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
     if (HAL_TIM_Base_Init(htim) != HAL_OK) {
@@ -459,21 +163,381 @@ static int tim_init(void)
     }
     
     //__HAL_TIM_CLEAR_IT(htim, TIM_IT_UPDATE);
-    HAL_TIM_Base_Start_IT(htim);
+    //HAL_TIM_Base_Start_IT(htim);
 
     return 0;
 }
 
-
-int adc_init(adc_cfg_t *cfg)
+static int tim_start(void)
 {
-    get_adc();
-    adc_set_clk();
+    return HAL_TIM_Base_Start(&adcHandle.htim);
+}
+static int tim_stop(void)
+{
+    return HAL_TIM_Base_Stop(&adcHandle.htim);
+}
+///////////////timer function end/////////////////////////
+
+
+
+static void adc_conv(U32 *buf, F32 *vol, U32 count)
+{
+    int i;
+    U16 mst,slv;
     
-    adc_dma_init(&adcHandle);
-    adc_ctl_init(&adcHandle);
+    for(i=0; i<count; i++) {
+        
+        mst = buf[i]&0xffff;
+        slv = buf[i]>>16;
+        
+        vol[i*2]   = D_ADCTO(mst);
+        vol[i*2+1] = D_ADCTO(slv);
+    }
     
-    adc_start();
+#ifdef STORE_DATA_IN_SDRAM
+    if(store_data_len<STORE_LEN_MAX) {
+        memcpy(sdram_store_data+store_data_len, h->vol, BUF_LEN*2);
+        store_data_len += BUF_LEN*2;
+    }
+    else {
+        static int store_it=0;
+        
+        store_it = 1;
+    }
+#endif
+    
+}
+
+
+static int get_index(U32 ch)
+{
+    switch(ch) {
+        case ADC_CHANNEL_19: return 19;
+        case ADC_CHANNEL_18: return 18;
+        case ADC_CHANNEL_17: return 17;
+        case ADC_CHANNEL_16: return 16;
+        case ADC_CHANNEL_15: return 15;
+        case ADC_CHANNEL_14: return 14;
+        case ADC_CHANNEL_13: return 13;
+        case ADC_CHANNEL_12: return 12;
+        case ADC_CHANNEL_11: return 11;
+        case ADC_CHANNEL_10: return 10;
+        case ADC_CHANNEL_9 : return 9 ;
+        case ADC_CHANNEL_8 : return 8 ;
+        case ADC_CHANNEL_7 : return 7 ;
+        case ADC_CHANNEL_6 : return 6 ;
+        case ADC_CHANNEL_5 : return 5 ;
+        case ADC_CHANNEL_4 : return 4 ;
+        case ADC_CHANNEL_3 : return 3 ;
+        case ADC_CHANNEL_2 : return 2 ;
+        case ADC_CHANNEL_1 : return 1 ;
+        case ADC_CHANNEL_0 : return 0 ; 
+    }
+    
+    return -1;
+}
+
+static int get_channels(void)
+{
+    int i,cnt=0;
+    int channel[20]={0};
+    
+    adcValue = 0;
+    for(i=0; ; i++) {
+        if(adcPins[i].pin.grp==0) {
+            break;
+        }
+        
+        channel[adcPins[i].ch]++;
+    }
+    
+    for(i=0; i<20; i++) {
+        if(channel[i]>0) {
+            cnt++;
+        }
+    }
+    
+    return cnt;
+}
+static int _gpio_init(U8 bInit)
+{
+    int i;
+    adc_pin_t *ap = adcPins;
+    GPIO_InitTypeDef init = {0};
+    
+    init.Mode = GPIO_MODE_ANALOG;
+    init.Pull = GPIO_NOPULL;
+    for(i=0; ; i++) {
+        if(ap[i].pin.grp==0) {
+            break;
+        }
+        
+        init.Pin = ap[i].pin.pin;
+        gpio_en_clk(ap[i].pin.grp, bInit);
+        if(bInit) {
+            HAL_GPIO_Init(ap[i].pin.grp, &init);
+        }
+        else {
+            HAL_GPIO_DeInit(ap[i].pin.grp, ap[i].pin.pin);
+        }
+    }
+    
+    return 0;
+}
+
+
+void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
+{
+    adc_handle_t *h=&adcHandle;
+    
+    if(hadc->Instance == ADC1) {
+        h->hdma.Init.Direction = DMA_PERIPH_TO_MEMORY;
+        h->hdma.Init.PeriphInc = DMA_PINC_DISABLE;
+        h->hdma.Init.MemInc = DMA_MINC_ENABLE;
+        h->hdma.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
+        h->hdma.Init.MemDataAlignment = DMA_MDATAALIGN_WORD;
+        h->hdma.Init.Mode = DMA_CIRCULAR;
+        h->hdma.Init.Priority = DMA_PRIORITY_LOW;
+        h->hdma.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+        h->hdma.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
+        h->hdma.Init.MemBurst = DMA_MBURST_SINGLE;
+        h->hdma.Init.PeriphBurst = DMA_PBURST_SINGLE;
+    
+        __HAL_RCC_ADC12_CLK_ENABLE();
+        __HAL_RCC_DMA2_CLK_ENABLE();
+        
+        _gpio_init(1);
+        
+        h->hdma.Instance = DMA2_Stream0;
+        h->hdma.Init.Request = DMA_REQUEST_ADC1;
+        HAL_DMA_DeInit(&h->hdma);
+        
+        HAL_DMA_Init(&h->hdma);
+        __HAL_LINKDMA(hadc, DMA_Handle, h->hdma);
+        
+        HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 1, 0);
+        HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+        
+        HAL_NVIC_SetPriority(ADC_IRQn, 0, 0);
+        HAL_NVIC_EnableIRQ(ADC_IRQn);
+    }
+}
+void HAL_ADC_MspDeInit(ADC_HandleTypeDef *hadc)
+{
+    if(hadc->Instance == ADC1) {
+        __HAL_RCC_ADC12_CLK_DISABLE();
+           
+    }
+    else if(hadc->Instance == ADC2) {
+        __HAL_RCC_ADC12_CLK_DISABLE();
+        
+    }
+    else if(hadc->Instance == ADC3) {
+        __HAL_RCC_BDMA_CLK_DISABLE();
+        
+    }
+}
+
+
+//master: lower 2 bytes   slave: higher 2 bytes
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
+{
+    adc_handle_t *h=&adcHandle;
+    
+    adc_conv(h->buf+ADC_BUF_LEN, h->vol+ADC_BUF_LEN, ADC_BUF_LEN);
+}
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+    adc_handle_t *h=&adcHandle;
+    
+    //SCB_InvalidateDCache_by_Addr(buf, ADC_BUF_LEN*4);
+    
+    adc_conv(h->buf, h->vol, ADC_BUF_LEN);
+    
+}
+
+
+
+
+void DMA2_Stream0_IRQHandler(void)  //ADC1
+{
+    HAL_DMA_IRQHandler(&adcHandle.hdma);
+}
+
+
+
+
+static int _adc_init(void)
+{
+    int i=0,idx,chan[20]={0};
+    ADC_ChannelConfTypeDef sConfig = {0};
+    ADC_MultiModeTypeDef mInit = {0};
+    adc_handle_t *h=&adcHandle;
+    adc_pin_t *ap=adcPins;
+    ADC_HandleTypeDef hadc;
+    
+    h->master.Instance = ADC1;
+    h->slave.Instance  = ADC2;
+    
+#ifdef ADC_TRIGGER_FROM_TIMER
+    h->master.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;                //AHB clock
+    h->master.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T4_TRGO;
+    h->master.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+    h->master.Init.ContinuousConvMode = DISABLE;
+#else
+    h->master.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+    h->master.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+    h->master.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIG_EDGE_NONE;
+    h->master.Init.ContinuousConvMode = ENABLE;
+#endif
+    
+    h->master.Init.Resolution = ADC_RESOLUTION_16B;
+    h->master.Init.ScanConvMode = ADC_SCAN_ENABLE;
+    h->master.Init.EOCSelection = ADC_EOC_SINGLE_CONV;//ADC_EOC_SEQ_CONV;
+    h->master.Init.LowPowerAutoWait = DISABLE;
+    
+    h->master.Init.NbrOfConversion = 1;//sizeof(adcPins)/sizeof(adc_pin_t)-1;
+    h->master.Init.DiscontinuousConvMode = DISABLE;
+    h->master.Init.NbrOfDiscConversion = 0;
+    
+    h->master.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
+    h->master.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
+    
+    h->master.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;   //ADC_OVR_DATA_PRESERVED
+    h->master.Init.OversamplingMode = ENABLE;
+    
+    h->master.Init.Oversampling.Ratio = 1;
+    h->master.Init.Oversampling.RightBitShift  = ADC_RIGHTBITSHIFT_1;
+    h->master.Init.Oversampling.TriggeredMode  = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
+    h->master.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
+    
+    if (HAL_ADC_DeInit(&h->master) != HAL_OK) {
+        return -1;
+    }
+    if (HAL_ADC_Init(&h->master) != HAL_OK) {
+        return -1;
+    }
+            
+    if(h->dural) {
+        
+        h->slave.Init = h->master.Init;
+        h->slave.Init.ContinuousConvMode = DISABLE;
+        h->slave.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+        //if (HAL_ADC_DeInit(&h->slave) != HAL_OK) {
+        //    return -1;
+        //}
+        if (HAL_ADC_Init(&h->slave) != HAL_OK) {
+            return -1;
+        }
+    }
+            
+    //add channels
+    sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+    sConfig.OffsetNumber = ADC_OFFSET_NONE;
+    sConfig.Offset = 0;
+    sConfig.OffsetRightShift = DISABLE;
+    sConfig.OffsetSignedSaturation = DISABLE;
+    while(1) {
+        if(ap[i].pin.grp==0 || i>=20) {
+            break;
+        }
+        
+        idx = get_index(ap[i].ch);
+        if(idx<20 && chan[idx]==0) {
+            sConfig.Channel = ap[i].ch;
+            sConfig.Rank = ap[i].rank;;
+            sConfig.SingleDiff = ap[i].sigdiff;
+            if (HAL_ADC_ConfigChannel(&h->master, &sConfig) != HAL_OK) {
+                break;
+            }
+            
+            if(h->dural) {
+                if (HAL_ADC_ConfigChannel(&h->slave, &sConfig) != HAL_OK) {
+                    break;
+                }
+            }
+            
+            chan[idx] = 1;
+        }
+        i++;
+    }
+    
+    if(HAL_ADCEx_Calibration_Start(&h->master, ADC_CALIB_OFFSET, ADC_SIGNAL_MODE) != HAL_OK) {
+        return -1;
+    }
+    
+    if(h->dural) {
+        if(HAL_ADCEx_Calibration_Start(&h->slave, ADC_CALIB_OFFSET, ADC_SIGNAL_MODE) != HAL_OK) {
+            return -1;
+        }
+        
+        mInit.Mode = ADC_DUALMODE_REGSIMULT;                        // ADC_MODE_INDEPENDENT
+        mInit.DualModeData = ADC_DUALMODEDATAFORMAT_32_10_BITS;     /* ADC and DMA configured in resolution 32 bits to match with both ADC master and slave resolution */
+        mInit.TwoSamplingDelay = ADC_TWOSAMPLINGDELAY_1CYCLE;
+        if (HAL_ADCEx_MultiModeConfigChannel(&h->master, &mInit) != HAL_OK) {
+            return -1;
+        }        
+    }
+    
+    //delay_ms(10);
+    
+    return 0;
+}
+
+
+static int _adc_deinit(void)
+{
+    int i;
+    adc_handle_t *h=&adcHandle;
+    
+    HAL_ADC_DeInit(&h->master);
+    HAL_ADC_DeInit(&h->slave);
+    
+    return 0;
+}
+
+static int _adc_start(void)
+{
+    adc_handle_t *h=&adcHandle;
+    HAL_StatusTypeDef st;
+    
+    if (HAL_ADCEx_MultiModeStart_DMA(&h->master, h->buf, sizeof(h->buf)) != HAL_OK) {
+        return -1;
+    }
+
+    //tim_start();
+
+    return 0;
+}
+
+static int _adc_stop(void)
+{
+    adc_handle_t *h=&adcHandle;
+    HAL_StatusTypeDef st;
+    
+    st = HAL_ADC_Stop(&h->master);
+    st = HAL_ADCEx_MultiModeStop_DMA(&h->master);
+    
+    //_tim_stop();
+    
+    return 0;
+}
+///////////////timer function end/////////////////////////
+
+
+int adc_init(void)
+{   
+    _adc_init();
+    _adc_start();
+    
+    return 0;
+}
+
+
+int adc_deinit(void)
+{
+    _adc_stop();
+    
     
     return 0;
 }
@@ -482,44 +546,12 @@ int adc_init(adc_cfg_t *cfg)
 
 int adc_start(void)
 {
-    int i,dflag=0;
-    
-    for(i=ADC_1; i<ADC_MAX; i++) {
-        if(adcValue & (1<<i)) {
-            if(adcHandle.dural) {
-                if(dflag==0 && (i==ADC_1 || i==ADC_2)) {
-                    HAL_ADCEx_MultiModeStart_DMA(&adcHandle.adc[i].hadc,adcHandle.adcBuf, BUF_LEN);
-                    dflag = 1;
-                }
-                else {
-                    HAL_ADC_Start_DMA(&adcHandle.adc[i].hadc, adcHandle.adcBuf, BUF_LEN);
-                }
-            }
-            else {
-                HAL_ADC_Start_DMA(&adcHandle.adc[i].hadc, adcHandle.adcBuf, BUF_LEN);
-            }
-        }
-    }
-    
-    //HAL_TIM_Base_Start(&adcHandle.htim);
-    
-
-    return 0;
+    return _adc_start();
 }
 
 int adc_stop(void)
 {
-    if(adcHandle.dural) {
-        //HAL_ADCEx_MultiModeStop_DMA(&adcHandle.adc[ADC_1].hadc,(U32 *)aADCDualConvertedValues, 
-        //                                 ADCCONVERTEDVALUES_BUFFER_SIZE) != HAL_OK) {
-    }
-    else {
-        HAL_ADC_Stop_DMA(&adcHandle.adc[ADC_1].hadc);
-    }
-    
-    //HAL_TIM_Base_Stop(&adcHandle.htim);
-    
-    return 0;
+    return _adc_stop();
 }
 
 
