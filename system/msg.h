@@ -16,7 +16,7 @@ typedef struct {
 
 msg_t* msg_init(int max, int msg_size);
 
-int msg_send(msg_t *m, void *ptr, int len);
+int msg_send(msg_t *m, void *ptr, int len, U32 timeout);
 
 int msg_post(msg_t *m, void *ptr, int len);
 

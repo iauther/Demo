@@ -20,8 +20,8 @@ typedef struct {
 extern log_cfg_t log_cfg;
 extern const char* log_string[LV_MAX];
 
+int log_init(void);
 int log_get(log_cfg_t *cfg);
-
 int log_set(log_cfg_t *cfg);
 
 #if 0
@@ -40,8 +40,7 @@ int log_set(log_cfg_t *cfg);
 #endif
 
          
-#define LOG                 logx
-                                
+#define LOG                 LOGx
 #define LOGI(fmt, ...)      LOGx(LV_INFO, fmt, ##__VA_ARGS__)
 #define LOGD(fmt, ...)      LOGx(LV_DEBUG, fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...)      LOGx(LV_WARNNING, fmt, ##__VA_ARGS__)

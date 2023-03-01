@@ -1,16 +1,4 @@
-#include "pkt.h"
-#include "paras.h"
-#include "data.h"
-#include "log.h"
-#include "cfg.h"
-#include "drv/uart.h"
-
-
-#ifdef _WIN32
-#include "port.h"
-#else
-#include "drv/uart.h"
-#endif
+#include "incs.h"
 
 
 U8 pkt_rx_buf[PKT_BUFLEN];
@@ -30,12 +18,11 @@ static U8 get_sum(void* data, U16 len)
 }
 static handle_t port_init(U8 port, port_callback_t cb)
 {
-#ifdef _WIN32
-    return NULL;
-#else
+#ifndef _WIN32
     switch(port) {
         
         case PORT_UART:
+        {
             uart_cfg_t uc;
             
             uc.mode = MODE_DMA;
@@ -47,9 +34,11 @@ static handle_t port_init(U8 port, port_callback_t cb)
             uc.para.dlen = 0;
             
             return uart_init(&uc);
+        }
     }
 #endif
-
+    
+    return NULL;
 }
 
 

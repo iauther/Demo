@@ -1,15 +1,6 @@
-#include <stddef.h>
-#include "at24cxx.h"
-#ifndef _WIN32
-#include "board.h"
-#include "drv/jump.h"
-#include "drv/flash.h"
-//#include "notice.h"
-#endif
-#include "cfg.h"
-#include "data.h"
-#include "paras.h"
-#include "upgrade.h"
+#include "devs.h"
+#include "incs.h"
+
 
 static U32 upgrade_addr=0;
 static int upgrade_start(U8 goal)

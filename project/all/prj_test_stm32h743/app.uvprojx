@@ -134,11 +134,11 @@
             <RunIndependent>0</RunIndependent>
             <UpdateFlashBeforeDebugging>1</UpdateFlashBeforeDebugging>
             <Capability>1</Capability>
-            <DriverSelection>4101</DriverSelection>
+            <DriverSelection>4096</DriverSelection>
           </Flash1>
           <bUseTDR>1</bUseTDR>
           <Flash2>BIN\UL2CM3.DLL</Flash2>
-          <Flash3></Flash3>
+          <Flash3>"" ()</Flash3>
           <Flash4></Flash4>
           <pFcarmOut></pFcarmOut>
           <pFcarmGrp></pFcarmGrp>
@@ -316,13 +316,13 @@
             <Optim>1</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
-            <OneElfS>1</OneElfS>
+            <OneElfS>0</OneElfS>
             <Strict>0</Strict>
             <EnumInt>0</EnumInt>
             <PlainCh>0</PlainCh>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
-            <wLevel>1</wLevel>
+            <wLevel>2</wLevel>
             <uThumb>0</uThumb>
             <uSurpInc>0</uSurpInc>
             <uC99>1</uC99>
@@ -337,7 +337,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress=177,1296</MiscControls>
-              <Define>USE_HAL_DRIVER,STM32H743xx</Define>
+              <Define>USE_HAL_DRIVER,STM32H743xx,OS_KERNEL=3</Define>
               <Undefine></Undefine>
               <IncludePath>./user;../../../device;../../../device/eth;../../../system;../../../platform/chip/st/stm32h7xx;../../../platform/chip/st/stm32h7xx/inc;../../../platform/chip/st/stm32h7xx/inc/Legacy;../../../platform/os;../../../platform/core/inc;../../../midware/lwip/src/include;../../../midware/lwip/sys</IncludePath>
             </VariousControls>
@@ -355,7 +355,7 @@
             <ClangAsOpt>4</ClangAsOpt>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define></Define>
+              <Define>OS_KERNEL=3</Define>
               <Undefine></Undefine>
               <IncludePath></IncludePath>
             </VariousControls>
@@ -399,24 +399,9 @@
               <FilePath>.\user\evt.h</FilePath>
             </File>
             <File>
-              <FileName>task.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\user\task.h</FilePath>
-            </File>
-            <File>
               <FileName>stm32h7xx_hal_conf.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\user\stm32h7xx_hal_conf.h</FilePath>
-            </File>
-            <File>
-              <FileName>RTX_Config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\user\RTX_Config.h</FilePath>
-            </File>
-            <File>
-              <FileName>RTE_Components.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\user\RTE_Components.h</FilePath>
             </File>
             <File>
               <FileName>lock.h</FileName>
@@ -429,16 +414,6 @@
               <FilePath>.\user\board.c</FilePath>
             </File>
             <File>
-              <FileName>task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_com.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task_com.c</FilePath>
-            </File>
-            <File>
               <FileName>test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\test.c</FilePath>
@@ -447,16 +422,6 @@
               <FileName>stm32h7xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\stm32h7xx_it.c</FilePath>
-            </File>
-            <File>
-              <FileName>RTX_Config.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\RTX_Config.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_lib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\rtx_lib.c</FilePath>
             </File>
             <File>
               <FileName>system_stm32h7xx.c</FileName>
@@ -468,25 +433,20 @@
               <FileType>2</FileType>
               <FilePath>.\user\startup_stm32h743xx.s</FilePath>
             </File>
+            <File>
+              <FileName>task_com.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\task_com.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
           <GroupName>device</GroupName>
           <Files>
             <File>
-              <FileName>sdram.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\device\sdram.c</FilePath>
-            </File>
-            <File>
               <FileName>eth.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\device\eth\eth.c</FilePath>
-            </File>
-            <File>
-              <FileName>ethernetif.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\device\eth\ethernetif.c</FilePath>
             </File>
             <File>
               <FileName>lan8742.c</FileName>
@@ -568,6 +528,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\system\net.c</FilePath>
             </File>
+            <File>
+              <FileName>task.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\task.c</FilePath>
+            </File>
+            <File>
+              <FileName>sys.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\sys.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -576,12 +546,12 @@
             <File>
               <FileName>adc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\adc.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\adc.c</FilePath>
             </File>
             <File>
               <FileName>adc2.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\adc2.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\adc2.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -637,7 +607,7 @@
             <File>
               <FileName>adc3.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\adc3.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\adc3.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -693,42 +663,52 @@
             <File>
               <FileName>delay.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\delay.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\delay.c</FilePath>
             </File>
             <File>
               <FileName>flash.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\flash.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\flash.c</FilePath>
             </File>
             <File>
               <FileName>gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\gpio.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\gpio.c</FilePath>
             </File>
             <File>
               <FileName>i2c.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\i2c.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\i2c.c</FilePath>
             </File>
             <File>
               <FileName>jump.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\jump.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\jump.c</FilePath>
             </File>
             <File>
               <FileName>spi.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\spi.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\spi.c</FilePath>
             </File>
             <File>
               <FileName>uart.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\uart.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\uart.c</FilePath>
             </File>
             <File>
-              <FileName>sys.c</FileName>
+              <FileName>ethernetif.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\drv\sys.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\ethernetif.c</FilePath>
+            </File>
+            <File>
+              <FileName>sdram.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\sdram.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\bsp.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1188,7 +1168,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>os</GroupName>
+          <GroupName>os/rtx5</GroupName>
           <Files>
             <File>
               <FileName>os_systick.c</FileName>
@@ -1259,6 +1239,21 @@
               <FileName>irq_armv7m.s</FileName>
               <FileType>2</FileType>
               <FilePath>..\..\..\platform\core\asm\irq_armv7m.s</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_lib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_lib.c</FilePath>
+            </File>
+            <File>
+              <FileName>RTX_Config.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\RTX_Config.c</FilePath>
+            </File>
+            <File>
+              <FileName>RTX_Config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\platform\os\rtx\RTX_Config.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1545,6 +1540,61 @@
               <FileName>sys_arch.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\lwip\sys\os\sys_arch.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>os/freertos</GroupName>
+          <Files>
+            <File>
+              <FileName>heap_4.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\portable\heap_4.c</FilePath>
+            </File>
+            <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\portable\port.c</FilePath>
+            </File>
+            <File>
+              <FileName>cmsis_os2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\cmsis_os2.c</FilePath>
+            </File>
+            <File>
+              <FileName>croutine.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\croutine.c</FilePath>
+            </File>
+            <File>
+              <FileName>list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\list.c</FilePath>
+            </File>
+            <File>
+              <FileName>queue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\queue.c</FilePath>
+            </File>
+            <File>
+              <FileName>tasks.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\tasks.c</FilePath>
+            </File>
+            <File>
+              <FileName>timers.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\timers.c</FilePath>
+            </File>
+            <File>
+              <FileName>event_groups.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\event_groups.c</FilePath>
+            </File>
+            <File>
+              <FileName>stream_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\stream_buffer.c</FilePath>
             </File>
           </Files>
         </Group>

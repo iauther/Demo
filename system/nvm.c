@@ -1,9 +1,5 @@
-#include "at24cxx.h"
-#ifndef _WIN32
-#include "drv/flash.h"
-#endif
-#include "nvm.h"
-#include "cfg.h"
+#include "devs.h"
+#include "dal/dal.h"
 
 
 

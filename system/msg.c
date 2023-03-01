@@ -25,9 +25,9 @@ msg_t* msg_init(int max, int msg_size)
 }
 
 
-int msg_send(msg_t *m, void *ptr, int len)
+int msg_send(msg_t *m, void *ptr, int len, U32 timeout)
 {
-    if(!m || !ptr || !len || len>m->msg_size) {
+    if(!m || !ptr || !len || !len>m->msg_size) {
         return -1;
     }
 
@@ -35,7 +35,7 @@ int msg_send(msg_t *m, void *ptr, int len)
     if(osMessageQueuePut(m->mq, ptr, 0, 0)!=osOK) {
         return -1;
     }
-    osEventFlagsWait(m->ef, FLAGS_MASK, osFlagsWaitAny, osWaitForever);
+    osEventFlagsWait(m->ef, FLAGS_MASK, osFlagsWaitAny, timeout);
 #endif
 
     return 0;
@@ -60,6 +60,8 @@ int msg_post(msg_t *m, void *ptr, int len)
 
 int msg_recv(msg_t *m, void *ptr, int len)
 {
+    int r=0;
+    
     if(!m || !ptr || !len || len<m->msg_size) {
         return -1;
     }
@@ -68,21 +70,7 @@ int msg_recv(msg_t *m, void *ptr, int len)
     if(osMessageQueueGet(m->mq, ptr, NULL, osWaitForever)!=osOK) {
         return -1;
     }
-#endif
-
-    return 0;
-}
-
-
-int msg_ack(msg_t *m)
-{
-    int r=0;
-
-    if(!m) {
-        return -1;
-    }
-
-#ifdef OS_KERNEL
+    
     if(m->ack) {
         r = (osEventFlagsSet(m->ef, FLAGS_MASK)==osOK)?0:-1;
     }

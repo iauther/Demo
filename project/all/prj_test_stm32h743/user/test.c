@@ -1,13 +1,4 @@
-#include "task.h"
-#include "drv/adc.h"
-#include "drv/uart.h"
-#include "drv/delay.h"
-#include "drv/htimer.h"
-#include "eth.h"
-#include "paras.h"
-#include "com.h"
-#include "pkt.h"
-#include "cfg.h"
+#include "incs.h"
 
 
 static U16 data_recved_len=0;
@@ -15,7 +6,7 @@ static handle_t tmr_handle=NULL;
 
 static U8  rxBuffer[PKT_BUFLEN];
 static U8  tmpBuffer[PKT_BUFLEN];
-static handle_t urtHandle;
+
 static void rx_callback(U8 *data, U16 len)
 {
     
@@ -30,40 +21,43 @@ static void tmr_callback(void *arg)
 }
 ////////////////////////////////////////////////
 
-static int urt_init(void)
+#if 0
+#define TEST_LEN                  500000
+#define TEST_SDRAM_BASE           (0xD3300000)
+#define TEST_SDRAM_SIZE           (13*1024*1024-48)
+uint64_t sdram_mem[TEST_SDRAM_SIZE/8] __attribute__ ((at(TEST_SDRAM_BASE)));
+static int sdram_test(void)
 {
-    uart_cfg_t uc;
-
-    uc.mode = MODE_DMA;
-    uc.port = UART_3;
-    uc.baudrate = 115200;
-    uc.para.rx  = rx_callback;
-    uc.para.buf = rxBuffer;
-    uc.para.blen = sizeof(rxBuffer);
-    uc.para.dlen = 0;
-    urtHandle = uart_init(&uc);
+    int i,err=0;
     
-    return 0;
+    for(i=0; i<TEST_SDRAM_SIZE/8; i++) {
+        sdram_mem[i] = i;
+        if(sdram_mem[i] != i) {
+            LOGI("____ wrong sdram rw, %d\n", i);
+            err = 1;
+            break;
+        }
+    }
+    memset(sdram_mem, 0, TEST_SDRAM_SIZE);
+    
+    return err;
 }
-
-
-
-
-
+#endif
 
 void test_main(void)
-{   
-    //urt_init();
+{
+    int err,cnt=0;
+    log_init();
+    //sdram_init();
+    net2_init();
+    
     //adc_init();
     //com_init(rx_callback, 100);
     
     while(1) {
-        if(data_recved_len>0) {
-            //com_data_proc(readBuffer, data_recved_len);
-            data_recved_len = 0;
-        }
-        
-        delay_ms(300);
+        err = 0;//sdram_test();
+        LOGI("_____%d, err: %d\n", cnt++, err);
+        //delay_ms(200);
     }
 }
 

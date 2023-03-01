@@ -1,32 +1,22 @@
 #ifndef __ETH_Hx__
 #define __ETH_Hx__
 
+#include "devs.h"
+#include "lwip.h"
+
 #ifdef __cplusplus
  extern "C" {
 #endif
 
-#include "lwip/opt.h"
-#include "lwip/mem.h"
-#include "lwip/memp.h"
-#include "netif/etharp.h"
-#include "lwip/dhcp.h"
-#include "lwip/netif.h"
-#include "lwip/timeouts.h"
-#include "ethernetif.h"
-#include "lan8742.h"
-#include "platform.h"
-
-#ifdef OS_KERNEL
-#include "lwip/tcpip.h"
-#endif
-
 
 typedef struct pbuf pbuf_t;
-typedef struct tcp_pcb tcp_pcb_t;
 typedef struct netif netif_t;
 typedef struct netbuf netbuf_t;
 typedef struct netconn netconn_t;
+typedef struct tcp_pcb tcp_pcb_t;
 
+
+typedef void (*link_callback)(netif_t *netif);
 
 
 typedef struct {
@@ -43,6 +33,8 @@ typedef struct {
     netconn_t           *conn;
     netif_t             netif;
     int                 connected;
+    
+    link_callback       link_cb;
 }eth_handle_t;
 
 

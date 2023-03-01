@@ -1,21 +1,8 @@
-#include "error.h"
-#include "com.h"
-#include "paras.h"
-#include "upgrade.h"
-#include "cfg.h"
-#include "log.h"
-#include "task.h"
-#include "board.h"
-#include "pkt.h"
-
+#include "incs.h"
 #ifdef _WIN32
 #include "win.h"
-#else
-#include "drv/uart.h"
-#include "drv/jump.h"
 #endif
 
-#include "log.h"
 
 
 static handle_t comHandle=NULL;

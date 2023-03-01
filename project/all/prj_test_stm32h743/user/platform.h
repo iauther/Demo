@@ -9,4 +9,6 @@
 #include "cmsis_os2.h"
 #endif
 
+#define CMSIS_device_header "platform.h"
+
 #endif

@@ -1,5 +1,5 @@
+#include "incs.h"
 #include "lock.h"
-#include "task.h"
 
 #ifdef OS_KERNEL
 osMutexId_t mutex[LOCK_MAX];

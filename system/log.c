@@ -1,9 +1,9 @@
+#include "dal/uart.h"
 #include "log.h"
-#include "drv/uart.h"
 #include "cfg.h"
 
 
-
+static handle_t logHandle;
 const char* log_string[LV_MAX]={
     "-----info-----",
     "----debug-----",
@@ -62,8 +62,29 @@ int log_print(LEVEL lv, char *fmt, ...)
 
 
 
+int log_init(void)
+{
+    uart_cfg_t uc;
+
+    uc.mode = MODE_DMA;
+    uc.port = UART_3;
+    uc.baudrate = 115200;
+    uc.para.rx  = NULL;
+    uc.para.buf = NULL;
+    uc.para.blen = 0;
+    uc.para.dlen = 0;
+    logHandle = uart_init(&uc);
+    
+    return 0;
+}
 
 
+
+int fputc(int ch, FILE *p)
+{
+	uart_write(logHandle, (u8*)&ch, 1);	
+	return ch;
+}
 
 
 

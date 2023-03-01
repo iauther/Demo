@@ -2,7 +2,7 @@
 #define __LCD_H__
 
 #include "types.h"
-#include "myCfg.h"
+#include "cfg.h"
 
 /* 颜色 */
 #if (LCD_COLOR==COLOR_RGB565)

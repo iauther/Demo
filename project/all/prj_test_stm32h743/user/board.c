@@ -1,16 +1,4 @@
-#include "board.h"
-#include "data.h"
-#include "data.h"
-#include "drv/sys.h"
-#include "drv/gpio.h"
-#include "drv/delay.h"
-#include "drv/uart.h"
-#include "drv/i2c.h"
-#include "drv/htimer.h"
-#include "sdram.h"
-#include "paras.h"
-#include "task.h"
-#include "cfg.h"
+#include "incs.h"
 
 handle_t i2c0Handle=NULL;
 handle_t i2c1Handle=NULL;
@@ -70,8 +58,6 @@ int board_init(void)
 #ifdef BOOTLOADER
     //SCB->VTOR = FLASH_BASE | 0x20000; 
     //__enable_irq();
-#else
-    //SCB->VTOR = FLASH_BASE; 
 #endif
     
     sys_init();
@@ -88,7 +74,7 @@ int board_init(void)
 
 #ifdef OS_KERNEL
     //led_set_color(GREEN);
-    task_start();
+    task_init();
 #else
     test_main();
 #endif
