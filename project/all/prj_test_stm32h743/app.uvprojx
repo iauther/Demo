@@ -339,7 +339,7 @@
               <MiscControls>--diag_suppress=177,1296</MiscControls>
               <Define>USE_HAL_DRIVER,STM32H743xx,OS_KERNEL=3</Define>
               <Undefine></Undefine>
-              <IncludePath>./user;../../../device;../../../device/eth;../../../system;../../../platform/chip/st/stm32h7xx;../../../platform/chip/st/stm32h7xx/inc;../../../platform/chip/st/stm32h7xx/inc/Legacy;../../../platform/os;../../../platform/core/inc;../../../midware/lwip/src/include;../../../midware/lwip/sys</IncludePath>
+              <IncludePath>./user;../../../device;../../../system;../../../platform/chip/st/stm32h7xx;../../../platform/chip/st/stm32h7xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/lwip/sys;../../../midware/lwip/src/include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -541,7 +541,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>chip/drv</GroupName>
+          <GroupName>chip/dal</GroupName>
           <Files>
             <File>
               <FileName>adc.c</FileName>
@@ -706,9 +706,9 @@
               <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\sdram.c</FilePath>
             </File>
             <File>
-              <FileName>bsp.c</FileName>
+              <FileName>dal.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\bsp.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1168,96 +1168,6 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>os/rtx5</GroupName>
-          <Files>
-            <File>
-              <FileName>os_systick.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\os_systick.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_delay.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_delay.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_evflags.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_evflags.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_evr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_evr.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_kernel.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_kernel.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_memory.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_memory.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_mempool.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_mempool.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_msgqueue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_msgqueue.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_mutex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_mutex.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_semaphore.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_semaphore.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_system.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_system.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_thread.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_thread.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_timer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_timer.c</FilePath>
-            </File>
-            <File>
-              <FileName>irq_armv7m.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\..\platform\core\asm\irq_armv7m.s</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_lib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_lib.c</FilePath>
-            </File>
-            <File>
-              <FileName>RTX_Config.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\RTX_Config.c</FilePath>
-            </File>
-            <File>
-              <FileName>RTX_Config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\platform\os\rtx\RTX_Config.h</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>midware/lwip</GroupName>
           <Files>
             <File>
@@ -1540,6 +1450,96 @@
               <FileName>sys_arch.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\lwip\sys\os\sys_arch.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>os/rtx5</GroupName>
+          <Files>
+            <File>
+              <FileName>os_systick.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\os_systick.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_delay.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_evflags.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_evflags.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_evr.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_evr.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_kernel.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_kernel.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_memory.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_memory.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_mempool.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_mempool.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_msgqueue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_msgqueue.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_mutex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_mutex.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_semaphore.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_semaphore.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_system.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_system.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_thread.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_thread.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_timer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_timer.c</FilePath>
+            </File>
+            <File>
+              <FileName>irq_armv7m.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>..\..\..\platform\core\asm\irq_armv7m.s</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_lib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_lib.c</FilePath>
+            </File>
+            <File>
+              <FileName>RTX_Config.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\RTX_Config.c</FilePath>
+            </File>
+            <File>
+              <FileName>RTX_Config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\platform\os\rtx\RTX_Config.h</FilePath>
             </File>
           </Files>
         </Group>

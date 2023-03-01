@@ -46,10 +46,14 @@ static int sdram_test(void)
 
 void test_main(void)
 {
+    net_cfg_t cfg;
     int err,cnt=0;
     log_init();
+    
     //sdram_init();
-    net2_init();
+    
+    cfg.callback = NULL;
+    net_init(&cfg);
     
     //adc_init();
     //com_init(rx_callback, 100);

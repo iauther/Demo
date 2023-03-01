@@ -12,13 +12,17 @@
 #include "dal/jump.h"
 #include "dal/pwm.h"
 #include "dal/spi.h"
-#include "dal/bsp.h"
 #include "dal/uart.h"
 #include "dal/wdg.h"
 #include "dal/sdram.h"
 #include "dal/ethernetif.h"
 //#include "dal/dma.h"
 //#include "dal/si2c.h"
+
+int dal_init(void);
+
+U32 dal_get_freq(void);
+
 
 #endif
 

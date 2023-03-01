@@ -2,6 +2,7 @@
 #define __UART_Hx__
 
 #include "types.h"
+#include "pkt.h"
 
 enum {
     MODE_POLL=0,
@@ -21,11 +22,8 @@ enum {
     UART_MAX
 };
 
-
-typedef void (*rx_fn_t)(U8 *data, U16 data_len);
-
 typedef struct {
-    rx_fn_t             rx;
+    port_callback_t     callback;
     U8                  *buf;
     U16                 blen;
     U16                 dlen;       //data length

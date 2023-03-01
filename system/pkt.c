@@ -16,7 +16,7 @@ static U8 get_sum(void* data, U16 len)
     }
     return sum;
 }
-static handle_t port_init(U8 port, port_callback_t cb)
+static handle_t port_init(U8 port, port_callback_t callback)
 {
 #ifndef _WIN32
     switch(port) {
@@ -28,12 +28,20 @@ static handle_t port_init(U8 port, port_callback_t cb)
             uc.mode = MODE_DMA;
             uc.port = COM_UART_PORT;               //PA2: TX   PA3: RX
             uc.baudrate = COM_BAUDRATE;
-            uc.para.rx = cb;
+            uc.para.callback = callback;
             uc.para.buf = pkt_rx_buf;
             uc.para.blen = sizeof(pkt_rx_buf);
             uc.para.dlen = 0;
             
             return uart_init(&uc);
+        }
+        
+        case PORT_ETH:
+        {
+            net_cfg_t nc;
+            
+            nc.callback = callback;
+            return net_init(&nc);
         }
     }
 #endif

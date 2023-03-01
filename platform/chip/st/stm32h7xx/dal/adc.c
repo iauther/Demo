@@ -49,34 +49,27 @@
 extern U32 sys_freq;
 static U32 adcValue=0;
 static adc_pin_t adcPins[]=ADC_SAMPLE_CHANS;
-static adc_info_t adcInfo[ADC_MAX]={
-    {ADC1, DMA2_Stream0_IRQn,  DMA_REQUEST_ADC1,   DMA2_Stream0},
-    {ADC2, DMA2_Stream2_IRQn,  DMA_REQUEST_ADC2,   DMA2_Stream2}, 
-    {ADC3, BDMA_Channel0_IRQn, BDMA_REQUEST_ADC3,  MDMA_Channel0} 
-};
 
-//#define STORE_DATA_IN_SDRAM
-#ifdef STORE_DATA_IN_SDRAM
-#define STORE_LEN_MAX       (10*1024*1024)
-static int store_data_len=0;
-static F32 sdram_store_data[STORE_LEN_MAX] __attribute__ ((at(0xD3200000))); // SDRAM
-#endif
+
 
 #define ADC_BUF_LEN    256
-
-
 
 #define VDD_APPLI           ((U32) 3300)    /* Value of analog voltage supply Vdda (unit: mV) */
 #define RANGE_8BITS         ((U32)  255)    /* Max digital value with a full range of 8 bits */
 #define RANGE_12BITS        ((U32) 4095)    /* Max digital value with a full range of 12 bits */
 #define RANGE_16BITS        ((U32)65535)    /* Max digital value with a full range of 16 bits */
 
-
 #define S_ADCTO(v)          ((3.3F/65535)*v)
 #define D_ADCTO(v)          (((2.0F*v)/65535-1)*3.3F)
 
-//#define ADC_TRIGGER_FROM_TIMER
 
+//#define ADC_TRIGGER_FROM_TIMER
+//#define STORE_DATA_IN_SDRAM
+#ifdef STORE_DATA_IN_SDRAM
+#define STORE_LEN_MAX       (10*1024*1024)
+static int store_data_len=0;
+static F32 sdram_store_data[STORE_LEN_MAX] __attribute__ ((at(0xD3200000))); // SDRAM
+#endif
 
 
 typedef struct {
@@ -122,7 +115,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim)
     if(htim->Instance==TIM4){
         __HAL_RCC_TIM4_CLK_ENABLE();
 
-        HAL_NVIC_SetPriority(TIM4_IRQn, 0, 0);
+        HAL_NVIC_SetPriority(TIM4_IRQn, 5, 0);
         HAL_NVIC_EnableIRQ(TIM4_IRQn);
     }
 }
@@ -356,14 +349,19 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 }
 
 
-
-
+/*
+{ADC1, DMA2_Stream0_IRQn,  DMA_REQUEST_ADC1,   DMA2_Stream0},
+{ADC2, DMA2_Stream2_IRQn,  DMA_REQUEST_ADC2,   DMA2_Stream2}, 
+{ADC3, BDMA_Channel0_IRQn, BDMA_REQUEST_ADC3,  MDMA_Channel0}
+*/
 void DMA2_Stream0_IRQHandler(void)  //ADC1
 {
     HAL_DMA_IRQHandler(&adcHandle.hdma);
 }
-
-
+void DMA2_Stream2_IRQHandler(void)  //ADC2
+{
+    HAL_DMA_IRQHandler(&adcHandle.hdma);
+}
 
 
 static int _adc_init(void)
@@ -421,9 +419,9 @@ static int _adc_init(void)
         h->slave.Init = h->master.Init;
         h->slave.Init.ContinuousConvMode = DISABLE;
         h->slave.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-        //if (HAL_ADC_DeInit(&h->slave) != HAL_OK) {
-        //    return -1;
-        //}
+        if (HAL_ADC_DeInit(&h->slave) != HAL_OK) {
+            return -1;
+        }
         if (HAL_ADC_Init(&h->slave) != HAL_OK) {
             return -1;
         }

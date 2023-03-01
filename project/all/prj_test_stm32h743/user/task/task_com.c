@@ -11,22 +11,23 @@ static void com_tmr_callback(void *arg)
 {
     task_post(comID, EVT_TIMER, 0, NULL, 0);
 }
-static void com_rx_callback(U8 *data, U16 len)
+static void com_rx_callback(void *arg, U32 evt, U8 *data, U16 len)
 {
     task_post(comID, EVT_COM, 0, data, len);
 }
 static void task_com_init(void)
 {
+    net_cfg_t cfg;
     osTimerId_t tmrId;
     
     tmrId = osTimerNew(com_tmr_callback, osTimerPeriodic, NULL, NULL);
     osTimerStart(tmrId, POLL_MS);
     
     //urt_init();
-    //adc_init();
+    adc_init();
     //adc2_init();
     
-    //com_init(com_rx_callback, POLL_MS);
+    com_init(PORT_ETH, com_rx_callback, POLL_MS);
     //com_send_paras(1);
 }
 
@@ -40,8 +41,7 @@ void task_com_fn(void *arg)
     osTimerId_t tmrId;
     task_handle_t *h=(task_handle_t*)arg;
     
-    //task_com_init();
-    net2_test();
+    task_com_init();
     
     while(1) {
         r = msg_recv(h->msg, &e, sizeof(e));

@@ -1,6 +1,6 @@
-#include "bsp.h"
-#include "cfg.h"
+#include "dal/dal.h"
 #include "platform.h"
+#include "cfg.h"
 
 U32 sys_freq = 0;static U32 s_freq=0;
 
@@ -128,7 +128,7 @@ static void mpu_config(void)
 
 
 
-static int bsp_clk_init(void)
+static int dal_clk_init(void)
 {
 	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
 	RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
@@ -249,7 +249,7 @@ static int bsp_clk_init(void)
 }
 
 
-static int clk_init(void)
+static int dal_clk_init2(void)
 {
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
     RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
@@ -306,13 +306,13 @@ static int clk_init(void)
 }
 
 
-int bsp_init(void)
+int dal_init(void)
 {
     mpu_config();
     cache_enable();
     
     HAL_Init();
-    bsp_clk_init();
+    dal_clk_init();
     
     sys_freq = HAL_RCC_GetSysClockFreq();
     
@@ -320,7 +320,7 @@ int bsp_init(void)
 }
 
 
-U32 bsp_get_freq(void)
+U32 dal_get_freq(void)
 {
     return HAL_RCC_GetSysClockFreq();
 }

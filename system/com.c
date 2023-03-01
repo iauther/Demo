@@ -14,7 +14,7 @@ int com_init(U8 port, port_callback_t cb, int loop_period)
     stat_t stat={0};
     pkt_cfg_t cfg;
     
-    cfg.period = port;
+    cfg.port = port;
     cfg.cb     = cb;
     cfg.handle  = comHandle;
     cfg.period  = loop_period;

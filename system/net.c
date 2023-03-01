@@ -1,4 +1,5 @@
 #include "net.h"
+#include "task.h"
 
 //https://wenku.baidu.com/view/43a00bbf52e79b89680203d8ce2f0066f53364ad.html
 //https://www.shuzhiduo.com/A/LPdo0K8Ez3/
@@ -36,17 +37,23 @@ https://community.st.com/s/article/How-to-create-project-for-STM32H7-with-Ethern
 
 //LwIP 提供了三种编程接口，分别为 RAW/Callback API、 NETCONN API、 SOCKETAPI. 它们的易用性从左到右依次提高，而执行效率从左到右依次降低
 
-#define HOST_IP         "192.168.2.70"
-
 #define DEV_PORT        8888
 #define DEV_IP          "192.168.2.88"
 #define DEV_IP_MASK     "255.255.255.0"
 #define DEV_GATEWAY     "192.168.2.1"
 
 
+#define RECV_BUF_LEN  1024
+static int tcp_connected=0;
+static tcp_pcb_t *tcp_pcb=NULL;
+
 typedef struct {
     eth_handle_t        eth;
     int                 connected;
+    net_cfg_t           cfg;
+    
+    U8                  buff[RECV_BUF_LEN];
+    U32                 rlen;
 }net_handle_t;
 
 
@@ -63,180 +70,6 @@ static void tcp_client_init(void);
 
 static void my_test(void);
 
-
-#define RECV_BUF_LEN  1024
-static U8 recv_buffer[RECV_BUF_LEN];
-static net_handle_t netHandle={0};
-static U32 recved_len=0;
-static tcp_pcb_t *tcp_pcb=NULL;
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-static err_t tcp_server_accepted(void *arg, tcp_pcb_t *pcb, err_t err)
-{
-    //printf("tcp client connected\r\n");
-    //tcp_write(pcb, "tcp client connected", strlen("tcp client connected"), 0);
-    
-    /* 注册接收回调函数 */
-    tcp_recv(pcb, tcp_server_recv);
-    netHandle.connected = 1;
-    tcp_pcb = pcb;
-
-    return ERR_OK;
-}
-static err_t tcp_server_recv(void *arg, tcp_pcb_t *tpcb, pbuf_t *p, err_t err)
-{
-    uint32_t i;
-    
-    //tcp_write(tpcb, p->payload, p->len, 1);
-
-    if (err == ERR_OK) {
-        printf("tcp client closed\r\n");
-        tcp_recved(tpcb, p->tot_len);
-        
-        return tcp_close(tpcb);
-    }
-    else {
-        if (p) {
-            pbuf_t *ptmp = p;
-            
-            while(ptmp != NULL) {
-                for (i = 0; i < p->len; i++) {
-                    //printf("%c", *((char *)p->payload + i));
-                }
-                
-                ptmp = p->next;
-            }
-            
-            tcp_recved(tpcb, p->tot_len);
-            
-            /* 释放缓冲区数据 */
-            pbuf_free(p);
-        }
-    }
-
-    return ERR_OK;
-}
-static void tcp_server_init(void)
-{
-    tcp_pcb_t *pcb=tcp_new();
-
-    if (pcb) {
-        
-        /* 绑定端口接收，接收对象为所有ip地址 */
-        err_t e = tcp_bind(pcb, IP_ADDR_ANY, DEV_PORT);
-        if (e == ERR_OK) {
-            
-            pcb = tcp_listen(pcb);
-            tcp_accept(pcb, tcp_server_accepted);
-            //printf("tcp server listening\r\n");
-        }
-        else {
-            memp_free(MEMP_TCP_PCB, pcb);
-            //printf("can not bind pcb\r\n");
-        }
-    }
-}
-
-static err_t tcp_client_connected(void *arg, tcp_pcb_t *pcb, err_t err)
-{
-    netHandle.connected = 1;
-    tcp_pcb = pcb;
-
-    return ERR_OK;
- }
-static err_t tcp_client_recv(void *arg, tcp_pcb_t *pcb, pbuf_t *pbuf, err_t err)
-{ 
-    if (err != ERR_OK) {
-        tcp_close(pcb);
-        tcp_client_init();
-    }
-    else {
-        if (pbuf) {
-            tcp_recved(pcb, pbuf->tot_len);
-            pbuf_free(pbuf);
-        }
-    }
-  
-    return err;
-}
-static void tcp_client_connect_error(void *arg, err_t err)
-{
-    tcp_client_init();
-}
-static void tcp_client_init(void)
-{
-    tcp_pcb_t *pcb;
-
-    pcb = tcp_new();
-    if (pcb) {
-        err_t e;
-        ip_addr_t ipaddr;
-        
-        e = tcp_bind(pcb, IP_ADDR_ANY, 8888);
-        
-        ip4addr_aton(HOST_IP, &ipaddr);
-        e = tcp_connect(pcb, &ipaddr, 9999, tcp_client_connected);
-        
-        tcp_recv(pcb, tcp_client_recv);
-        tcp_err(pcb, tcp_client_connect_error);
-    }
-}
-static void tcp_test(void)
-{
-    static err_t e=0;
-    char echosStr[]="123456\n";
-    
-    tcp_client_init();
-    //tcp_server_init();
-    while(1) {
-        if(netHandle.connected) {
-            e = tcp_write(tcp_pcb, echosStr, strlen(echosStr), 1);
-            delay_ms(200);
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////
-
-static void net_link_callback(netif_t *netif)
-{
-     if(netif_is_link_up(netif)) {
-        //connected
-         netHandle.connected = 1;
-     }
-     else {
-        //disconnected
-         netHandle.connected = 0;
-     }
-}
-static void net_data_callback(netconn_t *conn, void *data, int len)
-{
-    netconn_write(conn, data, len, NETCONN_NOCOPY);
-}
-
-static int net_data_recv(void *data, int len)
-{
-    int wlen;
-    
-    if(recved_len>=RECV_BUF_LEN) {
-        return -1;
-    }
-    
-    wlen = (recved_len+len>RECV_BUF_LEN)?(RECV_BUF_LEN-recved_len):len;
-    memcpy(recv_buffer+recved_len, data, len);
-    
-    recved_len += wlen;
-    
-    return 0;
-}
-
-static void set_ipaddr(ipaddr_t *ipaddr)
-{
-    ip4addr_aton(DEV_IP, &ipaddr->ip);
-    ip4addr_aton(DEV_IP_MASK, &ipaddr->netmask);
-    ip4addr_aton(DEV_GATEWAY, &ipaddr->gateway);
-}
 
 
 
@@ -306,73 +139,202 @@ void DHCP_Thread(void const * argument)
     }
 }
 #endif  /* LWIP_DHCP */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-int net2_init(void)
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+static err_t tcp_server_accepted(void *arg, tcp_pcb_t *pcb, err_t err)
 {
-    err_t e;
-
-    netHandle.connected = 0;
-    netHandle.eth.link_cb = net_link_callback;
-
-    set_ipaddr(&netHandle.eth.addr);
-    eth_init(&netHandle.eth);
+    //printf("tcp client connected\r\n");
+    //tcp_write(pcb, "tcp client connected", strlen("tcp client connected"), 0);
     
-#ifdef OS_KERNEL
-    netHandle.eth.conn = netconn_new(NETCONN_TCP);
-    if(!netHandle.eth.conn) {
-        return -1;
+    /* 注册接收回调函数 */
+    tcp_recv(pcb, tcp_server_recv);
+    tcp_connected = 1;
+    tcp_pcb = pcb;
+
+    return ERR_OK;
+}
+static err_t tcp_server_recv(void *arg, tcp_pcb_t *tpcb, pbuf_t *p, err_t err)
+{
+    uint32_t i;
+    
+    //tcp_write(tpcb, p->payload, p->len, 1);
+
+    if (err == ERR_OK) {
+        printf("tcp client closed\r\n");
+        tcp_recved(tpcb, p->tot_len);
+        
+        return tcp_close(tpcb);
     }
-    //ip_set_option(netHandle.conn->pcb.tcp, SOF_REUSEADDR);
+    else {
+        if (p) {
+            pbuf_t *ptmp = p;
+            
+            while(ptmp != NULL) {
+                for (i = 0; i < p->len; i++) {
+                    //printf("%c", *((char *)p->payload + i));
+                }
+                
+                ptmp = p->next;
+            }
+            
+            tcp_recved(tpcb, p->tot_len);
+            
+            /* 释放缓冲区数据 */
+            pbuf_free(p);
+        }
+    }
 
-    e = netconn_bind(netHandle.eth.conn, IP_ADDR_ANY, DEV_PORT);
-    e = netconn_listen(netHandle.eth.conn);
-#else
-    tcp_test();
-#endif
+    return ERR_OK;
+}
+static void tcp_server_init(void)
+{
+    tcp_pcb_t *pcb=tcp_new();
 
-    return 0;
+    if (pcb) {
+        
+        /* 绑定端口接收，接收对象为所有ip地址 */
+        err_t e = tcp_bind(pcb, IP_ADDR_ANY, DEV_PORT);
+        if (e == ERR_OK) {
+            
+            pcb = tcp_listen(pcb);
+            tcp_accept(pcb, tcp_server_accepted);
+            //printf("tcp server listening\r\n");
+        }
+        else {
+            memp_free(MEMP_TCP_PCB, pcb);
+            //printf("can not bind pcb\r\n");
+        }
+    }
+}
+
+static err_t tcp_client_connected(void *arg, tcp_pcb_t *pcb, err_t err)
+{
+    tcp_connected = 1;
+    tcp_pcb = pcb;
+
+    return ERR_OK;
+ }
+static err_t tcp_client_recv(void *arg, tcp_pcb_t *pcb, pbuf_t *pbuf, err_t err)
+{ 
+    if (err != ERR_OK) {
+        tcp_close(pcb);
+        tcp_client_init();
+    }
+    else {
+        if (pbuf) {
+            tcp_recved(pcb, pbuf->tot_len);
+            pbuf_free(pbuf);
+        }
+    }
+  
+    return err;
+}
+static void tcp_client_connect_error(void *arg, err_t err)
+{
+    tcp_client_init();
+}
+static void tcp_client_init(void)
+{
+    tcp_pcb_t *pcb;
+
+    pcb = tcp_new();
+    if (pcb) {
+        err_t e;
+        ip_addr_t ipaddr;
+        
+        e = tcp_bind(pcb, IP_ADDR_ANY, 8888);
+        
+        //ip4addr_aton(HOST_IP, &ipaddr);
+        e = tcp_connect(pcb, &ipaddr, 9999, tcp_client_connected);
+        
+        tcp_recv(pcb, tcp_client_recv);
+        tcp_err(pcb, tcp_client_connect_error);
+    }
+}
+static void tcp_test(void)
+{
+    static err_t e=0;
+    char echosStr[]="123456\n";
+    
+    tcp_client_init();
+    //tcp_server_init();
+    while(1) {
+        if(tcp_connected) {
+            e = tcp_write(tcp_pcb, echosStr, strlen(echosStr), 1);
+            delay_ms(200);
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////
+
+static void net_link_callback(netif_t *netif)
+{
+     if(netif_is_link_up(netif)) {
+        //connected
+         tcp_connected = 1;
+     }
+     else {
+        //disconnected
+         tcp_connected = 0;
+     }
 }
 
 
-int net2_loop(void)
+static int net_data_recv(net_handle_t *h, void *data, int len)
+{
+    int wlen;
+    
+    if(h->rlen>=RECV_BUF_LEN) {
+        return -1;
+    }
+    
+    wlen = (h->rlen+len>RECV_BUF_LEN)?(RECV_BUF_LEN-h->rlen):len;
+    memcpy(h->buff+h->rlen, data, len);
+    
+    h->rlen += wlen;
+    
+    return 0;
+}
+
+static void set_ipaddr(ipaddr_t *ipaddr)
+{
+    ip4addr_aton(DEV_IP, &ipaddr->ip);
+    ip4addr_aton(DEV_IP_MASK, &ipaddr->netmask);
+    ip4addr_aton(DEV_GATEWAY, &ipaddr->gateway);
+}
+
+
+static void task_net_fn(void *arg)
 {
     int r;
     err_t e;
     pbuf_t *p;
     netbuf_t *rbuf=NULL;
     netconn_t *newconn=NULL;
+    net_handle_t *h=(net_handle_t*)arg;
 
     while(1) {
 #ifdef OS_KERNEL
-        e = netconn_accept(netHandle.eth.conn, &newconn);
+        e = netconn_accept(h->eth.conn, &newconn);
         if(e==ERR_OK) {
+            if(h->cfg.callback) {
+                h->cfg.callback(newconn, NET_EVT_NEW_CONN, h->buff, h->rlen);
+            }
+            
             while(1) {
                 e = netconn_recv(newconn, &rbuf);
                 if(e==ERR_OK) {
                     for(p=rbuf->ptr;p!=NULL;p=p->next) {
-                        r = net_data_recv(p->payload, p->len);
+                        r = net_data_recv(h, p->payload, p->len);
                         if(r<0) {
                             break;
                         }
                     }
                     
-                    net_data_callback(newconn, recv_buffer, recved_len);
-                    recved_len = 0;
+                    if(h->cfg.callback) {
+                        h->cfg.callback(newconn, NET_EVT_DATA_IN, h->buff, h->rlen);
+                        h->rlen = 0;
+                    }
                 }
                 netbuf_delete(rbuf);
             }
@@ -383,26 +345,91 @@ int net2_loop(void)
     //
 #endif
     }
-    
-    return 0;
 }
 
 
-
-int net2_test(void)
+static void create_net_task(void *arg)
 {
-    int i=0;
-    char tmp[30];
+    task_attr_t attr={
+        .func = task_net_fn,
+        .arg = arg,
+        .nMsg = 5,
+        .prio = osPriorityNormal,
+        .stkSize = 1024,
+        .runNow  = 1,
+    };
     
-    net2_init();
-    net2_loop();
+    task_new(&attr);
+}
+handle_t net_init(net_cfg_t *cfg)
+{
+    err_t e;
+    task_attr_t attr;
+    net_handle_t *nh=calloc(1, sizeof(net_handle_t));
+    
+    if(!cfg || !nh) {
+        return NULL;
+    }
 
+    nh->connected = 0;
+    nh->cfg = *cfg;
+    nh->eth.link_cb = net_link_callback;
+
+    set_ipaddr(&nh->eth.addr);
+    eth_init(&nh->eth);
+    
+#ifdef OS_KERNEL
+    nh->eth.conn = netconn_new(NETCONN_TCP);
+    if(!nh->eth.conn) {
+        return NULL;
+    }
+    //ip_set_option(nh->conn->pcb.tcp, SOF_REUSEADDR);
+
+    e = netconn_bind(nh->eth.conn, IP_ADDR_ANY, DEV_PORT);
+    e = netconn_listen(nh->eth.conn);
+    
+    create_net_task(nh);
+#else
+    tcp_test();
+#endif
+
+    return nh;
+}
+
+
+int net_deinit(handle_t *h)
+{
+    net_handle_t **nh=(net_handle_t**)h;
+    
+    if(!(*nh)) {
+        return -1;
+    }
+    
+    //netconn_disconnect();
+    netconn_close((*nh)->eth.conn);
+    free(*nh);
     
     return 0;
 }
 
 
 
+int net_write(handle_t h, netconn_t *conn, U8 *data, int len)
+{
+#ifdef OS_KERNEL
+    return netconn_write(conn, data, len, NETCONN_NOCOPY);
+#else
+    return tcp_write(conn, data, len, NETCONN_NOCOPY);
+#endif
+}
+
+
+int net_broadcast(handle_t h, U8 *data, int len)
+{
+    net_handle_t *nh=(net_handle_t*)h;
+    
+    return 0;
+}
 
 
 

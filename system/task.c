@@ -68,30 +68,44 @@ static void tmr_callback(void *arg)
 }
 
 /////////////////////////////////////////////////////////////////////////
+static void create_user_task(void)
+{
+    task_attr_t att={
+        .func = task_com_fn,
+        .arg = NULL,
+        .nMsg = 5,
+        .prio = osPriorityNormal,
+        .stkSize = 1024,
+        .runNow  = 1,
+    };
+    
+    task_new(&att);
+}
 void task_init(void)
 {
     osKernelInitialize();
+    create_user_task();
     osKernelStart();
 }
 
 
 
-int task_new(task_attr_t *attr)
+int task_new(task_attr_t *tattr)
 {
     int id=get_free_id();
     task_handle_t *h=NULL;
     
-    if(!attr || id<0) {
+    if(!tattr || id<0) {
         return -1;
     }
     
-    osThreadAttr_t att={
+    const osThreadAttr_t attr={
         .attr_bits  = 0U,
         .cb_mem     = NULL, //?
         .cb_size    = 0,
         .stack_mem  = NULL,
-        .stack_size = attr->stkSize,
-        .priority   = attr->prio,
+        .stack_size = tattr->stkSize,
+        .priority   = tattr->prio,
         .tz_module  = 0,
     };
     
@@ -100,13 +114,13 @@ int task_new(task_attr_t *attr)
         return NULL;
     }
     
-    h->attr = *attr;
-    h->msg = msg_init(attr->nMsg, sizeof(evt_t));
-    h->threadID = osThreadNew(h->threadFun, h, (const osThreadAttr_t*)&attr);
+    h->attr = *tattr;
+    h->msg = msg_init(h->attr.nMsg, sizeof(evt_t));
+    h->threadID = osThreadNew(h->attr.func, h, &attr);
     
     taskHandle[id] = h;
     
-    if(attr->runNow==0) {
+    if(h->attr.runNow==0) {
         osThreadSuspend(h->threadID);
     }
     
@@ -146,7 +160,7 @@ int task_quit(int taskID)
         return -1;
     }
     
-    osThreadTerminate(h->threadID);
+    return osThreadTerminate(h->threadID);
 }
 
 

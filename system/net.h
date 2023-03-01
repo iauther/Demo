@@ -2,7 +2,9 @@
 #define __NET_Hx__
 
 #include "lwip.h"
+#include "pkt.h"
 #include "devs.h"
+#include "list.h"
 #include "dal/dal.h"
 
 enum {
@@ -10,6 +12,12 @@ enum {
     NET_WIFI,
 
     NET_MAX,
+};
+
+enum {
+    NET_EVT_NEW_CONN=0,
+    NET_EVT_DIS_CONN,
+    NET_EVT_DATA_IN
 };
 
 
@@ -21,14 +29,14 @@ enum {
 #define DHCP_LINK_DOWN             (uint8_t) 5
 
 
-int net2_init(void);
+typedef struct {
+    port_callback_t     callback;
+    
+}net_cfg_t;
 
-int net2_conn(void);
-
-int net2_read(U8 *data, int len);
-
-int net2_write(U8 *data, int len);
-
-int net2_test(void);
+handle_t net_init(net_cfg_t *cfg);
+int net_deinit(handle_t *h);
+int net_write(handle_t h, netconn_t *conn, U8 *data, int len);
+int net_broadcast(handle_t h, U8 *data, int len);
 
 #endif

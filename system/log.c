@@ -69,7 +69,7 @@ int log_init(void)
     uc.mode = MODE_DMA;
     uc.port = UART_3;
     uc.baudrate = 115200;
-    uc.para.rx  = NULL;
+    uc.para.callback  = NULL;
     uc.para.buf = NULL;
     uc.para.blen = 0;
     uc.para.dlen = 0;

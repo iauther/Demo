@@ -12,7 +12,7 @@ typedef struct {
     osThreadFunc_t  func;
     void            *arg;
     int             nMsg;       //msg max count
-    int             prio;       //priority
+    osPriority_t    prio;       //priority
     int             stkSize;    //stack size
     U8              runNow;
 }task_attr_t;
@@ -28,7 +28,6 @@ typedef struct {
     U32             curTimes;        
     
     osThreadId_t    threadID;
-    osThreadFunc_t  threadFun;
 }task_handle_t;
 
 

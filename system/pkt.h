@@ -26,7 +26,7 @@ enum {
 extern U8 pkt_rx_buf[PKT_BUFLEN];
 extern U8 pkt_tx_buf[PKT_BUFLEN];
 
-typedef void (*port_callback_t)(U8 *data, U16 len);
+typedef void (*port_callback_t)(void *arg, U32 evt, U8 *data, U16 len);
 
 typedef struct {
     U8              port;

@@ -60,7 +60,7 @@ int board_init(void)
     //__enable_irq();
 #endif
     
-    sys_init();
+    dal_init();
     
 #ifdef BOOTLOADER
     if(!upgrade_is_need()) {

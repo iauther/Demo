@@ -71,8 +71,8 @@ static void HAL_UART_IDLE_CALLBACK(uart_handle_t *h)
         }
         
         data_len = h->huart.RxXferSize - remain;
-        if(h->para.rx && data_len) {
-            h->para.rx(h->huart.pRxBuffPtr, data_len);
+        if(h->para.callback && data_len) {
+            h->para.callback(h, 0, h->huart.pRxBuffPtr, data_len);
             //h->para.rx(h->para.buf, data_len);
         }
         
