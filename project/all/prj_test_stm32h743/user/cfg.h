@@ -35,6 +35,22 @@
 
     //#define ADC_SIGNAL_MODE      ADC_SINGLE_ENDED
     #define ADC_SIGNAL_MODE      ADC_DIFFERENTIAL_ENDED
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
 #if 1
     #define ADC_SAMPLE_CHANS    {\

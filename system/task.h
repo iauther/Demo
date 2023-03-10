@@ -6,15 +6,24 @@
 #include "msg.h"
 
 
-#define TASK_MAX   5
+#define TIME_INFINITE  0xffffffff
+
+enum {
+    TASK_COM=0,
+    TASK_POLL,
+    TASK_STORE,
+    
+    TASK_MAX
+};
 
 typedef struct {
     osThreadFunc_t  func;
     void            *arg;
     int             nMsg;       //msg max count
-    osPriority_t    prio;       //priority
+    int             taskID;
+    osPriority_t    priority;
     int             stkSize;    //stack size
-    U8              runNow;
+    int             runNow;
 }task_attr_t;
 
 typedef struct {
@@ -31,9 +40,10 @@ typedef struct {
 }task_handle_t;
 
 
+extern int task_com_id;
+
 void task_com_fn(void *arg);
-void task_dev_fn(void *arg);
-void task_misc_fn(void *arg);
+void task_poll_fn(void *arg);
 
 void task_init(void);
 
@@ -43,8 +53,8 @@ int task_stop(int taskID);
 int task_quit(int id);
 
 int task_recv(int taskID, evt_t *evt, int evtlen);
-int task_send(int taskID, U8 evt, U8 type, void *data, U16 len, U32 timeout);
-int task_post(int taskID, U8 evt, U8 type, void *data, U16 len);
+int task_send(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len, U32 timeout);
+int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len);
 
 int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, U32 ms, U32 times);
 int task_tmr_stop(int taskID);

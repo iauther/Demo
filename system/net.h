@@ -2,7 +2,7 @@
 #define __NET_Hx__
 
 #include "lwip.h"
-#include "pkt.h"
+#include "com.h"
 #include "devs.h"
 #include "list.h"
 #include "dal/dal.h"
@@ -28,11 +28,26 @@ enum {
 #define DHCP_TIMEOUT               (uint8_t) 4
 #define DHCP_LINK_DOWN             (uint8_t) 5
 
+#define RECV_BUF_LEN               1024
 
 typedef struct {
-    port_callback_t     callback;
+    rx_cb_t     callback;
     
 }net_cfg_t;
+
+
+typedef struct {
+    eth_handle_t        eth;
+    
+    netconn_t           *conn;
+    int                 connected;
+    net_cfg_t           cfg;
+    
+    U8                  buff[RECV_BUF_LEN];
+    U32                 rlen;
+}net_handle_t;
+
+
 
 handle_t net_init(net_cfg_t *cfg);
 int net_deinit(handle_t *h);

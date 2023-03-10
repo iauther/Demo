@@ -43,21 +43,8 @@ https://community.st.com/s/article/How-to-create-project-for-STM32H7-with-Ethern
 #define DEV_GATEWAY     "192.168.2.1"
 
 
-#define RECV_BUF_LEN  1024
 static int tcp_connected=0;
 static tcp_pcb_t *tcp_pcb=NULL;
-
-typedef struct {
-    eth_handle_t        eth;
-    int                 connected;
-    net_cfg_t           cfg;
-    
-    U8                  buff[RECV_BUF_LEN];
-    U32                 rlen;
-}net_handle_t;
-
-
-
 
 ///////////////////////////////////////
 static err_t tcp_server_accepted(void *arg, tcp_pcb_t *newpcb, err_t err);
@@ -159,7 +146,7 @@ static err_t tcp_server_recv(void *arg, tcp_pcb_t *tpcb, pbuf_t *p, err_t err)
     //tcp_write(tpcb, p->payload, p->len, 1);
 
     if (err == ERR_OK) {
-        printf("tcp client closed\r\n");
+        //printf("tcp client closed\r\n");
         tcp_recved(tpcb, p->tot_len);
         
         return tcp_close(tpcb);
@@ -280,6 +267,13 @@ static void net_link_callback(netif_t *netif)
 }
 
 
+static void set_ipaddr(ipaddr_t *ipaddr)
+{
+    ip4addr_aton(DEV_IP, &ipaddr->ip);
+    ip4addr_aton(DEV_IP_MASK, &ipaddr->netmask);
+    ip4addr_aton(DEV_GATEWAY, &ipaddr->gateway);
+}
+
 static int net_data_recv(net_handle_t *h, void *data, int len)
 {
     int wlen;
@@ -296,14 +290,7 @@ static int net_data_recv(net_handle_t *h, void *data, int len)
     return 0;
 }
 
-static void set_ipaddr(ipaddr_t *ipaddr)
-{
-    ip4addr_aton(DEV_IP, &ipaddr->ip);
-    ip4addr_aton(DEV_IP_MASK, &ipaddr->netmask);
-    ip4addr_aton(DEV_GATEWAY, &ipaddr->gateway);
-}
-
-
+#ifdef OS_KERNEL
 static void task_net_fn(void *arg)
 {
     int r;
@@ -314,11 +301,10 @@ static void task_net_fn(void *arg)
     net_handle_t *h=(net_handle_t*)arg;
 
     while(1) {
-#ifdef OS_KERNEL
-        e = netconn_accept(h->eth.conn, &newconn);
+        e = netconn_accept(h->conn, &newconn);
         if(e==ERR_OK) {
             if(h->cfg.callback) {
-                h->cfg.callback(newconn, NET_EVT_NEW_CONN, h->buff, h->rlen);
+                h->cfg.callback(h, newconn, NET_EVT_NEW_CONN, h->buff, h->rlen);
             }
             
             while(1) {
@@ -332,35 +318,30 @@ static void task_net_fn(void *arg)
                     }
                     
                     if(h->cfg.callback) {
-                        h->cfg.callback(newconn, NET_EVT_DATA_IN, h->buff, h->rlen);
+                        h->cfg.callback(h, newconn, NET_EVT_DATA_IN, h->buff, h->rlen);
                         h->rlen = 0;
                     }
                 }
                 netbuf_delete(rbuf);
             }
         }
-        //rbuf->
-        
-#else
-    //
-#endif
     }
 }
 
-
-static void create_net_task(void *arg)
+static void net_recv_start(void *arg)
 {
-    task_attr_t attr={
-        .func = task_net_fn,
-        .arg = arg,
-        .nMsg = 5,
-        .prio = osPriorityNormal,
-        .stkSize = 1024,
-        .runNow  = 1,
-    };
+    osThreadAttr_t  attr={0};
     
-    task_new(&attr);
+    attr.name = "netRecv";
+    attr.stack_size = 512;
+    attr.priority = osPriorityBelowNormal;
+    osThreadNew(task_net_fn, arg, &attr);
 }
+#endif
+
+
+
+
 handle_t net_init(net_cfg_t *cfg)
 {
     err_t e;
@@ -379,16 +360,17 @@ handle_t net_init(net_cfg_t *cfg)
     eth_init(&nh->eth);
     
 #ifdef OS_KERNEL
-    nh->eth.conn = netconn_new(NETCONN_TCP);
-    if(!nh->eth.conn) {
+    nh->conn = netconn_new(NETCONN_TCP);
+    if(!nh->conn) {
+        free(nh);
         return NULL;
     }
     //ip_set_option(nh->conn->pcb.tcp, SOF_REUSEADDR);
 
-    e = netconn_bind(nh->eth.conn, IP_ADDR_ANY, DEV_PORT);
-    e = netconn_listen(nh->eth.conn);
+    e = netconn_bind(nh->conn, IP_ADDR_ANY, DEV_PORT);
+    e = netconn_listen(nh->conn);
     
-    create_net_task(nh);
+    net_recv_start(nh);
 #else
     tcp_test();
 #endif
@@ -406,7 +388,7 @@ int net_deinit(handle_t *h)
     }
     
     //netconn_disconnect();
-    netconn_close((*nh)->eth.conn);
+    netconn_close((*nh)->conn);
     free(*nh);
     
     return 0;

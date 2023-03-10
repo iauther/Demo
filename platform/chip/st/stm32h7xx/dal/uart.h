@@ -2,7 +2,7 @@
 #define __UART_Hx__
 
 #include "types.h"
-#include "pkt.h"
+#include "com.h"
 
 enum {
     MODE_POLL=0,
@@ -23,7 +23,7 @@ enum {
 };
 
 typedef struct {
-    port_callback_t     callback;
+    rx_cb_t             callback;
     U8                  *buf;
     U16                 blen;
     U16                 dlen;       //data length

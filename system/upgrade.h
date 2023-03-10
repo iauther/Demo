@@ -2,7 +2,7 @@
 #define __UPGRADE_Hx__
 
 #include "types.h"
-#include "data.h"
+#include "protocol.h"
 
 enum {
     GOAL_BOOT=0,

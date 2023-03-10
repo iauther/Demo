@@ -47,7 +47,6 @@
     
 */
 extern U32 sys_freq;
-static U32 adcValue=0;
 static adc_pin_t adcPins[]=ADC_SAMPLE_CHANS;
 
 
@@ -234,7 +233,6 @@ static int get_channels(void)
     int i,cnt=0;
     int channel[20]={0};
     
-    adcValue = 0;
     for(i=0; ; i++) {
         if(adcPins[i].pin.grp==0) {
             break;
@@ -307,11 +305,11 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
         HAL_DMA_Init(&h->hdma);
         __HAL_LINKDMA(hadc, DMA_Handle, h->hdma);
         
-        HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 1, 0);
+        HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
         HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
         
-        HAL_NVIC_SetPriority(ADC_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(ADC_IRQn);
+        //HAL_NVIC_SetPriority(ADC_IRQn, 5, 0);
+        //HAL_NVIC_EnableIRQ(ADC_IRQn);
     }
 }
 void HAL_ADC_MspDeInit(ADC_HandleTypeDef *hadc)
@@ -358,9 +356,46 @@ void DMA2_Stream0_IRQHandler(void)  //ADC1
 {
     HAL_DMA_IRQHandler(&adcHandle.hdma);
 }
-void DMA2_Stream2_IRQHandler(void)  //ADC2
+
+
+//#define USE_ADC_DEINIT
+#define IS_POWER_CH(mask,ch) (mask&(ch<<1))
+
+static void io_switch(U32 chMask)
 {
-    HAL_DMA_IRQHandler(&adcHandle.hdma);
+    int delay=0;
+    GPIO_PinState hl;
+
+#if 0
+	if(IS_POWER_CH(chMask, )) {	//channel 1 on
+        hl = GPIO_PIN_RESET;
+	}
+    else {	                                                //channel 2 on
+        hl = GPIO_PIN_SET;
+	}
+    
+    if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7) != hl) {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, hl);
+        delay = 1;
+    }
+       
+    ////////////////////////////////////////////////////
+	if(IS_ISO_CHN_BIT(chBits,DAU_CHNINDEC_ISO_CHN_03)) {	//channel 3 on
+        hl = GPIO_PIN_RESET;
+	}
+    else {	                                                //channel 4 on
+        hl = GPIO_PIN_SET;
+	}
+    
+    if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) != hl) {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, hl);
+        delay = 1;
+    }
+    
+    if(delay>0) {
+        delay_ms(1);
+    }
+#endif
 }
 
 
@@ -407,9 +442,12 @@ static int _adc_init(void)
     h->master.Init.Oversampling.TriggeredMode  = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
     h->master.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
     
+#ifdef USE_ADC_DEINIT
     if (HAL_ADC_DeInit(&h->master) != HAL_OK) {
         return -1;
     }
+#endif
+    
     if (HAL_ADC_Init(&h->master) != HAL_OK) {
         return -1;
     }
@@ -419,9 +457,13 @@ static int _adc_init(void)
         h->slave.Init = h->master.Init;
         h->slave.Init.ContinuousConvMode = DISABLE;
         h->slave.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+        
+#ifdef USE_ADC_DEINIT
         if (HAL_ADC_DeInit(&h->slave) != HAL_OK) {
             return -1;
         }
+#endif
+        
         if (HAL_ADC_Init(&h->slave) != HAL_OK) {
             return -1;
         }
@@ -495,7 +537,6 @@ static int _adc_deinit(void)
 static int _adc_start(void)
 {
     adc_handle_t *h=&adcHandle;
-    HAL_StatusTypeDef st;
     
     if (HAL_ADCEx_MultiModeStart_DMA(&h->master, h->buf, sizeof(h->buf)) != HAL_OK) {
         return -1;
@@ -509,10 +550,9 @@ static int _adc_start(void)
 static int _adc_stop(void)
 {
     adc_handle_t *h=&adcHandle;
-    HAL_StatusTypeDef st;
     
-    st = HAL_ADC_Stop(&h->master);
-    st = HAL_ADCEx_MultiModeStop_DMA(&h->master);
+    HAL_ADC_Stop(&h->master);
+    HAL_ADCEx_MultiModeStop_DMA(&h->master);
     
     //_tim_stop();
     

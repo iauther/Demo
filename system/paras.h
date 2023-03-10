@@ -1,7 +1,7 @@
 #ifndef __PARA_Hx__
 #define __PARA_Hx__
 
-#include "data.h"
+#include "protocol.h"
 
 
 int paras_load(void);

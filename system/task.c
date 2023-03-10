@@ -17,15 +17,16 @@ static int get_free_id(void)
 }
 
 
-static int msg_tx(task_handle_t *h, U8 evt, U8 type, void *data, U16 len, U32 timeout)
+static int msg_tx(task_handle_t *h, void *addr, U8 evt, U8 type, void *data, U16 len, U32 timeout)
 {
     int r;
     evt_t e;
     
-    if(!h || len>MAXLEN) {
+    if(!h || len>EVT_DATA_LEN_MAX) {
         return -1;
     }
     
+    e.addr = addr;
     e.evt = evt;
     e.type = type;
     e.dLen = len;
@@ -66,20 +67,27 @@ static void tmr_callback(void *arg)
         h->curTimes++;
     }
 }
+static void task_free(task_handle_t **h)
+{
+    taskHandle[(*h)->attr.taskID] = NULL;
+    free(*h); 
+}
 
 /////////////////////////////////////////////////////////////////////////
-static void create_user_task(void)
+static int create_user_task(void)
 {
     task_attr_t att={
         .func = task_com_fn,
         .arg = NULL,
         .nMsg = 5,
-        .prio = osPriorityNormal,
-        .stkSize = 1024,
+        .taskID = TASK_COM,
+        .priority = osPriorityNormal,
+        .stkSize = 2048,
         .runNow  = 1,
     };
-    
     task_new(&att);
+    
+    return 0;
 }
 void task_init(void)
 {
@@ -92,10 +100,9 @@ void task_init(void)
 
 int task_new(task_attr_t *tattr)
 {
-    int id=get_free_id();
     task_handle_t *h=NULL;
     
-    if(!tattr || id<0) {
+    if(!tattr || tattr->taskID>=TASK_MAX) {
         return -1;
     }
     
@@ -105,26 +112,29 @@ int task_new(task_attr_t *tattr)
         .cb_size    = 0,
         .stack_mem  = NULL,
         .stack_size = tattr->stkSize,
-        .priority   = tattr->prio,
+        .priority   = tattr->priority,
         .tz_module  = 0,
     };
     
     h = calloc(1, sizeof(task_handle_t));
     if(!h) {
-        return NULL;
+        return -1;
     }
     
     h->attr = *tattr;
-    h->msg = msg_init(h->attr.nMsg, sizeof(evt_t));
-    h->threadID = osThreadNew(h->attr.func, h, &attr);
+    if(h->attr.nMsg>0) {
+        h->msg = msg_init(h->attr.nMsg, sizeof(evt_t));
+    }
     
-    taskHandle[id] = h;
+    h->threadID = osThreadNew(h->attr.func, h->attr.arg, &attr);    
     
-    if(h->attr.runNow==0) {
+    if(!h->attr.runNow) {
         osThreadSuspend(h->threadID);
     }
     
-    return id;
+    taskHandle[h->attr.taskID] = h;
+    
+    return 0;
 }
 
 
@@ -160,7 +170,10 @@ int task_quit(int taskID)
         return -1;
     }
     
-    return osThreadTerminate(h->threadID);
+    osThreadTerminate(h->threadID);
+    task_free(&h);
+    
+    return 0;
 }
 
 
@@ -172,11 +185,11 @@ int task_recv(int taskID, evt_t *evt, int evtlen)
         return -1;
     }
     
-    return msg_recv(h->msg, evt, sizeof(evt_t));
+    return msg_recv(h->msg, evt, evtlen);
 }
 
 
-int task_send(int taskID, U8 evt, U8 type, void *data, U16 len, U32 timeout)
+int task_send(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len, U32 timeout)
 {
     task_handle_t *h=taskHandle[taskID];
     
@@ -184,11 +197,11 @@ int task_send(int taskID, U8 evt, U8 type, void *data, U16 len, U32 timeout)
         return -1;
     }
     
-    return msg_tx(h, evt, type, data, len, timeout);
+    return msg_tx(h, addr, evt, type, data, len, timeout);
 }
 
 
-int task_post(int taskID, U8 evt, U8 type, void *data, U16 len)
+int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len)
 {
     task_handle_t *h=taskHandle[taskID];
     
@@ -196,7 +209,7 @@ int task_post(int taskID, U8 evt, U8 type, void *data, U16 len)
         return -1;
     }
     
-    return msg_tx(h, evt, type, data, len, 1);
+    return msg_tx(h, addr, evt, type, data, len, 0);
 }
 
 
@@ -204,6 +217,7 @@ int task_post(int taskID, U8 evt, U8 type, void *data, U16 len)
 int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, U32 ms, U32 times)
 {
     osTimerType_t type;
+    osStatus_t st;
     task_handle_t *h=taskHandle[taskID];
     
     if(taskID<0 || taskID>=TASK_MAX || !h || !h->threadID) {
@@ -212,15 +226,19 @@ int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, U32 ms, U32 times)
     
     h->allTimes = times;
     h->curTimes = 0;
+    h->tmrFunc = tmrFunc;
     
-    type = (times<=0)?osTimerPeriodic:osTimerOnce;
-    osTimerDelete(h->tmrID);
+    type = (times>1)?osTimerPeriodic:osTimerOnce;
+    //if(h->tmrID) osTimerDelete(h->tmrID);
+    
     h->tmrID = osTimerNew(tmr_callback, type, h, NULL);
     if(!h->tmrID) {
         return -1;
     }
     
-    return osTimerStart(h->tmrID, ms);
+    st = osTimerStart(h->tmrID, ms);
+    
+    return st;
 }
 
 
@@ -238,8 +256,6 @@ int task_tmr_stop(int taskID)
     
     return 0;
 }
-
-
 
 #endif
 

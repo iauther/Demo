@@ -30,7 +30,6 @@ typedef struct {
     ipaddr_t            addr;
     
     lan8742_Object_t    lan;
-    netconn_t           *conn;
     netif_t             netif;
     int                 connected;
     
@@ -39,7 +38,7 @@ typedef struct {
 
 
 int eth_init(eth_handle_t *eh);
-int eth_check(void);
+void eth_link_check(void);
 void eth_test(void);
 
 #ifdef __cplusplus

@@ -4,13 +4,14 @@
 static U16 data_recved_len=0;
 static handle_t tmr_handle=NULL;
 
-static U8  rxBuffer[PKT_BUFLEN];
-static U8  tmpBuffer[PKT_BUFLEN];
+#define TEST_BUF_LEN 200
+static U8  rxBuffer[TEST_BUF_LEN];
+static U8  tmpBuffer[TEST_BUF_LEN];
 
 static void rx_callback(U8 *data, U16 len)
 {
     
-    if(len<=PKT_BUFLEN) {
+    if(len<=TEST_BUF_LEN) {
         memcpy(rxBuffer, data, len);
         data_recved_len = len;
     }

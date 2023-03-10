@@ -438,6 +438,11 @@
               <FileType>1</FileType>
               <FilePath>.\user\task\task_com.c</FilePath>
             </File>
+            <File>
+              <FileName>task_poll.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\task_poll.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

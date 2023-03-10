@@ -2,6 +2,7 @@
 #define __PKT_Hx__
 
 #include "types.h"
+#include "protocol.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,7 +11,6 @@ extern "C" {
 enum {
     PKT_TYPE_TRIGGER = 0,
     PKT_TYPE_LIGHT,
-
 
     PKT_TYPE_MAX
 };
@@ -22,36 +22,18 @@ enum {
     PORT_UART,
 };
 
-#define PKT_BUFLEN           500
-extern U8 pkt_rx_buf[PKT_BUFLEN];
-extern U8 pkt_tx_buf[PKT_BUFLEN];
+int pkt_check_hdr(void* data, int dlen, int buflen);
 
-typedef void (*port_callback_t)(void *arg, U32 evt, U8 *data, U16 len);
+int pkt_pack_data(U8 type, U8 nAck, void* data, int dlen, U8 *buf, int blen);
 
-typedef struct {
-    U8              port;
-    handle_t        handle;
-    int             period;
-    port_callback_t cb;
-}pkt_cfg_t;
+int pkt_pack_ack(U8 type, U8 error, U8 *buf, int blen);
 
-
-int pkt_init(pkt_cfg_t *cfg);
-
-U8 pkt_hdr_check(void* data, U16 len);
-
-int pkt_send(U8 type, U8 nAck, void* data, U16 len);
-
-int pkt_send_ack(U8 type, U8 error);
-
-int pkt_send_err(U8 type, U8 error);
+int pkt_pack_err(U8 type, U8 error, U8 *buf, int blen);
 
 
 #ifdef __cplusplus
     }
 #endif
-
-
                             
 #endif
 

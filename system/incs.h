@@ -32,7 +32,7 @@
 #include "com.h"
 #include "net.h"
 #include "paras.h"
-#include "data.h"
+#include "protocol.h"
 
 #include "msg.h"
 #include "task.h"
