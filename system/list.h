@@ -11,6 +11,8 @@ typedef struct _list {
     U8              quit;
 }list_t;
 
+typedef int (*list_iterater_t)(handle_t h, int index, void *p1, void *p2);
+
 list_t* list_init(int max, int node_size);
 
 int list_append(list_t *l, node_t *n);

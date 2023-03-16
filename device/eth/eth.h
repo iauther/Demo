@@ -16,7 +16,7 @@ typedef struct netconn netconn_t;
 typedef struct tcp_pcb tcp_pcb_t;
 
 
-typedef void (*link_callback)(netif_t *netif);
+typedef void (*eth_linkcb_t)(netif_t *netif);
 
 
 typedef struct {
@@ -27,19 +27,14 @@ typedef struct {
 
 
 typedef struct {
-    ipaddr_t            addr;
-    
-    lan8742_Object_t    lan;
-    netif_t             netif;
-    int                 connected;
-    
-    link_callback       link_cb;
-}eth_handle_t;
+    eth_linkcb_t        cb;
+}eth_cfg_t;
 
 
-int eth_init(eth_handle_t *eh);
-void eth_link_check(void);
-void eth_test(void);
+
+handle_t eth_init(eth_cfg_t *cfg);
+void eth_set_ip(handle_t h, char *ip, char *mask, char *gw);
+void eth_link_check(handle_t h);
 
 #ifdef __cplusplus
 }

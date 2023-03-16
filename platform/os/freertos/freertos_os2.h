@@ -19,6 +19,8 @@
  *      Purpose: CMSIS RTOS2 wrapper for FreeRTOS
  *
  *---------------------------------------------------------------------------*/
+#if (OS_KERNEL==3)
+
 
 #ifndef FREERTOS_OS2_H_
 #define FREERTOS_OS2_H_
@@ -307,3 +309,5 @@
 #endif
 
 #endif /* FREERTOS_OS2_H_ */
+
+#endif

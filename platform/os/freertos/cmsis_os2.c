@@ -19,6 +19,8 @@
  *      Purpose: CMSIS RTOS2 wrapper for FreeRTOS
  *
  *---------------------------------------------------------------------------*/
+#if (OS_KERNEL==3)
+
 
 #include <string.h>
 
@@ -161,6 +163,11 @@ void SysTick_Handler (void) {
   /* Clear overflow flag */
   SysTick->CTRL;
 
+#ifdef USE_HAL_DRIVER
+    extern void HAL_IncTick(void);
+    HAL_IncTick();
+#endif
+    
   if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
     /* Call tick handler */
     xPortSysTickHandler();
@@ -2481,3 +2488,6 @@ __WEAK void vApplicationGetTimerTaskMemory (StaticTask_t **ppxTimerTaskTCBBuffer
   *pulTimerTaskStackSize   = (uint32_t)configTIMER_TASK_STACK_DEPTH;
 }
 #endif
+
+#endif
+

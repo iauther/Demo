@@ -38,6 +38,7 @@ static int dev_init(void)
     int r=0;
 
     //r = temp_init(i2c2Handle);
+    sdram_init();
     
     return r;
 }
@@ -45,7 +46,7 @@ static int dev_deinit(void)
 {
     int r=0;
     
-    sdram_init();
+    
     
     return r;
 }

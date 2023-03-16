@@ -214,7 +214,7 @@ int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len)
 
 
 
-int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, U32 ms, U32 times)
+int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, void *arg, U32 ms, U32 times)
 {
     osTimerType_t type;
     osStatus_t st;
@@ -227,6 +227,7 @@ int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, U32 ms, U32 times)
     h->allTimes = times;
     h->curTimes = 0;
     h->tmrFunc = tmrFunc;
+    h->tmrArg = arg;
     
     type = (times>1)?osTimerPeriodic:osTimerOnce;
     //if(h->tmrID) osTimerDelete(h->tmrID);

@@ -37,10 +37,8 @@ https://community.st.com/s/article/How-to-create-project-for-STM32H7-with-Ethern
 
 //LwIP 提供了三种编程接口，分别为 RAW/Callback API、 NETCONN API、 SOCKETAPI. 它们的易用性从左到右依次提高，而执行效率从左到右依次降低
 
-#define DEV_PORT        8888
-#define DEV_IP          "192.168.2.88"
-#define DEV_IP_MASK     "255.255.255.0"
-#define DEV_GATEWAY     "192.168.2.1"
+
+#define BIND_PORT        8888
 
 
 static int tcp_connected=0;
@@ -179,7 +177,7 @@ static void tcp_server_init(void)
     if (pcb) {
         
         /* 绑定端口接收，接收对象为所有ip地址 */
-        err_t e = tcp_bind(pcb, IP_ADDR_ANY, DEV_PORT);
+        err_t e = tcp_bind(pcb, IP_ADDR_ANY, BIND_PORT);
         if (e == ERR_OK) {
             
             pcb = tcp_listen(pcb);
@@ -267,12 +265,7 @@ static void net_link_callback(netif_t *netif)
 }
 
 
-static void set_ipaddr(ipaddr_t *ipaddr)
-{
-    ip4addr_aton(DEV_IP, &ipaddr->ip);
-    ip4addr_aton(DEV_IP_MASK, &ipaddr->netmask);
-    ip4addr_aton(DEV_GATEWAY, &ipaddr->gateway);
-}
+
 
 static int net_data_recv(net_handle_t *h, void *data, int len)
 {
@@ -291,7 +284,9 @@ static int net_data_recv(net_handle_t *h, void *data, int len)
 }
 
 #ifdef OS_KERNEL
-static void task_net_fn(void *arg)
+static void data_task_start(net_handle_t *h);
+
+static void conn_listen_task(void *arg)
 {
     int r;
     err_t e;
@@ -303,39 +298,79 @@ static void task_net_fn(void *arg)
     while(1) {
         e = netconn_accept(h->conn, &newconn);
         if(e==ERR_OK) {
-            if(h->cfg.callback) {
-                h->cfg.callback(h, newconn, NET_EVT_NEW_CONN, h->buff, h->rlen);
-            }
+            h->newconn = newconn;
             
-            while(1) {
-                e = netconn_recv(newconn, &rbuf);
-                if(e==ERR_OK) {
-                    for(p=rbuf->ptr;p!=NULL;p=p->next) {
-                        r = net_data_recv(h, p->payload, p->len);
-                        if(r<0) {
-                            break;
-                        }
-                    }
-                    
-                    if(h->cfg.callback) {
-                        h->cfg.callback(h, newconn, NET_EVT_DATA_IN, h->buff, h->rlen);
-                        h->rlen = 0;
-                    }
-                }
-                netbuf_delete(rbuf);
+            data_task_start(h);
+            if(h->cfg.callback) {
+                h->cfg.callback(h, h->newconn, NET_EVT_NEW_CONN, h->buff, h->rlen);
             }
         }
     }
 }
 
-static void net_recv_start(void *arg)
+
+
+static void data_listen_task(void *arg)
+{
+    int r,quit=0;
+    err_t e;
+    pbuf_t *p;
+    netbuf_t *rbuf=NULL;
+    net_handle_t *h=(net_handle_t*)arg;
+
+    while(1) {
+        e = netconn_recv(h->newconn, &rbuf);
+        if(e==ERR_OK) {
+            for(p=rbuf->ptr;p!=NULL;p=p->next) {
+                r = net_data_recv(h, p->payload, p->len);
+                if(r<0) {
+                    break;
+                }
+            }
+            
+            if(h->cfg.callback) {
+                h->cfg.callback(h, h->newconn, NET_EVT_DATA_IN, h->buff, h->rlen);
+                h->rlen = 0;
+            }
+        }
+        
+        if(e==ERR_CLSD || e==ERR_RST) {
+            if(h->cfg.callback) {
+                h->cfg.callback(h, h->newconn, NET_EVT_DIS_CONN, h->buff, h->rlen);
+            }
+            quit = 1;
+        }
+        
+        netbuf_delete(rbuf);
+        if(quit) {
+            netconn_close(h->newconn);
+            netconn_delete(h->newconn);
+            h->newconn = NULL;
+            break;
+        }
+    }
+    
+    osThreadExit();
+}
+
+static void conn_task_start(net_handle_t *h)
 {
     osThreadAttr_t  attr={0};
     
-    attr.name = "netRecv";
-    attr.stack_size = 512;
+    attr.name = "connListen";
+    attr.stack_size = 1024;
     attr.priority = osPriorityBelowNormal;
-    osThreadNew(task_net_fn, arg, &attr);
+    osThreadNew(conn_listen_task, h, &attr);
+}
+
+static void data_task_start(net_handle_t *h)
+{
+    osThreadAttr_t  attr={0};
+    
+    attr.name = "dataListen";
+    attr.stack_size = 1024;
+    attr.priority = osPriorityBelowNormal;
+    osThreadNew(data_listen_task, h, &attr);
 }
 #endif
 
@@ -346,36 +381,41 @@ handle_t net_init(net_cfg_t *cfg)
 {
     err_t e;
     task_attr_t attr;
-    net_handle_t *nh=calloc(1, sizeof(net_handle_t));
+    eth_cfg_t cfg2;
+    net_handle_t *h=calloc(1, sizeof(net_handle_t));
     
-    if(!cfg || !nh) {
+    if(!cfg || !h) {
         return NULL;
     }
 
-    nh->connected = 0;
-    nh->cfg = *cfg;
-    nh->eth.link_cb = net_link_callback;
-
-    set_ipaddr(&nh->eth.addr);
-    eth_init(&nh->eth);
+    h->connected = 0;
+    h->cfg = *cfg;
+    
+    cfg2.cb = net_link_callback;
+    h->eth = eth_init(&cfg2);
+    if(h->eth) {
+        //eth_set_ip(h->eth, "ip", "ipmask", "gateway");
+        //h->list = list_init(CONN_MAX, 50);
+    }
+    
     
 #ifdef OS_KERNEL
-    nh->conn = netconn_new(NETCONN_TCP);
-    if(!nh->conn) {
-        free(nh);
+    h->conn = netconn_new(NETCONN_TCP);
+    if(!h->conn) {
+        free(h);
         return NULL;
     }
     //ip_set_option(nh->conn->pcb.tcp, SOF_REUSEADDR);
 
-    e = netconn_bind(nh->conn, IP_ADDR_ANY, DEV_PORT);
-    e = netconn_listen(nh->conn);
+    e = netconn_bind(h->conn, IP_ADDR_ANY, BIND_PORT);
+    e = netconn_listen(h->conn);
     
-    net_recv_start(nh);
+    conn_task_start(h);
 #else
     tcp_test();
 #endif
 
-    return nh;
+    return h;
 }
 
 

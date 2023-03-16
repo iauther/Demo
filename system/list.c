@@ -97,6 +97,34 @@ int list_set(list_t *l, int index, node_t *n)
 }
 
 
+int list_remove(list_t *l, lnode_t *lnode)
+{
+    if(!l || !lnode) {
+        return -1;
+    }
+    
+    if(!lnode->prev && !lnode->next) {
+        return -1;
+    }
+    
+    if(lnode->prev==NULL) {         //the head
+        lnode->next->prev = NULL;
+        l->size--;
+    }
+    else if(lnode->next==NULL) {    // the tail
+        lnode->prev->next = NULL;
+        l->size--;
+    }
+    else {
+        lnode->prev->next = lnode->next;
+        lnode->next->prev = lnode->prev;
+        l->size--;
+    }
+    
+    return 0;
+}
+
+
 int list_size(list_t *l)
 {
     return l->size;

@@ -1,5 +1,6 @@
 #include "dal/adc.h"
 #include "eth\eth.h"
+#include "net.h"
 #include "lwip.h"
 #include "com.h"
 #include "log.h"
@@ -7,34 +8,60 @@
 #include "task.h"
 
 
-
-#define POLL_MS    500
+#define PERIOD_TIME    500
 
 #ifdef OS_KERNEL
 
-static handle_t comHandle=NULL;
+#define NODE_LEN    (ADC_CAP_LEN)
+
+handle_t comHandle=NULL;
+static void *netAddr=NULL;
+
+
 static void com_tmr_callback(void *arg)
 {
-    task_post(TASK_COM, NULL, EVT_TIMER, 0, NULL, 0);
+    task_handle_t *h=arg;
+    
+    task_post(TASK_COM, h->tmrArg, EVT_TIMER, 0, NULL, 0);
 }
+static void adc_data_callback(U8 *data, U32 len)
+{
+    if(netAddr) {
+        
+        node_t node;
+        
+        node.ptr = data;
+        node.len = len;
+        task_post(TASK_COM, NULL, EVT_ADC, 0, &node, sizeof(node));
+    }
+}
+
+
+
 static int com_rx_callback(handle_t h, void *addr, U32 evt, void *data, int len)
 {
-    return task_post(TASK_COM, addr, EVT_COM, evt, data, len);
+    int r=-1;
+    
+    switch(evt) {
+        case NET_EVT_NEW_CONN:
+        netAddr = addr;
+        r = task_tmr_start(TASK_COM, com_tmr_callback, addr, PERIOD_TIME, TIME_INFINITE);
+        break;
+        
+        case NET_EVT_DIS_CONN:
+        netAddr = NULL;
+        r = task_tmr_stop(TASK_COM);
+        break;
+        
+        case NET_EVT_DATA_IN:
+        r = task_post(TASK_COM, addr, EVT_COM, evt, data, len);
+        break;
+    }
+    
+    return r;
 }
 
 
-
-static void task_com_init(void)
-{
-    //log_init();
-    //urt_init();
-    //adc_init();
-    
-    comHandle = com_init(PORT_ETH, com_rx_callback);
-    //com_send_paras(1);
-    
-    //task_tmr_start(TASK_COM, com_tmr_callback, POLL_MS, TIME_INFINITE);
-}
 
 
 static void start_others(void)
@@ -57,9 +84,18 @@ void task_com_fn(void *arg)
     int i,r;
     U8  err;
     evt_t e;
+    adc_cfg_t cfg;
     
-    task_com_init();
-    start_others();
+    //log_init();
+    //urt_init();
+    
+    cfg.dural = 1;//ADC_DURAL_MODE;
+    cfg.samples = 300;
+    cfg.callback = adc_data_callback;
+    //adc_init(&cfg);
+    
+    comHandle = com_init(PORT_ETH, com_rx_callback);
+    //start_others();
     
     while(1) {
         r = task_recv(TASK_COM, &e, sizeof(e));
@@ -68,7 +104,21 @@ void task_com_fn(void *arg)
                 
                 case EVT_TIMER:
                 {
-                    //err = com_ack_poll();    
+                    static int test_cnt=0;
+                    char tmp[20]={0};
+                    
+                    sprintf(tmp, "test %d\n", test_cnt++);
+                    com_send_data(comHandle, e.addr, TYPE_TEST, 0, tmp, strlen(tmp)+1);   
+                }
+                break;
+                
+                case EVT_ADC:
+                {
+                    if(netAddr) {
+                        node_t *nd=(node_t*)e.data;
+                        err = com_send_data(comHandle, netAddr, EVT_ADC, 0, nd->ptr, nd->len);
+ 
+                    }
                 }
                 break;
                 
@@ -76,10 +126,7 @@ void task_com_fn(void *arg)
                 {
                     err = com_proc(comHandle, e.addr, e.data, e.dLen);
                 }
-                break;
-                
-                default:
-                continue;
+                break;                
             }
             
             if(err==0) {

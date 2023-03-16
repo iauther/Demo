@@ -2,7 +2,9 @@
 #include <string.h>
 #include <rt_sys.h>
 #include <rt_misc.h>
-#include "drv/uart.h"
+#include "dal/uart.h"
+
+#ifndef __MICROLIB
 
 #if (__ARMCC_VERSION<6000000)
 #pragma import(__use_no_semihosting)
@@ -32,17 +34,20 @@ FILE __stdout;
 FILE __stdin;
 
 
-handle_t dbgHandle=NULL;
-int fputc(int c, FILE *f)
+extern handle_t logHandle;
+int fputc(int ch, FILE *p)
 {
-    return (uart_rw(dbgHandle, (U8*)&c, 1, 1));
+	uart_rw(logHandle, (u8*)&ch, 1, 0);	
+	return ch;
 }
+
 
 
 int fgetc(FILE *f)
 {
-    int c;
-    uart_rw(dbgHandle, (U8*)&c, 1, 0);
+    int c=0;
+    
+    uart_rw(logHandle, (U8*)&c, 1, 0);
     return c;
 }
 
@@ -70,7 +75,7 @@ void _ttywrch (int c)
 #ifdef STDIO
     sendchar(c);
 #else
-    uart_rw(dbgHandle, (U8*)&c, 1, 1);
+    uart_rw(logHandle, (U8*)&c, 1, 1);
 #endif
 }
 
@@ -191,3 +196,6 @@ void _sys_exit (int return_code) {
     /* Endless loop. */
     while (1);
 }
+
+#endif
+

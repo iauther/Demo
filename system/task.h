@@ -32,6 +32,7 @@ typedef struct {
     task_attr_t     attr;
     
     osTimerId_t     tmrID;
+    void            *tmrArg;
     osTimerFunc_t   tmrFunc;
     U32             allTimes;
     U32             curTimes;        
@@ -56,7 +57,7 @@ int task_recv(int taskID, evt_t *evt, int evtlen);
 int task_send(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len, U32 timeout);
 int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len);
 
-int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, U32 ms, U32 times);
+int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, void *arg, U32 ms, U32 times);
 int task_tmr_stop(int taskID);
 #endif
 

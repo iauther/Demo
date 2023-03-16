@@ -3,6 +3,7 @@
 
 #include "dal/gpio.h"
 
+
 enum {
     ADC_1=0,
     ADC_2,
@@ -51,6 +52,7 @@ enum {
     CH_32, 
 };
 
+typedef void (*adc_callback_t)(U8 *data, U32 len);
 
 typedef struct {
     gpio_pin_t          pin;
@@ -73,10 +75,12 @@ typedef struct {
 
 typedef struct {
     U8                   dural;
+    U32                  samples;
+    adc_callback_t       callback;
 }adc_cfg_t;
 
 
-int adc_init(void);
+int adc_init(adc_cfg_t *cfg);
 
 int adc_start(void);
 int adc2_start(void);

@@ -20,7 +20,7 @@ void task_poll_fn(void *arg)
     osTimerId_t tmrId;
     task_handle_t *h=(task_handle_t*)arg;
     
-    task_tmr_start(TASK_POLL, com_tmr_callback, POLL_MS, TIME_INFINITE);
+    task_tmr_start(TASK_POLL, com_tmr_callback, NULL, POLL_MS, TIME_INFINITE);
     while(1) {
         r = task_recv(TASK_POLL, &e, sizeof(e));
         if(r==0) {
@@ -29,7 +29,7 @@ void task_poll_fn(void *arg)
                 case EVT_TIMER:
                 {
                     tmrCount++;
-                    eth_link_check();
+                    //eth_link_check();
                     
                     if(tmrCount%10==0) {
                         

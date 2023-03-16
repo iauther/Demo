@@ -12,10 +12,10 @@ void HAL_MspInit(void)
 
 static void cache_enable(void)
 {
-    SCB_EnableICache();	// ??I-Cache
-    SCB_EnableDCache();	// ??D-Cache
+    SCB_EnableICache();
+    SCB_EnableDCache();
     
-	//SCB->CACR |= 1<<2;	// ??D-Cache??,????,?????????????	
+	//SCB->CACR |= 1<<2;
 }
 static void mpu_config(void)
 {

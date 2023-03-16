@@ -29,8 +29,8 @@ err_t ethernetif_init(struct netif *netif);
 
 void ethernetif_input(struct netif *netif);
 void ethernetif_input_os(void* argument);
+void ethernet_link_check(struct netif *netif);
 
-void ethernet_link_check_state(struct netif *netif);
 u32_t sys_jiffies(void);
 u32_t sys_now(void);
 

@@ -20,7 +20,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "lwip.h"
-#include "devs.h"
+#include "eth/lan8742.h"
+#include "dal/ethernetif.h"
+
 
 #define TIME_WAITING_FOR_INPUT                 (osWaitForever)
 #define INTERFACE_THREAD_STACK_SIZE            (512)
@@ -112,8 +114,7 @@ int32_t ETH_PHY_IO_DeInit (void);
 int32_t ETH_PHY_IO_ReadReg(uint32_t DevAddr, uint32_t RegAddr, uint32_t *pRegVal);
 int32_t ETH_PHY_IO_WriteReg(uint32_t DevAddr, uint32_t RegAddr, uint32_t RegVal);
 int32_t ETH_PHY_IO_GetTick(void);
-static struct pbuf * low_level_input(struct netif *netif);
-static void ethernet_link_check_state(struct netif *netif);
+static struct pbuf *low_level_input(struct netif *netif);
 
 lan8742_Object_t LAN8742;
 lan8742_IOCtx_t  LAN8742_IOCtx = {ETH_PHY_IO_Init,
@@ -124,8 +125,8 @@ lan8742_IOCtx_t  LAN8742_IOCtx = {ETH_PHY_IO_Init,
 
 
 /* Private functions ---------------------------------------------------------*/
-void pbuf_free_custom(struct pbuf *p);
-
+void pbuf_free_custom(struct pbuf *p); 
+                                  
 #ifdef OS_KERNEL
 osSemaphoreId_t RxPktSemaphore = NULL;   /* Semaphore to signal incoming packets */
 osSemaphoreId_t TxPktSemaphore = NULL;   /* Semaphore to signal transmit packet complete */
@@ -147,29 +148,45 @@ void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *hEth)
 }
 void ethernetif_input_os(void* argument)
 {
-  struct pbuf *p = NULL;
-  struct netif *netif = (struct netif *) argument;
+    struct pbuf *p = NULL;
+    struct netif *netif = (struct netif *) argument;
 
-  for( ;; )
-  {
-    if (osSemaphoreAcquire(RxPktSemaphore, TIME_WAITING_FOR_INPUT) == osOK)
-    {
-      do
-      {
-        p = low_level_input( netif );
-        if (p != NULL)
+    for(;;) {
+        if (osSemaphoreAcquire(RxPktSemaphore, TIME_WAITING_FOR_INPUT) == osOK)
         {
-          if (netif->input( p, netif) != ERR_OK )
-          {
-            pbuf_free(p);
-          }
+            do {
+                p = low_level_input(netif);
+                if (p != NULL) {
+                    if (netif->input(p, netif) != ERR_OK ) {
+                        pbuf_free(p);
+                    }
+                }
+            } while(p!=NULL);
+
+            //osSemaphoreRelease(RxPktSemaphore);
         }
-      } while(p!=NULL);
     }
-  }
 }
 
-#endif                                  
+#endif
+
+void ethernetif_input(struct netif *netif)
+{
+  struct pbuf *p = NULL;
+
+  do
+  {
+    p = low_level_input( netif );
+    if (p != NULL)
+    {
+      if (netif->input( p, netif) != ERR_OK )
+      {
+        pbuf_free(p);
+      }
+    }
+  } while(p!=NULL);
+}
+
 
 
 void ETH_IRQHandler(void)
@@ -340,7 +357,8 @@ static void low_level_init(struct netif *netif)
     LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);
 
     LAN8742_Init(&LAN8742);
-    ethernet_link_check_state(netif);
+    
+    ethernet_link_check(netif);
 #endif /* LWIP_ARP || LWIP_ETHERNET */
 
 }
@@ -430,25 +448,6 @@ static struct pbuf * low_level_input(struct netif *netif)
 
     return p;
 }
-
-
-void ethernetif_input(struct netif *netif)
-{
-  struct pbuf *p = NULL;
-
-  do
-  {
-    p = low_level_input( netif );
-    if (p != NULL)
-    {
-      if (netif->input( p, netif) != ERR_OK )
-      {
-        pbuf_free(p);
-      }
-    }
-  } while(p!=NULL);
-}
-
 
 
 #if !LWIP_ARP
@@ -602,7 +601,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef* ethHandle)
         HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
         /* Peripheral interrupt init */
-        HAL_NVIC_SetPriority(ETH_IRQn, 7, 0);
+        HAL_NVIC_SetPriority(ETH_IRQn, 6, 0);
         HAL_NVIC_EnableIRQ(ETH_IRQn);
     }
 }
@@ -703,7 +702,7 @@ int32_t ETH_PHY_IO_GetTick(void)
   * @param  argument: netif
   * @retval None
   */
-static void ethernet_link_check_state(struct netif *netif)
+void ethernet_link_check(struct netif *netif)
 {
     ETH_MACConfigTypeDef MACConf = {0};
     int32_t PHYLinkState = 0;
@@ -762,7 +761,6 @@ static void ethernet_link_check_state(struct netif *netif)
         }
     }
 
-    osDelay(100);
 }
 
 void HAL_ETH_RxAllocateCallback(uint8_t **buff)

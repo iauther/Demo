@@ -7,6 +7,10 @@
 #include "list.h"
 #include "dal/dal.h"
 
+
+#define CONN_MAX  20
+
+
 enum {
     NET_ETH=0,
     NET_WIFI,
@@ -17,7 +21,7 @@ enum {
 enum {
     NET_EVT_NEW_CONN=0,
     NET_EVT_DIS_CONN,
-    NET_EVT_DATA_IN
+    NET_EVT_DATA_IN,
 };
 
 
@@ -32,17 +36,22 @@ enum {
 
 typedef struct {
     rx_cb_t     callback;
-    
+    char        *ip;
+    char        *mask;
+    char        *gateway;
 }net_cfg_t;
 
 
 typedef struct {
-    eth_handle_t        eth;
+    handle_t            eth;
     
     netconn_t           *conn;
+    netconn_t           *newconn;
+    
     int                 connected;
     net_cfg_t           cfg;
     
+    list_t              *list;
     U8                  buff[RECV_BUF_LEN];
     U32                 rlen;
 }net_handle_t;

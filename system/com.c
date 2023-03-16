@@ -11,8 +11,6 @@
 #endif
 
 
-static handle_t comHandle=NULL;
-
 static int port_init(com_handle_t *h, U8 port, rx_cb_t callback)
 {
      h->port = port;
@@ -353,6 +351,7 @@ static U8 _normal_proc(com_handle_t *h, void *addr, pkt_hdr_t *p)
         break;
         
         case TYPE_LEAP:
+        case TYPE_TEST:
         {
             err=0;
         }
@@ -395,7 +394,7 @@ static U8 _upgrade_proc(com_handle_t *h, void *addr, pkt_hdr_t *p)
         case TYPE_STAT:
         {
             curStat.sysState = sysState;
-            r = send_data(h->h, addr, TYPE_STAT, 0, &curStat, sizeof(curStat));
+            r = send_data(h, addr, TYPE_STAT, 0, &curStat, sizeof(curStat));
             if(r) {
                 err = ERROR_UART2_COM;
             }
@@ -458,7 +457,7 @@ static U8 _upgrade_proc(com_handle_t *h, void *addr, pkt_hdr_t *p)
 }
 
 
-int com_proc(handle_t h, void *addr, void *data, U16 len)
+int com_proc(handle_t h, void *addr, void *data, int len)
 {
     int r;
     int err=0;
@@ -488,13 +487,13 @@ int com_send_paras(handle_t h, void *addr, U8 flag)
     com_handle_t *ch=(com_handle_t*)h;
     
     if (flag == 0) {      //ask paras
-        r = send_data(ch->h, addr, TYPE_PARA, 0, NULL, 0);
+        r = send_data(ch, addr, TYPE_PARA, 0, NULL, 0);
         if (r) {
             err = ERROR_UART2_COM;
         }
     }
     else {
-        r = send_data(ch->h, addr, TYPE_PARA, 1, &curPara, sizeof(curPara));
+        r = send_data(ch, addr, TYPE_PARA, 1, &curPara, sizeof(curPara));
         if (r ) {
             err = ERROR_UART2_COM;
         }
@@ -509,7 +508,7 @@ int com_send_data(handle_t h, void *addr, U8 type, U8 nAck, void* data, int len)
     int r;
     com_handle_t *ch=(com_handle_t*)h;
     
-    r =  send_data(ch->h, addr, type, nAck, data, len);
+    r =  send_data(ch, addr, type, nAck, data, len);
     return (r == 0) ? 0 : ERROR_UART2_COM;
 }
 

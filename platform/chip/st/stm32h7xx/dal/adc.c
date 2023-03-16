@@ -1,4 +1,4 @@
-#include "dal/dal.h"
+#include "dal/adc.h"
 #include "cfg.h"
 
 //http://t.zoukankan.com/armfly-p-12180331.html
@@ -50,9 +50,6 @@ extern U32 sys_freq;
 static adc_pin_t adcPins[]=ADC_SAMPLE_CHANS;
 
 
-
-#define ADC_BUF_LEN    256
-
 #define VDD_APPLI           ((U32) 3300)    /* Value of analog voltage supply Vdda (unit: mV) */
 #define RANGE_8BITS         ((U32)  255)    /* Max digital value with a full range of 8 bits */
 #define RANGE_12BITS        ((U32) 4095)    /* Max digital value with a full range of 12 bits */
@@ -80,41 +77,36 @@ typedef struct {
     F32     vol;
 }ch_data_t;
 
-
 typedef struct {
     U8                  dural;
     ADC_HandleTypeDef   master;
     ADC_HandleTypeDef   slave;
     
     DMA_HandleTypeDef   hdma;
-    
     TIM_HandleTypeDef   htim;
     
-    U32                 buf[ADC_BUF_LEN*2];
-    F32                 vol[ADC_BUF_LEN*2];
+    U8                  *pBuf;
+    U8                  *pAlnBuf;
+    U32                 bufLen;
     
+    adc_callback_t      callback;
 }adc_handle_t;
 
 
-static adc_handle_t adcHandle={
-    .dural = ADC_DURAL_MODE,
-    .master = {0},
-    .slave  = {0},
-};
-
+static adc_handle_t *adcHandle=NULL;
 
 ///////////////timer function start/////////////////////////
 //TIM2~7,12~14     TIM1,8,15~17 equal sys_freq/2
 void TIM4_IRQHandler(void)
 {
-    HAL_TIM_IRQHandler(&adcHandle.htim);
+    HAL_TIM_IRQHandler(&adcHandle->htim);
 }
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim)
 {
     if(htim->Instance==TIM4){
         __HAL_RCC_TIM4_CLK_ENABLE();
 
-        HAL_NVIC_SetPriority(TIM4_IRQn, 5, 0);
+        HAL_NVIC_SetPriority(TIM4_IRQn, 6, 0);
         HAL_NVIC_EnableIRQ(TIM4_IRQn);
     }
 }
@@ -124,7 +116,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 }
 static int tim_init(U32 freq)
 {
-    TIM_HandleTypeDef *htim=&adcHandle.htim;
+    TIM_HandleTypeDef *htim=&adcHandle->htim;
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     TIM_MasterConfigTypeDef sMasterConfig = {0};
     U32 prescaler,period,total=(sys_freq>>1)/freq;
@@ -161,11 +153,11 @@ static int tim_init(U32 freq)
 
 static int tim_start(void)
 {
-    return HAL_TIM_Base_Start(&adcHandle.htim);
+    return HAL_TIM_Base_Start(&adcHandle->htim);
 }
 static int tim_stop(void)
 {
-    return HAL_TIM_Base_Stop(&adcHandle.htim);
+    return HAL_TIM_Base_Stop(&adcHandle->htim);
 }
 ///////////////timer function end/////////////////////////
 
@@ -278,7 +270,7 @@ static int _gpio_init(U8 bInit)
 
 void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 {
-    adc_handle_t *h=&adcHandle;
+    adc_handle_t *h=adcHandle;
     
     if(hadc->Instance == ADC1) {
         h->hdma.Init.Direction = DMA_PERIPH_TO_MEMORY;
@@ -305,10 +297,10 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
         HAL_DMA_Init(&h->hdma);
         __HAL_LINKDMA(hadc, DMA_Handle, h->hdma);
         
-        HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
+        HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 6, 0);
         HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
         
-        //HAL_NVIC_SetPriority(ADC_IRQn, 5, 0);
+        //HAL_NVIC_SetPriority(ADC_IRQn, 6, 0);
         //HAL_NVIC_EnableIRQ(ADC_IRQn);
     }
 }
@@ -332,18 +324,23 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef *hadc)
 //master: lower 2 bytes   slave: higher 2 bytes
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
-    adc_handle_t *h=&adcHandle;
+    adc_handle_t *h=adcHandle;
     
-    adc_conv(h->buf+ADC_BUF_LEN, h->vol+ADC_BUF_LEN, ADC_BUF_LEN);
+    //adc_conv(h->data.buf, h->data.vol, ADC_CAP_CNT);
+    if(h->callback) {
+        h->callback((U8*)h->pAlnBuf, h->bufLen/2);
+    }
 }
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
-    adc_handle_t *h=&adcHandle;
+    adc_handle_t *h=adcHandle;
     
-    //SCB_InvalidateDCache_by_Addr(buf, ADC_BUF_LEN*4);
+    //SCB_InvalidateDCache_by_Addr(buf, ADC_CAP_CNT*4);
     
-    adc_conv(h->buf, h->vol, ADC_BUF_LEN);
-    
+    //adc_conv(h->data.buf+ADC_CAP_CNT, h->data.vol+ADC_CAP_CNT, ADC_CAP_CNT);
+    if(h->callback) {
+        h->callback((U8*)(h->pAlnBuf+h->bufLen/2), h->bufLen/2);
+    }
 }
 
 
@@ -354,7 +351,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 */
 void DMA2_Stream0_IRQHandler(void)  //ADC1
 {
-    HAL_DMA_IRQHandler(&adcHandle.hdma);
+    HAL_DMA_IRQHandler(&adcHandle->hdma);
 }
 
 
@@ -398,16 +395,29 @@ static void io_switch(U32 chMask)
 #endif
 }
 
-
-static int _adc_init(void)
+#define ALIGN_TO(addr,n) ((U32)(addr) + ((((U32)(addr))%(n))?((n)-(((U32)(addr))%(n))):0))
+static int _adc_init(adc_cfg_t *cfg)
 {
     int i=0,idx,chan[20]={0};
     ADC_ChannelConfTypeDef sConfig = {0};
     ADC_MultiModeTypeDef mInit = {0};
-    adc_handle_t *h=&adcHandle;
+    adc_handle_t *h=NULL;
     adc_pin_t *ap=adcPins;
     ADC_HandleTypeDef hadc;
     
+    adcHandle=calloc(1, sizeof(adc_handle_t));
+    if(!adcHandle) {
+        return -1;
+    }
+    
+    h = adcHandle;
+    h->dural = cfg->dural;
+    
+    h->bufLen = cfg->samples*sizeof(U32)*2;
+    h->pBuf = malloc(h->bufLen+32);
+    h->pAlnBuf = (U8*)ALIGN_TO(h->pBuf, 32);
+    
+    h->callback = cfg->callback;
     h->master.Instance = ADC1;
     
 #ifdef ADC_TRIGGER_FROM_TIMER
@@ -526,7 +536,7 @@ static int _adc_init(void)
 static int _adc_deinit(void)
 {
     int i;
-    adc_handle_t *h=&adcHandle;
+    adc_handle_t *h=adcHandle;
     
     HAL_ADC_DeInit(&h->master);
     HAL_ADC_DeInit(&h->slave);
@@ -536,12 +546,15 @@ static int _adc_deinit(void)
 
 static int _adc_start(void)
 {
-    adc_handle_t *h=&adcHandle;
+    HAL_StatusTypeDef st;
+    adc_handle_t *h=adcHandle;
     
-    if (HAL_ADCEx_MultiModeStart_DMA(&h->master, h->buf, sizeof(h->buf)) != HAL_OK) {
-        return -1;
+    if(h->dural) {
+        HAL_ADCEx_MultiModeStart_DMA(&h->master, (uint32_t*)h->pAlnBuf, h->bufLen);
     }
-
+    else {
+        HAL_ADC_Start_DMA(&h->master, (uint32_t*)h->pAlnBuf, h->bufLen);
+    }
     //tim_start();
 
     return 0;
@@ -549,11 +562,16 @@ static int _adc_start(void)
 
 static int _adc_stop(void)
 {
-    adc_handle_t *h=&adcHandle;
+    adc_handle_t *h=adcHandle;
     
     HAL_ADC_Stop(&h->master);
-    HAL_ADCEx_MultiModeStop_DMA(&h->master);
     
+    if(h->dural) {
+        HAL_ADCEx_MultiModeStop_DMA(&h->master);
+    }
+    else {
+        HAL_ADC_Stop_DMA(&h->master);
+    }
     //_tim_stop();
     
     return 0;
@@ -561,9 +579,9 @@ static int _adc_stop(void)
 ///////////////timer function end/////////////////////////
 
 
-int adc_init(void)
-{   
-    _adc_init();
+int adc_init(adc_cfg_t *cfg)
+{
+    _adc_init(cfg);
     _adc_start();
     
     return 0;
@@ -572,8 +590,11 @@ int adc_init(void)
 
 int adc_deinit(void)
 {
-    _adc_stop();
+    adc_handle_t *h=adcHandle;
     
+    _adc_stop();
+    free(h->pBuf);
+    free(h);
     
     return 0;
 }

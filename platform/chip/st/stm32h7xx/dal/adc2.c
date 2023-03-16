@@ -53,7 +53,7 @@ INT8U dma_init(void)
     }
     
     /*S3:??DMA1 Stream3???*/
-    HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 6, 0);
     HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
     
     /*S4:??ADC???DMA??*/

@@ -386,8 +386,8 @@ static void dma_irq_en(U8 port, int on)
             __HAL_RCC_DMA1_CLK_ENABLE();
         }
         
-        HAL_NVIC_SetPriority(map->dmaRxIRQ, 5, 0);
-        HAL_NVIC_SetPriority(map->dmaTxIRQ, 5, 0);
+        HAL_NVIC_SetPriority(map->dmaRxIRQ, 6, 0);
+        HAL_NVIC_SetPriority(map->dmaTxIRQ, 6, 0);
         
         HAL_NVIC_EnableIRQ(map->dmaRxIRQ);
         HAL_NVIC_EnableIRQ(map->dmaTxIRQ);

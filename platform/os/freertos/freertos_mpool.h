@@ -19,9 +19,12 @@
  *      Purpose: CMSIS RTOS2 wrapper for FreeRTOS
  *
  *---------------------------------------------------------------------------*/
+#if (OS_KERNEL==3)
+
 
 #ifndef FREERTOS_MPOOL_H_
 #define FREERTOS_MPOOL_H_
+
 
 #include <stdint.h>
 #include "FreeRTOS.h"
@@ -61,3 +64,6 @@ typedef struct MemPoolDef_t {
 #define MEMPOOL_ARR_SIZE(bl_count, bl_size) (((((bl_size) + (4 - 1)) / 4) * 4)*(bl_count))
 
 #endif /* FREERTOS_MPOOL_H_ */
+
+#endif
+

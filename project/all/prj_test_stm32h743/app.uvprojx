@@ -80,7 +80,7 @@
             <nStopB2X>0</nStopB2X>
           </BeforeMake>
           <AfterMake>
-            <RunUserProg1>1</RunUserProg1>
+            <RunUserProg1>0</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
             <UserProg1Name>fromelf.exe --bin -o "$L@L.bin" "$L@L.axf"</UserProg1Name>
             <UserProg2Name></UserProg2Name>
@@ -469,11 +469,6 @@
               <FilePath>..\..\..\system\com.c</FilePath>
             </File>
             <File>
-              <FileName>date.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\date.c</FilePath>
-            </File>
-            <File>
               <FileName>lock.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\lock.c</FilePath>
@@ -542,6 +537,21 @@
               <FileName>sys.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\sys.c</FilePath>
+            </File>
+            <File>
+              <FileName>wav.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\wav.c</FilePath>
+            </File>
+            <File>
+              <FileName>date.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\date.c</FilePath>
+            </File>
+            <File>
+              <FileName>retarget.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\retarget.c</FilePath>
             </File>
           </Files>
         </Group>

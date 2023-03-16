@@ -7,8 +7,7 @@
 
 enum {
     EVT_COM=0,
-    EVT_N950,
-    EVT_MS4525,
+    EVT_ADC,
     
     EVT_TIMER,
     EVT_EEPROM,

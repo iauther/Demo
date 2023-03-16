@@ -3,7 +3,7 @@
 #include "cfg.h"
 
 
-static handle_t logHandle;
+handle_t logHandle=NULL;
 const char* log_string[LV_MAX]={
     "-----info-----",
     "----debug-----",
@@ -79,12 +79,6 @@ int log_init(void)
 }
 
 
-
-int fputc(int ch, FILE *p)
-{
-	uart_write(logHandle, (u8*)&ch, 1);	
-	return ch;
-}
 
 
 
