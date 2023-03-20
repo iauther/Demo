@@ -27,8 +27,11 @@
 
 err_t ethernetif_init(struct netif *netif);
 
+#ifdef OS_KERNEL
+void ethernetif_input(void* argument);
+#else
 void ethernetif_input(struct netif *netif);
-void ethernetif_input_os(void* argument);
+#endif
 void ethernet_link_check(struct netif *netif);
 
 u32_t sys_jiffies(void);

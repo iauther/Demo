@@ -47,6 +47,14 @@ typedef uint8_t	    BOOL;
 #define TRUE    (1)
 #endif
 
+
+enum {
+    MODE_POLL=0,
+    MODE_IT,
+    MODE_DMA,
+};
+
+
 typedef void*  handle_t;
 
 #define MAX(a,b)    ((a>b)?a:b)

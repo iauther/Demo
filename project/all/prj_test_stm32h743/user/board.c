@@ -1,32 +1,34 @@
 #include "incs.h"
+#include "dal/si2c.h"
 
-handle_t i2c0Handle=NULL;
 handle_t i2c1Handle=NULL;
 handle_t i2c2Handle=NULL;
-
 ////////////////////////////////////////////
 
 static int bus_init(void)
 {
-    i2c_cfg_t  ic;
-    i2c_pin_t  p2={I2C1_SCL_PIN,I2C1_SDA_PIN};
+    si2c_cfg_t  ic;
+    si2c_pin_t  p1={I2C1_SCL_PIN,I2C1_SDA_PIN};
+    si2c_pin_t  p2={I2C2_SCL_PIN,I2C2_SDA_PIN};
+    
+    ic.pin= p1;
+    ic.freq = I2C1_FREQ;
+    i2c1Handle = si2c_init(&ic);
     
     ic.pin= p2;
-    ic.freq = I2C1_FREQ;
-    ic.useDMA = 0;;
-    ic.callback = NULL;
-    ic.finish_flag=0;
-    //i2c2Handle = i2c_init(&ic);
+    ic.freq = I2C2_FREQ;
+    i2c2Handle = si2c_init(&ic);
     
     return ((i2c1Handle&&i2c2Handle)?-1:0);
 }
+
 
 static int bus_deinit(void)
 {
     int r;
     
-    //r = i2c_deinit(&i2c1Handle);
-    //r |= i2c_deinit(&i2c2Handle);
+    r = si2c_deinit(&i2c1Handle);
+    r |= si2c_deinit(&i2c2Handle);
     
     return r;
 }

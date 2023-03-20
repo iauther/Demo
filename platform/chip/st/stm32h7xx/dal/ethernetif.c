@@ -146,10 +146,10 @@ void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *hEth)
      osSemaphoreRelease(RxPktSemaphore);
   }
 }
-void ethernetif_input_os(void* argument)
+void ethernetif_input(void *argument)
 {
     struct pbuf *p = NULL;
-    struct netif *netif = (struct netif *) argument;
+    struct netif *netif = (struct netif *)argument;
 
     for(;;) {
         if (osSemaphoreAcquire(RxPktSemaphore, TIME_WAITING_FOR_INPUT) == osOK)
@@ -162,14 +162,10 @@ void ethernetif_input_os(void* argument)
                     }
                 }
             } while(p!=NULL);
-
-            //osSemaphoreRelease(RxPktSemaphore);
         }
     }
 }
-
-#endif
-
+#else
 void ethernetif_input(struct netif *netif)
 {
   struct pbuf *p = NULL;
@@ -186,6 +182,9 @@ void ethernetif_input(struct netif *netif)
     }
   } while(p!=NULL);
 }
+#endif
+
+
 
 
 
@@ -197,6 +196,8 @@ void ETH_IRQHandler(void)
     //__HAL_ETH_DMA_CLEAR_IT(&heth, ETH_DMA_TX_IT);
     
     HAL_ETH_IRQHandler(&heth);
+    
+    
 }
 
 
@@ -347,10 +348,10 @@ static void low_level_init(struct netif *netif)
     /* create the task that handles the ETH_MAC */
     /* USER CODE BEGIN OS_THREAD_NEW_CMSIS_RTOS_V2 */
     memset(&attributes, 0x0, sizeof(osThreadAttr_t));
-    attributes.name = "ethernetif";
+    attributes.name = "ethIf";
     attributes.stack_size = INTERFACE_THREAD_STACK_SIZE;
     attributes.priority = osPriorityRealtime;
-    osThreadNew(ethernetif_input_os, netif, &attributes);
+    osThreadNew(ethernetif_input, netif, &attributes);
 #endif
 
     /* Set PHY IO functions */
@@ -438,11 +439,10 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 static struct pbuf * low_level_input(struct netif *netif)
 {
     struct pbuf *p = NULL;
-    HAL_StatusTypeDef st;
     
-    SCB_CleanInvalidateDCache();
+    //SCB_CleanInvalidateDCache();
     if(RxAllocStatus == RX_ALLOC_OK) {
-        st = HAL_ETH_ReadData(&heth, (void **)&p);
+        HAL_ETH_ReadData(&heth, (void **)&p);
     }
     //SCB_InvalidateDCache_by_Addr((uint32_t *)Rx_Buff, (ETH_RX_DESC_CNT*ETH_RX_BUFFER_SIZE));
 
@@ -601,7 +601,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef* ethHandle)
         HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
         /* Peripheral interrupt init */
-        HAL_NVIC_SetPriority(ETH_IRQn, 6, 0);
+        HAL_NVIC_SetPriority(ETH_IRQn, 8, 0);
         HAL_NVIC_EnableIRQ(ETH_IRQn);
     }
 }

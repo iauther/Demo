@@ -5,19 +5,6 @@
 
 
 enum {
-    ADC_1=0,
-    ADC_2,
-    ADC_3,
-    
-    ADC_MAX
-};
-
-enum {
-    POLAR_P=0,
-    POLAR_N,
-};
-
-enum {
     CH_1=1,
     CH_2,
     CH_3,
@@ -55,14 +42,14 @@ enum {
 typedef void (*adc_callback_t)(U8 *data, U32 len);
 
 typedef struct {
+    ADC_TypeDef         *adc;
     gpio_pin_t          pin;
     U32                 ch;         //adc channel
     U32                 freq;
-    U32                 reso;       //resolution
+    U32                 samples;    //sample points
     
     U32                 rank;
     U32                 sigdiff;
-    U32                 polar;
 }adc_pin_t;
 
 
@@ -74,7 +61,8 @@ typedef struct {
 }adc_info_t;
 
 typedef struct {
-    U8                   dural;
+    U8                   mode;
+    U8                   dual;
     U32                  samples;
     adc_callback_t       callback;
 }adc_cfg_t;

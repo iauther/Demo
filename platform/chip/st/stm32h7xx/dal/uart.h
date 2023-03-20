@@ -4,11 +4,6 @@
 #include "types.h"
 #include "com.h"
 
-enum {
-    MODE_POLL=0,
-    MODE_IT,
-    MODE_DMA,
-};
 
 enum {
     UART_1=0,

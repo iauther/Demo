@@ -23,7 +23,7 @@ static int port_init(com_handle_t *h, U8 port, rx_cb_t callback)
             uart_cfg_t uc;
             
             uc.mode = MODE_DMA;
-            uc.port = COM_UART_PORT;               //PA2: TX   PA3: RX
+            uc.port = COM_UART;               //PA2: TX   PA3: RX
             uc.baudrate = COM_BAUDRATE;
             uc.para.callback = callback;
             uc.para.buf = h->rxBuf;

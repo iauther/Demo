@@ -443,6 +443,11 @@
               <FileType>1</FileType>
               <FilePath>.\user\task\task_poll.c</FilePath>
             </File>
+            <File>
+              <FileName>lwipopts.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\user\lwipopts.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -457,6 +462,16 @@
               <FileName>lan8742.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\device\eth\lan8742.c</FilePath>
+            </File>
+            <File>
+              <FileName>adau197x.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\device\snd\adau197x.c</FilePath>
+            </File>
+            <File>
+              <FileName>pcm186x.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\device\snd\pcm186x.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -552,6 +567,11 @@
               <FileName>retarget.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\retarget.c</FilePath>
+            </File>
+            <File>
+              <FileName>snd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\snd.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -724,6 +744,11 @@
               <FileName>dal.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal.c</FilePath>
+            </File>
+            <File>
+              <FileName>si2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\si2c.c</FilePath>
             </File>
           </Files>
         </Group>

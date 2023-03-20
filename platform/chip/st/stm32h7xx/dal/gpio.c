@@ -272,7 +272,7 @@ int gpio_irq_en(gpio_pin_t *pin, U8 on)
     }
     
     IRQn = gpioIRQn[pin->pin];   
-    HAL_NVIC_SetPriority(IRQn, 0, 0);
+    HAL_NVIC_SetPriority(IRQn, 8, 0);
     if(on>0) {
         HAL_NVIC_EnableIRQ(IRQn);
     }

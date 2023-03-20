@@ -4,6 +4,8 @@
 #include <rt_misc.h>
 #include "dal/uart.h"
 
+
+extern handle_t logHandle;
 #ifndef __MICROLIB
 
 #if (__ARMCC_VERSION<6000000)
@@ -33,8 +35,6 @@ const char __stderr_name[] = "STDERR";
 FILE __stdout;
 FILE __stdin;
 
-
-extern handle_t logHandle;
 int fputc(int ch, FILE *p)
 {
 	uart_rw(logHandle, (u8*)&ch, 1, 0);	
@@ -195,6 +195,12 @@ char *_sys_command_string (char *cmd, int len)
 void _sys_exit (int return_code) {
     /* Endless loop. */
     while (1);
+}
+#else
+int fputc(int ch, FILE *p)
+{
+	uart_rw(logHandle, (u8*)&ch, 1, 1);	
+	return ch;
 }
 
 #endif

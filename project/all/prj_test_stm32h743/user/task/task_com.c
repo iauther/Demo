@@ -32,7 +32,7 @@ static void adc_data_callback(U8 *data, U32 len)
         
         node.ptr = data;
         node.len = len;
-        task_post(TASK_COM, NULL, EVT_ADC, 0, &node, sizeof(node));
+        //task_post(TASK_COM, NULL, EVT_ADC, 0, &node, sizeof(node));
     }
 }
 
@@ -73,7 +73,7 @@ static void start_others(void)
     attr.nMsg = 5,
     attr.taskID = TASK_POLL,
     attr.priority = osPriorityNormal,
-    attr.stkSize = 1024,
+    attr.stkSize = 512,
     attr.runNow  = 1,
     task_new(&attr);
 }
@@ -86,13 +86,14 @@ void task_com_fn(void *arg)
     evt_t e;
     adc_cfg_t cfg;
     
-    //log_init();
-    //urt_init();
+    log_init();
+    LOGI("______ 8888\n");
     
-    cfg.dural = 1;//ADC_DURAL_MODE;
-    cfg.samples = 300;
+    cfg.dual = 1;//ADC_DUAL_MODE;
+    cfg.mode = MODE_DMA;
+    cfg.samples = 400;
     cfg.callback = adc_data_callback;
-    //adc_init(&cfg);
+    adc_init(&cfg);
     
     comHandle = com_init(PORT_ETH, com_rx_callback);
     //start_others();

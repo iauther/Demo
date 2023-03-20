@@ -42,6 +42,7 @@ uart_map_t UART_MAP[UART_MAX]={
 
 uart_handle_t *uart_handle[UART_MAX]={NULL};
 static int uart_dma_init(uart_handle_t *h);
+static int dma_irq_en(uart_handle_t *h, int on);
 static int uart_irq_en(uart_handle_t *h, int on);
 
 
@@ -307,8 +308,16 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
         return;
     }
     
-    uart_dma_init(uart_handle[port]);
-    uart_irq_en(uart_handle[port], 1);
+    uart_handle_t *h=uart_handle[port];
+    if(h->mode==MODE_DMA) {
+        uart_dma_init(h);
+        dma_irq_en(h, 1);
+        
+    }
+    else if(h->mode==MODE_IT) {
+        uart_irq_en(h, 1);
+    }
+    
 }
 
 void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
@@ -366,34 +375,38 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
         return;
     }
     
-    if(uart_handle[port]->mode!=MODE_POLL) {
+    uart_handle_t *h=uart_handle[port];
+    if(h->mode==MODE_DMA) {
         HAL_DMA_DeInit(huart->hdmarx);
         HAL_DMA_DeInit(huart->hdmatx);
-        uart_irq_en(uart_handle[port], 0);
+        dma_irq_en(h, 0);
+    }
+    else if(h->mode==MODE_IT) {
+        uart_irq_en(h, 0);
     }
 }
 
 
-static void dma_irq_en(U8 port, int on)
+static int dma_irq_en(uart_handle_t *h, int on)
 {
-    uart_map_t *map=&UART_MAP[port];
+    uart_map_t *map=&UART_MAP[h->port];
     
     if(on) {
-        if(port==UART_1 || port==UART_6) {
+        if(h->port==UART_1 || h->port==UART_6) {
             __HAL_RCC_DMA2_CLK_ENABLE();
         }
         else {
             __HAL_RCC_DMA1_CLK_ENABLE();
         }
         
-        HAL_NVIC_SetPriority(map->dmaRxIRQ, 6, 0);
-        HAL_NVIC_SetPriority(map->dmaTxIRQ, 6, 0);
+        HAL_NVIC_SetPriority(map->dmaRxIRQ, 8, 0);
+        HAL_NVIC_SetPriority(map->dmaTxIRQ, 8, 0);
         
         HAL_NVIC_EnableIRQ(map->dmaRxIRQ);
         HAL_NVIC_EnableIRQ(map->dmaTxIRQ);
     }
     else {
-        if(port==UART_1 || port==UART_6) {
+        if(h->port==UART_1 || h->port==UART_6) {
             __HAL_RCC_DMA2_CLK_DISABLE();
         }
         else {
@@ -403,6 +416,8 @@ static void dma_irq_en(U8 port, int on)
         HAL_NVIC_DisableIRQ(map->dmaRxIRQ);
         HAL_NVIC_DisableIRQ(map->dmaTxIRQ);
     }
+    
+    return 0;
 }
 static int uart_irq_en(uart_handle_t *h, int on)
 {
@@ -423,12 +438,6 @@ static int uart_irq_en(uart_handle_t *h, int on)
 static int uart_dma_init(uart_handle_t *h)
 {
     uart_map_t *map=&UART_MAP[h->port];
-    
-    if(h->mode==MODE_POLL) {
-        return -1;
-    }
-    
-    dma_irq_en(h->port, 1);
     
     h->hdmaRx.Instance = map->dmaRx;
     h->hdmaRx.Init.Direction = DMA_PERIPH_TO_MEMORY;
@@ -484,6 +493,7 @@ handle_t uart_init(uart_cfg_t *cfg)
     init.Mode       = UART_MODE_TX_RX;
     init.HwFlowCtl  = UART_HWCONTROL_NONE;
     init.OverSampling = UART_OVERSAMPLING_16;
+    init.ClockPrescaler = UART_PRESCALER_DIV1;
     
     h->mode  = cfg->mode;
     h->port  = cfg->port;
@@ -504,10 +514,9 @@ handle_t uart_init(uart_cfg_t *cfg)
     }
     else if(h->mode==MODE_IT) {
         HAL_UART_Receive_IT(&h->huart, h->para.buf, h->para.blen);
+        uart_irq_en(h, 1);
     }
     h->lock = lock_dynamic_new();
-    
-    uart_irq_en(h, 1);
     
     return h;
 }
@@ -591,7 +600,7 @@ int uart_write(handle_t h, U8 *data, U32 len)
     }
 
     lock_dynamic_hold(uh->lock);
-#if 0
+
     if(uh->mode==MODE_DMA) {
         uh->txFinished = 0;
         r = HAL_UART_Transmit_DMA(&uh->huart, data, len);
@@ -602,9 +611,7 @@ int uart_write(handle_t h, U8 *data, U32 len)
         r = HAL_UART_Transmit_IT(&uh->huart, data, len);
         uart_tx_wait(uh, 5);
     }
-    else
-#endif
-    {
+    else {
         r = HAL_UART_Transmit(&uh->huart, data, len, HAL_MAX_DELAY);
     }
     
@@ -629,11 +636,11 @@ int uart_rw(handle_t h, U8 *data, U32 len, U8 rw)
     
     lock_dynamic_hold(uh->lock);
     if(rw) {
-        //r = HAL_UART_Transmit(&uh->huart, data, len, HAL_MAX_DELAY);
-        r = uart_write(h, data, len);
+        r = HAL_UART_Transmit(&uh->huart, data, len, HAL_MAX_DELAY);
     }
     else {
-        r = uart_read(h, data, len);
+        r = HAL_UART_Receive(&uh->huart, data, len, HAL_MAX_DELAY);
+        
     }
     lock_dynamic_release(uh->lock);
     

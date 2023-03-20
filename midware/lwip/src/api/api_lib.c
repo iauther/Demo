@@ -1140,6 +1140,7 @@ netconn_err(struct netconn *conn)
 {
   err_t err;
   SYS_ARCH_DECL_PROTECT(lev);
+    
   if (conn == NULL) {
     return ERR_OK;
   }

@@ -50,7 +50,7 @@ handle_t eth_init(eth_cfg_t *cfg)
     tcpip_init( NULL, NULL );
     
     netif_add_noaddr(&h->netif, NULL, ethernetif_init, tcpip_input);
-    eth_set_ip(&h->netif, DEFAULT_IP, DEFAULT_IPMASK, DEFAULT_GATEWAY);
+    eth_set_ip(h, DEFAULT_IP, DEFAULT_IPMASK, DEFAULT_GATEWAY);
     
     //set_ipaddr(DEFAULT_IP, DEFAULT_IPMASK, DEFAULT_GATEWAY, &addr);
     //netif_add(&h->netif, &addr.ip, &addr.netmask, &addr.gateway, NULL, ethernetif_init, tcpip_input);

@@ -1,7 +1,7 @@
-#include "drv/clk.h"
-#include "drv/si2c.h"
-#include "drv/delay.h"
-#include "drv/gpio.h"
+#include "dal/dal.h"
+#include "dal/si2c.h"
+#include "dal/delay.h"
+#include "dal/gpio.h"
 
 /*
         设备地址	       读写位	    描述
@@ -33,19 +33,19 @@ typedef struct {
 }si2c_handle_t;
 
 
-#define SCL_OUT(pin)          gpio_set_dir(&pin->scl, MODE_OUTPUT)
-#define SCL_IN(pin)           gpio_set_dir(&pin->scl, MODE_INPUT)
-#define SCL_HIGH(pin)         gpio_set_hl(&pin->scl, 1)
-#define SCL_LOW(pin)          gpio_set_hl(&pin->scl, 0)
-#define SCL_READ(pin)         gpio_get_hl(&pin->scl)
+#define SCL_OUT(pin)          gpio_set_dir(&(pin)->scl, MODE_OUTPUT)
+#define SCL_IN(pin)           gpio_set_dir(&(pin)->scl, MODE_INPUT)
+#define SCL_HIGH(pin)         gpio_set_hl(&(pin)->scl, 1)
+#define SCL_LOW(pin)          gpio_set_hl(&(pin)->scl, 0)
+#define SCL_READ(pin)         gpio_get_hl(&(pin)->scl)
 
-#define SDA_OUT(pin)          gpio_set_dir(&pin->sda, MODE_OUTPUT)
-#define SDA_IN(pin)           gpio_set_dir(&pin->sda, MODE_INPUT)
-#define SDA_HIGH(pin)         gpio_set_hl(&pin->sda, 1)
-#define SDA_LOW(pin)          gpio_set_hl(&pin->sda, 0)
-#define SDA_READ(pin)         gpio_get_hl(&pin->sda)
+#define SDA_OUT(pin)          gpio_set_dir(&(pin)->sda, MODE_OUTPUT)
+#define SDA_IN(pin)           gpio_set_dir(&(pin)->sda, MODE_INPUT)
+#define SDA_HIGH(pin)         gpio_set_hl(&(pin)->sda, 1)
+#define SDA_LOW(pin)          gpio_set_hl(&(pin)->sda, 0)
+#define SDA_READ(pin)         gpio_get_hl(&(pin)->sda)
 
-#define SYS_FREQ()            clk2_get_freq()
+#define SYS_FREQ()            dal_get_freq()
 
 //延时n个1/4 i2c clock
 static void delay_qclk(si2c_handle_t *h, U8 n)
@@ -55,26 +55,26 @@ static void delay_qclk(si2c_handle_t *h, U8 n)
 
 static void set_scl(si2c_handle_t *h, U8 hl)
 {
-    SCL_OUT(&h->cfg.pin);
-    if(hl>0) SCL_HIGH(h);
-    else     SCL_LOW(h);
+    SCL_OUT(&(h->cfg.pin));
+    if(hl>0) SCL_HIGH(&h->cfg.pin);
+    else     SCL_LOW(&h->cfg.pin);
 }
 static void set_sda(si2c_handle_t *h, U8 hl)
 {
-    SDA_OUT(h);
-    if(hl>0) SDA_HIGH(h);
-    else     SDA_LOW(h);
+    SDA_OUT(&h->cfg.pin);
+    if(hl>0) SDA_HIGH(&h->cfg.pin);
+    else     SDA_LOW(&h->cfg.pin);
 }
 
 static int get_scl(si2c_handle_t *h)
 {
-    SCL_IN(h);
-    return SCL_READ(h);
+    SCL_IN(&h->cfg.pin);
+    return SCL_READ(&h->cfg.pin);
 }
 static int get_sda(si2c_handle_t *h)
 {
-    SDA_IN(h);
-    return  SDA_READ(h);
+    SDA_IN(&h->cfg.pin);
+    return  SDA_READ(&h->cfg.pin);
 }
 
 static void i2c_reset(si2c_handle_t *h)
@@ -226,8 +226,8 @@ handle_t si2c_init(si2c_cfg_t *sc)
     h->cfg = *sc;
     h->delay = 1000000/(h->cfg.freq*4);
     h->count = freq/(h->cfg.freq*2)+1;
-    gpio_init(&h->cfg.scl, MODE_OUTPUT);
-    gpio_init(&h->cfg.sda, MODE_OUTPUT);
+    gpio_init(&h->cfg.pin.scl, MODE_OUTPUT);
+    gpio_init(&h->cfg.pin.sda, MODE_OUTPUT);
     i2c_reset(h);
     
     return h;

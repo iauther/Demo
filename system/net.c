@@ -302,7 +302,8 @@ static void conn_listen_task(void *arg)
             
             data_task_start(h);
             if(h->cfg.callback) {
-                h->cfg.callback(h, h->newconn, NET_EVT_NEW_CONN, h->buff, h->rlen);
+                h->rlen = 0;
+                h->cfg.callback(h, h->newconn, NET_EVT_NEW_CONN, NULL, 0);
             }
         }
     }
@@ -359,7 +360,7 @@ static void conn_task_start(net_handle_t *h)
     
     attr.name = "connListen";
     attr.stack_size = 1024;
-    attr.priority = osPriorityBelowNormal;
+    attr.priority = osPriorityAboveNormal;
     osThreadNew(conn_listen_task, h, &attr);
 }
 
@@ -376,7 +377,8 @@ static void data_task_start(net_handle_t *h)
 
 
 
-
+net_handle_t *g_net_handle=NULL;
+net_cfg_t *gCfg= NULL;
 handle_t net_init(net_cfg_t *cfg)
 {
     err_t e;
@@ -387,10 +389,12 @@ handle_t net_init(net_cfg_t *cfg)
     if(!cfg || !h) {
         return NULL;
     }
+    g_net_handle = h;
 
     h->connected = 0;
     h->cfg = *cfg;
     
+    gCfg = &h->cfg;
     cfg2.cb = net_link_callback;
     h->eth = eth_init(&cfg2);
     if(h->eth) {

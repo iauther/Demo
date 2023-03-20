@@ -433,14 +433,14 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 
      /* NVIC configuration for DMA interrupt (transfer completion or error) */
     /* Priority: high-priority */
-    HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 6, 0);
+    HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 8, 0);
     HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
   }
  
   /* NVIC configuration for ADC interrupt */
   /* Priority: high-priority */
-  HAL_NVIC_SetPriority(ADC_IRQn, 6, 0);
-  HAL_NVIC_EnableIRQ(ADC_IRQn);
+  //HAL_NVIC_SetPriority(ADC_IRQn, 8, 0);
+  //HAL_NVIC_EnableIRQ(ADC_IRQn);
   
 }
 
