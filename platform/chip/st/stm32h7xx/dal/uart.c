@@ -114,10 +114,13 @@ static void uart_dma_handler(char rxtx, int uart)
 }
 
 
+#if 0
 void USART1_IRQHandler(void)
 {
     uart_handler(UART_1);
 }
+#endif
+
 void USART2_IRQHandler(void)
 {
     uart_handler(UART_2);
@@ -522,17 +525,17 @@ handle_t uart_init(uart_cfg_t *cfg)
 }
 
 
-int uart_deinit(handle_t *h)
+int uart_deinit(handle_t h)
 {
-    uart_handle_t **uh=(uart_handle_t**)h;
+    uart_handle_t *uh=(uart_handle_t*)h;
     
-    if(!uh || !(*uh)) {
+    if(!uh) {
         return -1;
     }
     
-    HAL_UART_DeInit(&(*uh)->huart);
-    lock_dynamic_free(&(*uh)->lock);
-    free(*uh);
+    HAL_UART_DeInit(&uh->huart);
+    lock_dynamic_free(&uh->lock);
+    free(uh);
     
     return 0;
 }

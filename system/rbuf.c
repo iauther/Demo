@@ -35,22 +35,22 @@ handle_t rbuf_init(void *buf, int size)
 }
 
 
-int rbuf_free(handle_t *h)
+int rbuf_free(handle_t h)
 {
-    rbuf_handle_t **rh=(rbuf_handle_t**)h;
+    rbuf_handle_t *rh=(rbuf_handle_t*)h;
     
-	if(!rh || !(*rh)) {
+	if(!rh) {
         return -1;
     }
     
-    lock_dynamic_free(&(*rh)->lock);
-    free(*rh);
+    lock_dynamic_free(&rh->lock);
+    free(rh);
     
     return 0;
 }
 
 
-int rbuf_read(handle_t h, U8 *buf, int len)
+int rbuf_read(handle_t h, U8 *buf, int len, U8 shift)
 {
     int rlen;
     rbuf_handle_t *rh=(rbuf_handle_t*)h;
@@ -97,14 +97,32 @@ int rbuf_read(handle_t h, U8 *buf, int len)
             }
         }
     }
-    rh->pr = (rh->pr+rlen)%rh->size;        //更新读指针
-    rh->dlen -= rlen;
+
+    if (shift) {
+        rh->pr = (rh->pr + rlen) % rh->size;        //更新读指针
+        rh->dlen -= rlen;
+    }
     lock_dynamic_release(rh->lock);
 
 	return rlen;
 }
 
 
+int rbuf_read_shift(handle_t h, int len)
+{
+    rbuf_handle_t* rh = (rbuf_handle_t*)h;
+
+    if (!rh || !len) {
+        return -1;
+    }
+
+    lock_dynamic_hold(rh->lock);
+    rh->pr = (rh->pr + len) % rh->size;        //更新读指针
+    rh->dlen -= len;
+    lock_dynamic_release(rh->lock);
+
+    return 0;
+}
 
 int rbuf_write(handle_t h, U8 *buf, int len)
 {
@@ -148,7 +166,8 @@ int rbuf_write(handle_t h, U8 *buf, int len)
             memcpy(rh->buf, buf+l, wlen-l);
         } 
     }
-    rh->pw = (rh->pw+wlen)%rh->size;        //更新写指针
+
+    rh->pw = (rh->pw + wlen) % rh->size;        //更新写指针
     rh->dlen += wlen;
     lock_dynamic_release(rh->lock);
 

@@ -1,6 +1,11 @@
 #include "dal/adc.h"
 #include "cfg.h"
 
+
+
+//#define ADC_TRIGGER_FROM_TIMER
+
+
 //http://t.zoukankan.com/armfly-p-12180331.html
 //http://www.bepat.de/tag/adc-dual-regular-simultaneous-mode/
 
@@ -49,6 +54,7 @@
 extern U32 sys_freq;
 
 //I don't know why change the adcPins size will affect the lwip net: ping will do not work
+#if (ADC_DUAL_MODE==1)
 static adc_pin_t adcPins[]={
                                 {ADC1, {GPIOA, GPIO_PIN_4}, ADC_CHANNEL_18, ADC_RESOLUTION_16B, (500*1000), ADC_REGULAR_RANK_1, ADC_DIFFERENTIAL_ENDED},
                                 {ADC1, {GPIOA, GPIO_PIN_5}, ADC_CHANNEL_18, ADC_RESOLUTION_16B, (500*1000), ADC_REGULAR_RANK_1, ADC_DIFFERENTIAL_ENDED},
@@ -56,25 +62,17 @@ static adc_pin_t adcPins[]={
                                 {ADC2, {GPIOB, GPIO_PIN_1}, ADC_CHANNEL_5,  ADC_RESOLUTION_16B, (500*1000), ADC_REGULAR_RANK_2, ADC_DIFFERENTIAL_ENDED},
                                 {NULL, {0, 0},              0,              0,                   0,         0,                  0,                    },
                            };
-
-
-#define VDD_APPLI           ((U32) 3300)    /* Value of analog voltage supply Vdda (unit: mV) */
-#define RANGE_8BITS         ((U32)  255)    /* Max digital value with a full range of 8 bits */
-#define RANGE_12BITS        ((U32) 4095)    /* Max digital value with a full range of 12 bits */
-#define RANGE_16BITS        ((U32)65535)    /* Max digital value with a full range of 16 bits */
-
-#define S_ADCTO(v)          ((3.3F/65535)*v)
-#define D_ADCTO(v)          (((2.0F*v)/65535-1)*3.3F)
-
-
-//#define ADC_TRIGGER_FROM_TIMER
-//#define STORE_DATA_IN_SDRAM
-#ifdef STORE_DATA_IN_SDRAM
-#define STORE_LEN_MAX       (10*1024*1024)
-static int store_data_len=0;
-static F32 sdram_store_data[STORE_LEN_MAX] __attribute__ ((at(0xD3200000))); // SDRAM
+#else
+static adc_pin_t adcPins[]={
+                                {ADC1, {GPIOA, GPIO_PIN_4}, ADC_CHANNEL_18, ADC_RESOLUTION_16B, (500*1000), ADC_REGULAR_RANK_1, ADC_DIFFERENTIAL_ENDED},
+                                {ADC1, {GPIOA, GPIO_PIN_5}, ADC_CHANNEL_18, ADC_RESOLUTION_16B, (500*1000), ADC_REGULAR_RANK_1, ADC_DIFFERENTIAL_ENDED},
+                                {ADC1, {GPIOB, GPIO_PIN_0}, ADC_CHANNEL_5,  ADC_RESOLUTION_16B, (500*1000), ADC_REGULAR_RANK_2, ADC_DIFFERENTIAL_ENDED},
+                                {ADC1, {GPIOB, GPIO_PIN_1}, ADC_CHANNEL_5,  ADC_RESOLUTION_16B, (500*1000), ADC_REGULAR_RANK_2, ADC_DIFFERENTIAL_ENDED},
+                                {NULL, {0, 0},              0,              0,                   0,         0,                  0,                    },
+                           };
 #endif
-
+                           
+                           
 
 typedef struct {
     ADC_HandleTypeDef hadc;
@@ -106,6 +104,9 @@ typedef struct {
 
 
 static adc_handle_t *adcHandle=NULL;
+
+
+#if 0
 
 ///////////////timer function start/////////////////////////
 //TIM2~7,12~14     TIM1,8,15~17 equal sys_freq/2
@@ -173,37 +174,6 @@ static int tim_stop(void)
 }
 ///////////////timer function end/////////////////////////
 
-
-
-static void adc_conv(U32 *buf, F32 *vol, U32 count)
-{
-    int i;
-    U16 mst,slv;
-    
-    for(i=0; i<count; i++) {
-        
-        mst = buf[i]&0xffff;
-        slv = buf[i]>>16;
-        
-        vol[i*2]   = D_ADCTO(mst);
-        vol[i*2+1] = D_ADCTO(slv);
-    }
-    
-#ifdef STORE_DATA_IN_SDRAM
-    if(store_data_len<STORE_LEN_MAX) {
-        memcpy(sdram_store_data+store_data_len, h->vol, BUF_LEN*2);
-        store_data_len += BUF_LEN*2;
-    }
-    else {
-        static int store_it=0;
-        
-        store_it = 1;
-    }
-#endif
-    
-}
-
-
 static int get_index(U32 ch)
 {
     switch(ch) {
@@ -262,7 +232,7 @@ static int _gpio_init(U8 bInit)
     init.Mode = GPIO_MODE_ANALOG;
     init.Pull = GPIO_NOPULL;
     for(i=0; ; i++) {
-        if(ap[i].pin.grp==0) {
+        if(ap[i].adc==NULL) {
             break;
         }
         
@@ -285,8 +255,8 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
     adc_handle_t *h=adcHandle;
     
     if(hadc->Instance == ADC1) {
+        __HAL_RCC_ADC12_CLK_ENABLE();
         
-        _gpio_init(1);
         if(h->mode==MODE_DMA) {
             h->hdma.Init.Direction = DMA_PERIPH_TO_MEMORY;
             h->hdma.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -299,8 +269,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
             h->hdma.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
             h->hdma.Init.MemBurst = DMA_MBURST_SINGLE;
             h->hdma.Init.PeriphBurst = DMA_PBURST_SINGLE;
-        
-            __HAL_RCC_ADC12_CLK_ENABLE();
+            
             __HAL_RCC_DMA2_CLK_ENABLE();
             
             h->hdma.Instance = DMA2_Stream0;
@@ -321,7 +290,6 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 }
 void HAL_ADC_MspDeInit(ADC_HandleTypeDef *hadc)
 {
-    _gpio_init(0);
     if(hadc->Instance == ADC1) {
         __HAL_RCC_ADC12_CLK_DISABLE();
            
@@ -341,41 +309,30 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef *hadc)
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
     adc_handle_t *h=adcHandle;
+    U8* pBuf=(U8*)h->pAlnBuf;
   
     if(h->mode==MODE_DMA) {
-        if(h->dual) {
-            SCB_InvalidateDCache_by_Addr((U8*)h->pAlnBuf, h->bufLen/2);
-        }
-        else {
-            SCB_InvalidateDCache_by_Addr((U8*)h->pAlnBuf, h->bufLen/2);
-        }
+        SCB_InvalidateDCache_by_Addr(pBuf, h->bufLen/2);
     }
     
-    //adc_conv(h->data.buf, h->data.vol, ADC_CAP_CNT);
     if(h->callback) {
         if(h->mode==MODE_DMA) {
-            //h->callback((U8*)h->pAlnBuf, h->bufLen/2);
+            h->callback(pBuf, h->bufLen/2);
         }
-        
     }
 }
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
     adc_handle_t *h=adcHandle;
+    U8* pBuf=(U8*)h->pAlnBuf;
 
     if(h->mode==MODE_DMA) {
-        if(h->dual) {
-            SCB_InvalidateDCache_by_Addr((U8*)h->pAlnBuf+h->bufLen/2, h->bufLen/2);
-        }
-        else {
-            SCB_InvalidateDCache_by_Addr((U8*)h->pAlnBuf+h->bufLen/2, h->bufLen/2);
-        }
+        SCB_InvalidateDCache_by_Addr(pBuf+h->bufLen/2, h->bufLen/2);
     }
     
-    //adc_conv(h->data.buf+ADC_CAP_CNT, h->data.vol+ADC_CAP_CNT, ADC_CAP_CNT);
     if(h->callback) {
         if(h->mode==MODE_DMA) {
-            //h->callback((U8*)(h->pAlnBuf+h->bufLen/2), sizeof(U32)*(h->bufLen/2));
+           h->callback(pBuf+h->bufLen/2, h->bufLen/2);
         }
         else if(h->mode==MODE_IT) {
             if(h->cnt<h->chns) {
@@ -445,40 +402,34 @@ static void io_switch(U32 chMask)
 #endif
 }
 
-#define ALIGN_TO(addr,n) ((U32)(addr) + ((((U32)(addr))%(n))?((n)-(((U32)(addr))%(n))):0))
-static int _adc_init(adc_cfg_t *cfg)
+///////////////timer function end/////////////////////////
+
+int adc_init(void)
 {
-    int i=0,idx,chan[20]={0};
-    ADC_ChannelConfTypeDef sConfig = {0};
-    ADC_MultiModeTypeDef mInit = {0};
     adc_handle_t *h=NULL;
-    adc_pin_t *ap=adcPins;
     ADC_HandleTypeDef hadc;
     
-    adcHandle=calloc(1, sizeof(adc_handle_t));
-    if(!adcHandle) {
+    _gpio_init(1);
+    
+    h=calloc(1, sizeof(adc_handle_t));
+    if(!h) {
         return -1;
     }
     
-    h = adcHandle;
-    h->mode = cfg->mode;
-    h->dual = cfg->dual;
-    
-    h->callback = cfg->callback;
-    h->master.Instance = ADC1;
-    
+    h->master.Instance = ADC1; 
 #ifdef ADC_TRIGGER_FROM_TIMER
     h->master.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;                //AHB clock
     h->master.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T4_TRGO;
     h->master.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
     h->master.Init.ContinuousConvMode = DISABLE;
-#else
+//#else
     h->master.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
     h->master.Init.ExternalTrigConv = ADC_SOFTWARE_START;
     h->master.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIG_EDGE_NONE;
     h->master.Init.ContinuousConvMode = ENABLE;
 #endif
     
+#if 0
     h->master.Init.Resolution = ADC_RESOLUTION_16B;
     h->master.Init.ScanConvMode = ADC_SCAN_ENABLE;
     h->master.Init.EOCSelection = ADC_EOC_SINGLE_CONV;//ADC_EOC_SEQ_CONV;
@@ -498,12 +449,59 @@ static int _adc_init(adc_cfg_t *cfg)
     h->master.Init.Oversampling.RightBitShift  = ADC_RIGHTBITSHIFT_1;
     h->master.Init.Oversampling.TriggeredMode  = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;
     h->master.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
+#endif
     
-#ifdef USE_ADC_DEINIT
+    
+	h->master.Init.ClockPrescaler        = ADC_CLOCK_ASYNC_DIV1;          		/* 采用PLL异步时钟，1分频，Y版本             即20.48MHz */
+	h->master.Init.Resolution            = ADC_RESOLUTION_16B;            		/* 16位分辨率 */
+	h->master.Init.ScanConvMode          = ADC_SCAN_DISABLE;              		/* 禁止扫描*/
+	h->master.Init.EOCSelection          = ADC_EOC_SINGLE_CONV;           		/* EOC转换结束标志 */
+	h->master.Init.LowPowerAutoWait      = DISABLE;                       		/* 禁止低功耗自动延迟特性 */
+	h->master.Init.ContinuousConvMode    = ENABLE;                       		/* 使能连续转换 */
+	h->master.Init.NbrOfConversion       = 1;                             		/* 使用1个转换通道 */
+	h->master.Init.DiscontinuousConvMode = DISABLE;                       		/* 禁止不连续模式 */
+	h->master.Init.NbrOfDiscConversion   = 1;                             		/* 禁止不连续模式后，此参数忽略，此位是用来配置不连续子组中通道数 */
+	h->master.Init.ExternalTrigConv      = ADC_SOFTWARE_START;            		/* 软件触发 */
+	h->master.Init.ExternalTrigConvEdge  = ADC_EXTERNALTRIGCONVEDGE_NONE;    	/* 无触发 */
+	h->master.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR; 	/* DMA循环模式接收ADC转换的数据 */
+	h->master.Init.Overrun                  = ADC_OVR_DATA_OVERWRITTEN;       	/* ADC转换溢出的话，覆盖ADC的数据寄存器 */
+	h->master.Init.OversamplingMode         = ENABLE;                	        /* Oversampling enabled */
+    
+    h->master.Init.Oversampling.Ratio	 = 1;
+    h->master.Init.Oversampling.RightBitShift  = ADC_RIGHTBITSHIFT_1;
+	
+	h->master.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;         			/* Specifies whether or not a trigger is needed for each sample */
+	h->master.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE;
+    
+    
+    //delay_ms(10);
+    adcHandle = h;
+    
+    return 0;
+}
+
+
+int adc_config(adc_cfg_t *cfg)
+{
+    int i=0,idx,chan[20]={0};
+    adc_handle_t *h=adcHandle;
+    adc_pin_t *ap=adcPins;
+    ADC_ChannelConfTypeDef sConfig = {0};
+    ADC_MultiModeTypeDef mInit = {0};
+    
+    if(!h || !cfg) {
+        return 0;
+    }
+    
+    //h->master.Init.NbrOfConversion = 2;//sizeof(adcPins)/sizeof(adc_pin_t)-1;
+    h->mode = cfg->mode;
+    h->dual = cfg->dual;
+    h->callback = cfg->callback;
+    
+    
     if (HAL_ADC_DeInit(&h->master) != HAL_OK) {
         return -1;
     }
-#endif
     
     if (HAL_ADC_Init(&h->master) != HAL_OK) {
         return -1;
@@ -512,22 +510,21 @@ static int _adc_init(adc_cfg_t *cfg)
     if(h->dual) {
         h->slave.Instance  = ADC2;
         h->slave.Init = h->master.Init;
-        h->slave.Init.ContinuousConvMode = DISABLE;
-        h->slave.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-        
-#ifdef USE_ADC_DEINIT
+        //h->slave.Init.ContinuousConvMode = DISABLE;
+        //h->slave.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+#if 0
         if (HAL_ADC_DeInit(&h->slave) != HAL_OK) {
             return -1;
         }
 #endif
-        
         if (HAL_ADC_Init(&h->slave) != HAL_OK) {
             return -1;
         }
     }
     
+#if 1
     //add channels
-    sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLE_5;
     sConfig.OffsetNumber = ADC_OFFSET_NONE;
     sConfig.Offset = 0;
     sConfig.OffsetRightShift = DISABLE;
@@ -559,12 +556,33 @@ static int _adc_init(adc_cfg_t *cfg)
         }
         i++;
     }
+#else
+    
+    sConfig.Rank         = ADC_REGULAR_RANK_1;          /* 采样序列里的第1个 */
+	sConfig.SingleDiff   = ADC_DIFFERENTIAL_ENDED;      /* 差分输入 */
+	sConfig.OffsetNumber = ADC_OFFSET_NONE;             /* 无偏移 */ 
+	sConfig.Offset = 0;                                 /* 无偏移的情况下，此参数忽略 */
+	sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLE_5;
+	sConfig.Channel      = ADC_CHANNEL_18;              /* 配置使用的ADC通道 */
+	if (HAL_ADC_ConfigChannel(&h->master, &sConfig) != HAL_OK)
+	{
+		return -1;
+	}
+	
+	sConfig.Channel      = ADC_CHANNEL_5;               /* 配置使用的ADC通道 */
+	if (HAL_ADC_ConfigChannel(&h->slave, &sConfig) != HAL_OK)
+	{
+		return -1;
+	}
+
+#endif
+
     
     if(h->dual) {
-        h->bufLen = cfg->samples*sizeof(U32)*2;       //  * h->chns?
+        h->bufLen = cfg->samples*sizeof(U32)*h->chns*2;       //  * h->chns?
     }
     else {
-        h->bufLen = cfg->samples*sizeof(U16)*2;       //  * h->chns?
+        h->bufLen = cfg->samples*sizeof(U16)*h->chns*2;       //  * h->chns?
     }
     h->pBuf = (U32*)malloc(h->bufLen+32);
     h->pAlnBuf = (U32*)ALIGN_TO(h->pBuf, 32);
@@ -574,11 +592,11 @@ static int _adc_init(adc_cfg_t *cfg)
         return -1;
     }
     
+    if(HAL_ADCEx_Calibration_Start(&h->slave, ADC_CALIB_OFFSET, ADC_SIGNAL_MODE) != HAL_OK) {
+        return -1;
+    }
+    
     if(h->dual) {
-        if(HAL_ADCEx_Calibration_Start(&h->slave, ADC_CALIB_OFFSET, ADC_SIGNAL_MODE) != HAL_OK) {
-            return -1;
-        }
-        
         mInit.Mode = ADC_DUALMODE_REGSIMULT;                        // ADC_MODE_INDEPENDENT
         mInit.DualModeData = ADC_DUALMODEDATAFORMAT_32_10_BITS;     /* ADC and DMA configured in resolution 32 bits to match with both ADC master and slave resolution */
         mInit.TwoSamplingDelay = ADC_TWOSAMPLINGDELAY_1CYCLE;
@@ -587,32 +605,136 @@ static int _adc_init(adc_cfg_t *cfg)
         }        
     }
     
-    //delay_ms(10);
-    
     return 0;
 }
 
 
-static int _adc_deinit(void)
+int adc_deinit(void)
 {
-    int i;
     adc_handle_t *h=adcHandle;
     
     HAL_ADC_DeInit(&h->master);
     HAL_ADC_DeInit(&h->slave);
+    free(h->pBuf);
+    free(h);
     
     return 0;
 }
 
 
-static int _adc_start(void)
+
+HAL_StatusTypeDef HAL_ADCEx_MultiBufferStart_DMA(ADC_HandleTypeDef *hadc, uint32_t* pPingData, uint32_t* pPongData, uint32_t Length)
+{
+	HAL_StatusTypeDef tmp_hal_status = HAL_OK;
+	ADC_HandleTypeDef tmphadcSlave;
+	ADC_Common_TypeDef *tmpADC_Common;
+
+	/* Check the parameters */
+	assert_param(IS_ADC_MULTIMODE_MASTER_INSTANCE(hadc->Instance));
+	assert_param(IS_FUNCTIONAL_STATE(hadc->Init.ContinuousConvMode));
+	assert_param(IS_ADC_EXTTRIG_EDGE(hadc->Init.ExternalTrigConvEdge));
+
+	if (ADC_IS_CONVERSION_ONGOING_REGULAR(hadc))
+	{
+		return HAL_BUSY;
+	}
+	else
+	{
+		/* Process locked */
+		__HAL_LOCK(hadc);
+
+		/* Set a temporary handle of the ADC slave associated to the ADC master   */
+		ADC_MULTI_SLAVE(hadc, &tmphadcSlave);
+
+		if (tmphadcSlave.Instance == NULL)
+		{
+			/* Update ADC state machine to error */
+			SET_BIT(hadc->State, HAL_ADC_STATE_ERROR_CONFIG);
+
+			/* Process unlocked */
+			__HAL_UNLOCK(hadc);
+
+			return HAL_ERROR;
+		}
+
+		/* Enable the ADC peripherals: master and slave (in case if not already   */
+		/* enabled previously)                                                    */
+		tmp_hal_status  = ADC_Enable(hadc);
+		if (tmp_hal_status  == HAL_OK)
+		{
+			tmp_hal_status  = ADC_Enable(&tmphadcSlave);
+		}
+
+		/* Start multimode conversion of ADCs pair */
+		if (tmp_hal_status == HAL_OK)
+		{
+			/* Update Master State */
+			/* Clear HAL_ADC_STATE_READY and regular conversion results bits, set HAL_ADC_STATE_REG_BUSY bit */
+			ADC_STATE_CLR_SET(hadc->State, (HAL_ADC_STATE_READY|HAL_ADC_STATE_REG_EOC|HAL_ADC_STATE_REG_OVR|HAL_ADC_STATE_REG_EOSMP), HAL_ADC_STATE_REG_BUSY);
+
+			/* Set ADC error code to none */
+			ADC_CLEAR_ERRORCODE(hadc);
+
+			/* Set the DMA transfer complete callback */
+			hadc->DMA_Handle->XferCpltCallback = ADC_DMAConvCplt;
+			// ??DMA?????,PingPong????????????????
+			hadc->DMA_Handle->XferM1CpltCallback = ADC_DMAConvCplt;
+
+			/* Set the DMA half transfer complete callback */
+			hadc->DMA_Handle->XferHalfCpltCallback = NULL; // ???DMA???????
+
+			/* Set the DMA error callback */
+			hadc->DMA_Handle->XferErrorCallback = ADC_DMAError ;
+
+			/* Pointer to the common control register  */
+			tmpADC_Common = ADC12_COMMON_REGISTER(hadc);
+
+			/* Manage ADC and DMA start: ADC overrun interruption, DMA start, ADC     */
+			/* start (in case of SW start):                                           */
+
+			/* Clear regular group conversion flag and overrun flag */
+			/* (To ensure of no unknown state from potential previous ADC operations) */
+			__HAL_ADC_CLEAR_FLAG(hadc, (ADC_FLAG_EOC | ADC_FLAG_EOS | ADC_FLAG_OVR));
+
+			/* Enable ADC overrun interrupt */
+			__HAL_ADC_ENABLE_IT(hadc, ADC_IT_OVR);
+
+			/* Start the DMA channel */
+//			HAL_DMA_Start_IT(hadc->DMA_Handle, (INT32U)&tmpADC_Common->CDR, (INT32U)pData, Length);
+			HAL_DMAEx_MultiBufferStart_IT(hadc->DMA_Handle, (uint32_t)&tmpADC_Common->CDR, (uint32_t)pPingData, (uint32_t)pPongData, Length);
+
+			/* Enable conversion of regular group.                                    */
+			/* Process unlocked */
+			__HAL_UNLOCK(hadc);
+			/* If software start has been selected, conversion starts immediately.    */
+			/* If external trigger has been selected, conversion will start at next   */
+			/* trigger event.                                                         */
+//			SET_BIT(hadc->Instance->CR, ADC_CR_ADSTART); // ???ADC??
+		}
+		else
+		{
+			/* Process unlocked */
+			__HAL_UNLOCK(hadc);
+		}
+
+		/* Return function status */
+		return tmp_hal_status;
+	}
+}
+
+
+
+
+int adc_start(void)
 {
     HAL_StatusTypeDef st;
     adc_handle_t *h=adcHandle;
     
     if(h->mode==MODE_DMA) {
         if(h->dual) {
-            HAL_ADCEx_MultiModeStart_DMA(&h->master, (uint32_t*)h->pAlnBuf, h->bufLen/sizeof(U32));
+            //HAL_ADCEx_MultiModeStart_DMA(&h->master, (uint32_t*)h->pAlnBuf, h->bufLen/sizeof(U32));
+            HAL_ADCEx_MultiBufferStart_DMA(&h->master, h->pAlnBuf, h->pAlnBuf+h->bufLen/8, h->bufLen/sizeof(U32));
+            SET_BIT(h->master.Instance->CR, ADC_CR_ADSTART);
         }
         else {
             HAL_ADC_Start_DMA(&h->master, (uint32_t*)h->pAlnBuf, h->bufLen/sizeof(U16));
@@ -631,7 +753,7 @@ static int _adc_start(void)
     return 0;
 }
 
-static int _adc_stop(void)
+int adc_stop(void)
 {
     adc_handle_t *h=adcHandle;
     
@@ -654,40 +776,6 @@ static int _adc_stop(void)
     
     return 0;
 }
-///////////////timer function end/////////////////////////
-
-
-int adc_init(adc_cfg_t *cfg)
-{
-    _adc_init(cfg);
-    _adc_start();
-    
-    return 0;
-}
-
-
-int adc_deinit(void)
-{
-    adc_handle_t *h=adcHandle;
-    
-    _adc_stop();
-    free(h->pBuf);
-    free(h);
-    
-    return 0;
-}
-
-
-
-int adc_start(void)
-{
-    return _adc_start();
-}
-
-int adc_stop(void)
-{
-    return _adc_stop();
-}
 
 
 int adc_get(U32 *adc)
@@ -696,14 +784,4 @@ int adc_get(U32 *adc)
     return 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
+#endif

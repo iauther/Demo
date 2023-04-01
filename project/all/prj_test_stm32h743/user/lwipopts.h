@@ -50,10 +50,10 @@
 
 /* MEM_SIZE: the size of the heap memory. If the application will send
 a lot of data that needs to be copied, this should be set high. */
-#define MEM_SIZE                (14*1024)
+#define MEM_SIZE                (16*1024)
 
 /* Relocate the LwIP RAM heap pointer */
-#define LWIP_RAM_HEAP_POINTER    (0x30004000)
+#define LWIP_RAM_HEAP_POINTER    (0x30040400)
 
 /* MEMP_NUM_TCP_PCB: the number of simulatenously active TCP
    connections. */

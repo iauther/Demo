@@ -127,9 +127,9 @@ enum {
 /* Register Definitions - Page 253 */
 #define PCM186X_CURR_TRIM_CTRL		    (20)
 
-int pcm186x_init(U8 id);
-int pcm186x_config(U8 id);
-int pcm186x_get_status(U8 id, U8 *status);
+int pcm186x_init(void);
+int pcm186x_config(void);
+int pcm186x_get_status(U8 *status);
 
 #endif
 

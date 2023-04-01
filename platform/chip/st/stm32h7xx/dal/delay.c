@@ -4,18 +4,40 @@
 extern U32 sys_freq;   //the delay function depend on this freq
 
 
-static inline void delay_1us(void)
+static void inline hw_delay_us(U32 us)
 {
-    int x=ceil(1000000000.0/sys_freq);
-    int y=1000/x;
+    U32 tickStart, tickCur, tickCnt;
+    U32 tickMax = SysTick->LOAD;
+    U32 udelay_value = (SysTick->LOAD/1000)*us;
+
+    tickStart = SysTick->VAL;
+    while(1) {
+        tickCur = SysTick->VAL;
+        tickCnt = (tickStart < tickCur) ? (tickMax+tickStart-tickCur) : (tickStart-tickCur);
+        if (tickCnt > udelay_value)
+            break;
+    }
+}
+
+
+
+static void inline sw_delay_us(U32 us)
+{
+    int x,y;
     
-    while(y-->0) __nop();
+    while(us-->0) {
+        x=ceil(1000000000.0/sys_freq);
+        y=1000/x;
+        
+        while(y-->0) __nop();
+    }
 }
 
 
 void delay_us(U32 us)
 {   
-    while(us-->0) delay_1us();
+    hw_delay_us(us);
+    //sw_delay_us(us);
 }
 
 

@@ -292,17 +292,17 @@ handle_t i2c_init(i2c_cfg_t *cfg)
 }
 
 
-int i2c_deinit(handle_t *h)
+int i2c_deinit(handle_t h)
 {
-    i2c_handle_t **ih=(i2c_handle_t**)h;
+    i2c_handle_t *ih=(i2c_handle_t*)h;
     
-    if(!ih || !(*ih)) {
+    if(!ih) {
         return -1;
     }
     
-    lock_dynamic_free(&(*ih)->lock);
-    HAL_I2C_DeInit(&(*ih)->hi2c);
-    free(*ih);
+    lock_dynamic_free(&ih->lock);
+    HAL_I2C_DeInit(&ih->hi2c);
+    free(ih);
     
     return 0;
 }

@@ -156,14 +156,14 @@ handle_t com_init(U8 port, rx_cb_t cb)
 }
 
 
-int com_deinit(handle_t *h)
+int com_deinit(handle_t h)
 {
-    com_handle_t **ch=(com_handle_t**)h;
-    if(!*ch) {
+    com_handle_t *ch=(com_handle_t*)h;
+    if(!ch) {
         return -1;
     }
     
-    free(*ch);
+    free(ch);
     
     return 0;
 }
@@ -510,6 +510,13 @@ int com_send_data(handle_t h, void *addr, U8 type, U8 nAck, void* data, int len)
     
     r =  send_data(ch, addr, type, nAck, data, len);
     return (r == 0) ? 0 : ERROR_UART2_COM;
+}
+
+
+int com_pure_send(handle_t h, void *addr, void* data, int len)
+{
+    com_handle_t *ch=(com_handle_t*)h;
+    return port_send(ch, addr, data, len);
 }
 
 

@@ -1,5 +1,9 @@
-#include "incs.h"
 #include "lock.h"
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include "incs.h"
+#endif
 
 #ifdef OS_KERNEL
 osMutexId_t mutex[LOCK_MAX];
@@ -68,7 +72,11 @@ int lock_static_release(int id)
 handle_t lock_dynamic_new(void)
 {
     handle_t h=NULL;
-    
+
+#ifdef _WIN32
+    h = CreateMutex(NULL, FALSE, NULL);
+#endif
+
 #ifdef OS_KERNEL
     lock_handle_t *lh=NULL;
 
@@ -87,6 +95,9 @@ handle_t lock_dynamic_new(void)
 int lock_dynamic_hold(handle_t h)
 {
     int r=0;
+#ifdef _WIN32
+    r = WaitForSingleObject(h, INFINITE);
+#endif
 
 #ifdef OS_KERNEL
     lock_handle_t *lh=(lock_handle_t*)h;
@@ -104,6 +115,10 @@ int lock_dynamic_release(handle_t h)
 {
     int r=0;
 
+#ifdef _WIN32
+    r = ReleaseMutex((HANDLE)h);
+#endif
+
 #ifdef OS_KERNEL
     lock_handle_t *lh=(lock_handle_t*)h;
     if(!h) {
@@ -119,7 +134,11 @@ int lock_dynamic_release(handle_t h)
 int lock_dynamic_free(handle_t *h)
 {
     int r=0;
-    
+
+#ifdef _WIN32
+
+#endif
+
 #ifdef OS_KERNEL
     lock_handle_t **lh=(lock_handle_t**)h;
 

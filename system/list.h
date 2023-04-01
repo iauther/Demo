@@ -1,32 +1,45 @@
 #ifndef __LIST_Hx__
 #define __LIST_Hx__
 
+#include <stdlib.h>
 #include "types.h"
 
-typedef struct _list {
-    int             max;
-    int             size;
-    int             node_size;
-    lnode_t         *pool;
-    U8              quit;
-}list_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-typedef int (*list_iterater_t)(handle_t h, int index, void *p1, void *p2);
 
-list_t* list_init(int max, int node_size);
+enum {
+    MODE_FIFO=0,
+    MODE_FILO,
+};
 
-int list_append(list_t *l, node_t *n);
+typedef struct {
+    U8  mode;
+    U32 max;        //the max count
+}list_cfg_t;
 
-int list_get(list_t *l, int index, node_t *n);
 
-int list_set(list_t *l, int index, node_t *n);
 
-int list_size(list_t *l);
+//该函数返回负值是表示出错，将退出迭代循环
+//该函数返回值>=0将继续迭代
+typedef int (*list_callback_t)(handle_t l, node_t *nd, void *ndx);
 
-int list_quit(list_t *l);
 
-int list_clear(list_t *l);
+handle_t list_new(list_cfg_t *cfg);
 
-int list_free(list_t **l);
+int list_get(handle_t l, node_t *node, U32 index);
+int list_set(handle_t l, node_t *node, U32 index);
+int list_add(handle_t l, node_t *node, U32 index);
+int list_append(handle_t l, void *data, U32 len);
+int list_remove(handle_t l, U32 index);
+int list_destroy(handle_t l);
+int list_iterator(handle_t l, node_t *node, list_callback_t callback);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
+
+

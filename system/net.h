@@ -51,7 +51,7 @@ typedef struct {
     int                 connected;
     net_cfg_t           cfg;
     
-    list_t              *list;
+    handle_t            list;
     U8                  buff[RECV_BUF_LEN];
     U32                 rlen;
 }net_handle_t;

@@ -10,7 +10,9 @@ enum {
     LOCK_MAX
 };
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int lock_staic_init(void);
 int lock_static_free(void);
@@ -21,6 +23,11 @@ handle_t lock_dynamic_new(void);
 int lock_dynamic_hold(handle_t h);
 int lock_dynamic_release(handle_t h);
 int lock_dynamic_free(handle_t *h);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif
 

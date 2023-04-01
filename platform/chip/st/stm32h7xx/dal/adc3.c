@@ -1,5 +1,9 @@
+#include "dal/adc.h"
 
-#include "adc2.h"
+
+//该代码采集到的值ok
+
+
 
 #define VDD_APPLI                      ((uint32_t) 3300)    /* Value of analog voltage supply Vdda (unit: mV) */
 #define RANGE_8BITS                    ((uint32_t)  255)    /* Max digital value with a full range of 8 bits */
@@ -12,29 +16,64 @@
 #define COMPUTATION_DUALMODEINTERLEAVED_ADCMASTER_RESULT(DATA)                ((DATA) & 0x0000FFFF)
 #define COMPUTATION_DUALMODEINTERLEAVED_ADCSLAVE_RESULT(DATA)                 ((DATA) >> 16)
 
-ADC_HandleTypeDef    AdcHandle_master;
-ADC_HandleTypeDef    AdcHandle_slave;
+typedef struct {
+    U32     *pBuf;
+    U32     *pAlnBuf;
+    U32     bufLen;
+}buffer_t;
+
 
 
 typedef struct {
-    uint32_t ping[ADC_BUF_LEN+8];
-    uint32_t pong[ADC_BUF_LEN+8];
-}adc_buf_t;
-adc_buf_t adcBuffer;
+    U8                  dual;
+    ADC_HandleTypeDef   master;
+    ADC_HandleTypeDef   slave;
+    
+    DMA_HandleTypeDef   hdma;
+    TIM_HandleTypeDef   htim;
+    
+    U32                 *pBuf;
+    U32                 *pAlnBuf;
+    U32                 bufLen;
+    
+    buffer_t            ping;
+    buffer_t            pong;
+    
+    
+    U8                  mode;
+    adc_callback_t      callback;
+    U32                 value[16];
+    U8                  cnt;
+    U8                  chns;
+}adc_handle_t;
 
 
-DMA_HandleTypeDef  DmaHandle;
-static uint32_t *get_buffer(void)
+static adc_handle_t *adcHandle=NULL;
+
+
+
+
+
+static U32 *get_buffer(int *len)
 {
-    DMA_Stream_TypeDef *pInstanceDMA = (DMA_Stream_TypeDef *)DmaHandle.Instance;
-    if((pInstanceDMA->CR & DMA_SxCR_CT) == RESET) {
-        return adcBuffer.pong;
+    adc_handle_t *h=adcHandle;
+    DMA_Stream_TypeDef *pStream;
+    
+    if(!h) {
+        return NULL;
+    }
+    
+    pStream = (DMA_Stream_TypeDef *)h->hdma.Instance;
+    if((pStream->CR & DMA_SxCR_CT) == RESET) {
+        if(len)  *len = h->pong.bufLen;
+        return h->pong.pAlnBuf;
     }
     else {
-        return adcBuffer.ping;
+        if(len)  *len = h->ping.bufLen;
+        return h->ping.pAlnBuf;
     }
 }
-HAL_StatusTypeDef HAL_ADCEx_MultiBufferStart_DMA(ADC_HandleTypeDef *hadc, uint32_t* pPingData, uint32_t* pPongData, uint32_t Length)
+HAL_StatusTypeDef HAL_ADCEx_MultiBufferStart_DMA(ADC_HandleTypeDef *hadc, U32* pPingData, U32* pPongData, U32 cnt)
 {
 	HAL_StatusTypeDef tmp_hal_status = HAL_OK;
 	ADC_HandleTypeDef tmphadcSlave;
@@ -112,7 +151,7 @@ HAL_StatusTypeDef HAL_ADCEx_MultiBufferStart_DMA(ADC_HandleTypeDef *hadc, uint32
 
 			/* Start the DMA channel */
 //			HAL_DMA_Start_IT(hadc->DMA_Handle, (INT32U)&tmpADC_Common->CDR, (INT32U)pData, Length);
-			HAL_DMAEx_MultiBufferStart_IT(hadc->DMA_Handle, (uint32_t)&tmpADC_Common->CDR, (uint32_t)pPingData, (uint32_t)pPongData, Length);
+			HAL_DMAEx_MultiBufferStart_IT(hadc->DMA_Handle, (uint32_t)&tmpADC_Common->CDR, (uint32_t)pPingData, (uint32_t)pPongData, cnt);
 
 			/* Enable conversion of regular group.                                    */
 			/* Process unlocked */
@@ -120,7 +159,7 @@ HAL_StatusTypeDef HAL_ADCEx_MultiBufferStart_DMA(ADC_HandleTypeDef *hadc, uint32
 			/* If software start has been selected, conversion starts immediately.    */
 			/* If external trigger has been selected, conversion will start at next   */
 			/* trigger event.                                                         */
-//			SET_BIT(hadc->Instance->CR, ADC_CR_ADSTART); // ???ADC??
+			SET_BIT(hadc->Instance->CR, ADC_CR_ADSTART); // ???ADC??
 		}
 		else
 		{
@@ -135,256 +174,165 @@ HAL_StatusTypeDef HAL_ADCEx_MultiBufferStart_DMA(ADC_HandleTypeDef *hadc, uint32
 
 
 
-/* Private function prototypes -----------------------------------------------*/
-static void SystemClock_Config(void);
-static void Error_Handler(void)
+
+
+////////////////////////////////////////////////////////////////////////////////
+int adc_init(void)
 {
+    adc_handle_t *h=calloc(1, sizeof(adc_handle_t));
+    if(!h) {
+        return -1;
+    }
     
+    adcHandle = h;
+    
+    return 0;
+
 }
-static void ADC_Config(void);
-static void CPU_CACHE_Enable(void);
 
-
-/* Private functions ---------------------------------------------------------*/
-
-/**
-  * @brief  Main program.
-  * @param  None
-  * @retval None
-  */
-void adc2_init(void)
+int adc_config(adc_cfg_t *cfg)
 {
-  //CPU_CACHE_Enable();
+    int bufLen;
+    adc_handle_t *h=adcHandle;
+    ADC_ChannelConfTypeDef   sConfig;
+    ADC_MultiModeTypeDef     MultiModeInit;
 
-  //HAL_Init();
-  
-  /* Configure the system clock to 400 MHz */
-  //SystemClock_Config();
-  
-  ADC_Config();
+    if(!h) {
+        return -1;
+    }
+    
+    h->mode = cfg->mode;
+    h->dual = cfg->dual;
+    h->callback = cfg->callback;
+    
+    if(h->dual) {
+        bufLen = cfg->samples*sizeof(U32);          //  * h->chns?
+    }
+    else {
+        h->bufLen = cfg->samples*sizeof(U16);       //  * h->chns?
+    }
+    
+    h->ping.pBuf = (U32*)malloc(bufLen+32);
+    h->ping.pAlnBuf = (U32*)ALIGN_TO(h->ping.pBuf, 32);
+    h->ping.bufLen = bufLen;
+    
+    h->pong.pBuf = (U32*)malloc(bufLen+32);
+    h->pong.pAlnBuf = (U32*)ALIGN_TO(h->pong.pBuf, 32);
+    h->pong.bufLen = bufLen;
+    
+    /* Configuration of ADC (master) init structure: ADC parameters and regular group */
+    h->master.Instance = ADC1;
+    h->slave.Instance  = ADC2;
 
-  //if (HAL_ADCEx_MultiModeStart_DMA(&AdcHandle_master,(uint32_t *)pingBuffer, ADCCONVERTEDVALUES_BUFFER_SIZE) != HAL_OK)
-  if (HAL_ADCEx_MultiBufferStart_DMA(&AdcHandle_master, adcBuffer.ping, adcBuffer.pong, ADC_BUF_LEN) != HAL_OK)
-  {
-    /* Start Error */
-    Error_Handler();
-  }
-  SET_BIT(AdcHandle_master.Instance->CR, ADC_CR_ADSTART);
-  
+    if (HAL_ADC_DeInit(&h->master) != HAL_OK) {
+        return -1;
+    }
+
+    if (HAL_ADC_DeInit(&h->slave) != HAL_OK) {
+        return -1;
+    }
+
+    h->master.Init.ClockPrescaler           = ADC_CLOCK_ASYNC_DIV2;           /* Asynchronous clock mode, input ADC clock divided by 2*/
+    h->master.Init.Resolution               = ADC_RESOLUTION_16B;              /* 16-bit resolution for converted data */
+    h->master.Init.ScanConvMode             = DISABLE;                         /* Sequencer disabled (ADC conversion on only 1 channel: channel set on rank 1) */
+    h->master.Init.EOCSelection             = ADC_EOC_SINGLE_CONV;             /* EOC flag picked-up to indicate conversion end */
+    h->master.Init.LowPowerAutoWait         = DISABLE;                         /* Auto-delayed conversion feature disabled */
+    h->master.Init.ContinuousConvMode       = ENABLE;                          /* Continuous mode to have maximum conversion speed (no delay between conversions) */
+
+    h->master.Init.NbrOfConversion          = 1;                               /* Parameter discarded because sequencer is disabled */
+    h->master.Init.DiscontinuousConvMode    = DISABLE;                         /* Parameter discarded because sequencer is disabled */
+    h->master.Init.NbrOfDiscConversion      = 1;                               /* Parameter discarded because sequencer is disabled */
+    h->master.Init.ExternalTrigConv         = ADC_SOFTWARE_START;              /* Software start to trigger the 1st conversion manually, without external event */
+    h->master.Init.ExternalTrigConvEdge     = ADC_EXTERNALTRIGCONVEDGE_NONE;   /* Parameter discarded because trigger of conversion by software start (no external event) */
+    h->master.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR; /* DMA circular mode selected */
+    h->master.Init.Overrun                  = ADC_OVR_DATA_OVERWRITTEN;        /* DR register is overwritten with the last conversion result in case of overrun */
+    h->master.Init.OversamplingMode         = DISABLE;                         /* No oversampling */
+
+    h->master.Init.Oversampling.Ratio	 = 1;
+    h->master.Init.Oversampling.RightBitShift  = ADC_RIGHTBITSHIFT_1;
+    h->master.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;         	/* Specifies whether or not a trigger is needed for each sample */
+    h->master.Init.Oversampling.OversamplingStopReset = ADC_TRIGGEREDMODE_SINGLE_TRIGGER; 
+
+    if (HAL_ADC_Init(&h->master) != HAL_OK) {
+        return -1;
+    }
+
+    /* Same configuration as ADC master, with continuous mode and external      */
+    /* trigger disabled since ADC master is triggering the ADC slave            */
+    /* conversions                                                              */
+    h->slave.Init = h->master.Init;
+    h->slave.Init.ContinuousConvMode    = DISABLE;
+    h->slave.Init.ExternalTrigConv      = ADC_SOFTWARE_START;
+
+    if (HAL_ADC_Init(&h->slave) != HAL_OK) {
+        return -1;
+    }
+
+
+    /* Configuration of channel on ADC (master) regular group on sequencer rank 1 */
+    /* Note: Considering IT occurring after each number of                      */
+    /*       "ADCCONVERTEDVALUES_BUFFER_SIZE" ADC conversions (IT by DMA end    */
+    /*       of transfer), select sampling time and ADC clock with sufficient   */
+    /*       duration to not create an overhead situation in IRQHandler.        */
+    sConfig.Channel      = ADC_CHANNEL_18;                /* Sampled channel number */
+    sConfig.Rank         = ADC_REGULAR_RANK_1;          /* Rank of sampled channel number ADCx_CHANNEL */
+    sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;    /* Minimum sampling time */
+    sConfig.SingleDiff   = ADC_DIFFERENTIAL_ENDED;            /* Single-ended input channel */
+    sConfig.OffsetNumber = ADC_OFFSET_NONE;             /* No offset subtraction */ 
+    sConfig.Offset = 0;                                 /* Parameter discarded because offset correction is disabled */
+
+    if (HAL_ADC_ConfigChannel(&h->master, &sConfig) != HAL_OK) {
+        return -1;
+    }
+
+    /* Configuration of channel on ADC (slave) regular group on sequencer rank 1 */
+    /* Same channel as ADCx for dual mode interleaved: both ADC are converting  */
+    /* the same channel.                                                        */
+    //sConfig.Channel = ADC_CHANNEL_18;
+
+    if (HAL_ADC_ConfigChannel(&h->slave, &sConfig) != HAL_OK) {
+        return -1;
+    }
+
+    /* Run the ADC calibration in single-ended mode */
+    if (HAL_ADCEx_Calibration_Start(&h->master, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK) {
+        return -1;
+    }
+
+    if (HAL_ADCEx_Calibration_Start(&h->slave, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK) {
+        return -1;
+    }
+
+    /* Configuration of multimode */
+    /* Multimode parameters settings and set ADCy (slave) under control of      */
+    /* ADCx (master).                                                           */
+    MultiModeInit.Mode = ADC_DUALMODE_INTERL;
+    MultiModeInit.DualModeData = ADC_DUALMODEDATAFORMAT_32_10_BITS;  /* ADC and DMA configured in resolution 32 bits to match with both ADC master and slave resolution */
+    MultiModeInit.TwoSamplingDelay = ADC_TWOSAMPLINGDELAY_1CYCLE;
+
+    if (HAL_ADCEx_MultiModeConfigChannel(&h->master, &MultiModeInit) != HAL_OK) {
+        /* Multimode Configuration Error */
+        return -1;
+    }
+    
+    return 0;
 }
 
-
-/**
-  * @brief  System Clock Configuration
-  *         The system Clock is configured as follow : 
-  *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 400000000 (CPU Clock)
-  *            HCLK(Hz)                       = 200000000 (AXI and AHBs Clock)
-  *            AHB Prescaler                  = 2
-  *            D1 APB3 Prescaler              = 2 (APB3 Clock  100MHz)
-  *            D2 APB1 Prescaler              = 2 (APB1 Clock  100MHz)
-  *            D2 APB2 Prescaler              = 2 (APB2 Clock  100MHz)
-  *            D3 APB4 Prescaler              = 2 (APB4 Clock  100MHz)
-  *            HSE Frequency(Hz)              = 25000000
-  *            PLL_M                          = 5
-  *            PLL_N                          = 160
-  *            PLL_P                          = 2
-  *            PLL_Q                          = 4
-  *            PLL_R                          = 2
-  *            VDD(V)                         = 3.3
-  *            Flash Latency(WS)              = 4
-  * @param  None
-  * @retval None
-  */
-static void SystemClock_Config(void)
-{
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  HAL_StatusTypeDef ret = HAL_OK;
-  
-  /*!< Supply configuration update enable */
-  HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
-
-  /* The voltage scaling allows optimizing the power consumption when the device is
-     clocked below the maximum system frequency, to update the voltage scaling value
-     regarding system frequency refer to product datasheet.  */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-  
-  /* Enable HSE Oscillator and activate PLL with HSE as source */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
-  RCC_OscInitStruct.CSIState = RCC_CSI_OFF;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-
-  RCC_OscInitStruct.PLL.PLLM = 5;
-  RCC_OscInitStruct.PLL.PLLN = 160;
-  RCC_OscInitStruct.PLL.PLLFRACN = 0;
-  RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLR = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
-
-  RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
-  ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
-  if(ret != HAL_OK)
-  {
-    Error_Handler();
-  }
-  
-/* Select PLL as system clock source and configure  bus clocks dividers */
-  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_D1PCLK1 | RCC_CLOCKTYPE_PCLK1 | \
-                                 RCC_CLOCKTYPE_PCLK2  | RCC_CLOCKTYPE_D3PCLK1);
-
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;  
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2; 
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2; 
-  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2; 
-  ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
-  if(ret != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
-  * @brief  ADC configuration
-  * @param  None
-  * @retval None
-  */
-static void ADC_Config(void)
-{
-  ADC_ChannelConfTypeDef   sConfig;
-  ADC_MultiModeTypeDef     MultiModeInit;
-
-  /* Configuration of ADC (master) init structure: ADC parameters and regular group */
-  AdcHandle_master.Instance = ADC1;
-  AdcHandle_slave.Instance = ADC2;
-
-  if (HAL_ADC_DeInit(&AdcHandle_master) != HAL_OK)
-  {
-    /* ADC initialization error */
-    Error_Handler();
-  }
-  
-  if (HAL_ADC_DeInit(&AdcHandle_slave) != HAL_OK)
-  {
-    /* ADC initialization error */
-    Error_Handler();
-  }
-
-  AdcHandle_master.Init.ClockPrescaler           = ADC_CLOCK_ASYNC_DIV2;           /* Asynchronous clock mode, input ADC clock divided by 2*/
-  AdcHandle_master.Init.Resolution               = ADC_RESOLUTION_16B;              /* 16-bit resolution for converted data */
-  AdcHandle_master.Init.ScanConvMode             = DISABLE;                         /* Sequencer disabled (ADC conversion on only 1 channel: channel set on rank 1) */
-  AdcHandle_master.Init.EOCSelection             = ADC_EOC_SINGLE_CONV;             /* EOC flag picked-up to indicate conversion end */
-  AdcHandle_master.Init.LowPowerAutoWait         = DISABLE;                         /* Auto-delayed conversion feature disabled */
-  AdcHandle_master.Init.ContinuousConvMode       = ENABLE;                          /* Continuous mode to have maximum conversion speed (no delay between conversions) */
-
-  AdcHandle_master.Init.NbrOfConversion          = 1;                               /* Parameter discarded because sequencer is disabled */
-  AdcHandle_master.Init.DiscontinuousConvMode    = DISABLE;                         /* Parameter discarded because sequencer is disabled */
-  AdcHandle_master.Init.NbrOfDiscConversion      = 1;                               /* Parameter discarded because sequencer is disabled */
-  AdcHandle_master.Init.ExternalTrigConv         = ADC_SOFTWARE_START;              /* Software start to trigger the 1st conversion manually, without external event */
-  AdcHandle_master.Init.ExternalTrigConvEdge     = ADC_EXTERNALTRIGCONVEDGE_NONE;   /* Parameter discarded because trigger of conversion by software start (no external event) */
-  AdcHandle_master.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR; /* DMA circular mode selected */
-  AdcHandle_master.Init.Overrun                  = ADC_OVR_DATA_OVERWRITTEN;        /* DR register is overwritten with the last conversion result in case of overrun */
-  AdcHandle_master.Init.OversamplingMode         = DISABLE;                         /* No oversampling */
-  
-  AdcHandle_master.Init.Oversampling.Ratio	 = 1;
-  AdcHandle_master.Init.Oversampling.RightBitShift  = ADC_RIGHTBITSHIFT_1;
-  AdcHandle_master.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_SINGLE_TRIGGER;         	/* Specifies whether or not a trigger is needed for each sample */
-  AdcHandle_master.Init.Oversampling.OversamplingStopReset = ADC_TRIGGEREDMODE_SINGLE_TRIGGER; 
-  
-  if (HAL_ADC_Init(&AdcHandle_master) != HAL_OK)
-  {
-    /* ADC initialization error */
-    Error_Handler();
-  }
-
-  /* Same configuration as ADC master, with continuous mode and external      */
-  /* trigger disabled since ADC master is triggering the ADC slave            */
-  /* conversions                                                              */
-  AdcHandle_slave.Init = AdcHandle_master.Init;
-  AdcHandle_slave.Init.ContinuousConvMode    = DISABLE;
-  AdcHandle_slave.Init.ExternalTrigConv      = ADC_SOFTWARE_START;
-
-  if (HAL_ADC_Init(&AdcHandle_slave) != HAL_OK)
-  {
-    /* ADC initialization error */
-    Error_Handler();
-  }
-  
-
-  /* Configuration of channel on ADC (master) regular group on sequencer rank 1 */
-  /* Note: Considering IT occurring after each number of                      */
-  /*       "ADCCONVERTEDVALUES_BUFFER_SIZE" ADC conversions (IT by DMA end    */
-  /*       of transfer), select sampling time and ADC clock with sufficient   */
-  /*       duration to not create an overhead situation in IRQHandler.        */
-  sConfig.Channel      = ADC_CHANNEL_18;                /* Sampled channel number */
-  sConfig.Rank         = ADC_REGULAR_RANK_1;          /* Rank of sampled channel number ADCx_CHANNEL */
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;    /* Minimum sampling time */
-  sConfig.SingleDiff   = ADC_DIFFERENTIAL_ENDED;            /* Single-ended input channel */
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;             /* No offset subtraction */ 
-  sConfig.Offset = 0;                                 /* Parameter discarded because offset correction is disabled */
-
-  if (HAL_ADC_ConfigChannel(&AdcHandle_master, &sConfig) != HAL_OK)
-  {
-    /* Channel Configuration Error */
-    Error_Handler();
-  }
-
-  /* Configuration of channel on ADC (slave) regular group on sequencer rank 1 */
-  /* Same channel as ADCx for dual mode interleaved: both ADC are converting  */
-  /* the same channel.                                                        */
-  //sConfig.Channel = ADC_CHANNEL_18;
-  
-  if (HAL_ADC_ConfigChannel(&AdcHandle_slave, &sConfig) != HAL_OK)
-  {
-    /* Channel Configuration Error */
-    Error_Handler();
-  }
-  
-  /* Run the ADC calibration in single-ended mode */
-  if (HAL_ADCEx_Calibration_Start(&AdcHandle_master, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK)
-  {
-    /* Calibration Error */
-    Error_Handler();
-  }
-
-  if (HAL_ADCEx_Calibration_Start(&AdcHandle_slave, ADC_CALIB_OFFSET, ADC_DIFFERENTIAL_ENDED) != HAL_OK)
-  {
-    /* Calibration Error */
-    Error_Handler();
-  }
-
-  /* Configuration of multimode */
-  /* Multimode parameters settings and set ADCy (slave) under control of      */
-  /* ADCx (master).                                                           */
-  MultiModeInit.Mode = ADC_DUALMODE_INTERL;
-  MultiModeInit.DualModeData = ADC_DUALMODEDATAFORMAT_32_10_BITS;  /* ADC and DMA configured in resolution 32 bits to match with both ADC master and slave resolution */
-  MultiModeInit.TwoSamplingDelay = ADC_TWOSAMPLINGDELAY_1CYCLE;
-
-  if (HAL_ADCEx_MultiModeConfigChannel(&AdcHandle_master, &MultiModeInit) != HAL_OK)
-  {
-    /* Multimode Configuration Error */
-    Error_Handler();
-  }
-  
-}
 
 
 void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 {
-  GPIO_InitTypeDef          GPIO_InitStruct;
+    adc_handle_t *h=adcHandle;
+    GPIO_InitTypeDef          GPIO_InitStruct;
   
+    if(!h) {
+        return;
+    }
+    
   /*##-1- Enable peripherals and GPIO Clocks #################################*/
   /* Enable clock of GPIO associated to the peripheral channels */
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   
   /* Enable clock of ADCx peripheral */
   __HAL_RCC_ADC12_CLK_ENABLE();
@@ -411,23 +359,23 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
   
     /*##-3- Configure the DMA ##################################################*/
     /* Configure DMA parameters (ADC master) */
-    DmaHandle.Instance = DMA1_Stream1;
+    h->hdma.Instance = DMA1_Stream1;
 
-    DmaHandle.Init.Request             = DMA_REQUEST_ADC1;
-    DmaHandle.Init.Direction           = DMA_PERIPH_TO_MEMORY;
-    DmaHandle.Init.PeriphInc           = DMA_PINC_DISABLE;
-    DmaHandle.Init.MemInc              = DMA_MINC_ENABLE;
-    DmaHandle.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;       /* Transfer from ADC by word to match with ADC configuration: Dual mode, ADC master contains conversion results on data register (32 bits) of ADC master and ADC slave  */
-    DmaHandle.Init.MemDataAlignment    = DMA_MDATAALIGN_WORD;       /* Transfer to memory by word to match with buffer variable type: word */
-    DmaHandle.Init.Mode                = DMA_CIRCULAR;              /* DMA in circular mode to match with ADC configuration: DMA continuous requests */
-    DmaHandle.Init.Priority            = DMA_PRIORITY_HIGH;
+    h->hdma.Init.Request             = DMA_REQUEST_ADC1;
+    h->hdma.Init.Direction           = DMA_PERIPH_TO_MEMORY;
+    h->hdma.Init.PeriphInc           = DMA_PINC_DISABLE;
+    h->hdma.Init.MemInc              = DMA_MINC_ENABLE;
+    h->hdma.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;       /* Transfer from ADC by word to match with ADC configuration: Dual mode, ADC master contains conversion results on data register (32 bits) of ADC master and ADC slave  */
+    h->hdma.Init.MemDataAlignment    = DMA_MDATAALIGN_WORD;       /* Transfer to memory by word to match with buffer variable type: word */
+    h->hdma.Init.Mode                = DMA_CIRCULAR;              /* DMA in circular mode to match with ADC configuration: DMA continuous requests */
+    h->hdma.Init.Priority            = DMA_PRIORITY_HIGH;
   
    /* Deinitialize  & Initialize the DMA for new transfer */
-    HAL_DMA_DeInit(&DmaHandle);
-    HAL_DMA_Init(&DmaHandle);
+    HAL_DMA_DeInit(&h->hdma);
+    HAL_DMA_Init(&h->hdma);
 
     /* Associate the initialized DMA handle to the ADC handle */
-    __HAL_LINKDMA(hadc, DMA_Handle, DmaHandle);
+    __HAL_LINKDMA(hadc, DMA_Handle, h->hdma);
   
     /*##-4- Configure the NVIC #################################################*/
 
@@ -446,27 +394,55 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *AdcHandle)
 {
-    uint32_t *buf=get_buffer();
+    int len=0;
+    adc_handle_t *h=adcHandle;
+    U32 *buf=get_buffer(&len);
   
-    SCB_InvalidateDCache_by_Addr(buf, ADC_BUFFER_SIZE*4);
+    SCB_InvalidateDCache_by_Addr(buf, ADC_BUF_LEN*4);
+    
+    if(h && h->callback) {
+        if(h->mode==MODE_DMA) {
+           h->callback((U8*)buf, len);
+        }
+    }
   
     
 }
 void DMA1_Stream1_IRQHandler(void)
 {
-    HAL_DMA_IRQHandler(AdcHandle_master.DMA_Handle);
+    adc_handle_t *h=adcHandle;
+    
+    if(h) {
+        HAL_DMA_IRQHandler(h->master.DMA_Handle);
+    }
 }
 
 
-static void CPU_CACHE_Enable(void)
+int adc_start(void)
 {
-    /* Enable I-Cache */
-    SCB_EnableICache();
+    adc_handle_t *h=adcHandle;
 
-    /* Enable D-Cache */
-    SCB_EnableDCache();
+    if(!h) {
+        return -1;
+    }
     
-    SCB->CACR |= 1<<2;
+    if (HAL_ADCEx_MultiBufferStart_DMA(&h->master, h->ping.pAlnBuf, h->pong.pAlnBuf, h->ping.bufLen/4) != HAL_OK) {
+        return -1;
+    }
+  
+    return 0;
+}
+
+
+
+
+
+
+
+
+int adc_stop(void)
+{
+    return 0;
 }
 
 

@@ -70,16 +70,16 @@ handle_t queue_init(int max, int bsz)
 }
 
 
-int queue_free(handle_t *h)
+int queue_free(handle_t h)
 {
-    queue_handle_t **q=(queue_handle_t**)h;
+    queue_handle_t *q=(queue_handle_t*)h;
     
-    if(!q || !(*q)) {
+    if(!q) {
         return -1;
     }
 
-    free((*q)->nodes);
-    free(*q);
+    free(q->nodes);
+    free(q);
     
     return 0;
 }

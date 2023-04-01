@@ -2,9 +2,10 @@
 #define __SDRAM_Hx__
 
 #include "types.h"
+#include "cfg.h"
 
 #define SDRAM_SIZE          (64*1024*1024)
-#define BANK6_SDRAM_ADDR    ((U32)(0xD0000000)) // SDRAM开始地址
+#define BANK6_SDRAM_ADDR    ((U32)(SDRAM_ADDR)) // SDRAM开始地址
 
 //SDRAM配置参数
 #define SDRAM_MODEREG_BURST_LENGTH_1             ((U16)0x0000)

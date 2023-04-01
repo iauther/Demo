@@ -314,9 +314,9 @@
           <Cads>
             <interw>1</interw>
             <Optim>1</Optim>
-            <oTime>0</oTime>
+            <oTime>1</oTime>
             <SplitLS>0</SplitLS>
-            <OneElfS>0</OneElfS>
+            <OneElfS>1</OneElfS>
             <Strict>0</Strict>
             <EnumInt>0</EnumInt>
             <PlainCh>0</PlainCh>
@@ -328,18 +328,18 @@
             <uC99>1</uC99>
             <uGnu>1</uGnu>
             <useXO>0</useXO>
-            <v6Lang>1</v6Lang>
-            <v6LangP>1</v6LangP>
+            <v6Lang>3</v6Lang>
+            <v6LangP>3</v6LangP>
             <vShortEn>1</vShortEn>
             <vShortWch>1</vShortWch>
             <v6Lto>0</v6Lto>
             <v6WtE>0</v6WtE>
             <v6Rtti>0</v6Rtti>
             <VariousControls>
-              <MiscControls>--diag_suppress=177,1296</MiscControls>
-              <Define>USE_HAL_DRIVER,STM32H743xx,OS_KERNEL=3</Define>
+              <MiscControls>--diag_suppress=177,1296,550</MiscControls>
+              <Define>USE_HAL_DRIVER,STM32H743xx,OS_KERNEL=3,NDEBUG</Define>
               <Undefine></Undefine>
-              <IncludePath>./user;../../../device;../../../system;../../../platform/chip/st/stm32h7xx;../../../platform/chip/st/stm32h7xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/lwip/sys;../../../midware/lwip/src/include</IncludePath>
+              <IncludePath>./user;../../../device;../../../system;../../../platform/chip/st/stm32h7xx;../../../platform/chip/st/stm32h7xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/lwip/sys;../../../midware/lwip/src/include;../../../midware/modbus</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -404,9 +404,9 @@
               <FilePath>.\user\stm32h7xx_hal_conf.h</FilePath>
             </File>
             <File>
-              <FileName>lock.h</FileName>
+              <FileName>lwipopts.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\user\lock.h</FilePath>
+              <FilePath>.\user\lwipopts.h</FilePath>
             </File>
             <File>
               <FileName>board.c</FileName>
@@ -434,19 +434,24 @@
               <FilePath>.\user\startup_stm32h743xx.s</FilePath>
             </File>
             <File>
-              <FileName>task_com.c</FileName>
+              <FileName>task_comm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\user\task\task_com.c</FilePath>
+              <FilePath>.\user\task\task_comm.c</FilePath>
             </File>
             <File>
-              <FileName>task_poll.c</FileName>
+              <FileName>task_polling.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\user\task\task_poll.c</FilePath>
+              <FilePath>.\user\task\task_polling.c</FilePath>
             </File>
             <File>
-              <FileName>lwipopts.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\user\lwipopts.h</FilePath>
+              <FileName>task_dataCap.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\task_dataCap.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_dataProc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\task_dataProc.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -519,11 +524,6 @@
               <FilePath>..\..\..\system\pkt.c</FilePath>
             </File>
             <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\queue.c</FilePath>
-            </File>
-            <File>
               <FileName>rbuf.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\rbuf.c</FilePath>
@@ -554,11 +554,6 @@
               <FilePath>..\..\..\system\sys.c</FilePath>
             </File>
             <File>
-              <FileName>wav.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\wav.c</FilePath>
-            </File>
-            <File>
               <FileName>date.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\date.c</FilePath>
@@ -573,6 +568,171 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\system\snd.c</FilePath>
             </File>
+            <File>
+              <FileName>xmem.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\xmem.c</FilePath>
+            </File>
+            <File>
+              <FileName>list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\list.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_mem.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\rtx_mem.c</FilePath>
+            </File>
+            <File>
+              <FileName>cap.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\cap.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>os/rtx5</GroupName>
+          <Files>
+            <File>
+              <FileName>os_systick.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\os_systick.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_delay.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_evflags.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_evflags.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_evr.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_evr.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_kernel.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_kernel.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_memory.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_memory.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_mempool.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_mempool.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_msgqueue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_msgqueue.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_mutex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_mutex.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_semaphore.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_semaphore.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_system.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_system.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_thread.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_thread.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_timer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_timer.c</FilePath>
+            </File>
+            <File>
+              <FileName>irq_armv7m.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>..\..\..\platform\core\asm\irq_armv7m.s</FilePath>
+            </File>
+            <File>
+              <FileName>rtx_lib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\rtx_lib.c</FilePath>
+            </File>
+            <File>
+              <FileName>RTX_Config.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\rtx\RTX_Config.c</FilePath>
+            </File>
+            <File>
+              <FileName>RTX_Config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\platform\os\rtx\RTX_Config.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>os/freertos</GroupName>
+          <Files>
+            <File>
+              <FileName>heap_4.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\portable\heap_4.c</FilePath>
+            </File>
+            <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\portable\port.c</FilePath>
+            </File>
+            <File>
+              <FileName>cmsis_os2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\cmsis_os2.c</FilePath>
+            </File>
+            <File>
+              <FileName>croutine.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\croutine.c</FilePath>
+            </File>
+            <File>
+              <FileName>list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\list.c</FilePath>
+            </File>
+            <File>
+              <FileName>queue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\queue.c</FilePath>
+            </File>
+            <File>
+              <FileName>tasks.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\tasks.c</FilePath>
+            </File>
+            <File>
+              <FileName>timers.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\timers.c</FilePath>
+            </File>
+            <File>
+              <FileName>event_groups.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\event_groups.c</FilePath>
+            </File>
+            <File>
+              <FileName>stream_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\os\freertos\stream_buffer.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -582,6 +742,57 @@
               <FileName>adc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\adc.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>adc2.c</FileName>
@@ -643,57 +854,6 @@
               <FileName>adc3.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\adc3.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                  <ComprImg>1</ComprImg>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <uC99>2</uC99>
-                    <uGnu>2</uGnu>
-                    <useXO>2</useXO>
-                    <v6Lang>0</v6Lang>
-                    <v6LangP>0</v6LangP>
-                    <vShortEn>2</vShortEn>
-                    <vShortWch>2</vShortWch>
-                    <v6Lto>2</v6Lto>
-                    <v6WtE>2</v6WtE>
-                    <v6Rtti>2</v6Rtti>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
             </File>
             <File>
               <FileName>delay.c</FileName>
@@ -749,6 +909,21 @@
               <FileName>si2c.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\si2c.c</FilePath>
+            </File>
+            <File>
+              <FileName>mdma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\mdma.c</FilePath>
+            </File>
+            <File>
+              <FileName>sai.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\sai.c</FilePath>
+            </File>
+            <File>
+              <FileName>tmr.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\tmr.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1494,149 +1669,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>os/rtx5</GroupName>
-          <Files>
-            <File>
-              <FileName>os_systick.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\os_systick.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_delay.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_delay.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_evflags.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_evflags.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_evr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_evr.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_kernel.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_kernel.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_memory.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_memory.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_mempool.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_mempool.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_msgqueue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_msgqueue.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_mutex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_mutex.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_semaphore.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_semaphore.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_system.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_system.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_thread.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_thread.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_timer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_timer.c</FilePath>
-            </File>
-            <File>
-              <FileName>irq_armv7m.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\..\platform\core\asm\irq_armv7m.s</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_lib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_lib.c</FilePath>
-            </File>
-            <File>
-              <FileName>RTX_Config.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\RTX_Config.c</FilePath>
-            </File>
-            <File>
-              <FileName>RTX_Config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\platform\os\rtx\RTX_Config.h</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>os/freertos</GroupName>
-          <Files>
-            <File>
-              <FileName>heap_4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\portable\heap_4.c</FilePath>
-            </File>
-            <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\portable\port.c</FilePath>
-            </File>
-            <File>
-              <FileName>cmsis_os2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\cmsis_os2.c</FilePath>
-            </File>
-            <File>
-              <FileName>croutine.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\croutine.c</FilePath>
-            </File>
-            <File>
-              <FileName>list.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\list.c</FilePath>
-            </File>
-            <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\queue.c</FilePath>
-            </File>
-            <File>
-              <FileName>tasks.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\tasks.c</FilePath>
-            </File>
-            <File>
-              <FileName>timers.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\timers.c</FilePath>
-            </File>
-            <File>
-              <FileName>event_groups.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\event_groups.c</FilePath>
-            </File>
-            <File>
-              <FileName>stream_buffer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\stream_buffer.c</FilePath>
-            </File>
-          </Files>
+          <GroupName>midware/fatfs</GroupName>
         </Group>
       </Groups>
     </Target>

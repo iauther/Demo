@@ -24,6 +24,17 @@
 #include "dal/ethernetif.h"
 
 
+//https://community.st.com/s/article/FAQ-Ethernet-not-working-on-STM32H7x3
+
+
+#if defined   (__CC_ARM)
+    //#pragma O0
+#elif defined (__GNUC__)
+    //#pragma GCC optimize ("O1")
+#endif /* __CC_ARM */
+
+
+
 #define TIME_WAITING_FOR_INPUT                 (osWaitForever)
 #define INTERFACE_THREAD_STACK_SIZE            (512)
 
@@ -75,13 +86,11 @@ typedef struct
 #define ETH_RX_BUFFER_CNT             12U
 LWIP_MEMPOOL_DECLARE(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX PBUF pool");
 
+
+
 /* Variable Definitions */
 static uint8_t RxAllocStatus;
 struct netif *ethif=NULL;
-
-
-__IO uint32_t TxPkt = 0;
-__IO uint32_t RxPkt = 0;
 
 #if defined ( __ICCARM__ ) /*!< IAR Compiler */
     #pragma location=0x30000000
@@ -93,9 +102,9 @@ __IO uint32_t RxPkt = 0;
 	#pragma location = 0x30000400
     extern u8_t memp_memory_RX_POOL_base[];
 #elif defined ( __CC_ARM )  /* MDK ARM Compiler */
-    __attribute__((at(0x30000000))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-    __attribute__((at(0x30000200))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
-    //__attribute__((at(0x30000400))) uint8_t memp_memory_RX_POOL_base[];
+    ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]  __attribute__((at(0x30040000)));      // ÒÔÌ«ÍøRx DMAÃèÊö·û(0x30040000~0x300401DF£¬´óÐ¡0x1E0)
+    ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]  __attribute__((at(0x30040200))) ;      // ÒÔÌ«ÍøTx DMAÃèÊö·û(0x300401E0~0x300403BF£¬´óÐ¡0x1E0)
+    extern uint8_t memp_memory_RX_POOL_base[]          __attribute__((at(0x30040400))) ;
 #elif defined ( __GNUC__ ) /* GNU Compiler */
     ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT] __attribute__((section(".RxDecripSection"))); /* Ethernet Rx DMA Descriptors */
     ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecripSection")));   /* Ethernet Tx DMA Descriptors */
@@ -156,12 +165,12 @@ void ethernetif_input(void *argument)
         {
             do {
                 p = low_level_input(netif);
-                if (p != NULL) {
+                if (p) {
                     if (netif->input(p, netif) != ERR_OK ) {
                         pbuf_free(p);
                     }
                 }
-            } while(p!=NULL);
+            } while(p);
         }
     }
 }
@@ -170,17 +179,14 @@ void ethernetif_input(struct netif *netif)
 {
   struct pbuf *p = NULL;
 
-  do
-  {
-    p = low_level_input( netif );
-    if (p != NULL)
-    {
-      if (netif->input( p, netif) != ERR_OK )
-      {
-        pbuf_free(p);
-      }
-    }
-  } while(p!=NULL);
+    do {
+        p = low_level_input( netif );
+        if (p) {
+            if (netif->input( p, netif) != ERR_OK ) {
+                pbuf_free(p);
+            }
+        }
+    } while(p);
 }
 #endif
 
@@ -190,14 +196,7 @@ void ethernetif_input(struct netif *netif)
 
 void ETH_IRQHandler(void)
 {
-    //ethernetif_input(ethif);
-    //__HAL_ETH_DMA_CLEAR_IT(&heth, ETH_DMA_NORMAL_IT);
-    //__HAL_ETH_DMA_CLEAR_IT(&heth, ETH_DMA_RX_IT);
-    //__HAL_ETH_DMA_CLEAR_IT(&heth, ETH_DMA_TX_IT);
-    
     HAL_ETH_IRQHandler(&heth);
-    
-    
 }
 
 
@@ -225,22 +224,9 @@ static void eth_mpu_config(void)
 	MPU_Region_InitTypeDef init = {0};
     
     HAL_MPU_Disable();
-/*
-    init.Enable = MPU_REGION_ENABLE;
-    init.BaseAddress = 0x30004000;
-    init.Size = MPU_REGION_SIZE_256B;
-    init.AccessPermission = MPU_REGION_FULL_ACCESS;
-    init.IsBufferable = MPU_ACCESS_BUFFERABLE;
-    init.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    init.IsShareable = MPU_ACCESS_SHAREABLE;
-    init.Number = MPU_REGION_NUMBER4;
-    init.TypeExtField = MPU_TEX_LEVEL1;
-    init.SubRegionDisable = 0x00;
-    init.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
-    HAL_MPU_ConfigRegion(&init);
     
     init.Enable = MPU_REGION_ENABLE;
-    init.BaseAddress = 0x30004200;
+    init.BaseAddress = 0x30040000;
     init.Size = MPU_REGION_SIZE_32KB;
     init.AccessPermission = MPU_REGION_FULL_ACCESS;
     init.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
@@ -249,37 +235,20 @@ static void eth_mpu_config(void)
     init.Number = MPU_REGION_NUMBER5;
     init.TypeExtField = MPU_TEX_LEVEL1;
     init.SubRegionDisable = 0x00;
-    init.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+    init.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
     HAL_MPU_ConfigRegion(&init);
-*/
 
-
-    /* Configure the MPU attributes as Device not cacheable 
-     for ETH DMA descriptors */
     init.Enable = MPU_REGION_ENABLE;
-    init.BaseAddress = 0x30004000;
-    init.Size = MPU_REGION_SIZE_256B;
+    init.BaseAddress = 0x30040000;
+    init.Size = MPU_REGION_SIZE_1KB;
     init.AccessPermission = MPU_REGION_FULL_ACCESS;
     init.IsBufferable = MPU_ACCESS_BUFFERABLE;
     init.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    init.IsShareable = MPU_ACCESS_SHAREABLE;
-    init.Number = MPU_REGION_NUMBER4;
-    init.TypeExtField = MPU_TEX_LEVEL1;
-    init.SubRegionDisable = 0x00;
-    init.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
-    HAL_MPU_ConfigRegion(&init);
-    
-    init.Enable = MPU_REGION_ENABLE;
-    init.BaseAddress = 0x30004200;
-    init.Size = MPU_REGION_SIZE_32KB;
-    init.AccessPermission = MPU_REGION_FULL_ACCESS;
-    init.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-    init.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
     init.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-    init.Number = MPU_REGION_NUMBER5;
-    init.TypeExtField = MPU_TEX_LEVEL1;
+    init.Number = MPU_REGION_NUMBER6;
+    init.TypeExtField = MPU_TEX_LEVEL0;
     init.SubRegionDisable = 0x00;
-    init.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+    init.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
     HAL_MPU_ConfigRegion(&init);
 
     HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
@@ -298,7 +267,7 @@ static void low_level_init(struct netif *netif)
 #endif
 
     LAN8742_Reset();
-    //eth_mpu_config();
+    eth_mpu_config();
  
     
     heth.Instance = ETH;
@@ -550,8 +519,6 @@ void pbuf_free_custom(struct pbuf *p)
       
 #ifdef OS_KERNEL
     osSemaphoreRelease(RxPktSemaphore);
-#else
-    RxPkt = 1 ;
 #endif
   }
 }

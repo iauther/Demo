@@ -313,15 +313,16 @@ handle_t htimer_new(void)
 }
 
 
-int htimer_free(handle_t *h)
+int htimer_free(handle_t h)
 {
-    htimer_handle_t **hh=(htimer_handle_t**)h;
+    htimer_handle_t *hh=(htimer_handle_t*)h;
     
-    if(!hh || *hh) {
+    if(!hh) {
         return -1;
     }
     
-    (*hh)->used = 0;
+    hh->used = 0;
+    free(hh);
     
     return 0;
 }

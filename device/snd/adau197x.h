@@ -30,9 +30,9 @@ enum {
 #define DC_HPF_CAL_REG			(0x1A)
 
 
-int adau197x_init(U8 id);
-int adau197x_config(U8 id);
-int adau197x_get_status(U8 id, U8 *status);
+int adau197x_init(void);
+int adau197x_config(void);
+int adau197x_get_status(U8 *status);
 
 #endif
 

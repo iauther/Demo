@@ -34,7 +34,7 @@ typedef struct {
 
 handle_t uart_init(uart_cfg_t *cfg);
 
-int uart_deinit(handle_t *h);
+int uart_deinit(handle_t h);
 
 int uart_read(handle_t h, U8 *data, U32 len);
 

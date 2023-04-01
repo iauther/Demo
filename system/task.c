@@ -77,10 +77,10 @@ static void task_free(task_handle_t **h)
 static int create_user_task(void)
 {
     task_attr_t att={
-        .func = task_com_fn,
+        .func = task_datacap_fn,
         .arg = NULL,
         .nMsg = 5,
-        .taskID = TASK_COM,
+        .taskID = TASK_DATACAP,
         .priority = osPriorityNormal,
         .stkSize = 2048,
         .runNow  = 1,

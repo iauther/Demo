@@ -35,7 +35,7 @@ typedef struct {
 
 handle_t i2c_init(i2c_cfg_t *cfg);
 
-int i2c_deinit(handle_t *h);
+int i2c_deinit(handle_t h);
     
 int i2c_read(handle_t h, U16 addr, U8 *data,  U32 len, U8 bStop, U32 timeout);
 int i2c_write(handle_t h, U16 addr, U8 *data, U32 len, U8 bStop, U32 timeout);

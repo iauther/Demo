@@ -9,7 +9,7 @@ typedef int (*qiterater)(handle_t h, int index, void *p1, void *p2);
 
 handle_t queue_init(int max, int bsz);
 
-int queue_free(handle_t *h);
+int queue_free(handle_t h);
 
 int queue_size(handle_t h);
 

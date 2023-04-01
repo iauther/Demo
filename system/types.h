@@ -38,6 +38,7 @@ typedef uint8_t	    BOOL;
 
 #endif
 
+#define ALIGN_TO(addr,n) ((U32)(addr) + ((((U32)(addr))%(n))?((n)-(((U32)(addr))%(n))):0))
 
 #ifndef FALSE
 #define FALSE   (0)
@@ -57,9 +58,17 @@ enum {
 
 typedef void*  handle_t;
 
+#ifndef MAX
 #define MAX(a,b)    ((a>b)?a:b)
+#endif
+
+#ifndef MIN
 #define MIN(a,b)    ((a<b)?a:b)
+#endif
+
+#ifndef ABS
 #define ABS(a)      (((a)>=0)?(a):((a)*(-1)))
+#endif
     
 typedef struct {
     void            *ptr;

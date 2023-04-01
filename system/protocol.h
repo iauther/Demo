@@ -23,7 +23,7 @@ enum {
 enum {
     TYPE_CMD=0,
     TYPE_STAT,
-    TYPE_ADC,       //adc data
+    TYPE_CAP,       //capture data
     TYPE_ACK,
     TYPE_SETT,
     TYPE_PARA,
@@ -37,16 +37,24 @@ enum {
 
 
 #pragma pack (1)
-
+typedef struct {
+    U8              year;
+    U8              month;
+    U8              day;
+    U8              hour;
+    U8              min;
+    U8              sec;
+    U16             msec;
+} timestamp_t;
 
 typedef struct {
+    U32             len;   //wave_data_t total length, including the data length
     U8              ch;
-    U8              mode;       //common or differential
-    U32             bits;       //adc sample bits
-    U32             freq;       //sample rate
-    U32             time;       //micro seconds
-}ch_info_t;
+    U32             sr;    //samplerate
+    timestamp_t     ts;
 
+    F32             data[0];
+}cap_data_t;
 
 typedef struct {
     U8              cmd;

@@ -21,7 +21,7 @@ typedef struct {
 int htimer_init(htimer_cfg_t *cfg);
 int htimer_deinit(void);
 handle_t htimer_new(void);
-int htimer_free(handle_t *h);
+int htimer_free(handle_t h);
 
 int htimer_set(handle_t h, htimer_set_t *set);
 int htimer_start(handle_t h);

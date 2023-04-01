@@ -2,7 +2,11 @@
 #include "platform.h"
 #include "cfg.h"
 
-U32 sys_freq = 0;static U32 s_freq=0;
+
+U32 sys_freq = 0;;
+handle_t i2c1Handle=NULL;
+handle_t i2c2Handle=NULL;
+////////////////////////////////////////
 
 
 void HAL_MspInit(void)
@@ -23,7 +27,6 @@ static void mpu_config(void)
     
     HAL_MPU_Disable();
 	
-#if 0
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     MPU_InitStruct.BaseAddress = 0x30000000; // DMA Ping???
     MPU_InitStruct.Size = MPU_REGION_SIZE_128KB;
@@ -77,53 +80,6 @@ static void mpu_config(void)
     HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
     HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);	
-#else
-    /* Configure the MPU as Strongly ordered for not defined regions */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.BaseAddress = 0x00;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-    MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-    MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-    MPU_InitStruct.SubRegionDisable = 0x87;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
-    /* Configure the MPU attributes as Device not cacheable 
-     for ETH DMA descriptors */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.BaseAddress = 0x30000000;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_1KB;
-    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-    MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-    MPU_InitStruct.SubRegionDisable = 0x00;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
-    /* Configure the MPU attributes as Normal Non Cacheable
-     for LwIP RAM heap which contains the Tx buffers */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.BaseAddress = 0x30004000;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_16KB;
-    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-    MPU_InitStruct.Number = MPU_REGION_NUMBER2;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-    MPU_InitStruct.SubRegionDisable = 0x00;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-#endif
-
-    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
 
 
@@ -306,6 +262,30 @@ static int dal_clk_init2(void)
 }
 
 
+static void bus_init(int flag)
+{
+    int r;
+    
+    if(flag) {
+        si2c_cfg_t  ic;
+        si2c_pin_t  p1={I2C1_SCL_PIN,I2C1_SDA_PIN};
+        si2c_pin_t  p2={I2C2_SCL_PIN,I2C2_SDA_PIN};
+        
+        ic.pin= p1;
+        ic.freq = I2C1_FREQ;
+        i2c1Handle = si2c_init(&ic);
+        
+        ic.pin= p2;
+        ic.freq = I2C2_FREQ;
+        //i2c2Handle = si2c_init(&ic);
+    }
+    else {
+        r = si2c_deinit(&i2c1Handle);
+        //r |= si2c_deinit(&i2c2Handle);
+    }
+}
+
+
 int dal_init(void)
 {
     mpu_config();
@@ -315,6 +295,7 @@ int dal_init(void)
     dal_clk_init();
     
     sys_freq = HAL_RCC_GetSysClockFreq();
+    bus_init(1);
     
     return 0;
 }

@@ -491,15 +491,16 @@ failed:
 }
 
 
-int pwm_deinit(handle_t *h)
+int pwm_deinit(handle_t h)
 {
-    pwm_handle_t **ph=(pwm_handle_t**)h;
+    pwm_handle_t *ph=(pwm_handle_t*)h;
     
-    if(!ph || !(*ph)) {
+    if(!ph) {
         return -1;
     }
     
-    HAL_TIM_Base_DeInit(&(*ph)->htim);
+    HAL_TIM_Base_DeInit(&ph->htim);
+    free(ph);
     
     return 0;
 }

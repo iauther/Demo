@@ -9,6 +9,7 @@
 #include "dal/gpio.h"
 #include "dal/htimer.h"
 #include "dal/i2c.h"
+#include "dal/si2c.h"
 #include "dal/jump.h"
 #include "dal/pwm.h"
 #include "dal/spi.h"

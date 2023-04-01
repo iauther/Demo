@@ -1,6 +1,9 @@
-#include "adc2.h"
+#include "dal/adc.h"
 #include "cfg.h"
 #include "platform.h"
+
+
+//该代码采集到的值只有正常值的一半
 
 
 ADC_HandleTypeDef	AdcHandle_master;
@@ -337,7 +340,7 @@ HAL_StatusTypeDef HAL_ADCEx_MultiBufferStart_DMA(ADC_HandleTypeDef *hadc, PINT32
 			/* If software start has been selected, conversion starts immediately.    */
 			/* If external trigger has been selected, conversion will start at next   */
 			/* trigger event.                                                         */
-//			SET_BIT(hadc->Instance->CR, ADC_CR_ADSTART); // 不开启ADC转换
+			SET_BIT(hadc->Instance->CR, ADC_CR_ADSTART); // 不开启ADC转换
 		}
 		else
 		{
@@ -349,7 +352,7 @@ HAL_StatusTypeDef HAL_ADCEx_MultiBufferStart_DMA(ADC_HandleTypeDef *hadc, PINT32
 		return tmp_hal_status;
 	}
     
-    SET_BIT(hadc->Instance->CR, ADC_CR_ADSTART);
+    
 }
 
 
@@ -375,29 +378,35 @@ void DMA2_Stream0_IRQHandler(void)  //ADC1
 }
 
 
-#include "drv/delay.h"
-void adc2_init(void)
+//#include "drv/delay.h"
+int adc_init(void)
 {
     io_init();
     do_calibration();
     dma_init();
     do_config();
     
-    adc2_start();
+    adc_start();
 }
 
-void adc2_start(void)
+int adc_start(void)
 {
     HAL_StatusTypeDef st;
     
 	//HAL_ADCEx_RegularMultiModeStop_DMA(&AdcHandle_master);
     st = HAL_ADCEx_MultiBufferStart_DMA(&AdcHandle_master, adcBuffer.ping, adcBuffer.pong, ADC_BUF_LEN);
     st = 1;
+    
+    return 0;
 }
 
+int adc_config(adc_cfg_t *cfg)
+{
+    return 0;
+}
 
-
-void adc2_stop(void)
+int adc_stop(void)
 {
     HAL_ADCEx_RegularMultiModeStop_DMA(&AdcHandle_master);
+    return 0;
 }

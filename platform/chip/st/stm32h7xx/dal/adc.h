@@ -68,8 +68,8 @@ typedef struct {
 }adc_cfg_t;
 
 
-int adc_init(adc_cfg_t *cfg);
-
+int adc_init(void);
+int adc_config(adc_cfg_t *cfg);
 int adc_start(void);
 int adc2_start(void);
 int adc3_start(void);
