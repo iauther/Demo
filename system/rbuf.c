@@ -43,7 +43,7 @@ int rbuf_free(handle_t h)
         return -1;
     }
     
-    lock_dynamic_free(&rh->lock);
+    lock_dynamic_free(rh->lock);
     free(rh);
     
     return 0;
@@ -59,12 +59,12 @@ int rbuf_read(handle_t h, U8 *buf, int len, U8 shift)
         return -1;
     }
     
-    //buffer is null
-    if(rh->dlen==0) {
+    lock_dynamic_hold(rh->lock);
+    if(rh->dlen==0) {       //buffer is null
+        lock_dynamic_release(rh->lock);
         return 0;
     }
     
-    lock_dynamic_hold(rh->lock);
     if(len<=rh->dlen) {     //数据有余，读取长度等于要求的长度
         rlen = len;
         if(rh->pr <= rh->pw) {
@@ -132,13 +132,13 @@ int rbuf_write(handle_t h, U8 *buf, int len)
 	if(!rh || !buf || !len) {
         return -1;
     }
-    
-    //buffer is full
-    if(rh->dlen==rh->size) {
-        return 0;
-    }
 
     lock_dynamic_hold(rh->lock);
+    if(rh->dlen==rh->size) {        //buffer is full
+        lock_dynamic_release(rh->lock);
+        return 0;
+    }
+    
     if(len <= (rh->size-rh->dlen)) {    //可全部写入
         wlen = len;
         if(rh->pw <= rh->pr) {      //写指针在前，只用写1次

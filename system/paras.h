@@ -7,8 +7,8 @@
 int paras_load(void);
 int paras_erase(void);
 int paras_reset(void);
-int paras_read(U32 addr, void *data, U32 len);
-int paras_write(U32 addr, void *data, U32 len);
+int paras_read(int id, void *data, int len);
+int paras_write(int id, void *data, int len);
 
 int paras_get_magic(U32 *magic);
 int paras_set_magic(U32 *magic);
@@ -24,6 +24,7 @@ extern U8 sysState;
 extern U8 sysMode;
 extern stat_t curStat;
 extern para_t curPara;
+extern paras_t DEFAULT_PARAS;
 
 #endif
 

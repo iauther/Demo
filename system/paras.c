@@ -3,27 +3,6 @@
 #include "nvm.h"
 #include "cfg.h"
 
-paras_t DEFAULT_PARAS={
-    
-    .flag={
-        .magic=FW_MAGIC,
-        .state=STAT_STOP,
-    },
-    
-    .para={
-        .fwInfo={
-            .magic=FW_MAGIC,
-            .version=VERSION,
-            .bldtime=__DATE__,
-        },
-        
-        .sett = {
-            .mode = 0,
-        }
-    }
-};
-
-
 #ifdef OS_KERNEL
 U8 sysState=STAT_STOP;
 #else
@@ -92,22 +71,14 @@ int paras_reset(void)
 
 
 
-int paras_read(U32 addr, void *data, U32 len)
+int paras_read(int id, void *data, int len)
 {
-#ifdef _WIN32
-    return 0;
-#else
-    return nvm_read(addr, data, len);
-#endif
+    return nvm_read(id, data, len);
 }
 
-int paras_write(U32 addr, void *data, U32 len)
+int paras_write(int id, void *data, int len)
 {
-#ifdef _WIN32
-    return 0;
-#else
-    return nvm_write(addr, data, len);
-#endif
+    return nvm_write(id, data, len);
 }
 
 

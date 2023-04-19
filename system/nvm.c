@@ -1,5 +1,7 @@
-#include "devs.h"
+#include "nvm.h"
+#include "fs.h"
 #include "dal/dal.h"
+#include "cfg.h"
 
 
 
@@ -11,9 +13,8 @@ int nvm_init(void)
 {
     int r;
     
-#ifdef _WIN32
-    paras_fp = fopen("paras.dat", "wb");
-    r = paras_fp?0:-1;
+#ifdef USE_FS
+    fs_init();
 #else
     #ifdef USE_EEPROM
         r = at24cxx_init();
@@ -26,13 +27,12 @@ int nvm_init(void)
 }
 
 
-int nvm_read(U32 addr, U8 *data, U32 len)
+int nvm_read(int id, void *data, int len)
 {
     int r;
     
-#ifdef _WIN32
-    fseek(paras_fp, addr, SEEK_SET);
-    r = fread(data, 1, len, paras_fp);
+#ifdef USE_FS
+    r = fs_read(id, data, len);
 #else
     #ifdef USE_EEPROM
         r = at24cxx_read(addr, (U8*)data, len);
@@ -45,13 +45,12 @@ int nvm_read(U32 addr, U8 *data, U32 len)
 }
 
 
-int nvm_write(U32 addr, U8 *data, U32 len)
+int nvm_write(int id, void *data, int len)
 {
-    int r;
+    int r=0;
     
-#ifdef _WIN32
-    fseek(paras_fp, addr, SEEK_SET);
-    r = fwrite(data, 1, len, paras_fp);
+#ifdef USE_FS
+    r = fs_write(id, data, len);
 #else
     #ifdef USE_EEPROM
         r = at24cxx_write(addr, (U8*)data, len);
@@ -65,9 +64,31 @@ int nvm_write(U32 addr, U8 *data, U32 len)
 
 
 
-int nvm_erase(U32 addr, U8 *data, U32 len)
+int nvm_remove(int id)
 {
-    return 0;
+    int r=0;
+    
+#ifdef USE_FS
+    fs_remove(id);
+#else
+    
+#endif
+    
+    return r;
+}
+
+
+int nvm_sync(int id)
+{
+    int r=0;
+    
+#ifdef USE_FS
+    fs_sync(id);
+#else
+    
+#endif
+    
+    return r;
 }
 
 

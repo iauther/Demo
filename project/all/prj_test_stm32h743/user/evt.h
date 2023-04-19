@@ -6,10 +6,10 @@
 #define EVT_DATA_LEN_MAX   0xFF
 
 enum {
-    EVT_COM=0,
-    EVT_ADC,
+    EVT_ADC=0,
     EVT_SAI,
     EVT_TMR,
+    EVT_COMM,
     EVT_DATA,
     
     EVT_TIMER,
@@ -17,11 +17,11 @@ enum {
 };
 
 typedef struct {
-    void    *addr;
+    void    *arg;
     U8      evt;
     U8      type;
-    U8      paded;
-    U16     dLen;
+    U16     flag;
+    U32     dLen;
     U8      data[EVT_DATA_LEN_MAX];
 }evt_t;
 

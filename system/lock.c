@@ -104,7 +104,7 @@ int lock_dynamic_hold(handle_t h)
     if(!h) {
         return -1;
     }
-    r = osMutexAcquire(lh->mutex_id, 0);
+    r = osMutexAcquire(lh->mutex_id, osWaitForever);
 #endif
 
     return r;
@@ -131,23 +131,23 @@ int lock_dynamic_release(handle_t h)
 }
 
 
-int lock_dynamic_free(handle_t *h)
+int lock_dynamic_free(handle_t h)
 {
     int r=0;
 
 #ifdef _WIN32
-
+    CloseHandle((HANDLE)h);
 #endif
 
 #ifdef OS_KERNEL
-    lock_handle_t **lh=(lock_handle_t**)h;
+    lock_handle_t *lh=(lock_handle_t*)h;
 
-    if(!h || !(*lh)) {
+    if(!lh) {
         return -1;
     }
     
-    r = osMutexDelete((*lh)->mutex_id);
-    free(*lh);
+    r = osMutexDelete(lh->mutex_id);
+    free(lh);
 #endif
 
     return r;

@@ -17,6 +17,7 @@
 typedef int8_t      INT8,  int8,  int8_t,  s8,  S8;
 typedef int16_t     INT16, int16, int16_t, s16, S16;
 typedef int32_t     INT32, int32, int32_t, s32, S32;
+typedef int64_t     INT64, int64, int64_t, s64, S64;
 
 typedef float       f32, F32;
 typedef double      f64, F64;
@@ -25,14 +26,16 @@ typedef double      f64, F64;
 typedef uint8_t     UINT8,  INT8U,  uint8,  u8,  U8;
 typedef uint16_t    UINT16, INT16U, uint16, u16, U16;
 typedef uint32_t    UINT32, INT32U, uint32, u32, U32;
+typedef uint64_t    UINT64, INT64U, uint64, u64, U64;
 #else
 typedef uint8_t     UINT8,  INT8U,  uint8,  BYTE,  u8,  U8;
 typedef uint16_t    UINT16, INT16U, uint16, WORD,  u16, U16;
 typedef uint32_t    UINT32, INT32U, uint32, DWORD, u32, U32;
+typedef uint64_t    UINT64, INT64U, uint64, QWORD, u64, U64;
 
-typedef uint8_t* PBYTE, * PUINT8, * PINT8U;
-typedef uint16_t* PWORD, * PUINT16, * PINT16U;
-typedef uint32_t* PDWORD, * PUINT32, * PINT32U;
+typedef uint8_t     *PBYTE, *PUINT8,   *PINT8U;
+typedef uint16_t    *PWORD, *PUINT16,  *PINT16U;
+typedef uint32_t    *PDWORD, *PUINT32, *PINT32U;
 
 typedef uint8_t	    BOOL;
 

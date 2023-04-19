@@ -22,7 +22,7 @@ typedef struct mem_block_s {
 /// \param[in]  mem             pointer to memory pool.
 /// \param[in]  size            size of a memory pool in bytes.
 /// \return 1 - success, 0 - failure.
-uint32_t rtx_mem_init (void *mem, uint32_t size);
+int rtx_mem_init (void *mem, uint32_t size);
 
 
 /// Allocate a memory block from a Memory Pool.
@@ -38,7 +38,7 @@ void *rtx_mem_alloc (void *mem, uint32_t size, uint32_t type);
 /// \param[in]  mem             pointer to memory pool.
 /// \param[in]  block           memory block to be returned to the memory pool.
 /// \return 1 - success, 0 - failure.
-uint32_t rtx_mem_free (void *mem, void *block);
+int rtx_mem_free (void *mem, void *block);
     
 #endif
     

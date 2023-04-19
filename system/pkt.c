@@ -93,10 +93,10 @@ int pkt_pack_data(U8 type, U8 nAck, void *data, int dlen, U8 *buf, int blen)
 int pkt_unpack_cap(void *data, int dlen, pkt_callback_t callback)
 {
     int tlen=0;
-    cap_data_t *cap=NULL;
+    ch_data_t *cd=NULL;
     pkt_hdr_t *p=(pkt_hdr_t*)data;
     
-    if(p->type!=TYPE_CAP) {
+    if(p->type!= TYPE_DATA) {
         return -1;
     }
     
@@ -105,11 +105,11 @@ int pkt_unpack_cap(void *data, int dlen, pkt_callback_t callback)
             break;
         }
         
-        cap = (cap_data_t*)(p->data+tlen);
+        cd = (ch_data_t*)(p->data+tlen);
         if(callback) {
-            callback(cap);
+            callback(cd);
         }
-        tlen += cap->len;
+        tlen += cd->len;
     }
     
     return 0;

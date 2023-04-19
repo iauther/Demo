@@ -316,6 +316,10 @@ int net_deinit(handle_t *h)
 
 int net_write(handle_t h, netconn_t *conn, U8 *data, int len)
 {
+    if(!h || !conn || !data || !len) {
+        return -1;
+    }
+    
 #ifdef OS_KERNEL
     return netconn_write(conn, data, len, NETCONN_NOCOPY);
 #else

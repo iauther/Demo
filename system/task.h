@@ -9,9 +9,10 @@
 #define TIME_INFINITE  0xffffffff
 
 enum {
-    TASK_COMM=0,
-    TASK_DATACAP,
-    TASK_DATAPROC,
+    TASK_COMM_RECV=0,
+    TASK_COMM_SEND,
+    TASK_DATA_CAP,
+    TASK_DATA_PROC,
     TASK_POLLING,
     
     TASK_MAX
@@ -43,17 +44,20 @@ typedef struct {
 
 
 typedef struct {
-    handle_t         hcom;
-}task_gbl_t;
+    handle_t    hcom;
+    void        *netAddr;
+}comm_handle_t;
 
 
+extern handle_t      hMem;
+extern comm_handle_t commHandle;
 
 
-extern int task_com_id;
-void task_comm_fn(void *arg);
+void task_comm_recv_fn(void *arg);
+void task_comm_send_fn(void *arg);
+void task_data_cap_fn(void *arg);
+void task_data_proc_fn(void *arg);
 void task_polling_fn(void *arg);
-void task_datacap_fn(void *arg);
-void task_dataproc_fn(void *arg);
 
 void task_init(void);
 int task_new(task_attr_t *atrr);

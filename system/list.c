@@ -1,18 +1,6 @@
 #include "list.h"
 #include "lock.h"
-
-
-#ifndef LIST_MALLOC
-#define LIST_MALLOC malloc
-#endif
-
-#ifndef LIST_FREE
-#define LIST_FREE free
-#endif
-
-#ifndef LIST_COPY
-#define LIST_COPY memcpy
-#endif
+#include "xmem.h"
 
 
 typedef struct list_node {
@@ -24,49 +12,79 @@ typedef struct list_node {
 typedef struct {
     list_node_t *head;
     list_node_t *tail;
-    U32         size;
+    int         size;
   
     handle_t    lock;
     list_cfg_t  cfg;
 } list_t;
 
 
-static list_node_t *node_new(void *data, int len)
+static list_node_t *node_new(list_t *l, void *data, int len)
 {
-    list_node_t *node=LIST_MALLOC(sizeof(list_node_t));
+    list_node_t *node=NULL;
+    
+    if(l->cfg.hmem) {
+        node = xMalloc(l->cfg.hmem, sizeof(list_node_t), 0);
+        if(node) {
+            node->data.ptr = xMalloc(l->cfg.hmem, len, 0);
+        }
+    }
+    else {
+        node = malloc(sizeof(list_node_t));
+        if(node) {
+            node->data.ptr = malloc(len);
+        }
+    }
     
     if (!node) return NULL;
         
     node->prev = NULL;
     node->next = NULL;
-    node->data.ptr = LIST_MALLOC(len);
     if(node->data.ptr) {
-        LIST_COPY(node->data.ptr, data, len);
+        memcpy(node->data.ptr, data, len);
         node->data.len = len;
     }
     return node;
 }
-static int node_free(list_node_t *node)
+static int node_free(list_t *l, list_node_t *node)
 {
     if(!node) {
         return -1;
     }
     
-    LIST_FREE(node->data.ptr);
-    LIST_FREE(node);
+    if(l->cfg.hmem) {
+        xFree(l->cfg.hmem, node->data.ptr);
+    }
+    else {
+        free(node->data.ptr);
+        free(node);
+    }
     
     return 0;
 }
-static int node_set(list_node_t *node, node_t *nd)
+static int node_remove(list_t *l, list_node_t *node)
+{
+    return 0;
+}
+
+
+static int node_set(list_t *l, list_node_t *node, node_t *nd)
 {
     if(!node) {
         return -1;
     }
     
-    LIST_FREE(node->data.ptr);
-    node->data.ptr = LIST_MALLOC(nd->len);
+    if(l->cfg.hmem) {
+        xFree(l->cfg.hmem, node->data.ptr);
+        node->data.ptr = xMalloc(l->cfg.hmem, nd->len, 0);
+    }
+    else {
+        free(node->data.ptr);
+        node->data.ptr = malloc(nd->len);
+    }
+    
     if(node->data.ptr) {
-        LIST_COPY(node->data.ptr, nd->ptr, nd->len);
+        memcpy(node->data.ptr, nd->ptr, nd->len);
         node->data.len = nd->len;
     }
     
@@ -93,7 +111,7 @@ static list_node_t *node_at(list_t *l, int index)
 ///////////////////////////////////////////////////////////
 handle_t list_new(list_cfg_t *cfg)
 {
-    list_t *l=LIST_MALLOC(sizeof(list_t));
+    list_t *l=malloc(sizeof(list_t));
     if (!cfg || !l)
         return NULL;
     
@@ -109,6 +127,8 @@ handle_t list_new(list_cfg_t *cfg)
 
 int list_destroy(handle_t l)
 {
+    U32 size;
+    list_node_t *cur;
     list_node_t *next;
     list_t *hl=(list_t*)l;
     
@@ -116,45 +136,45 @@ int list_destroy(handle_t l)
         return -1;
     }
     
-    U32 size = hl->size;
-    list_node_t *cur = hl->head;
-    
     lock_dynamic_hold(hl->lock);
+    size = hl->size; cur = hl->head;
     while (size--) {
         next = cur->next;
-        node_free(cur);
+        node_free(hl, cur);
         cur = next;
     }
-    LIST_FREE(hl);
     lock_dynamic_release(hl->lock);
+    lock_dynamic_free(hl->lock);
+    free(hl);
     
     return 0;
 }
 
 
-int list_get(handle_t l, node_t *node, U32 index)
+int list_get(handle_t l, node_t *node, int index)
 {
     list_node_t *nd;
     list_t *hl=(list_t*)l;
     
-    if(!hl) {
+    if(!hl || !node) {
         return -1;
     }
     
     lock_dynamic_hold(hl->lock);
+    if (index>=hl->size) {
+        lock_dynamic_release(hl->lock);
+        return -1;
+    }
+    
     nd = node_at(hl, index);
-    lock_dynamic_release(hl->lock);
-    
-    if(!nd) {
-        return -1;
-    }
-    if(node) *node = nd->data;
+    *node = nd->data;
+    lock_dynamic_release(hl->lock);    
     
     return 0;
 }
 
 
-int list_set(handle_t l, node_t *node, U32 index)
+int list_set(handle_t l, node_t *node, int index)
 {
     list_node_t *nd;
     list_t *hl=(list_t*)l;
@@ -164,9 +184,14 @@ int list_set(handle_t l, node_t *node, U32 index)
     }
     
     lock_dynamic_hold(hl->lock);
+    if (index>=hl->size) {
+        lock_dynamic_release(hl->lock);
+        return -1;
+    }
+    
     nd = node_at(hl, index);
     if(nd) {
-        node_set(nd, node);
+        node_set(hl, nd, node);
     }
     lock_dynamic_release(hl->lock);
     
@@ -175,43 +200,47 @@ int list_set(handle_t l, node_t *node, U32 index)
 
 
 
-int list_add(handle_t l, node_t *node, U32 index)
+int list_add(handle_t l, node_t *node, int index)
 {
     int idx=0;
     list_t *hl=(list_t*)l;
-    list_node_t *nd,*tmp;
+    list_node_t *xd,*tmp;
     
-    if (!hl || !node || index>hl->size) {
+    if (!hl) {
         return -1;
     }
     
     lock_dynamic_hold(hl->lock);
+    if (index>hl->size) {
+        lock_dynamic_release(hl->lock);
+        return -1;
+    }
     
-    nd = node_at(l, index);
-    tmp = node_new(node->ptr, node->len);
+    xd = node_at(l, index);
+    tmp = node_new(hl, node->ptr, node->len);
     if(tmp) {
         
-        if(index==0) {        //head
+        if(index==0) {                  //head
             tmp->prev = NULL;
-            tmp->next = nd;
+            tmp->next = xd;
             
-            nd->prev = tmp;
+            xd->prev = tmp;
             hl->head = tmp;
         }
-        else if(index==(hl->size-1)) {   //tail
+        else if((index==(hl->size-1)) || (index==-1)) {   //tail
             
-            tmp->prev = nd;
+            tmp->prev = xd;
             tmp->next = NULL;
             
-            nd->next = tmp;
+            xd->next = tmp;
             hl->tail = tmp;
         }
         else {
-            nd->prev->next = tmp;
-            nd->prev = tmp;
+            xd->prev->next = tmp;
+            xd->prev = tmp;
             
-            tmp->prev = nd->prev;
-            tmp->next = nd;
+            tmp->prev = xd->prev;
+            tmp->next = xd;
         }
         
         hl->size++;
@@ -227,47 +256,47 @@ int list_append(handle_t l, void *data, U32 len)
     list_t *hl=(list_t*)l;
     node_t node={data, len};
     
-    if(!hl) {
-        return -1;
-    }
-    
-    if(hl->cfg.max==hl->size) {
-        if(hl->cfg.mode==MODE_FIFO) {
-            list_remove(l, 0);
-        }
-        else {
-            return -1;
-        }
-    }
-    
-    return list_add(l, &node, hl->size-1);
+    return list_add(l, &node, -1);
 }
 
 
 
 
-int list_remove(handle_t l, U32 index)
+int list_remove(handle_t l, int index)
 {
-    list_node_t *node;
+    list_node_t *xd;
     list_t *hl=(list_t*)l;
     
-    if (!hl || hl->size==0 || index>=hl->size) {
+    if (!hl) {
         return -1;
     }
     
     lock_dynamic_hold(hl->lock);
-    node = node_at(hl, index);
+    if (hl->size==0 || index>=hl->size) {
+        lock_dynamic_release(hl->lock);
+        return -1;
+    }
     
-    node->prev
-    ? (node->prev->next = node->next)
-    : (hl->head = node->next);
-
-    node->next
-    ? (node->next->prev = node->prev)
-    : (hl->tail = node->prev);
-
-    node_free(node);
-    hl->size--;
+    xd = node_at(hl, index);
+    
+    if(index==0) {                  //the head
+        hl->head = xd->next;
+        if(hl->head) {
+            hl->head->prev = NULL;
+        }
+    }
+    else if(index==hl->size-1 || index==-1) {    //the tail
+        hl->tail = xd->prev;
+        if(hl->tail) {
+            hl->tail->next = NULL;
+        }
+    }
+    else {
+        
+        xd->prev->next = xd->next;
+        xd->next->prev = xd->prev; 
+    }
+    node_free(hl, xd); hl->size--;
     lock_dynamic_release(hl->lock);
     
     return 0;
@@ -280,11 +309,16 @@ int list_iterator(handle_t l, node_t *node, list_callback_t callback)
     list_node_t *nd;
     list_t *hl=(list_t*)l;
 
-    if (!hl || !node || hl->size==0) {
+    if (!hl) {
+
         return -1;
     }
 
     lock_dynamic_hold(hl->lock);
+    if (hl->size==0) {
+        lock_dynamic_release(hl->lock);
+        return -1;
+    }
     
     nd = hl->head;
     while (nd) {
@@ -297,7 +331,7 @@ int list_iterator(handle_t l, node_t *node, list_callback_t callback)
         
         nd = nd->next;
     }
-    lock_dynamic_hold(hl->lock);
+    lock_dynamic_release(hl->lock);
     
     return NULL;
 }

@@ -26,7 +26,7 @@ static int msg_tx(task_handle_t *h, void *addr, U8 evt, U8 type, void *data, U16
         return -1;
     }
     
-    e.addr = addr;
+    e.arg = addr;
     e.evt = evt;
     e.type = type;
     e.dLen = len;
@@ -52,9 +52,7 @@ static int task_wait(int taskID)
         return -1;
     }
     
-    if(osThreadGetState(h->threadID) != osThreadBlocked) {
-        osThreadYield();
-    }
+    //osThreadFlagsWait();
     
     return 0;
 }
@@ -77,10 +75,10 @@ static void task_free(task_handle_t **h)
 static int create_user_task(void)
 {
     task_attr_t att={
-        .func = task_datacap_fn,
+        .func = task_comm_recv_fn,
         .arg = NULL,
         .nMsg = 5,
-        .taskID = TASK_DATACAP,
+        .taskID = TASK_COMM_RECV,
         .priority = osPriorityNormal,
         .stkSize = 2048,
         .runNow  = 1,

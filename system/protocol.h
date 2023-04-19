@@ -23,16 +23,27 @@ enum {
 enum {
     TYPE_CMD=0,
     TYPE_STAT,
-    TYPE_CAP,       //capture data
+    TYPE_DATA,       //channel capture data
     TYPE_ACK,
     TYPE_SETT,
     TYPE_PARA,
     TYPE_ERROR,
     TYPE_UPGRADE,
     TYPE_LEAP,
+    TYPE_CHCFG,
+    
     TYPE_TEST,
     
     TYPE_MAX
+};
+
+
+enum {
+    PARA_CH_CFG=0,
+    PARA_CAL_COEF,
+    PARA_SYS_SETT,
+    
+    PARA_MAX
 };
 
 
@@ -48,13 +59,30 @@ typedef struct {
 } timestamp_t;
 
 typedef struct {
+    U8  type;
+    
+    
+}ev_cfg_t;
+
+typedef struct {
+    U8  chID;
+    F32 caliParaA;
+    F32 caliParaB;
+    F32 coef;
+    
+    U32 freq;
+    U32 sampleTime;
+    U32 samplePoints;
+}ch_cfg_t;
+
+typedef struct {
     U32             len;   //wave_data_t total length, including the data length
     U8              ch;
     U32             sr;    //samplerate
     timestamp_t     ts;
 
-    F32             data[0];
-}cap_data_t;
+    U32             data[0];
+}ch_data_t;
 
 typedef struct {
     U8              cmd;

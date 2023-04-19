@@ -163,7 +163,13 @@ not necessary for to use this port.  They are defined so the common demo files
 #define portINLINE __inline
 
 #ifndef portFORCE_INLINE
+
+#if ((__ARMCC_VERSION >= 6000000))
+    #define portFORCE_INLINE __attribute__((always_inline))
+#else
 	#define portFORCE_INLINE __forceinline
+#endif
+
 #endif
 
 /*-----------------------------------------------------------*/

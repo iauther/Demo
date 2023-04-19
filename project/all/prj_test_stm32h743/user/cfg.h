@@ -10,7 +10,7 @@
 #define LOG_UART                    UART_3
 #define LOG_BAUDRATE                (115200)
 
-#define COM_UART                    UART_3
+#define COM_UART                    UART_4
 #define COM_BAUDRATE                (115200)
 
 #define ADC_MUX_ENABLE
@@ -19,11 +19,15 @@
 
 #define SDRAM_ADDR                  0xD0000000
 //#define SDRAM_SIZE                  (64*1024*1024)
-#define RTX_MEM_SIZE                 (50*1024*1024)
+
+#define XMEM_ADDR                   (SDRAM_ADDR+0)
+#define XMEM_LEN                    (50*1024*1024)
 
 
 
 #define MHZ                         (1000*1000)
+#define KB                          (1024)
+#define MB                          (1024*1024)
 
 #if 1
    
@@ -42,12 +46,29 @@
     #define I2C2_SDA_PIN            {GPIOB, GPIO_PIN_7}
                                     
     
+    #define USE_FS
+    #ifdef USE_FS
+    #define USE_YAFFS
+    //#define USE_FATFS
+    //#define USE_UBIFS
+    #endif
     
+    #define USE_NOR
+    //#define USE_NAND
     //#define USE_EEPROM
-    #define USE_AT24C16
-    #define AT24CXX_A0_PIN          0
-    #define AT24CXX_A1_PIN          0
-    #define AT24CXX_A2_PIN          0  
+    
+    #ifdef USE_EEPROM
+        #define USE_AT24C16
+        #define AT24CXX_A0_PIN          0
+        #define AT24CXX_A1_PIN          0
+        #define AT24CXX_A2_PIN          0  
+    #elif defined USE_NOR
+        #define USE_SPI_NOR
+        //#define USE_BLT_NOR
+    #elif defined USE_NAND
+        #define USE_SPI_NAND
+        //#define USE_FMC_NAND
+    #endif
     
     
     #define SYS_FREQ                (480*MHZ)
@@ -64,9 +85,12 @@
     #define INT_PRI_RS485          (2 + CPU_IPL_BOUNDARY)   //← RS485中断抢占优先级2+4
     
     
+    #define MOUNT_POINT             "/cfg"
+    
+    
     
     #define ADC_DUAL_MODE          1
-    #define ADC_SAMPLE_COUNT       400
+    #define ADC_SAMPLE_COUNT       4000
 
 
     #define USE_ADC_EXT_BOARD
@@ -77,7 +101,24 @@
     #define COM_RX_BUF_LEN         (ADC_SAMPLE_COUNT*4*2+100)
    
 
- 
+
+
+
+    //NAND SPACE DEFINE  1 page == 2KB
+    //meta 8kB
+    #define NAND_META_START             0
+    #define NAND_META_LEN               (8*KB)
+    
+    //boot 128kB
+    #define NAND_BOOT_START             (NAND_META_START+NAND_META_LEN)
+    #define NAND_BOOT_LEN               (120*KB)
+    
+    //meta 1024kB
+    #define NAND_APP_START              (NAND_BOOT_START+NAND_BOOT_LEN)
+    #define NAND_APP_LEN                (1024*KB)
+
+    #define NAND_FS_START               (NAND_APP_START+NAND_APP_LEN)
+    #define NAND_FS_LEN                 (500*MB)
     
 #endif
 

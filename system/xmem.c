@@ -1,22 +1,59 @@
 #include "xmem.h"
-#include "dal/sdram.h"
 #include "rtx_mem.h"
 
-uint64_t sdramBuffer[RTX_MEM_SIZE/8] __attribute__ ((at(SDRAM_ADDR)));
+
+typedef struct {
+    void *start;
+    int  len; 
+}xmem_handle_t;
 
 
-void xmem_init(void)
+handle_t xmem_init(void *start, int len)
 {
-    sdram_init();
-    rtx_mem_init(sdramBuffer, RTX_MEM_SIZE);
+    int r;
+    xmem_handle_t *h;
+    
+    h = calloc(1, sizeof(xmem_handle_t));
+    if(!h) {
+        return NULL;
+    }
+    
+    r = rtx_mem_init(start, len);
+    if(r) {
+        free(h);
+        return NULL;
+    }
+    
+    h->start = start;
+    h->len = len;
+    
+    return h;
 }
 
 
-void* xmem_malloc(int size, int zero)
+int xmem_deinit(handle_t h)
+{
+    xmem_handle_t *xh=(xmem_handle_t*)h;
+    
+    if(!h) {
+        return -1;
+    }
+    free(h);
+    
+    return 0;
+}
+
+
+void* xmem_malloc(handle_t h, int size, int zero)
 {
     void*  p1;
+    xmem_handle_t *xh=(xmem_handle_t*)h;
     
-    p1 = (void*)rtx_mem_alloc(sdramBuffer, size, 0);
+    if(!xh || !size) {
+        return NULL;
+    }
+    
+    p1 = (void*)rtx_mem_alloc(xh->start, size, 0);
     if(p1 && zero>0) {
         memset(p1, 0, size);
     }
@@ -25,13 +62,14 @@ void* xmem_malloc(int size, int zero)
 }
 
 
-void* mxem_malloc_align(int size, int zero, int alignment)
+void* mxem_malloc_align(handle_t h, int size, int zero, int alignment)
 {
     void*  p1;
     void** p2;
+    xmem_handle_t *xh=(xmem_handle_t*)h;
     int offset = alignment - 1 + sizeof(void*);
 
-    p1 = xmem_malloc(size + offset, zero);
+    p1 = xmem_malloc(h, size + offset, zero);
     if (p1 == NULL)
         return NULL;
 
@@ -42,16 +80,27 @@ void* mxem_malloc_align(int size, int zero, int alignment)
 }
 
 
-void xmem_free(void *ptr)
+int xmem_free(handle_t h, void *ptr)
 {
-    rtx_mem_free(sdramBuffer, ptr);
+    xmem_handle_t *xh=(xmem_handle_t*)h;
+    if(!xh || !ptr) {
+        return -1;
+    }
+    
+    return rtx_mem_free(xh->start, ptr);
 }
 
 
-void xmem_free_align(void *ptr)
+int xmem_free_align(handle_t h, void *ptr)
 {
     void* p1 = ((void**)ptr)[-1];
-    rtx_mem_free(sdramBuffer, p1);
+    xmem_handle_t *xh=(xmem_handle_t*)h;
+    
+    if(!xh || !ptr) {
+        return -1;
+    }
+    
+    return rtx_mem_free(xh->start, p1);
 }
 
 

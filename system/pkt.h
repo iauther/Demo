@@ -22,7 +22,7 @@ enum {
     PORT_UART,
 };
 
-typedef int (*pkt_callback_t)(cap_data_t *data);
+typedef int (*pkt_callback_t)(ch_data_t *data);
 
 
 int pkt_check_hdr(void* data, int dlen, int buflen);

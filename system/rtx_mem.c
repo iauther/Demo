@@ -27,8 +27,8 @@ static inline rtx_mem_block_t *MemBlockPtr (void *mem, uint32_t offset)
 /// Initialize Memory Pool with variable block size.
 /// \param[in]  mem             pointer to memory pool.
 /// \param[in]  size            size of a memory pool in bytes.
-/// \return 1 - success, 0 - failure.
-uint32_t rtx_mem_init(void *mem, uint32_t size)
+/// \return      0: success,    -1: failure.
+int rtx_mem_init(void *mem, uint32_t size)
 {
   rtx_mem_head_t  *head;
   rtx_mem_block_t *ptr;
@@ -39,7 +39,7 @@ uint32_t rtx_mem_init(void *mem, uint32_t size)
       (size < (sizeof(rtx_mem_head_t) + (2U*sizeof(rtx_mem_block_t))))) {
     //EvrRtxMemoryInit(mem, size, 0U);
     //lint -e{904} "Return statement before end of function" [MISRA Note 1]
-    return 0U;
+    return -1;
   }
 
   // Initialize memory pool header
@@ -56,7 +56,7 @@ uint32_t rtx_mem_init(void *mem, uint32_t size)
 
   //EvrRtxMemoryInit(mem, size, 1U);
 
-  return 1U;
+  return 0;
 }
 
 /// Allocate a memory block from a Memory Pool.
@@ -133,8 +133,8 @@ void *rtx_mem_alloc(void *mem, uint32_t size, uint32_t type)
 /// Return an allocated memory block back to a Memory Pool.
 /// \param[in]  mem             pointer to memory pool.
 /// \param[in]  block           memory block to be returned to the memory pool.
-/// \return 1 - success, 0 - failure.
-uint32_t rtx_mem_free (void *mem, void *block) {
+/// \return      0: success,    -1: failure.
+int rtx_mem_free (void *mem, void *block) {
   const rtx_mem_block_t *ptr;
         rtx_mem_block_t *p, *p_prev;
 
@@ -142,7 +142,7 @@ uint32_t rtx_mem_free (void *mem, void *block) {
   if ((mem == NULL) || (block == NULL)) {
     //EvrRtxMemoryFree(mem, block, 0U);
     //lint -e{904} "Return statement before end of function" [MISRA Note 1]
-    return 0U;
+    return -1;
   }
 
   // Memory block header
@@ -159,7 +159,7 @@ uint32_t rtx_mem_free (void *mem, void *block) {
       // Not found
       //EvrRtxMemoryFree(mem, block, 0U);
       //lint -e{904} "Return statement before end of function" [MISRA Note 1]
-      return 0U;
+      return -1;
     }
   }
 
@@ -177,7 +177,7 @@ uint32_t rtx_mem_free (void *mem, void *block) {
 
   //EvrRtxMemoryFree(mem, block, 1U);
 
-  return 1U;
+  return 0;
 }
 
 

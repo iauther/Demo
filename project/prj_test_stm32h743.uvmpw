@@ -12,5 +12,9 @@
     <NodeIsActive>1</NodeIsActive>
     <NodeIsExpanded>1</NodeIsExpanded>
   </project>
+  
+  <project>
+    <PathAndName>.\all\prj_test_stm32h743\boot.uvprojx</PathAndName>
+  </project>
 
 </ProjectWorkspace>
