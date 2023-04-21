@@ -1,7 +1,7 @@
-#include "dal/si2c.h"
-#include "dal/delay.h"
+#include "dal_si2c.h"
+#include "dal_delay.h"
 #include "snd/adau197x.h"
-#include "dal/gpio.h"
+#include "dal_gpio.h"
 #include "cfg.h"
 
 
@@ -14,9 +14,9 @@ static int read_reg(handle_t hi2c, U8 id, U8 reg, U8 *value)
 {
     int r;
     
-    r = si2c_write(hi2c, adauI2cAddr[id], &reg, 1, 0);
+    r = dal_si2c_write(hi2c, adauI2cAddr[id], &reg, 1, 0);
     if(r==0) {
-        r = si2c_read(hi2c, adauI2cAddr[id], value, 1, 1);
+        r = dal_si2c_read(hi2c, adauI2cAddr[id], value, 1, 1);
     }
     
     return r;
@@ -25,7 +25,7 @@ static int write_reg(handle_t hi2c, U8 id, U8 reg, U8 value)
 {
     U8 tmp[2]={reg,value};
     
-    return si2c_write(hi2c, adauI2cAddr[id], tmp, 2, 1);
+    return dal_si2c_write(hi2c, adauI2cAddr[id], tmp, 2, 1);
 }
 
 
@@ -49,17 +49,17 @@ static void io_init(void)
     
 	HAL_GPIO_WritePin(GPIOH, GPIO_PIN_3, GPIO_PIN_SET);
     HAL_GPIO_WritePin(GPIOG, GPIO_PIN_10, GPIO_PIN_SET);
-	delay_us(500); // 发送I2C控制信号之前，至少等待tC(规格书要求200us)时间
+	dal_delay_us(500); // 发送I2C控制信号之前，至少等待tC(规格书要求200us)时间
 }
 
 static void hw_reset(void)
 {
     HAL_GPIO_WritePin(GPIOH, GPIO_PIN_3, GPIO_PIN_RESET);  
     HAL_GPIO_WritePin(GPIOG, GPIO_PIN_10, GPIO_PIN_RESET);  
-	delay_ms(100); // tD(规格书要求37.8ms)时间内，复位脉冲必须保持低电平，才能使内核正确初始化
+	dal_delay_ms(100); // tD(规格书要求37.8ms)时间内，复位脉冲必须保持低电平，才能使内核正确初始化
 	HAL_GPIO_WritePin(GPIOH, GPIO_PIN_3, GPIO_PIN_SET);
     HAL_GPIO_WritePin(GPIOG, GPIO_PIN_10, GPIO_PIN_SET);
-	delay_us(500); // 发送I2C控制信号之前，至少等待tC(规格书要求200us)时间
+	dal_delay_us(500); // 发送I2C控制信号之前，至少等待tC(规格书要求200us)时间
 
 }
 

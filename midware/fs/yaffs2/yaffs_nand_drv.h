@@ -15,7 +15,7 @@
 #ifndef __YAFFS_NAND_DRV_H__
 #define __YAFFS_NAND_DRV_H__
 
-#include "dal/nand.h"
+#include "dal_nand.h"
 #include "yaffs_guts.h"
 
 struct yaffs_dev *yaffs_nand_init(const YCHAR *dev_name, u32 dev_id, u32 startAddr, u32 length);

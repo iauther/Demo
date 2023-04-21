@@ -1,13 +1,8 @@
 #include "nvm.h"
 #include "fs.h"
-#include "dal/dal.h"
+#include "dal.h"
 #include "cfg.h"
 
-
-
-#ifdef _WIN32
-static FILE* paras_fp;
-#endif
 
 int nvm_init(void)
 {

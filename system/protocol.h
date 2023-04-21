@@ -28,6 +28,7 @@ enum {
     TYPE_SETT,
     TYPE_PARA,
     TYPE_ERROR,
+    TYPE_FILE,
     TYPE_UPGRADE,
     TYPE_LEAP,
     TYPE_CHCFG,
@@ -39,11 +40,15 @@ enum {
 
 
 enum {
-    PARA_CH_CFG=0,
-    PARA_CAL_COEF,
-    PARA_SYS_SETT,
+    FILE_CH=0,
+    FILE_CAL,
+    FILE_SETT,
     
-    PARA_MAX
+    FILE_LOG,
+    FILE_APP,
+    FILE_BOOT,
+    
+    FILE_MAX
 };
 
 
@@ -96,7 +101,7 @@ typedef struct {
 
 typedef struct {
     U8              sysState;
-}stat_t;
+}state_t;
 
 typedef struct {
     U8              type;
@@ -130,14 +135,14 @@ typedef struct {
     U16             pid;
     U16             dataLen;
     U8              data[];
-}upgrade_pkt_t;
+}file_pkt_t;
 
 typedef struct {
     U8              goal;            //0: boot   1: app
     U8              force;
     U8              erase;          //0: not erase   1: do erase
     U8              action;         //0: do nothing  1: restart   0x3f: run app
-}upgrade_ctl_t;
+}upg_ctl_t;
 
 typedef struct {
     U8              digit[32];
@@ -145,11 +150,12 @@ typedef struct {
 
 typedef struct {
     fw_info_t       fwInfo;
-    upgrade_ctl_t   upgCtl;
+    upg_ctl_t       upgCtl;
     U8              data[0];
-}upgrade_hdr_t;
+}upg_hdr_t;
 
 typedef struct {
+    state_t         stat;
     fw_info_t       fwInfo;
     sett_t          sett;
 }para_t;

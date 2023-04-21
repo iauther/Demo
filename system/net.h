@@ -2,10 +2,10 @@
 #define __NET_Hx__
 
 #include "lwip.h"
-#include "com.h"
+#include "comm.h"
 #include "devs.h"
 #include "list.h"
-#include "dal/dal.h"
+#include "dal.h"
 
 
 #define CONN_MAX  20

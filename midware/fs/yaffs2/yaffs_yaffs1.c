@@ -335,7 +335,7 @@ int yaffs1_scan(struct yaffs_dev *dev)
 						in->variant.
 						    hardlink_variant.equiv_id =
 						    oh->equiv_id;
-						list_add(&in->hard_links,
+						ylist_add(&in->hard_links,
 								&hard_list);
 						break;
 					case YAFFS_OBJECT_TYPE_DIRECTORY:

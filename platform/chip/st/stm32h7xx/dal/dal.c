@@ -1,4 +1,4 @@
-#include "dal/dal.h"
+#include "dal.h"
 #include "platform.h"
 #include "cfg.h"
 
@@ -273,14 +273,14 @@ static void bus_init(int flag)
         
         ic.pin= p1;
         ic.freq = I2C1_FREQ;
-        i2c1Handle = si2c_init(&ic);
+        i2c1Handle = dal_si2c_init(&ic);
         
         ic.pin= p2;
         ic.freq = I2C2_FREQ;
         //i2c2Handle = si2c_init(&ic);
     }
     else {
-        r = si2c_deinit(&i2c1Handle);
+        r = dal_si2c_deinit(&i2c1Handle);
         //r |= si2c_deinit(&i2c2Handle);
     }
 }
@@ -296,6 +296,8 @@ int dal_init(void)
     
     sys_freq = HAL_RCC_GetSysClockFreq();
     bus_init(1);
+    
+    dal_sdram_init();
     
     return 0;
 }

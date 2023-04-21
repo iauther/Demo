@@ -1,19 +1,5 @@
 #include "incs.h"
 #include "log.h"
-#include "paras.h"
-
-
-
-static int hw_init(void)
-{
-    int r=0;
-
-    sdram_init();
-    log_init();
-    //r = paras_load();
-    
-    return r;
-}
 
 
 int board_init(void)
@@ -26,7 +12,6 @@ int board_init(void)
 #endif
     
     dal_init();
-    hw_init();
     
 #ifdef BOOTLOADER
     if(!upgrade_is_need()) {

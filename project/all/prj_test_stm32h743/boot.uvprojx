@@ -7,7 +7,7 @@
 
   <Targets>
     <Target>
-      <TargetName>app</TargetName>
+      <TargetName>boot</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
       <pCCUsed>5060960::V5.06 update 7 (build 960)::.\ARMCC</pCCUsed>
@@ -337,7 +337,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress=177,1296,550</MiscControls>
-              <Define>USE_HAL_DRIVER,STM32H743xx,OS_KERNEL=3,NDEBUG</Define>
+              <Define>USE_HAL_DRIVER,STM32H743xx,NDEBUG</Define>
               <Undefine></Undefine>
               <IncludePath>./user;../../../device;../../../system;../../../platform/chip/st/stm32h7xx;../../../platform/chip/st/stm32h7xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/lwip/sys;../../../midware/lwip/src/include;../../../midware/modbus;../../../midware/fs/yaffs2;../../../midware/json</IncludePath>
             </VariousControls>
@@ -355,7 +355,7 @@
             <ClangAsOpt>4</ClangAsOpt>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>OS_KERNEL=3</Define>
+              <Define></Define>
               <Undefine></Undefine>
               <IncludePath></IncludePath>
             </VariousControls>
@@ -404,11 +404,6 @@
               <FilePath>.\user\stm32h7xx_hal_conf.h</FilePath>
             </File>
             <File>
-              <FileName>lwipopts.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\user\lwipopts.h</FilePath>
-            </File>
-            <File>
               <FileName>stm32h7xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\stm32h7xx_it.c</FilePath>
@@ -434,31 +429,6 @@
               <FilePath>.\user\test.c</FilePath>
             </File>
             <File>
-              <FileName>task_comm_recv.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_comm_recv.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_comm_send.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_comm_send.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_data_cap.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_data_cap.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_data_proc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_data_proc.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_polling.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_polling.c</FilePath>
-            </File>
-            <File>
               <FileName>dflt.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\dflt.c</FilePath>
@@ -478,30 +448,15 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\device\eth\lan8742.c</FilePath>
             </File>
-            <File>
-              <FileName>adau197x.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\device\snd\adau197x.c</FilePath>
-            </File>
-            <File>
-              <FileName>pcm186x.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\device\snd\pcm186x.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>
           <GroupName>system</GroupName>
           <Files>
             <File>
-              <FileName>com.c</FileName>
+              <FileName>comm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\system\com.c</FilePath>
-            </File>
-            <File>
-              <FileName>lock.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\lock.c</FilePath>
+              <FilePath>..\..\..\system\comm.c</FilePath>
             </File>
             <File>
               <FileName>log.c</FileName>
@@ -512,11 +467,6 @@
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\main.c</FilePath>
-            </File>
-            <File>
-              <FileName>msg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\msg.c</FilePath>
             </File>
             <File>
               <FileName>nvm.c</FileName>
@@ -539,11 +489,6 @@
               <FilePath>..\..\..\system\rbuf.c</FilePath>
             </File>
             <File>
-              <FileName>setting.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\setting.c</FilePath>
-            </File>
-            <File>
               <FileName>upgrade.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\upgrade.c</FilePath>
@@ -552,11 +497,6 @@
               <FileName>net.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\net.c</FilePath>
-            </File>
-            <File>
-              <FileName>task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\task.c</FilePath>
             </File>
             <File>
               <FileName>sys.c</FileName>
@@ -574,29 +514,9 @@
               <FilePath>..\..\..\system\retarget.c</FilePath>
             </File>
             <File>
-              <FileName>snd.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\snd.c</FilePath>
-            </File>
-            <File>
-              <FileName>xmem.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\xmem.c</FilePath>
-            </File>
-            <File>
               <FileName>list.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\list.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_mem.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\rtx_mem.c</FilePath>
-            </File>
-            <File>
-              <FileName>cap.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\cap.c</FilePath>
             </File>
             <File>
               <FileName>fs.c</FileName>
@@ -611,314 +531,42 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>os/rtx5</GroupName>
-          <Files>
-            <File>
-              <FileName>os_systick.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\os_systick.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_delay.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_delay.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_evflags.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_evflags.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_evr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_evr.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_kernel.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_kernel.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_memory.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_memory.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_mempool.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_mempool.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_msgqueue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_msgqueue.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_mutex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_mutex.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_semaphore.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_semaphore.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_system.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_system.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_thread.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_thread.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_timer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_timer.c</FilePath>
-            </File>
-            <File>
-              <FileName>irq_armv7m.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\..\platform\core\asm\irq_armv7m.s</FilePath>
-            </File>
-            <File>
-              <FileName>rtx_lib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\rtx_lib.c</FilePath>
-            </File>
-            <File>
-              <FileName>RTX_Config.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\rtx\RTX_Config.c</FilePath>
-            </File>
-            <File>
-              <FileName>RTX_Config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\platform\os\rtx\RTX_Config.h</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>os/freertos</GroupName>
-          <Files>
-            <File>
-              <FileName>heap_4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\portable\heap_4.c</FilePath>
-            </File>
-            <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\portable\port.c</FilePath>
-            </File>
-            <File>
-              <FileName>cmsis_os2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\cmsis_os2.c</FilePath>
-            </File>
-            <File>
-              <FileName>croutine.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\croutine.c</FilePath>
-            </File>
-            <File>
-              <FileName>list.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\list.c</FilePath>
-            </File>
-            <File>
-              <FileName>queue.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\queue.c</FilePath>
-            </File>
-            <File>
-              <FileName>tasks.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\tasks.c</FilePath>
-            </File>
-            <File>
-              <FileName>timers.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\timers.c</FilePath>
-            </File>
-            <File>
-              <FileName>event_groups.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\event_groups.c</FilePath>
-            </File>
-            <File>
-              <FileName>stream_buffer.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\os\freertos\stream_buffer.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>chip/dal</GroupName>
           <Files>
             <File>
-              <FileName>adc.c</FileName>
+              <FileName>dal_delay.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\adc.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                  <ComprImg>1</ComprImg>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <uC99>2</uC99>
-                    <uGnu>2</uGnu>
-                    <useXO>2</useXO>
-                    <v6Lang>0</v6Lang>
-                    <v6LangP>0</v6LangP>
-                    <vShortEn>2</vShortEn>
-                    <vShortWch>2</vShortWch>
-                    <v6Lto>2</v6Lto>
-                    <v6WtE>2</v6WtE>
-                    <v6Rtti>2</v6Rtti>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_delay.c</FilePath>
             </File>
             <File>
-              <FileName>adc2.c</FileName>
+              <FileName>dal_flash.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\adc2.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                  <ComprImg>1</ComprImg>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <uC99>2</uC99>
-                    <uGnu>2</uGnu>
-                    <useXO>2</useXO>
-                    <v6Lang>0</v6Lang>
-                    <v6LangP>0</v6LangP>
-                    <vShortEn>2</vShortEn>
-                    <vShortWch>2</vShortWch>
-                    <v6Lto>2</v6Lto>
-                    <v6WtE>2</v6WtE>
-                    <v6Rtti>2</v6Rtti>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_flash.c</FilePath>
             </File>
             <File>
-              <FileName>adc3.c</FileName>
+              <FileName>dal_gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\adc3.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_gpio.c</FilePath>
             </File>
             <File>
-              <FileName>delay.c</FileName>
+              <FileName>dal_i2c.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\delay.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_i2c.c</FilePath>
             </File>
             <File>
-              <FileName>flash.c</FileName>
+              <FileName>dal_jump.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\flash.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_jump.c</FilePath>
             </File>
             <File>
-              <FileName>gpio.c</FileName>
+              <FileName>dal_spi.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\gpio.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_spi.c</FilePath>
             </File>
             <File>
-              <FileName>i2c.c</FileName>
+              <FileName>dal_uart.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\i2c.c</FilePath>
-            </File>
-            <File>
-              <FileName>jump.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\jump.c</FilePath>
-            </File>
-            <File>
-              <FileName>spi.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\spi.c</FilePath>
-            </File>
-            <File>
-              <FileName>uart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\uart.c</FilePath>
-            </File>
-            <File>
-              <FileName>ethernetif.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\ethernetif.c</FilePath>
-            </File>
-            <File>
-              <FileName>sdram.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\sdram.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_uart.c</FilePath>
             </File>
             <File>
               <FileName>dal.c</FileName>
@@ -926,85 +574,14 @@
               <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal.c</FilePath>
             </File>
             <File>
-              <FileName>si2c.c</FileName>
+              <FileName>dal_si2c.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\si2c.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_si2c.c</FilePath>
             </File>
             <File>
-              <FileName>mdma.c</FileName>
+              <FileName>dal_nand2.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\mdma.c</FilePath>
-            </File>
-            <File>
-              <FileName>sai.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\sai.c</FilePath>
-            </File>
-            <File>
-              <FileName>tmr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\tmr.c</FilePath>
-            </File>
-            <File>
-              <FileName>nand.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\nand.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                  <ComprImg>1</ComprImg>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <uC99>2</uC99>
-                    <uGnu>2</uGnu>
-                    <useXO>2</useXO>
-                    <v6Lang>0</v6Lang>
-                    <v6LangP>0</v6LangP>
-                    <vShortEn>2</vShortEn>
-                    <vShortWch>2</vShortWch>
-                    <v6Lto>2</v6Lto>
-                    <v6WtE>2</v6WtE>
-                    <v6Rtti>2</v6Rtti>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
-            </File>
-            <File>
-              <FileName>nand2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\nand2.c</FilePath>
+              <FilePath>..\..\..\platform\chip\st\stm32h7xx\dal\dal_nand2.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1464,292 +1041,6 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>midware/lwip</GroupName>
-          <Files>
-            <File>
-              <FileName>api_lib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\api_lib.c</FilePath>
-            </File>
-            <File>
-              <FileName>api_msg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\api_msg.c</FilePath>
-            </File>
-            <File>
-              <FileName>err.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\err.c</FilePath>
-            </File>
-            <File>
-              <FileName>if_api.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\if_api.c</FilePath>
-            </File>
-            <File>
-              <FileName>netbuf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\netbuf.c</FilePath>
-            </File>
-            <File>
-              <FileName>netdb.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\netdb.c</FilePath>
-            </File>
-            <File>
-              <FileName>netifapi.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\netifapi.c</FilePath>
-            </File>
-            <File>
-              <FileName>sockets.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\sockets.c</FilePath>
-            </File>
-            <File>
-              <FileName>tcpip.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\api\tcpip.c</FilePath>
-            </File>
-            <File>
-              <FileName>altcp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\altcp.c</FilePath>
-            </File>
-            <File>
-              <FileName>altcp_alloc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\altcp_alloc.c</FilePath>
-            </File>
-            <File>
-              <FileName>altcp_tcp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\altcp_tcp.c</FilePath>
-            </File>
-            <File>
-              <FileName>def.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\def.c</FilePath>
-            </File>
-            <File>
-              <FileName>dns.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\dns.c</FilePath>
-            </File>
-            <File>
-              <FileName>inet_chksum.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\inet_chksum.c</FilePath>
-            </File>
-            <File>
-              <FileName>init.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\init.c</FilePath>
-            </File>
-            <File>
-              <FileName>ip.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ip.c</FilePath>
-            </File>
-            <File>
-              <FileName>mem.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\mem.c</FilePath>
-            </File>
-            <File>
-              <FileName>memp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\memp.c</FilePath>
-            </File>
-            <File>
-              <FileName>netif.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\netif.c</FilePath>
-            </File>
-            <File>
-              <FileName>pbuf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\pbuf.c</FilePath>
-            </File>
-            <File>
-              <FileName>raw.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\raw.c</FilePath>
-            </File>
-            <File>
-              <FileName>stats.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\stats.c</FilePath>
-            </File>
-            <File>
-              <FileName>sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\sys.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                  <ComprImg>1</ComprImg>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <uC99>2</uC99>
-                    <uGnu>2</uGnu>
-                    <useXO>2</useXO>
-                    <v6Lang>0</v6Lang>
-                    <v6LangP>0</v6LangP>
-                    <vShortEn>2</vShortEn>
-                    <vShortWch>2</vShortWch>
-                    <v6Lto>2</v6Lto>
-                    <v6WtE>2</v6WtE>
-                    <v6Rtti>2</v6Rtti>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
-            </File>
-            <File>
-              <FileName>tcp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\tcp.c</FilePath>
-            </File>
-            <File>
-              <FileName>tcp_in.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\tcp_in.c</FilePath>
-            </File>
-            <File>
-              <FileName>tcp_out.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\tcp_out.c</FilePath>
-            </File>
-            <File>
-              <FileName>timeouts.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\timeouts.c</FilePath>
-            </File>
-            <File>
-              <FileName>udp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\udp.c</FilePath>
-            </File>
-            <File>
-              <FileName>bridgeif.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\netif\bridgeif.c</FilePath>
-            </File>
-            <File>
-              <FileName>bridgeif_fdb.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\netif\bridgeif_fdb.c</FilePath>
-            </File>
-            <File>
-              <FileName>ethernet.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\netif\ethernet.c</FilePath>
-            </File>
-            <File>
-              <FileName>lowpan6.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\netif\lowpan6.c</FilePath>
-            </File>
-            <File>
-              <FileName>lowpan6_ble.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\netif\lowpan6_ble.c</FilePath>
-            </File>
-            <File>
-              <FileName>lowpan6_common.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\netif\lowpan6_common.c</FilePath>
-            </File>
-            <File>
-              <FileName>slipif.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\netif\slipif.c</FilePath>
-            </File>
-            <File>
-              <FileName>zepif.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\netif\zepif.c</FilePath>
-            </File>
-            <File>
-              <FileName>autoip.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ipv4\autoip.c</FilePath>
-            </File>
-            <File>
-              <FileName>dhcp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ipv4\dhcp.c</FilePath>
-            </File>
-            <File>
-              <FileName>etharp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ipv4\etharp.c</FilePath>
-            </File>
-            <File>
-              <FileName>icmp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ipv4\icmp.c</FilePath>
-            </File>
-            <File>
-              <FileName>igmp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ipv4\igmp.c</FilePath>
-            </File>
-            <File>
-              <FileName>ip4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ipv4\ip4.c</FilePath>
-            </File>
-            <File>
-              <FileName>ip4_addr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ipv4\ip4_addr.c</FilePath>
-            </File>
-            <File>
-              <FileName>ip4_frag.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\src\core\ipv4\ip4_frag.c</FilePath>
-            </File>
-            <File>
-              <FileName>sys_arch.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\lwip\sys\os\sys_arch.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>midware/yaffs2</GroupName>
           <Files>
             <File>
@@ -1932,21 +1223,6 @@
               <FileName>yaffsfs.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\..\..\midware\fs\yaffs2\yaffsfs.h</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>midware/json</GroupName>
-          <Files>
-            <File>
-              <FileName>cJSON.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\json\cJSON.c</FilePath>
-            </File>
-            <File>
-              <FileName>cJSON.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\..\..\midware\json\cJSON.h</FilePath>
             </File>
           </Files>
         </Group>

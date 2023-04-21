@@ -1,6 +1,9 @@
 #ifndef __TASK_Hx__
 #define __TASK_Hx__
 
+#include "protocol.h"
+#include "dal_adc.h"
+
 #ifdef OS_KERNEL
 #include "cmsis_os2.h"
 #include "msg.h"
@@ -42,15 +45,36 @@ typedef struct {
     osThreadId_t    threadID;
 }task_handle_t;
 
+////////////////////////////////
+typedef struct {
+    void            *buf;
+    int             blen;
+    int             dlen;
+}tmp_buf_t;
 
 typedef struct {
-    handle_t    hcom;
-    void        *netAddr;
-}comm_handle_t;
+    U8              ch;
+    F32             *buf;
+    int             blen;
+    int             dlen;
+}ch_buf_t;
 
+typedef struct {
+    handle_t        hcom;
+    handle_t        hMem;
+    handle_t        netList;            //网络连接列表
+    void            *netAddr;
+    
+    ch_cfg_t        cfg[CH_MAX];
+    tmp_buf_t       tbuf;
+    handle_t        oriList[CH_MAX];     //原始数据列表
+    handle_t        covList[CH_MAX];     //转换后数据列表
+    
+    
+    
+}tasks_handle_t;
 
-extern handle_t      hMem;
-extern comm_handle_t commHandle;
+extern tasks_handle_t tasksHandle;
 
 
 void task_comm_recv_fn(void *arg);

@@ -414,8 +414,8 @@ void yaffs_verify_objects(struct yaffs_dev *dev)
 	/* Iterate through the objects in each hash entry */
 
 	for (i = 0; i < YAFFS_NOBJECT_BUCKETS; i++) {
-		list_for_each(lh, &dev->obj_bucket[i].list) {
-			obj = list_entry(lh, struct yaffs_obj, hash_link);
+		ylist_for_each(lh, &dev->obj_bucket[i].list) {
+			obj = ylist_entry(lh, struct yaffs_obj, hash_link);
 			yaffs_verify_obj(obj);
 		}
 	}
@@ -449,8 +449,8 @@ void yaffs_verify_obj_in_dir(struct yaffs_obj *obj)
 
 	/* Iterate through the objects in each hash entry */
 
-	list_for_each(lh, &obj->parent->variant.dir_variant.children) {
-		list_obj = list_entry(lh, struct yaffs_obj, siblings);
+	ylist_for_each(lh, &obj->parent->variant.dir_variant.children) {
+		list_obj = ylist_entry(lh, struct yaffs_obj, siblings);
 		yaffs_verify_obj(list_obj);
 		if (obj == list_obj)
 			count++;
@@ -500,8 +500,8 @@ void yaffs_verify_dir(struct yaffs_obj *directory)
 
 	/* Iterate through the objects in each hash entry */
 
-	list_for_each(lh, &directory->variant.dir_variant.children) {
-		list_obj = list_entry(lh, struct yaffs_obj, siblings);
+	ylist_for_each(lh, &directory->variant.dir_variant.children) {
+		list_obj = ylist_entry(lh, struct yaffs_obj, siblings);
 		if (list_obj->parent != directory) {
 			yaffs_trace(YAFFS_TRACE_ALWAYS,
 				"Object in directory list has wrong parent %p",

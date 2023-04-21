@@ -1,4 +1,4 @@
-#include "dal/uart.h"
+#include "dal_uart.h"
 #include "log.h"
 #include "cfg.h"
 
@@ -64,7 +64,7 @@ int log_print(LEVEL lv, char *fmt, ...)
 
 int log_init(void)
 {
-    uart_cfg_t uc;
+    dal_uart_cfg_t uc;
 
     uc.mode = MODE_POLL;
     uc.port = LOG_UART;
@@ -73,7 +73,7 @@ int log_init(void)
     uc.para.buf = NULL;
     uc.para.blen = 0;
     uc.para.dlen = 0;
-    logHandle = uart_init(&uc);
+    logHandle = dal_uart_init(&uc);
     
     return 0;
 }

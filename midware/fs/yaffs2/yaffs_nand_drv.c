@@ -1,5 +1,5 @@
 #include "yaffs_nand_drv.h"
-#include "dal/nand.h"
+#include "dal_nand.h"
 #include "yportenv.h"
 
 
@@ -50,7 +50,7 @@ static int drv_erase_fn(struct yaffs_dev *dev, int block_no)
 	}
 #endif
     
-    nand_erase_block(block_no);
+    dal_nand_erase_block(block_no);
     
 	return r;
 }
@@ -111,7 +111,7 @@ static int drv_read_chunk_fn (struct yaffs_dev *dev, int nand_chunk,
 #else
     int r;
     
-    r = nand_read_page(nand_chunk, (u8*)data, data_len, oob, oob_len);
+    r = dal_nand_read_page(nand_chunk, (u8*)data, data_len, oob, oob_len);
     if(r==NSTA_ECC1BITERR) {
         *ecc_result = YAFFS_ECC_RESULT_FIXED;
     }
@@ -164,7 +164,7 @@ static int drv_write_chunk_fn (struct yaffs_dev *dev, int nand_chunk,
 #else
     int r;
     
-    r = nand_write_page(nand_chunk, (u8*)data, data_len, (u8*)oob, oob_len);
+    r = dal_nand_write_page(nand_chunk, (u8*)data, data_len, (u8*)oob, oob_len);
 #endif
 
 	return YAFFS_OK;
@@ -176,11 +176,11 @@ struct yaffs_dev *yaffs_nand_init(const YCHAR *dev_name,
 	struct yaffs_dev *dev = NULL;
 	struct yaffs_driver *drv = NULL;
 	struct yaffs_param *param = NULL;
-    nand_para_t *para=nand_get_para();
+    dal_nand_para_t *para=dal_nand_get_para();
     u32 total_blocks,head_blocks,block_len;
     u32 blocks,start_block,end_block;
     
-    nand_init();
+    dal_nand_init();
     
 	dev = yaffsfs_malloc(sizeof(struct yaffs_dev));
 	if(dev == NULL) {

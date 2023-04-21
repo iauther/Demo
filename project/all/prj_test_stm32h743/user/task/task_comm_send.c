@@ -1,6 +1,6 @@
-#include "com.h"
+#include "comm.h"
 #include "log.h"
-#include "cap.h"
+#include "dal_cap.h"
 #include "task.h"
 #include "list.h"
 
@@ -20,9 +20,9 @@ static void comm_send_init(int max)
     
     cfg.max = max;
     cfg.mode = MODE_FIFO;
-    cfg.hmem = hMem;
+    cfg.hmem = tasksHandle.hMem;
     
-    csHandle.list = list_new(&cfg);
+    csHandle.list = list_init(&cfg);
 }
 
 
@@ -52,7 +52,7 @@ void task_comm_send_fn(void *arg)
                             break;
                         }
                         
-                        err = com_send_data(commHandle.hcom, e.arg, TYPE_DATA, 0, node.ptr, node.len);
+                        err = comm_send_data(tasksHandle.hcom, e.arg, TYPE_DATA, 0, node.ptr, node.len);
                         if(err==0) {
                             list_remove(csHandle.list, 0);
                         }

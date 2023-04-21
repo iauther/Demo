@@ -13,7 +13,7 @@ enum {
     EVT_DATA,
     
     EVT_TIMER,
-    EVT_EEPROM,
+    EVT_SAVE,
 };
 
 typedef struct {

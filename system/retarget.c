@@ -2,7 +2,7 @@
 #include <string.h>
 #include <rt_sys.h>
 #include <rt_misc.h>
-#include "dal/uart.h"
+#include "dal_uart.h"
 
 
 extern handle_t logHandle;
@@ -199,7 +199,7 @@ void _sys_exit (int return_code) {
 #else
 int fputc(int ch, FILE *p)
 {
-	uart_rw(logHandle, (u8*)&ch, 1, 1);	
+	dal_uart_rw(logHandle, (u8*)&ch, 1, 1);	
 	return ch;
 }
 

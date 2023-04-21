@@ -1,7 +1,7 @@
-#include "dal/si2c.h"
-#include "dal/delay.h"
+#include "dal_si2c.h"
+#include "dal_delay.h"
 #include "snd/pcm186x.h"
-#include "dal/gpio.h"
+#include "dal_gpio.h"
 #include "cfg.h"
 
 
@@ -13,9 +13,9 @@ static int read_reg(handle_t hi2c, U8 id, U8 reg, U8 *value)
 {
     int r=0;
     
-    r = si2c_write(hi2c, pcmI2cAddr[id], &reg, 1, 0);
+    r = dal_si2c_write(hi2c, pcmI2cAddr[id], &reg, 1, 0);
     if(r==0) {
-        r = si2c_read(hi2c, pcmI2cAddr[id], value, 1, 1);
+        r = dal_si2c_read(hi2c, pcmI2cAddr[id], value, 1, 1);
     }
     
     return r;
@@ -24,7 +24,7 @@ static int write_reg(handle_t hi2c, U8 id, U8 reg, U8 value)
 {
     U8 tmp[2]={reg,value};
     
-    return si2c_write(hi2c, pcmI2cAddr[id], tmp, 2, 1);
+    return dal_si2c_write(hi2c, pcmI2cAddr[id], tmp, 2, 1);
 }
 
 

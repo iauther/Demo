@@ -1330,7 +1330,7 @@ static void yaffs_remove_obj_from_dir(struct yaffs_obj *obj)
 	if (dev && dev->param.remove_obj_fn)
 		dev->param.remove_obj_fn(obj);
 
-	list_del_init(&obj->siblings);
+	ylist_del_init(&obj->siblings);
 	obj->parent = NULL;
 
 	yaffs_verify_dir(parent);
@@ -1362,7 +1362,7 @@ void yaffs_add_obj_to_dir(struct yaffs_obj *directory, struct yaffs_obj *obj)
 	yaffs_remove_obj_from_dir(obj);
 
 	/* Now add it */
-	list_add(&obj->siblings, &directory->variant.dir_variant.children);
+	ylist_add(&obj->siblings, &directory->variant.dir_variant.children);
 	obj->parent = directory;
 
 	if (directory == obj->my_dev->unlinked_dir
@@ -1430,8 +1430,8 @@ static void yaffs_unhash_obj(struct yaffs_obj *obj)
 	struct yaffs_dev *dev = obj->my_dev;
 
 	/* If it is still linked into the bucket list, free from the list */
-	if (!list_empty(&obj->hash_link)) {
-		list_del_init(&obj->hash_link);
+	if (!ylist_empty(&obj->hash_link)) {
+		ylist_del_init(&obj->hash_link);
 		bucket = yaffs_hash_fn(obj->obj_id);
 		dev->obj_bucket[bucket].count--;
 	}
@@ -1451,7 +1451,7 @@ static void yaffs_free_obj(struct yaffs_obj *obj)
 		obj, obj->my_inode);
 	if (obj->parent)
 		BUG();
-	if (!list_empty(&obj->siblings))
+	if (!ylist_empty(&obj->siblings))
 		BUG();
 
 	if (obj->my_inode) {
@@ -1647,7 +1647,7 @@ static struct yaffs_obj *yaffs_alloc_empty_obj(struct yaffs_dev *dev)
 	/* Now make the directory sane */
 	if (dev->root_dir) {
 		obj->parent = dev->root_dir;
-		list_add(&(obj->siblings),
+		ylist_add(&(obj->siblings),
 			 &dev->root_dir->variant.dir_variant.children);
 	}
 
@@ -1701,9 +1701,9 @@ static int yaffs_new_obj_id(struct yaffs_dev *dev)
 	while (!found) {
 		found = 1;
 		n += YAFFS_NOBJECT_BUCKETS;
-		list_for_each(i, &dev->obj_bucket[bucket].list) {
+		ylist_for_each(i, &dev->obj_bucket[bucket].list) {
 			/* Check if this value is already taken. */
-			if (i && list_entry(i, struct yaffs_obj,
+			if (i && ylist_entry(i, struct yaffs_obj,
 					    hash_link)->obj_id == n)
 				found = 0;
 		}
@@ -1716,7 +1716,7 @@ static void yaffs_hash_obj(struct yaffs_obj *in)
 	int bucket = yaffs_hash_fn(in->obj_id);
 	struct yaffs_dev *dev = in->my_dev;
 
-	list_add(&in->hash_link, &dev->obj_bucket[bucket].list);
+	ylist_add(&in->hash_link, &dev->obj_bucket[bucket].list);
 	dev->obj_bucket[bucket].count++;
 }
 
@@ -1726,9 +1726,9 @@ struct yaffs_obj *yaffs_find_by_number(struct yaffs_dev *dev, u32 number)
 	struct list_head *i;
 	struct yaffs_obj *in;
 
-	list_for_each(i, &dev->obj_bucket[bucket].list) {
+	ylist_for_each(i, &dev->obj_bucket[bucket].list) {
 		/* Look if it is in the list */
-		in = list_entry(i, struct yaffs_obj, hash_link);
+		in = ylist_entry(i, struct yaffs_obj, hash_link);
 		if (in->obj_id == number) {
 			/* Don't show if it is defered free */
 			if (in->defered_free)
@@ -1893,8 +1893,8 @@ static void yaffs_update_parent(struct yaffs_obj *obj)
 	if (dev->param.defered_dir_update) {
 		struct list_head *link = &obj->variant.dir_variant.dirty;
 
-		if (list_empty(link)) {
-			list_add(link, &dev->dirty_dirs);
+		if (ylist_empty(link)) {
+			ylist_add(link, &dev->dirty_dirs);
 			yaffs_trace(YAFFS_TRACE_BACKGROUND,
 			  "Added object %d to dirty directories",
 			   obj->obj_id);
@@ -1914,13 +1914,13 @@ void yaffs_update_dirty_dirs(struct yaffs_dev *dev)
 
 	yaffs_trace(YAFFS_TRACE_BACKGROUND, "Update dirty directories");
 
-	while (!list_empty(&dev->dirty_dirs)) {
+	while (!ylist_empty(&dev->dirty_dirs)) {
 		link = dev->dirty_dirs.next;
-		list_del_init(link);
+		ylist_del_init(link);
 
-		d_s = list_entry(link, struct yaffs_dir_var, dirty);
-		o_v = list_entry(d_s, union yaffs_obj_var, dir_variant);
-		obj = list_entry(o_v, struct yaffs_obj, variant);
+		d_s = ylist_entry(link, struct yaffs_dir_var, dirty);
+		o_v = ylist_entry(d_s, union yaffs_obj_var, dir_variant);
+		obj = ylist_entry(o_v, struct yaffs_obj, variant);
 
 		yaffs_trace(YAFFS_TRACE_BACKGROUND, "Update directory %d",
 			obj->obj_id);
@@ -1992,7 +1992,7 @@ static struct yaffs_obj *yaffs_create_obj(enum yaffs_obj_type type,
 	case YAFFS_OBJECT_TYPE_HARDLINK:
 		in->variant.hardlink_variant.equiv_obj = equiv_obj;
 		in->variant.hardlink_variant.equiv_id = equiv_obj->obj_id;
-		list_add(&in->hard_links, &equiv_obj->hard_links);
+		ylist_add(&in->hard_links, &equiv_obj->hard_links);
 		break;
 	case YAFFS_OBJECT_TYPE_FILE:
 	case YAFFS_OBJECT_TYPE_DIRECTORY:
@@ -3691,7 +3691,7 @@ int yaffs_is_non_empty_dir(struct yaffs_obj *obj)
 {
 	return (obj &&
 		obj->variant_type == YAFFS_OBJECT_TYPE_DIRECTORY) &&
-		!(list_empty(&obj->variant.dir_variant.children));
+		!(ylist_empty(&obj->variant.dir_variant.children));
 }
 
 static int yaffs_del_dir(struct yaffs_obj *obj)
@@ -3716,7 +3716,7 @@ static int yaffs_del_link(struct yaffs_obj *in)
 	/* remove this hardlink from the list associated with the equivalent
 	 * object
 	 */
-	list_del_init(&in->hard_links);
+	ylist_del_init(&in->hard_links);
 	return yaffs_generic_obj_del(in);
 }
 
@@ -3729,11 +3729,11 @@ int yaffs_del_obj(struct yaffs_obj *obj)
 		ret_val = yaffs_del_file(obj);
 		break;
 	case YAFFS_OBJECT_TYPE_DIRECTORY:
-		if (!list_empty(&obj->variant.dir_variant.dirty)) {
+		if (!ylist_empty(&obj->variant.dir_variant.dirty)) {
 			yaffs_trace(YAFFS_TRACE_BACKGROUND,
 				"Remove object %d from dirty directories",
 				obj->obj_id);
-			list_del_init(&obj->variant.dir_variant.dirty);
+			ylist_del_init(&obj->variant.dir_variant.dirty);
 		}
 		return yaffs_del_dir(obj);
 		break;
@@ -3761,8 +3761,8 @@ static void yaffs_empty_dir_to_dir(struct yaffs_obj *from_dir,
 	struct list_head *lh;
 	struct list_head *n;
 
-	list_for_each_safe(lh, n, &from_dir->variant.dir_variant.children) {
-		obj = list_entry(lh, struct yaffs_obj, siblings);
+	ylist_for_each_safe(lh, n, &from_dir->variant.dir_variant.children) {
+		obj = ylist_entry(lh, struct yaffs_obj, siblings);
 		yaffs_add_obj_to_dir(to_dir, obj);
 	}
 }
@@ -3781,8 +3781,8 @@ struct yaffs_obj *yaffs_retype_obj(struct yaffs_obj *obj,
 	case YAFFS_OBJECT_TYPE_DIRECTORY:
 		/* Put the children in lost and found. */
 		yaffs_empty_dir_to_dir(obj, obj->my_dev->lost_n_found);
-		if (!list_empty(&obj->variant.dir_variant.dirty))
-			list_del_init(&obj->variant.dir_variant.dirty);
+		if (!ylist_empty(&obj->variant.dir_variant.dirty))
+			ylist_del_init(&obj->variant.dir_variant.dirty);
 		break;
 	case YAFFS_OBJECT_TYPE_SYMLINK:
 		/* Nuke symplink data */
@@ -3790,7 +3790,7 @@ struct yaffs_obj *yaffs_retype_obj(struct yaffs_obj *obj,
 		obj->variant.symlink_variant.alias = NULL;
 		break;
 	case YAFFS_OBJECT_TYPE_HARDLINK:
-		list_del_init(&obj->hard_links);
+		ylist_del_init(&obj->hard_links);
 		break;
 	default:
 		break;
@@ -3831,7 +3831,7 @@ static int yaffs_unlink_worker(struct yaffs_obj *obj)
 
 	if (obj->variant_type == YAFFS_OBJECT_TYPE_HARDLINK) {
 		return yaffs_del_link(obj);
-	} else if (!list_empty(&obj->hard_links)) {
+	} else if (!ylist_empty(&obj->hard_links)) {
 		/* Curve ball: We're unlinking an object that has a hardlink.
 		 *
 		 * This problem arises because we are not strictly following
@@ -3851,13 +3851,13 @@ static int yaffs_unlink_worker(struct yaffs_obj *obj)
 		int ret_val;
 		YCHAR name[YAFFS_MAX_NAME_LENGTH + 1];
 
-		hl = list_entry(obj->hard_links.next, struct yaffs_obj,
+		hl = ylist_entry(obj->hard_links.next, struct yaffs_obj,
 				hard_links);
 
 		yaffs_get_obj_name(hl, name, YAFFS_MAX_NAME_LENGTH + 1);
 		parent = hl->parent;
 
-		list_del_init(&hl->hard_links);
+		ylist_del_init(&hl->hard_links);
 
 		yaffs_add_obj_to_dir(obj->my_dev->unlinked_dir, hl);
 
@@ -3874,7 +3874,7 @@ static int yaffs_unlink_worker(struct yaffs_obj *obj)
 			return yaffs_del_file(obj);
 			break;
 		case YAFFS_OBJECT_TYPE_DIRECTORY:
-			list_del_init(&obj->variant.dir_variant.dirty);
+			ylist_del_init(&obj->variant.dir_variant.dirty);
 			return yaffs_del_dir(obj);
 			break;
 		case YAFFS_OBJECT_TYPE_SYMLINK:
@@ -4027,15 +4027,15 @@ void yaffs_link_fixup(struct yaffs_dev *dev, struct list_head *hard_list)
 	struct yaffs_obj *hl;
 	struct yaffs_obj *in;
 
-	list_for_each_safe(lh, save, hard_list) {
-		hl = list_entry(lh, struct yaffs_obj, hard_links);
+	ylist_for_each_safe(lh, save, hard_list) {
+		hl = ylist_entry(lh, struct yaffs_obj, hard_links);
 		in = yaffs_find_by_number(dev,
 					hl->variant.hardlink_variant.equiv_id);
 
 		if (in) {
 			/* Add the hardlink pointers */
 			hl->variant.hardlink_variant.equiv_obj = in;
-			list_add(&hl->hard_links, &in->hard_links);
+			ylist_add(&hl->hard_links, &in->hard_links);
 		} else {
 			/* Todo Need to report/handle this better.
 			 * Got a problem... hardlink to a non-existant object
@@ -4059,14 +4059,14 @@ static void yaffs_strip_deleted_objs(struct yaffs_dev *dev)
 		return;
 
 	/* Soft delete all the unlinked files */
-	list_for_each_safe(i, n,
+	ylist_for_each_safe(i, n,
 			   &dev->unlinked_dir->variant.dir_variant.children) {
-		l = list_entry(i, struct yaffs_obj, siblings);
+		l = ylist_entry(i, struct yaffs_obj, siblings);
 		yaffs_del_obj(l);
 	}
 
-	list_for_each_safe(i, n, &dev->del_dir->variant.dir_variant.children) {
-		l = list_entry(i, struct yaffs_obj, siblings);
+	ylist_for_each_safe(i, n, &dev->del_dir->variant.dir_variant.children) {
+		l = ylist_entry(i, struct yaffs_obj, siblings);
 		yaffs_del_obj(l);
 	}
 }
@@ -4114,8 +4114,8 @@ static void yaffs_fix_hanging_objs(struct yaffs_dev *dev)
 	 */
 
 	for (i = 0; i < YAFFS_NOBJECT_BUCKETS; i++) {
-		list_for_each_safe(lh, n, &dev->obj_bucket[i].list) {
-			obj = list_entry(lh, struct yaffs_obj, hash_link);
+		ylist_for_each_safe(lh, n, &dev->obj_bucket[i].list) {
+			obj = ylist_entry(lh, struct yaffs_obj, hash_link);
 			parent = obj->parent;
 
 			if (yaffs_has_null_parent(dev, obj)) {
@@ -4168,8 +4168,8 @@ static void yaffs_del_dir_contents(struct yaffs_obj *dir)
 	if (dir->variant_type != YAFFS_OBJECT_TYPE_DIRECTORY)
 		BUG();
 
-	list_for_each_safe(lh, n, &dir->variant.dir_variant.children) {
-		obj = list_entry(lh, struct yaffs_obj, siblings);
+	ylist_for_each_safe(lh, n, &dir->variant.dir_variant.children) {
+		obj = ylist_entry(lh, struct yaffs_obj, siblings);
 		if (obj->variant_type == YAFFS_OBJECT_TYPE_DIRECTORY)
 			yaffs_del_dir_contents(obj);
 		yaffs_trace(YAFFS_TRACE_SCAN,
@@ -4212,8 +4212,8 @@ struct yaffs_obj *yaffs_find_by_name(struct yaffs_obj *directory,
 
 	sum = yaffs_calc_name_sum(name);
 
-	list_for_each(i, &directory->variant.dir_variant.children) {
-		l = list_entry(i, struct yaffs_obj, siblings);
+	ylist_for_each(i, &directory->variant.dir_variant.children) {
+		l = ylist_entry(i, struct yaffs_obj, siblings);
 
 		if (l->parent != directory)
 			BUG();
@@ -4348,7 +4348,7 @@ int yaffs_get_obj_link_count(struct yaffs_obj *obj)
 	if (!obj->unlinked)
 		count++;	/* the object itself */
 
-	list_for_each(i, &obj->hard_links)
+	ylist_for_each(i, &obj->hard_links)
 	    count++;		/* add the hard links; */
 
 	return count;
@@ -4460,7 +4460,7 @@ static int yaffs_create_initial_dir(struct yaffs_dev *dev)
 		dev->del_dir) {
 			/* If lost-n-found is hidden then yank it out of the directory tree. */
 			if (dev->param.hide_lost_n_found)
-				list_del_init(&dev->lost_n_found->siblings);
+				ylist_del_init(&dev->lost_n_found->siblings);
 			else
 				yaffs_add_obj_to_dir(dev->root_dir, dev->lost_n_found);
 		return YAFFS_OK;

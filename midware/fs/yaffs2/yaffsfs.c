@@ -511,8 +511,8 @@ static struct yaffs_dev *yaffsfs_FindDevice(const YCHAR *path,
 	 * 1) Actually matches a prefix (ie /a amd /abc will not match
 	 * 2) Matches the longest.
 	 */
-	list_for_each(cfg, &yaffsfs_deviceList) {
-		dev = list_entry(cfg, struct yaffs_dev, dev_list);
+	ylist_for_each(cfg, &yaffsfs_deviceList) {
+		dev = ylist_entry(cfg, struct yaffs_dev, dev_list);
 		leftOver = path;
 		p = dev->param.name;
 		thisMatchLength = 0;
@@ -1609,7 +1609,7 @@ int yaffs_funlink(int fd)
 	else if (obj->my_dev->read_only)
 		yaffsfs_SetError(-EROFS);
 	else if (obj->variant_type == YAFFS_OBJECT_TYPE_DIRECTORY &&
-			!(list_empty(&obj->variant.dir_variant.children)))
+			!(ylist_empty(&obj->variant.dir_variant.children)))
 		yaffsfs_SetError(-ENOTEMPTY);
 	else if (obj == obj->my_dev->root_dir)
 		yaffsfs_SetError(-EBUSY);	/* Can't rmdir a root */
@@ -3384,8 +3384,8 @@ void yaffs_add_device(struct yaffs_dev *dev)
 	struct list_head *cfg;
 	/* First check that the device is not in the list. */
 
-	list_for_each(cfg, &yaffsfs_deviceList) {
-		if (dev == list_entry(cfg, struct yaffs_dev, dev_list))
+	ylist_for_each(cfg, &yaffsfs_deviceList) {
+		if (dev == ylist_entry(cfg, struct yaffs_dev, dev_list))
 			return;
 	}
 
@@ -3395,14 +3395,14 @@ void yaffs_add_device(struct yaffs_dev *dev)
 	if (!dev->dev_list.next)
 		INIT_LIST_HEAD(&dev->dev_list);
 
-	list_add(&dev->dev_list, &yaffsfs_deviceList);
+	ylist_add(&dev->dev_list, &yaffsfs_deviceList);
 
 
 }
 
 void yaffs_remove_device(struct yaffs_dev *dev)
 {
-	list_del_init(&dev->dev_list);
+	ylist_del_init(&dev->dev_list);
 }
 
 /* Functions to iterate through devices. NB Use with extreme care! */
@@ -3422,7 +3422,7 @@ struct yaffs_dev *yaffs_next_dev(void)
 	if (dev_iterator == &yaffsfs_deviceList)
 		return NULL;
 
-	retval = list_entry(dev_iterator, struct yaffs_dev, dev_list);
+	retval = ylist_entry(dev_iterator, struct yaffs_dev, dev_list);
 	dev_iterator = dev_iterator->next;
 	return retval;
 }
@@ -3439,11 +3439,11 @@ static void yaffsfs_SetDirRewound(struct yaffsfs_DirSearchContext *dsc)
 
 		dsc->offset = 0;
 
-		if (list_empty(&dsc->dirObj->variant.dir_variant.children))
+		if (ylist_empty(&dsc->dirObj->variant.dir_variant.children))
 			dsc->nextReturn = NULL;
 		else
 			dsc->nextReturn =
-			    list_entry(dsc->dirObj->variant.dir_variant.
+			    ylist_entry(dsc->dirObj->variant.dir_variant.
 				       children.next, struct yaffs_obj,
 				       siblings);
 	} else {
@@ -3458,7 +3458,7 @@ static void yaffsfs_DirAdvance(struct yaffsfs_DirSearchContext *dsc)
 	    dsc->dirObj->variant_type == YAFFS_OBJECT_TYPE_DIRECTORY) {
 
 		if (dsc->nextReturn == NULL ||
-		    list_empty(&dsc->dirObj->variant.dir_variant.children))
+		    ylist_empty(&dsc->dirObj->variant.dir_variant.children))
 			dsc->nextReturn = NULL;
 		else {
 			struct list_head *next = dsc->nextReturn->siblings.next;
@@ -3466,7 +3466,7 @@ static void yaffsfs_DirAdvance(struct yaffsfs_DirSearchContext *dsc)
 			if (next == &dsc->dirObj->variant.dir_variant.children)
 				dsc->nextReturn = NULL;	/* end of list */
 			else
-				dsc->nextReturn = list_entry(next,
+				dsc->nextReturn = ylist_entry(next,
 							     struct yaffs_obj,
 							     siblings);
 		}
@@ -3489,9 +3489,9 @@ static void yaffsfs_RemoveObjectCallback(struct yaffs_obj *obj)
 	 * If any are the one being removed, then advance the dsc to
 	 * the next one to prevent a hanging ptr.
 	 */
-	list_for_each(i, &search_contexts) {
+	ylist_for_each(i, &search_contexts) {
 		if (i) {
-			dsc = list_entry(i, struct yaffsfs_DirSearchContext,
+			dsc = ylist_entry(i, struct yaffsfs_DirSearchContext,
 					 others);
 			if (dsc->nextReturn == obj)
 				yaffsfs_DirAdvance(dsc);
@@ -3550,7 +3550,7 @@ static yaffs_DIR *yaffsfs_opendir_reldir_no_lock(struct yaffs_obj *reldir,
 			if (!search_contexts.next)
 				INIT_LIST_HEAD(&search_contexts);
 
-			list_add(&dsc->others, &search_contexts);
+			ylist_add(&dsc->others, &search_contexts);
 			yaffsfs_SetDirRewound(dsc);
 		}
 	}
@@ -3676,7 +3676,7 @@ static int yaffsfs_closedir_no_lock(yaffs_DIR *dirp)
 	}
 
 	dsc->inUse = 0;
-	list_del(&dsc->others);	/* unhook from list */
+	ylist_del(&dsc->others);	/* unhook from list */
 
 	return 0;
 }

@@ -85,7 +85,7 @@
     #define INT_PRI_RS485          (2 + CPU_IPL_BOUNDARY)   //← RS485中断抢占优先级2+4
     
     
-    #define MOUNT_POINT             "/cfg"
+    #define MOUNT_POINT             "/"
     
     
     

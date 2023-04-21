@@ -29,7 +29,7 @@
 #include "rbuf.h"
 
 #include "pkt.h"
-#include "com.h"
+#include "comm.h"
 #include "net.h"
 #include "paras.h"
 #include "protocol.h"
@@ -37,7 +37,7 @@
 #include "msg.h"
 #include "task.h"
 
-#include "dal/dal.h"
+#include "dal.h"
 #include "user.h"
 
 #endif

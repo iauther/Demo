@@ -109,7 +109,7 @@ static list_node_t *node_at(list_t *l, int index)
     return NULL;
 }
 ///////////////////////////////////////////////////////////
-handle_t list_new(list_cfg_t *cfg)
+handle_t list_init(list_cfg_t *cfg)
 {
     list_t *l=malloc(sizeof(list_t));
     if (!cfg || !l)
@@ -125,7 +125,7 @@ handle_t list_new(list_cfg_t *cfg)
 }
 
 
-int list_destroy(handle_t l)
+int list_free(handle_t l)
 {
     U32 size;
     list_node_t *cur;

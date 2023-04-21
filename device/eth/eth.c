@@ -1,6 +1,6 @@
 #include "lwip.h"
 #include "eth/eth.h"
-#include "dal/dal.h"
+#include "dal.h"
 
 
 #define DEFAULT_IP          "192.168.2.88"
@@ -49,14 +49,14 @@ handle_t eth_init(eth_cfg_t *cfg)
 #ifdef OS_KERNEL
     tcpip_init( NULL, NULL );
     
-    netif_add_noaddr(&h->netif, NULL, ethernetif_init, tcpip_input);
+    netif_add_noaddr(&h->netif, NULL, dal_eth_init, tcpip_input);
     eth_set_ip(h, DEFAULT_IP, DEFAULT_IPMASK, DEFAULT_GATEWAY);
     
     //set_ipaddr(DEFAULT_IP, DEFAULT_IPMASK, DEFAULT_GATEWAY, &addr);
-    //netif_add(&h->netif, &addr.ip, &addr.netmask, &addr.gateway, NULL, ethernetif_init, tcpip_input);
+    //netif_add(&h->netif, &addr.ip, &addr.netmask, &addr.gateway, NULL, dal_eth_init, tcpip_input);
 #else
     lwip_init();
-    netif_add(&h->netif, &addr.ip, &addr.netmask, &addr.gateway, NULL, ethernetif_init, ethernet_input);
+    netif_add(&h->netif, &addr.ip, &addr.netmask, &addr.gateway, NULL, dal_eth_init, dal_eth_input);
 #endif
 	
     netif_set_link_callback(&h->netif, ethernet_link_callback);
@@ -96,7 +96,7 @@ void eth_link_check(handle_t h)
     }
     
     sys_check_timeouts();
-    ethernet_link_check(&eh->netif);
+    dal_eth_link_check(&eh->netif);
 }
 
 

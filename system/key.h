@@ -2,7 +2,7 @@
 #define __KEY_H__
 
 #include "types.h"
-#include "dal/gpio.h"
+#include "dal_gpio.h"
 
 
 enum {
@@ -44,7 +44,7 @@ typedef int (*key_callback_t)(key_t *key);
 
 typedef struct {
     U8          key;
-    gpio_pin_t  pin;
+    dal_gpio_pin_t  pin;
     
     U8          mode;               //int or scan
     U8          pressLevel;

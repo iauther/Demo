@@ -53,7 +53,7 @@ do { \
 
 
 /* Add an element to a list */
-static inline void list_add(struct list_head *new_entry,
+static inline void ylist_add(struct list_head *new_entry,
 				struct list_head *list)
 {
 	struct list_head *list_next = list->next;
@@ -65,7 +65,7 @@ static inline void list_add(struct list_head *new_entry,
 
 }
 
-static inline void list_add_tail(struct list_head *new_entry,
+static inline void ylist_add_tail(struct list_head *new_entry,
 				 struct list_head *list)
 {
 	struct list_head *list_prev = list->prev;
@@ -80,7 +80,7 @@ static inline void list_add_tail(struct list_head *new_entry,
 
 /* Take an element out of its current list, with or without
  * reinitialising the links.of the entry*/
-static inline void list_del(struct list_head *entry)
+static inline void ylist_del(struct list_head *entry)
 {
 	struct list_head *list_next = entry->next;
 	struct list_head *list_prev = entry->prev;
@@ -90,15 +90,15 @@ static inline void list_del(struct list_head *entry)
 
 }
 
-static inline void list_del_init(struct list_head *entry)
+static inline void ylist_del_init(struct list_head *entry)
 {
-	list_del(entry);
+	ylist_del(entry);
 	entry->next = entry->prev = entry;
 }
 
 
 /* Test if the list is empty */
-static inline int list_empty(struct list_head *entry)
+static inline int ylist_empty(struct list_head *entry)
 {
 	return (entry->next == entry);
 }
@@ -109,7 +109,7 @@ static inline int list_empty(struct list_head *entry)
  */
 
 
-#define list_entry(entry, type, member) \
+#define ylist_entry(entry, type, member) \
 	((type *)((char *)(entry)-(unsigned long)(&((type *)NULL)->member)))
 
 
@@ -117,10 +117,10 @@ static inline int list_empty(struct list_head *entry)
  * list_for_each_safe uses temporary storage to make the list delete safe
  */
 
-#define list_for_each(itervar, list) \
+#define ylist_for_each(itervar, list) \
 	for (itervar = (list)->next; itervar != (list); itervar = itervar->next)
 
-#define list_for_each_safe(itervar, save_var, list) \
+#define ylist_for_each_safe(itervar, save_var, list) \
 	for (itervar = (list)->next, save_var = (list)->next->next; \
 		itervar != (list); \
 		itervar = save_var, save_var = save_var->next)

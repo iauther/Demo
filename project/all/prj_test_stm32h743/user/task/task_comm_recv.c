@@ -1,13 +1,30 @@
 #include "net.h"
-#include "com.h"
+#include "comm.h"
 #include "log.h"
-#include "cap.h"
+#include "dal.h"
 #include "task.h"
-#include "list.h"
 #include "fs.h"
+#include "paras.h"
+#include "json.h"
+#include "dal_cap.h"
 
+tasks_handle_t tasksHandle={0};
 
-comm_handle_t commHandle={0};
+static int hw_init(void)
+{
+    int r=0;
+
+    log_init();
+    json_init();
+    
+    fs_init();
+    //paras_load();
+    
+    dal_cap_init();
+    
+    return r;
+}
+
 
 
 #ifdef OS_KERNEL
@@ -39,12 +56,12 @@ static int comm_recv_callback(handle_t h, void *addr, U32 evt, void *data, int l
     
     switch(evt) {
         case NET_EVT_NEW_CONN:
-        commHandle.netAddr = addr;
+        tasksHandle.netAddr = addr;
         //r = task_tmr_start(TASK_COMM_RECV, com_tmr_callback, addr, PERIOD_TIME, TIME_INFINITE);
         break;
         
         case NET_EVT_DIS_CONN:
-        commHandle.netAddr = NULL;
+        tasksHandle.netAddr = NULL;
         //r = task_tmr_stop(TASK_COMM_RECV);
         break;
         
@@ -59,11 +76,8 @@ static int comm_recv_callback(handle_t h, void *addr, U32 evt, void *data, int l
 
 static void comm_recv_init(void)
 {
-    extern void cap_Init(void);
-    
-    cap_Init();
-    commHandle.hcom = com_init(PORT_ETH, comm_recv_callback);
-    
+    hw_init();
+    tasksHandle.hcom = comm_init(PORT_ETH, comm_recv_callback);
     start_tasks();
 }
 
@@ -73,9 +87,7 @@ void task_comm_recv_fn(void *arg)
     U8  err;
     evt_t e;
     
-    fs_test();
     comm_recv_init();
-    
     while(1) {
         r = task_recv(TASK_COMM_RECV, &e, sizeof(e));
         if(r==0) {
@@ -83,7 +95,7 @@ void task_comm_recv_fn(void *arg)
                                 
                 case EVT_COMM:
                 {
-                    err = com_proc(commHandle.hcom, e.arg, e.data, e.dLen);
+                    err = comm_proc(tasksHandle.hcom, e.arg, e.data, e.dLen);
                 }
                 break;
             }

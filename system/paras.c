@@ -9,7 +9,7 @@ U8 sysState=STAT_STOP;
 U8 sysState=STAT_UPGRADE;
 #endif
 
-stat_t  curStat;
+state_t curStat;
 para_t  curPara;
 
 
@@ -24,7 +24,7 @@ int paras_load(void)
         if(r==0) {
             if(fwinfo.magic!=FW_MAGIC && fwinfo.magic!=UPG_MAGIC) {
                 curPara = DEFAULT_PARAS.para;
-                r = paras_write(0, &DEFAULT_PARAS, sizeof(DEFAULT_PARAS));
+                r = paras_write(FILE_SETT, &DEFAULT_PARAS, sizeof(DEFAULT_PARAS));
             }
             else {
                 
@@ -51,7 +51,7 @@ int paras_erase(void)
 {
     paras_t paras={0};
 
-    return paras_write(0, &paras, sizeof(paras));
+    return paras_write(FILE_SETT, &paras, sizeof(paras));
 }
 
 
@@ -98,28 +98,37 @@ int paras_write_node(node_t *n)
 int paras_get_magic(U32 *magic)
 {
     int r=-1;
-    U32 addr=offsetof(flag_t, magic)+UPGRADE_INFO_ADDR;
+    para_t *p=malloc(sizeof(para_t));
     
-    if (!magic) {
+    if (!magic || !p) {
         return -1;
     }
 
-    r = paras_read(addr, magic, sizeof(U32));
+    r = paras_read(FILE_SETT, p, sizeof(para_t));
+    if(r==0) {
+        *magic = p->fwInfo.magic;
+    }
+    free(p);
     
     return r;
 }
 
 
-int paras_set_magic(U32 *magic)
+int paras_set_magic(U32 magic)
 {
     int r=-1;
-    U32 addr=offsetof(flag_t, magic)+UPGRADE_INFO_ADDR;
+    para_t *p=malloc(sizeof(para_t));
     
-    if (!magic) {
+    if (!magic || !p) {
         return -1;
     }
 
-    r = paras_write(addr, magic, sizeof(U32));
+    r = paras_read(FILE_SETT, p, sizeof(para_t));
+    if(r==0) {
+        p->fwInfo.magic = magic;
+        r = paras_write(FILE_SETT, p, sizeof(para_t));
+    }
+    free(p);
     
     return r;
 }
@@ -128,13 +137,17 @@ int paras_set_magic(U32 *magic)
 int paras_get_fwinfo(fw_info_t *fwinfo)
 {
     int r=-1;
-    U32 addr=offsetof(paras_t, para)+offsetof(para_t,fwInfo)+UPGRADE_INFO_ADDR;
+    para_t *p=malloc(sizeof(para_t));
     
-    if (!fwinfo) {
+    if (!fwinfo || !p) {
         return -1;
     }
 
-    r = paras_read(addr, fwinfo, sizeof(fw_info_t));
+    r = paras_read(FILE_SETT, p, sizeof(para_t));
+    if(r==0) {
+        *fwinfo = p->fwInfo;
+    }
+    free(p);
     
     return r;
 }
@@ -143,13 +156,18 @@ int paras_get_fwinfo(fw_info_t *fwinfo)
 int paras_set_fwinfo(fw_info_t *fwinfo)
 {
     int r=-1;
-    U32 addr=offsetof(paras_t, para)+offsetof(para_t,fwInfo)+UPGRADE_INFO_ADDR;
+    para_t *p=malloc(sizeof(para_t));
 
-    if (!fwinfo) {
+    if (!fwinfo || !p) {
         return -1;
     }
-
-    r = paras_write(addr, fwinfo->version, sizeof(fw_info_t)-sizeof(fwinfo->magic));
+    
+    r = paras_read(FILE_SETT, p, sizeof(para_t));
+    if(r==0) {
+        p->fwInfo = *fwinfo;
+        r = paras_write(FILE_SETT, p, sizeof(para_t));
+    }
+    free(p);
     
     return r;
 }
@@ -159,12 +177,12 @@ int paras_set_fwinfo(fw_info_t *fwinfo)
 int paras_set_upg(void)
 {
     int r;
-    U32 magic=0;
+    U32 magic;
     
     r = paras_get_magic(&magic);
     if(r==0 && magic!=UPG_MAGIC) {
         magic = UPG_MAGIC;
-        r = paras_set_magic(&magic);
+        r = paras_set_magic(magic);
     }
     
     return r;
@@ -179,7 +197,7 @@ int paras_clr_upg(void)
     r = paras_get_magic(&magic);
     if(r==0 && magic==UPG_MAGIC) {
         magic = FW_MAGIC;
-        r = paras_set_magic(&magic);
+        r = paras_set_magic(magic);
     }
     
     return r;
@@ -189,13 +207,17 @@ int paras_clr_upg(void)
 int paras_get_state(U8 *state)
 {
     int r;
-    U32 addr=offsetof(flag_t, state)+UPGRADE_INFO_ADDR;
+    para_t *p=malloc(sizeof(para_t));
     
-    if(!state) {
+    if(!state || !p) {
         return -1;
     }
     
-    r = paras_read(addr, state, sizeof(*state));
+    r = paras_read(FILE_SETT, p, sizeof(para_t));
+    if(r==0) {
+        *state = p->stat.sysState;
+    }
+    free(p);
     
     return r;
 }
@@ -204,13 +226,17 @@ int paras_get_state(U8 *state)
 int paras_set_state(U8 state)
 {
     int r;
-    U8  st;
-    U32 addr=offsetof(flag_t, state)+UPGRADE_INFO_ADDR;
+    para_t *p=malloc(sizeof(para_t));
     
-    r = paras_read(addr, &st, sizeof(st));
-    if(r==0 && st!=state) {
-        r = paras_write(addr, &state, sizeof(state));
+    if(!state || !p) {
+        return -1;
     }
+    
+    r = paras_read(FILE_SETT, p, sizeof(para_t));
+    if(r==0 && p->stat.sysState!=state) {
+        r = paras_write(FILE_SETT, p, sizeof(para_t));
+    }
+    free(p);
     
     return r;
 }
