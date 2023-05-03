@@ -37,13 +37,13 @@ enum {
 
 typedef struct {
     
-    GPIO_TypeDef    *grp;
-    U32              pin;
+    void        *grp;
+    U32         pin;
 }gpio_pin_t;
 
 int gpio_init(gpio_pin_t *pin, U8 mode);
 int gpio_deinit(gpio_pin_t *pin);
-void gpio_en_clk(GPIO_TypeDef *grp, int on);
+void gpio_en_clk(void *grp, int on);
 
 int gpio_set_dir(gpio_pin_t *pin, U8 dir);
 int gpio_get_dir(gpio_pin_t *pin, U8 *dir);
