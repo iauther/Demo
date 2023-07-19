@@ -44,10 +44,12 @@ enum {
     
     //system
     ERROR_I2C1_GEN=0x60,      //all i2c dev except for eeprom
-    ERROR_I2C2_E2P,          //eeprom
-    ERROR_PWM_PUMP,
-    ERROR_UART1_PUMP,        //pump
-    ERROR_UART2_COM,         //ipad uart port
+    ERROR_I2C2,
+    ERROR_COMM_ETH,
+    ERROR_COMM_USB,
+    ERROR_COMM_UART,
+    
+
     
     ERROR_MAX
     

@@ -2,28 +2,29 @@
 #define __DAL_Hx__
 
 
-#include "dal/adc.h"
-#include "dal/delay.h"
-#include "dal/e2p.h"
-#include "dal/flash.h"
-#include "dal/gpio.h"
-#include "dal/htimer.h"
-#include "dal/i2c.h"
-#include "dal/si2c.h"
-#include "dal/jump.h"
-#include "dal/pwm.h"
-#include "dal/spi.h"
-#include "dal/uart.h"
-#include "dal/wdg.h"
-#include "dal/sdram.h"
-#include "dal/ethernetif.h"
-//#include "dal/dma.h"
-//#include "dal/si2c.h"
+#include "types.h"
+
+
+typedef struct {
+    U32 flashSize;
+    U32 flashStart;
+    U32 flashEnd;
+    
+    U32 sramSize;
+    U32 sramStart;
+    U32 sramEnd;
+    
+	U32 uniqueID[3];
+}mcu_info_t;
+
+
 
 int dal_init(void);
-
+int dal_set_vector(void);
+void dal_reboot(void);
 U32 dal_get_freq(void);
-
+int dal_get_info(mcu_info_t *info);
+    
 
 #endif
 

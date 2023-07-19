@@ -44,14 +44,14 @@ OF SUCH DAMAGE.
 #define TRNG                        TRNG_BASE
 
 /* registers definitions */
-#define TRNG_CTL                    REG32(TRNG + 0x00000000U)        /*!< control register */
-#define TRNG_STAT                   REG32(TRNG + 0x00000004U)        /*!< status register */
-#define TRNG_DATA                   REG32(TRNG + 0x00000008U)        /*!< data register */
+#define TRNG_CTL                    REG32(TRNG + 0x00U)        /*!< control register */
+#define TRNG_STAT                   REG32(TRNG + 0x04U)        /*!< status register */
+#define TRNG_DATA                   REG32(TRNG + 0x08U)        /*!< data register */
 
 /* bits definitions */
 /* TRNG_CTL */
 #define TRNG_CTL_TRNGEN             BIT(2)                     /*!< TRNG enable bit */
-#define TRNG_CTL_TRNGIE             BIT(3)                     /*!< interrupt enable bit */
+#define TRNG_CTL_IE                 BIT(3)                     /*!< interrupt enable bit */
 
 /* TRNG_STAT */
 #define TRNG_STAT_DRDY              BIT(0)                     /*!< random data ready status bit */
@@ -61,43 +61,45 @@ OF SUCH DAMAGE.
 #define TRNG_STAT_SEIF              BIT(6)                     /*!< seed error interrupt flag */
 
 /* TRNG_DATA */
-#define TRNG_DATA_TRNGDATA          BITS(0,31)                 /*!< 32-Bit Random data */
+#define TRNG_DATA_TRNDATA           BITS(0,31)                 /*!< 32-Bit Random data */
 
 /* constants definitions */
-/* TRNG status flag */
-typedef enum { 
+/* trng status flag */
+typedef enum
+{ 
     TRNG_FLAG_DRDY = TRNG_STAT_DRDY,                           /*!< random Data ready status */
     TRNG_FLAG_CECS = TRNG_STAT_CECS,                           /*!< clock error current status */
     TRNG_FLAG_SECS = TRNG_STAT_SECS                            /*!< seed error current status */
-} trng_flag_enum;
+}trng_flag_enum;
 
-/* TRNG inerrupt flag */
-typedef enum {
+/* trng inerrupt flag */
+typedef enum
+{
     TRNG_INT_FLAG_CEIF = TRNG_STAT_CEIF,                       /*!< clock error interrupt flag */
     TRNG_INT_FLAG_SEIF = TRNG_STAT_SEIF                        /*!< seed error interrupt flag */
-} trng_int_flag_enum;
+}trng_int_flag_enum;
 
 /* function declarations */
 /* initialization functions */
-/* reset TRNG */
+/* deinitialize the TRNG */
 void trng_deinit(void);
-/* enable TRNG */
+/* enable the TRNG interface */
 void trng_enable(void);
-/* disable TRNG */
+/* disable the TRNG interface */
 void trng_disable(void);
 /* get the true random data */
 uint32_t trng_get_true_random_data(void);
 
-/* interrupt & flag functions */
-/* enable TRNG interrupt */
+/* flag & interrupt functions */
+/* trng interrupt enable */
 void trng_interrupt_enable(void);
-/* disable TRNG interrupt  */
+/* trng interrupt disable */
 void trng_interrupt_disable(void);
-/* get TRNG flag status */
+/* get the trng status flags */
 FlagStatus trng_flag_get(trng_flag_enum flag);
-/* get TRNG interrupt flag status */
+/* get the trng interrupt flags */
 FlagStatus trng_interrupt_flag_get(trng_int_flag_enum int_flag);
-/* clear TRNG interrupt flag status */
+/* clear the trng interrupt flags */
 void trng_interrupt_flag_clear(trng_int_flag_enum int_flag);
 
 #endif /* GD32F4XX_TRNG_H */

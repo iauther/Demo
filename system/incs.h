@@ -16,10 +16,6 @@
 #include "md5.h"
 #include "upgrade.h"
 
-#include "key.h"
-#include "lcd.h"
-#include "nvm.h"
-#include "wdog.h"
 #include "font.h"
 //#include "fatfs.h"
 //#include "notice.h"
@@ -30,7 +26,6 @@
 
 #include "pkt.h"
 #include "comm.h"
-#include "net.h"
 #include "paras.h"
 #include "protocol.h"
 

@@ -112,6 +112,7 @@ static int drv_read_chunk_fn (struct yaffs_dev *dev, int nand_chunk,
     int r;
     
     r = dal_nand_read_page(nand_chunk, (u8*)data, data_len, oob, oob_len);
+#if 0
     if(r==NSTA_ECC1BITERR) {
         *ecc_result = YAFFS_ECC_RESULT_FIXED;
     }
@@ -124,6 +125,7 @@ static int drv_read_chunk_fn (struct yaffs_dev *dev, int nand_chunk,
     else {
         *ecc_result = YAFFS_ECC_RESULT_NO_ERROR;
     }
+#endif
     
 #endif
 
@@ -170,8 +172,10 @@ static int drv_write_chunk_fn (struct yaffs_dev *dev, int nand_chunk,
 	return YAFFS_OK;
 }
 
-struct yaffs_dev *yaffs_nand_init(const YCHAR *dev_name,
-		u32 dev_id, u32 startAddr, u32 length)
+
+
+
+struct yaffs_dev *yaffs_nand_init(u32 startAddr, u32 length)
 {
 	struct yaffs_dev *dev = NULL;
 	struct yaffs_driver *drv = NULL;
@@ -202,7 +206,7 @@ struct yaffs_dev *yaffs_nand_init(const YCHAR *dev_name,
 	param = &(dev->param);
 	drv = &(dev->drv);
 	
-	param->name = dev_name;
+	param->name = NULL;//dev_name;
 	param->total_bytes_per_chunk = para->bytes_per_page;                                                     //NANDFLASH_RW_PAGE_SIZE;
 	param->chunks_per_block = para->pages_per_block*para->bytes_per_page/param->total_bytes_per_chunk;         //NANDFLASH_PAGE_PER_BLOCK;
 	param->spare_bytes_per_chunk = para->bytes_per_spare*(param->total_bytes_per_chunk/para->bytes_per_page); //NANDFLASH_SPARE_SIZE;
@@ -226,5 +230,9 @@ struct yaffs_dev *yaffs_nand_init(const YCHAR *dev_name,
 
 	return dev;
 }
+
+
+
+
 
 

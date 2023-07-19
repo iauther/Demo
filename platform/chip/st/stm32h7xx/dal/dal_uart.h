@@ -22,14 +22,14 @@ typedef struct {
     U8                  *buf;
     U16                 blen;
     U16                 dlen;       //data length
-}uart_para_t;
+}dal_uart_para_t;
 
 typedef struct {
     U8                  mode;
     U8                  port;
     U8                  useDMA;
     U32                 baudrate;
-    uart_para_t         para;
+    dal_uart_para_t     para;
 }dal_uart_cfg_t;
 
 handle_t dal_uart_init(dal_uart_cfg_t *cfg);

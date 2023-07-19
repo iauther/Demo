@@ -1,8 +1,14 @@
-#include "board.h"
+#include "app.h"
+#include "boot.h"
 
 int main(void)
 {   
-    board_init();
+#ifdef BOOTLOADER
+    boot_start();
+#else
+    app_start();
+#endif
+    
     while(1);
 }
 

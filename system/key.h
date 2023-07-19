@@ -44,7 +44,7 @@ typedef int (*key_callback_t)(key_t *key);
 
 typedef struct {
     U8          key;
-    dal_gpio_pin_t  pin;
+    dal_pin_t   pin;
     
     U8          mode;               //int or scan
     U8          pressLevel;

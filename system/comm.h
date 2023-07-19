@@ -5,12 +5,19 @@
 #include "pkt.h"
 #include "cfg.h"
 
+#ifdef _WIN32
+#define SAMPLE_POINTS           200
+#define COMM_BUF_LEN            (SAMPLE_POINTS*4+32)
+#endif
 
 typedef struct {
     U8          port;
     handle_t    h;
     
-    U8          rxBuf[COM_RX_BUF_LEN];
+    U8          rxBuf[COMM_BUF_LEN];
+    U8          txBuf[COMM_BUF_LEN];
+    
+    int         chkID;
 }comm_handle_t;
 
 typedef int (*rx_cb_t)(handle_t h, void *addr, U32 evt, void *data, int len);
@@ -22,7 +29,7 @@ int comm_data_proc(handle_t h, void *addr, void *data, int len);
 int comm_send_paras(handle_t h, void *addr, U8 flag);
 int comm_send_data(handle_t h, void *addr, U8 type, U8 nAck, void *data, int len);
 int comm_check_timeout(handle_t h, void *addr, U8 type);
-int comm_proc(handle_t h, void *addr, void *data, int len);
+int comm_recv_proc(handle_t h, void *addr, void *data, int len);
 int comm_get_buf(handle_t h, U8** data, int *len);
 int comm_get_paras_flag(handle_t h, void *addr);
 int comm_ack_poll(handle_t h, void *addr);

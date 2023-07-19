@@ -1,4 +1,4 @@
-#include "incs.h"
+#include "dal_uart.h"
 #include "lock.h"
 
 #if defined(__CC_ARM)
@@ -9,7 +9,7 @@
 typedef struct {
     U8                      mode;
     U8                      port;
-    uart_para_t             para;
+    dal_uart_para_t         para;
     UART_HandleTypeDef      huart;
     DMA_HandleTypeDef       hdmaRx;
     DMA_HandleTypeDef       hdmaTx;

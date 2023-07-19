@@ -22,57 +22,42 @@
  */
 
 #include "yaffs_nor_drv.h"
-
 #include "yportenv.h"
 #include "yaffs_trace.h"
-
 #include "yaffs_flashif.h"
 #include "yaffs_guts.h"
+#include <string.h>
+
 
 /* Tunable data */
 #define DATA_BYTES_PER_CHUNK	512
 #define SPARE_BYTES_PER_CHUNK	16
 #define BLOCK_SIZE_IN_BYTES 	(128*1024)
-#define BYTES_IN_DEVICE		(4*1024*1024)
+#define BYTES_IN_DEVICE		    (4*1024*1024)
 
-#define BYTES_PER_CHUNK		(DATA_BYTES_PER_CHUNK + SPARE_BYTES_PER_CHUNK)
-#define SPARE_AREA_OFFSET	DATA_BYTES_PER_CHUNK
-#define CHUNKS_PER_BLOCK (BLOCK_SIZE_IN_BYTES/BYTES_PER_CHUNK)
+#define BYTES_PER_CHUNK		    (DATA_BYTES_PER_CHUNK + SPARE_BYTES_PER_CHUNK)
+#define SPARE_AREA_OFFSET	    DATA_BYTES_PER_CHUNK
+#define CHUNKS_PER_BLOCK        (BLOCK_SIZE_IN_BYTES/BYTES_PER_CHUNK)
 
-#define BLOCKS_IN_DEVICE	(BYTES_IN_DEVICE/BLOCK_SIZE_IN_BYTES)
+#define BLOCKS_IN_DEVICE	    (BYTES_IN_DEVICE/BLOCK_SIZE_IN_BYTES)
 
 #define YNOR_PREMARKER          (0xF6)
 #define YNOR_POSTMARKER         (0xF0)
 
-#define FORMAT_OFFSET		(CHUNKS_PER_BLOCK * BYTES_PER_CHUNK)
-#define FORMAT_VALUE		0x1234
+#define FORMAT_OFFSET		    (CHUNKS_PER_BLOCK * BYTES_PER_CHUNK)
+#define FORMAT_VALUE		    0x1234
 
-#if 1
-
-/* Compile this for a simulation */
-//#include "ynorsim.h"
-
-static struct nor_sim *nor_sim;
-
-#define nor_drv_FlashInit() do {nor_sim = ynorsim_initialise("emfile-nor", BLOCKS_IN_DEVICE, BLOCK_SIZE_IN_BYTES); } while(0)
-#define nor_drv_FlashDeinit() ynorsim_shutdown(nor_sim)
-#define nor_drv_FlashWrite32(addr,buf,nwords) ynorsim_wr32(nor_sim,addr,buf,nwords)
-#define nor_drv_FlashRead32(addr,buf,nwords) ynorsim_rd32(nor_sim,addr,buf,nwords)
-#define nor_drv_FlashEraseBlock(addr) ynorsim_erase(nor_sim,addr)
-#define DEVICE_BASE     ynorsim_get_base(nor_sim)
-
-#else
 
 /* Compile this to hook up to read hardware */
-#include "../blob/yflashrw.h"
-#define nor_drv_FlashInit()  do{} while(0)
-#define nor_drv_FlashDeinit() do {} while(0)
-#define nor_drv_FlashWrite32(addr,buf,nwords) Y_FlashWrite(addr,buf,nwords)
-#define nor_drv_FlashRead32(addr,buf,nwords)  Y_FlashRead(addr,buf,nwords)
-#define nor_drv_FlashEraseBlock(addr)         Y_FlashErase(addr,BLOCK_SIZE_IN_BYTES)
-#define DEVICE_BASE     (32 * 1024 * 1024)
-#endif
+#include "sflash.h"
+#define nor_drv_Init()                      do{} while(0)
+#define nor_drv_Deinit()                    do {} while(0)
+#define nor_drv_Write32(addr,buf,nwords)    {}//Y_FlashWrite(addr,buf,nwords)
+#define nor_drv_Read32(addr,buf,nwords)     {}//Y_FlashRead(addr,buf,nwords)
+#define nor_drv_Erase(addr)                 {}//Y_FlashErase(addr,BLOCK_SIZE_IN_BYTES)
+#define DEVICE_BASE                         (32 * 1024 * 1024)
 
+static int nor_drv_EraseBlock(struct yaffs_dev *dev, int blockNumber);
 
 static u32 *Block2Addr(struct yaffs_dev *dev, int blockNumber)
 {
@@ -131,7 +116,7 @@ static void nor_drv_AndBytes(u8*target, const u8 *src, int nbytes)
 	}
 }
 
-static int nor_drv_WriteChunkToNAND(struct yaffs_dev *dev,int nand_chunk,
+static int nor_drv_WriteChunk(struct yaffs_dev *dev,int nand_chunk,
 				    const u8 *data, int data_len,
 				    const u8 *oob, int oob_len)
 {
@@ -158,37 +143,37 @@ static int nor_drv_WriteChunkToNAND(struct yaffs_dev *dev,int nand_chunk,
 		/* Write a pre-marker */
 		memset(&tmpSpare,0xff,sizeof(tmpSpare));
 		tmpSpare.page_status = YNOR_PREMARKER;
-		nor_drv_FlashWrite32(spareAddr,(u32 *)&tmpSpare,sizeof(struct yaffs_spare)/sizeof(u32));
+		nor_drv_Write32(spareAddr,(u32 *)&tmpSpare,sizeof(struct yaffs_spare)/sizeof(u32));
 
 		/* Write the data */
-		nor_drv_FlashWrite32(dataAddr,(u32 *)data, data_len/ sizeof(u32));
+		nor_drv_Write32(dataAddr,(u32 *)data, data_len/ sizeof(u32));
 
 		memcpy(&tmpSpare,spare,sizeof(struct yaffs_spare));
 
 		/* Write the real tags, but override the premarker*/
 		tmpSpare.page_status = YNOR_PREMARKER;
-		nor_drv_FlashWrite32(spareAddr,(u32 *)&tmpSpare,sizeof(struct yaffs_spare)/sizeof(u32));
+		nor_drv_Write32(spareAddr,(u32 *)&tmpSpare,sizeof(struct yaffs_spare)/sizeof(u32));
 
 		/* Write a post-marker */
 		tmpSpare.page_status = YNOR_POSTMARKER;
-		nor_drv_FlashWrite32(spareAddr,(u32 *)&tmpSpare,sizeof(tmpSpare)/sizeof(u32));
+		nor_drv_Write32(spareAddr,(u32 *)&tmpSpare,sizeof(tmpSpare)/sizeof(u32));
 
 	} else if(spare){
 		/* This has to be a read-modify-write operation to handle NOR-ness */
 
-		nor_drv_FlashRead32(spareAddr,(u32 *)&tmpSpare,sizeof(struct yaffs_spare)/sizeof(u32));
+		nor_drv_Read32(spareAddr,(u32 *)&tmpSpare,sizeof(struct yaffs_spare)/sizeof(u32));
 
 		nor_drv_AndBytes((u8 *)&tmpSpare,(u8 *)spare,sizeof(struct yaffs_spare));
 
-		nor_drv_FlashWrite32(spareAddr,(u32 *)&tmpSpare,sizeof(struct yaffs_spare)/sizeof(u32));
+		nor_drv_Write32(spareAddr,(u32 *)&tmpSpare,sizeof(struct yaffs_spare)/sizeof(u32));
 	} else {
-		BUG();
+//		BUG();
 	}
 
 	return YAFFS_OK;
 }
 
-static int nor_drv_ReadChunkFromNAND(struct yaffs_dev *dev,int nand_chunk,
+static int nor_drv_ReadChunk(struct yaffs_dev *dev,int nand_chunk,
 					u8 *data, int data_len,
 					u8 *oob, int oob_len,
 					enum yaffs_ecc_result *ecc_result)
@@ -201,15 +186,14 @@ static int nor_drv_ReadChunkFromNAND(struct yaffs_dev *dev,int nand_chunk,
 	(void) data_len;
 
 	if (data) {
-		nor_drv_FlashRead32(dataAddr,(u32 *)data,dev->param.total_bytes_per_chunk / sizeof(u32));
+		nor_drv_Read32(dataAddr,(u32 *)data,dev->param.total_bytes_per_chunk / sizeof(u32));
 	}
 
 	if (oob) {
-		nor_drv_FlashRead32(spareAddr,(u32 *)spare, oob_len/ sizeof(u32));
+		nor_drv_Read32(spareAddr,(u32 *)spare, oob_len/ sizeof(u32));
 
 		/* If the page status is YNOR_POSTMARKER then it was written properly
-                 * so change that to 0xFF so that the rest of yaffs is happy.
-                 */
+           so change that to 0xFF so that the rest of yaffs is happy. */
 		if(spare->page_status == YNOR_POSTMARKER)
 			spare->page_status = 0xff;
 		else if(spare->page_status != 0xff &&
@@ -231,8 +215,8 @@ static int nor_drv_FormatBlock(struct yaffs_dev *dev, int blockNumber)
 	u32 *formatAddr = Block2FormatAddr(dev,blockNumber);
 	u32 formatValue = FORMAT_VALUE;
 
-	nor_drv_FlashEraseBlock(blockAddr);
-	nor_drv_FlashWrite32(formatAddr,&formatValue,1);
+	nor_drv_Erase(blockAddr);
+	nor_drv_Write32(formatAddr,&formatValue,1);
 
 	return YAFFS_OK;
 }
@@ -242,7 +226,7 @@ static int nor_drv_UnformatBlock(struct yaffs_dev *dev, int blockNumber)
 	u32 *formatAddr = Block2FormatAddr(dev,blockNumber);
 	u32 formatValue = 0;
 
-	nor_drv_FlashWrite32(formatAddr,&formatValue,1);
+	nor_drv_Write32(formatAddr,&formatValue,1);
 
 	return YAFFS_OK;
 }
@@ -253,23 +237,21 @@ static int nor_drv_IsBlockFormatted(struct yaffs_dev *dev, int blockNumber)
 	u32 formatValue;
 
 
-	nor_drv_FlashRead32(formatAddr,&formatValue,1);
+	nor_drv_Read32(formatAddr,&formatValue,1);
 
 	return (formatValue == FORMAT_VALUE);
 }
 
-static int nor_drv_EraseBlockInNAND(struct yaffs_dev *dev, int blockNumber)
+static int nor_drv_EraseBlock(struct yaffs_dev *dev, int blockNumber)
 {
 
-	if(blockNumber < 0 || blockNumber >= BLOCKS_IN_DEVICE)
-	{
+	if(blockNumber < 0 || blockNumber >= BLOCKS_IN_DEVICE) {
 		yaffs_trace(YAFFS_TRACE_ALWAYS,
 			"Attempt to erase non-existant block %d\n",
 			blockNumber);
 		return YAFFS_FAIL;
 	}
-	else
-	{
+	else {
 		nor_drv_UnformatBlock(dev,blockNumber);
 		nor_drv_FormatBlock(dev,blockNumber);
 		return YAFFS_OK;
@@ -277,11 +259,11 @@ static int nor_drv_EraseBlockInNAND(struct yaffs_dev *dev, int blockNumber)
 
 }
 
-static int nor_drv_InitialiseNAND(struct yaffs_dev *dev)
+static int nor_drv_Initialise(struct yaffs_dev *dev)
 {
 	u32 i;
 
-	nor_drv_FlashInit();
+	nor_drv_Init();
 	/* Go through the blocks formatting them if they are not formatted */
 	for(i = dev->param.start_block; i <= dev->param.end_block; i++){
 		if(!nor_drv_IsBlockFormatted(dev,i)){
@@ -291,28 +273,23 @@ static int nor_drv_InitialiseNAND(struct yaffs_dev *dev)
 	return YAFFS_OK;
 }
 
-static int nor_drv_Deinitialise_flash_fn(struct yaffs_dev *dev)
+static int nor_drv_Deinitialise(struct yaffs_dev *dev)
 {
 	dev=dev;
 
-	nor_drv_FlashDeinit();
+	nor_drv_Deinit();
 
 	return YAFFS_OK;
 }
 
 
-struct yaffs_dev *yaffs_nor_install_drv(const char *name)
+struct yaffs_dev *yaffs_nor_init(u32 startAddr, u32 length)
 {
-
 	struct yaffs_dev *dev = malloc(sizeof(struct yaffs_dev));
-	char *name_copy = strdup(name);
 	struct yaffs_param *param;
 	struct yaffs_driver *drv;
 
-
-	if(!dev || !name_copy) {
-		free(name_copy);
-		free(dev);
+	if(!dev) {
 		return NULL;
 	}
 
@@ -321,7 +298,7 @@ struct yaffs_dev *yaffs_nor_install_drv(const char *name)
 
 	memset(dev, 0, sizeof(*dev));
 
-	param->name = name_copy;
+	param->name = NULL; //name_copy;
 
 	param->total_bytes_per_chunk = DATA_BYTES_PER_CHUNK;
 	param->chunks_per_block = CHUNKS_PER_BLOCK;
@@ -331,18 +308,18 @@ struct yaffs_dev *yaffs_nor_install_drv(const char *name)
 	param->use_nand_ecc = 0; // use YAFFS's ECC
 	param->disable_soft_del = 1;
 
-	drv->drv_write_chunk_fn = nor_drv_WriteChunkToNAND;
-	drv->drv_read_chunk_fn = nor_drv_ReadChunkFromNAND;
-	drv->drv_erase_fn = nor_drv_EraseBlockInNAND;
-	drv->drv_initialise_fn = nor_drv_InitialiseNAND;
-	drv->drv_deinitialise_fn = nor_drv_Deinitialise_flash_fn;
+	drv->drv_write_chunk_fn = nor_drv_WriteChunk;
+	drv->drv_read_chunk_fn = nor_drv_ReadChunk;
+	drv->drv_erase_fn = nor_drv_EraseBlock;
+	drv->drv_initialise_fn = nor_drv_Initialise;
+	drv->drv_deinitialise_fn = nor_drv_Deinitialise;
 
 	param->n_caches = 10;
 	param->disable_soft_del = 1;
 
-	dev->driver_context = (void *) nor_sim;
+//	dev->driver_context = (void *) nor_sim;
 
 	yaffs_add_device(dev);
 
-	return NULL;
+	return dev;
 }

@@ -1996,7 +1996,7 @@ CJSON_PUBLIC(cJSON_bool) cJSON_AddItemToArray(cJSON *array, cJSON *item)
     #pragma GCC diagnostic push
 #endif
 #ifdef __GNUC__
-#pragma GCC diagnostic ignored "-Wcast-qual"
+    #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif
 /* helper function to cast away const */
 static void* cast_away_const(const void* string)

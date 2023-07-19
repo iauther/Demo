@@ -25,6 +25,15 @@
 #include "yportenv.h"
 
 
+
+enum {
+    YAFFS_NOR=0,
+    YAFFS_NAND,
+};
+
+
+
+
 #ifndef NAME_MAX
 #define NAME_MAX	256
 #endif
@@ -340,6 +349,8 @@ int yaffs_set_error(int error);
 unsigned  yaffs_set_trace(unsigned tm);
 unsigned  yaffs_get_trace(void);
 
+struct yaffs_dev* yaffs_init(u8 yaffs_tp, u32 startAddr, u32 length);
+int yaffs_set_name(struct yaffs_dev *dev, const YCHAR *dev_name);
 
 #ifdef __cplusplus
 }

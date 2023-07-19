@@ -16,8 +16,10 @@
 #ifndef __YAFFS_NOR_DRV_H__
 #define __YAFFS_NOR_DRV_H__
 
-struct yaffs_dev;
-struct yaffs_dev *yaffs_nor_install_drv(const char *name);
+
+#include "yaffs_guts.h"
+
+struct yaffs_dev *yaffs_nor_init(u32 startAddr, u32 lengt);
 
 #endif
 

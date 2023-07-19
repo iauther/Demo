@@ -269,7 +269,7 @@ static int yaffs_create_free_objs(struct yaffs_dev *dev, int n_obj)
 
 	/* Hook them into the free list */
 	for (i = 0; i < n_obj; i++)
-		ylist_add(&new_objs[i].siblings, &allocator->free_objs);
+		list_add(&new_objs[i].siblings, &allocator->free_objs);
 
 	allocator->n_free_objects += n_obj;
 	allocator->n_obj_created += n_obj;
@@ -295,13 +295,13 @@ struct yaffs_obj *yaffs_alloc_raw_obj(struct yaffs_dev *dev)
 	}
 
 	/* If there are none left make more */
-	if (ylist_empty(&allocator->free_objs))
+	if (list_empty(&allocator->free_objs))
 		yaffs_create_free_objs(dev, YAFFS_ALLOCATION_NOBJECTS);
 
-	if (!ylist_empty(&allocator->free_objs)) {
+	if (!list_empty(&allocator->free_objs)) {
 		lh = allocator->free_objs.next;
-		obj = ylist_entry(lh, struct yaffs_obj, siblings);
-		ylist_del_init(lh);
+		obj = list_entry(lh, struct yaffs_obj, siblings);
+		list_del_init(lh);
 		allocator->n_free_objects--;
 	}
 
@@ -319,7 +319,7 @@ void yaffs_free_raw_obj(struct yaffs_dev *dev, struct yaffs_obj *obj)
 	}
 
 	/* Link into the free list. */
-	ylist_add(&obj->siblings, &allocator->free_objs);
+	list_add(&obj->siblings, &allocator->free_objs);
 	allocator->n_free_objects++;
 }
 

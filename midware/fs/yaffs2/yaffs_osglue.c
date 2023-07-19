@@ -9,7 +9,11 @@ unsigned int yaffs_trace_mask = YAFFS_TRACE_BAD_BLOCKS | YAFFS_TRACE_ALWAYS | YA
 
 u32 yaffsfs_CurrentTime(void)
 {
-    return osKernelGetTickCount();
+    u32 t=0;
+#ifdef OS_KERNEL
+    t = osKernelGetTickCount();
+#endif
+    return t;
 }
 
 

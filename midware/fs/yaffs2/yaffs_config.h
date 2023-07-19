@@ -3,6 +3,7 @@
 
 #include "types.h"
 
+#define LOFF_T_32_BIT
 #define CONFIG_YAFFS_DIRECT
 #define CONFIG_YAFFS_YAFFS2
 #define CONFIG_YAFFSFS_PROVIDE_VALUES

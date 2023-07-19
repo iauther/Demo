@@ -175,6 +175,25 @@ int rbuf_write(handle_t h, U8 *buf, int len)
 }
 
 
+int rbuf_reset(handle_t h)
+{
+    int size;
+    rbuf_handle_t* rh = (rbuf_handle_t*)h;
+
+    if (!rh) {
+        return -1;
+    }
+
+    lock_dynamic_hold(rh->lock);
+    rh->pr = 0;
+    rh->pw = 0;
+    rh->dlen = 0;
+    lock_dynamic_release(rh->lock);
+
+    return 0;
+}
+
+
 int rbuf_get_size(handle_t h)
 {
     int size;

@@ -4,7 +4,8 @@
 #include "types.h"
 
 enum {
-    LOCK_BIO=0,
+    LOCK_IMEM=0,
+    LOCK_XMEM,
     LOCK_NVM,
     
     LOCK_MAX

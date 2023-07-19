@@ -30,7 +30,7 @@
 #ifndef INC_TASK_H
 #define INC_TASK_H
 
-#include "freertos/list.h"
+#include "freertos/xlist.h"
 
 #ifdef __cplusplus
 extern "C" {

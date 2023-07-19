@@ -1,5 +1,6 @@
 #include "date.h"
-
+#include <ctype.h>
+#include <string.h>
 
 //__date__: "Jul 27 2012"
 //__TIME__: "21:06:19"
@@ -66,9 +67,53 @@ static U8 get_sec(char *__time__)
     
     return sec;
 }
-/////////////////////////////////////////////////////////////
 
-int get_date(char *__date__, date_t *date)
+//https://verytoolz.com/blog/3e1f461a7d/
+static U8 DOW(U16 y, U8 m, U8 d)
+{
+    // array with leading number of days values
+    U8 t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+         
+    // if month is less than 3 reduce year by 1
+    if (y < 3) y -= 1;
+
+    return ((y + y/4 - y/100 + y/400 + t[m-1] + d) % 7);
+}
+/////////////////////////////////////////////////////////////
+int get_week(U16 y, U8 m, U8 d)
+{
+    return DOW(y,m,d);
+}
+
+//http://www.proesite.com/timex/wkcalc.htm
+int get_weekn(U16 y, U8 m, U8 d)
+{
+    int dow     = DOW( y, m, d );
+    int dow0101 = DOW( y, 1, 1 );
+
+    if ((m==1)  &&  ((3<dow0101) && (dow0101< (7-(d-1)))) ) {
+        // days before week 1 of the current year have the same week number as
+        // the last day of the last week of the previous year
+
+        dow     = dow0101 - 1;
+        dow0101 = DOW(y-1, 1, 1);
+        m       = 12;
+        d       = 31;
+    }
+    else {
+        // days after the last week of the current year have the same week number as
+        // the first day of the next year, (i.e. 1)
+        U8 x=DOW(y+1, 1, 1);
+        if ((m==12) && ((30-(d-1)<x) && (x<4))) {
+            return 1;
+        }
+    }
+
+    return (DOW( y, 1, 1 ) < 4 ) + 4 * (m-1) + ( 2 * (m-1) + (d-1) + dow0101 - dow + 6) * 36 / 256;
+}
+
+
+int get_date(char *__date__, date_s_t *date)
 {
     if(!date) {
         return -1;
@@ -77,12 +122,13 @@ int get_date(char *__date__, date_t *date)
     date->year = get_year(__date__);
     date->mon  = get_month(__date__);
     date->day  = get_day(__date__);
+    date->week = get_week(date->year,date->mon,date->day);
     
     return 0;
 }
 
 
-int get_time(char *__time__, time2_t *time)
+int get_time(char *__time__, time_s_t *time)
 {
     if(!time) {
         return -1;
@@ -120,7 +166,7 @@ int get_time_string(char *__time__, void *str)
 }
 
 
-int date_is_valid(date_t *date)
+int date_is_valid(date_s_t *date)
 {
     if(!date) {
         return -1;
@@ -133,6 +179,36 @@ int date_is_valid(date_t *date)
     return 1;
 }
 
+//YYYY/MM/DD,hh:mm:ss+zz
+int get_datetime(char *datetime, date_time_t *dt)
+{
+    char *p;
+    char tmp[100];
+    
+    if(!datetime || !dt) {
+        return -1;
+    }
+    
+    strcpy(tmp, datetime);
+    
+    p = strchr(tmp, '"');
+    if(!p) {
+        return -1;
+    }
+    p++;
+    
+    p[4] = p[7] = p[10] = p[13] = p[16] = p[19] = 0;
+    
+    dt->date.year = atoi(p);
+    dt->date.mon  = atoi(p+5);
+    dt->date.day  = atoi(p+8);
+    dt->date.week = get_week(dt->date.year, dt->date.mon, dt->date.day);
+    
+    dt->time.hour = atoi(p+11)+8;
+    dt->time.min  = atoi(p+14);
+    dt->time.sec  = atoi(p+17);
 
-
+    
+    return 0;
+}
 

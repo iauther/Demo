@@ -3,20 +3,34 @@
 
 #include "types.h"
 
-
-handle_t xmem_init(void *start, int len);
-int xmem_deinit(handle_t h);
-void* xmem_malloc(handle_t h, int size, int zero);
-void* xmem_malloc_align(handle_t h, int size, int zero, int alignment);
-int xmem_free(handle_t h, void *ptr);
-int xmem_free_align(handle_t h, void *ptr);
+typedef enum {
+    SRAM_FIRST=0,
+    SDRAM_FIRST,
+}STRATEGY;
 
 
-#define xMalloc         xmem_malloc
-#define xFree           xmem_free
+int xmem_init(void *start, int len);
+void* xmem_malloc_align(STRATEGY stg, int len, U8 zero, int alignbytes);
+int xmem_free_align(void *ptr);
+int xmem_test(void);
 
-#define xAlignMalloc    xmem_malloc_align
-#define xAlignFree      xmem_free_align
+//i means internal sram malloc/calloc first
+#define iMalloc(x)         xmem_malloc_align(SRAM_FIRST,x,0,4)
+#define iCalloc(x)         xmem_malloc_align(SRAM_FIRST,x,1,4)
+#define iMallocA(x,y)      xmem_malloc_align(SRAM_FIRST,x,0,y)
+#define iCallocA(x,y)      xmem_malloc_align(SRAM_FIRST,x,1,y)
+
+//e means external sdram malloc/calloc first
+#define eMalloc(x)         xmem_malloc_align(SDRAM_FIRST,x,0,4)
+#define eCalloc(x)         xmem_malloc_align(SDRAM_FIRST,x,1,4)
+#define eMallocA(x,y)      xmem_malloc_align(SDRAM_FIRST,x,0,y)
+#define eCallocA(x,y)      xmem_malloc_align(SDRAM_FIRST,x,1,y)
+
+#define xFree(x)           xmem_free_align(x)
+
+
+
+
 
 #endif
 

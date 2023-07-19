@@ -62,24 +62,33 @@ int log_print(LEVEL lv, char *fmt, ...)
 
 
 
-int log_init(void)
+int log_init(rx_cb_t callback)
 {
+    int r=0;
     dal_uart_cfg_t uc;
 
     uc.mode = MODE_POLL;
     uc.port = LOG_UART;
+    uc.msb  = 0;
     uc.baudrate = LOG_BAUDRATE;
-    uc.para.callback  = NULL;
+    uc.para.callback  = callback;
     uc.para.buf = NULL;
     uc.para.blen = 0;
     uc.para.dlen = 0;
     logHandle = dal_uart_init(&uc);
+    if(!logHandle) {
+        return -1;
+    }
     
     return 0;
 }
 
 
 
+int log_deinit(void)
+{
+    return dal_uart_deinit(logHandle);
+}
 
 
 

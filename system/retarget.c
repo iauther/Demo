@@ -37,7 +37,7 @@ FILE __stdin;
 
 int fputc(int ch, FILE *p)
 {
-	uart_rw(logHandle, (u8*)&ch, 1, 0);	
+	dal_uart_rw(logHandle, (u8*)&ch, 1, 0);	
 	return ch;
 }
 
@@ -47,7 +47,7 @@ int fgetc(FILE *f)
 {
     int c=0;
     
-    uart_rw(logHandle, (U8*)&c, 1, 0);
+    dal_uart_rw(logHandle, (U8*)&c, 1, 0);
     return c;
 }
 
@@ -75,7 +75,7 @@ void _ttywrch (int c)
 #ifdef STDIO
     sendchar(c);
 #else
-    uart_rw(logHandle, (U8*)&c, 1, 1);
+    dal_uart_rw(logHandle, (U8*)&c, 1, 1);
 #endif
 }
 
@@ -204,4 +204,31 @@ int fputc(int ch, FILE *p)
 }
 
 #endif
+
+
+
+#if 0//def OS_KERNEL
+typedef void* mutex;
+#include "lock.h"
+int __attribute__((weak)) _mutex_initialize(mutex *m)
+{
+    return 1;
+}
+void __attribute__((weak)) _mutex_acquire(mutex *m)
+{
+    lock_static_hold(LOCK_IMEM);
+}
+void __attribute__((weak)) _mutex_release(mutex *m)
+{
+    lock_static_release(LOCK_IMEM);
+}
+void __attribute__((weak)) _mutex_free(mutex *m)
+{
+    
+}
+#endif
+
+
+
+
 

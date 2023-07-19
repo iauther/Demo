@@ -281,8 +281,11 @@ BlockLink_t *pxLink;
 		pxLink = ( void * ) puc;
 
 		/* Check the block is actually allocated. */
-		configASSERT( ( pxLink->xBlockSize & xBlockAllocatedBit ) != 0 );
-		configASSERT( pxLink->pxNextFreeBlock == NULL );
+		//configASSERT( ( pxLink->xBlockSize & xBlockAllocatedBit ) != 0 );
+        //configASSERT( pxLink->pxNextFreeBlock == NULL );
+        
+        if((pxLink->xBlockSize&xBlockAllocatedBit) || !pxLink->pxNextFreeBlock) return;
+		
 
 		if( ( pxLink->xBlockSize & xBlockAllocatedBit ) != 0 )
 		{

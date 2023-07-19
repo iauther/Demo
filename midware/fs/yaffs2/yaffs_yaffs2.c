@@ -710,8 +710,8 @@ static int yaffs2_wr_checkpt_objs(struct yaffs_dev *dev)
 	(void) cp_variant_type;
 
 	for (i = 0; ok && i < YAFFS_NOBJECT_BUCKETS; i++) {
-		ylist_for_each(lh, &dev->obj_bucket[i].list) {
-			obj = ylist_entry(lh, struct yaffs_obj, hash_link);
+		list_for_each(lh, &dev->obj_bucket[i].list) {
+			obj = list_entry(lh, struct yaffs_obj, hash_link);
 			if (!obj->defered_free) {
 				yaffs2_obj_checkpt_obj(&cp, obj);
 				cp.struct_type = sizeof(cp);
@@ -788,7 +788,7 @@ static int yaffs2_rd_checkpt_objs(struct yaffs_dev *dev)
 					ok = yaffs2_rd_checkpt_tnodes(obj);
 				} else if (obj->variant_type ==
 					YAFFS_OBJECT_TYPE_HARDLINK) {
-					ylist_add(&obj->hard_links, &hard_list);
+					list_add(&obj->hard_links, &hard_list);
 				}
 			} else {
 				ok = 0;
@@ -1499,7 +1499,7 @@ static inline int yaffs2_scan_chunk(struct yaffs_dev *dev,
 				hl_var = &in->variant.hardlink_variant;
 				if (!is_unlinked) {
 					hl_var->equiv_id = equiv_id;
-					ylist_add(&in->hard_links, hard_list);
+					list_add(&in->hard_links, hard_list);
 				}
 				break;
 			case YAFFS_OBJECT_TYPE_DIRECTORY:

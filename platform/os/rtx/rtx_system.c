@@ -124,7 +124,13 @@ void osRtxTick_Handler (void) {
     extern void HAL_IncTick(void);
     HAL_IncTick();
 #endif
-    
+
+#ifdef GD32F470
+    void systick_handler(void);
+    systick_handler();
+#endif
+
+
   OS_Tick_AcknowledgeIRQ();
   osRtxInfo.kernel.tick++;
 

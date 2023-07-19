@@ -13,6 +13,10 @@ typedef struct {
     cap_callback_t adc_fn;
     cap_callback_t tmr_fn;
     cap_callback_t sai_fn;
+    
+    U8             chs;
+    U8             chBits;
+    U8             e3Mux;
 }dal_cap_cfg_t;
 
 int dal_cap_init(void);

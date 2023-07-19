@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <math.h>
 #include <stdarg.h>
@@ -51,6 +52,8 @@ typedef uint8_t	    BOOL;
 #define TRUE    (1)
 #endif
 
+#define SWAP16(x) ((x<<8)|(x>>8))
+
 
 enum {
     MODE_POLL=0,
@@ -72,10 +75,38 @@ typedef void*  handle_t;
 #ifndef ABS
 #define ABS(a)      (((a)>=0)?(a):((a)*(-1)))
 #endif
+
+
+#define offset_of(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+
+typedef struct {
+    U16             year;
+    U8              mon;
+    U8              day;
+    U8              week;
+}date_s_t;
+
+typedef struct {
+    U8              hour;
+    U8              min;
+    U8              sec;
+}time_s_t;
+
+typedef struct {
+    date_s_t        date;
+    time_s_t        time;
+}date_time_t;
+
+typedef struct {
+    U8              *buf;
+    int             blen;
+    int             dlen;
+}buf_t;
     
 typedef struct {
-    void            *ptr;
-    U32             len;
+    void            *buf;
+    U32             blen;
+    U32             dlen;
 }node_t;
 typedef struct _lnode {
     node_t          data;

@@ -478,7 +478,7 @@ netif_do_set_ipaddr(struct netif *netif, const ip4_addr_t *ipaddr, ip_addr_t *ol
     mib2_add_ip4(netif);
     mib2_add_route_ip4(0, netif);
 
-    //netif_issue_reports(netif, NETIF_REPORT_TYPE_IPV4);
+    netif_issue_reports(netif, NETIF_REPORT_TYPE_IPV4);
 
     NETIF_STATUS_CALLBACK(netif);
     return 1; /* address changed */

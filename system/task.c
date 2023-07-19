@@ -44,7 +44,7 @@ static int msg_tx(task_handle_t *h, void *addr, U8 evt, U8 type, void *data, U16
     return r;
 }
 
-static int task_wait(int taskID)
+int task_wait(int taskID)
 {
     task_handle_t *h=taskHandle[taskID];
     
@@ -53,6 +53,7 @@ static int task_wait(int taskID)
     }
     
     //osThreadFlagsWait();
+    while(osThreadGetState(h->threadID)!=osThreadBlocked);
     
     return 0;
 }

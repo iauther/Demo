@@ -1,8 +1,11 @@
 #include "protocol.h"
+#include "board.h"
+#include "upgrade.h"
+#include "dal_uart.h"
+#include "dal_eth.h"
 #include "paras.h"
-#include "incs.h"
-#include "lwip.h"
 #include "dal.h"
+#include "net.h"
 #include "comm.h"
 #include "cfg.h"
 
@@ -11,36 +14,52 @@
 #endif
 
 
+#define ERROR_OF(port) ((port)==PORT_UART)?ERROR_COMM_UART:(((port)==PORT_USB)?ERROR_COMM_USB:ERROR_COMM_ETH)
+
+
 static int port_init(comm_handle_t *h, U8 port, rx_cb_t callback)
 {
-     h->port = port;
+    int r;
+    h->port = port;
     
 #ifndef _WIN32
     switch(port) {
         
         case PORT_UART:
         {
-            dal_uart_cfg_t uc;
+            dal_uart_cfg_t cfg;
             
-            uc.mode = MODE_DMA;
-            uc.port = COM_UART;               //PA2: TX   PA3: RX
-            uc.baudrate = COM_BAUDRATE;
-            uc.para.callback = callback;
-            uc.para.buf = h->rxBuf;
-            uc.para.blen = sizeof(h->rxBuf);
-            uc.para.dlen = 0;
-            
-            h->h = dal_uart_init(&uc);
+            cfg.mode = MODE_DMA;
+            cfg.port = COM_UART;               //PA2: TX   PA3: RX
+            cfg.baudrate = COM_BAUDRATE;
+            cfg.para.callback = callback;
+            cfg.para.buf = h->rxBuf;
+            cfg.para.blen = sizeof(h->rxBuf);
+            cfg.para.dlen = 0;
+            h->h = dal_uart_init(&cfg);
+            if(!h->h) {
+                return -1;
+            }
+            h->chkID = CHK_SUM;
         }
         break;
         
-        case PORT_ETH:
+        case PORT_NET:
         {
-            net_cfg_t nc;
+            net_cfg_t cfg;
+            cfg.callback = callback;
+            h->h = net_init(&cfg);
+            if(!h->h) {
+                return -1;
+            }
+            h->chkID = CHK_NONE;
+        }
+        break;
+        
+        case PORT_USB:
+        {
             
-            nc.callback = callback;
-            
-            h->h = net_init(&nc);
+            //h->chkID = CHK_NONE;
         }
         break;
         
@@ -66,7 +85,7 @@ static int port_deinit(comm_handle_t *h)
         }
         break;
         
-        case PORT_ETH:
+        case PORT_NET:
         {
             r = net_deinit(h->h);
         }
@@ -94,7 +113,7 @@ static int port_send(comm_handle_t *h, void *addr, void *data, int len)
         r = dal_uart_write(h->h, data, len);
         break;
         
-        case PORT_ETH:
+        case PORT_NET:
         r = net_write(h->h, addr, data, len);
         break;
     }
@@ -103,38 +122,38 @@ static int port_send(comm_handle_t *h, void *addr, void *data, int len)
     return r;
 }
 
-static int send_data(comm_handle_t *h, void *addr, U8 type, U8 nAck, void *data, int dlen)
+static int send_data(comm_handle_t *h, void *addr, U8 type, U8 nAck, void *data, int dlen, int chkID)
 {
     int len;
     
-    len = pkt_pack_data(type, nAck, data, dlen, h->rxBuf, sizeof(h->rxBuf));
+    len = pkt_pack_data(type, nAck, data, dlen, h->txBuf, sizeof(h->txBuf), chkID);
     if(len<=0) {
         return len;
     }
     
-    return port_send(h, addr, h->rxBuf, len);
+    return port_send(h, addr, h->txBuf, len);
 }
-static int send_ack(comm_handle_t *h, void *addr, U8 type, U8 err)
+static int send_ack(comm_handle_t *h, void *addr, U8 type, U8 err, int chkID)
 {
     int len;
     
-    len = pkt_pack_ack(type, err, h->rxBuf, sizeof(h->rxBuf));
+    len = pkt_pack_ack(type, err, h->txBuf, sizeof(h->txBuf), chkID);
     if(len<=0) {
-        return len;
+        return -1;
     }
     
-    return port_send(h, addr, h->rxBuf, len);
+    return port_send(h, addr, h->txBuf, len);
 }
-static int send_err(comm_handle_t *h, void *addr, U8 type, U8 err)
+static int send_err(comm_handle_t *h, void *addr, U8 type, U8 err, int chkID)
 {
     int len;
     
-    len = pkt_pack_err(type, err, h->rxBuf, sizeof(h->rxBuf));
+    len = pkt_pack_err(type, err, h->txBuf, sizeof(h->txBuf), chkID);
     if(len<=0) {
-        return len;
+        return -1;
     }
     
-    return port_send(h, addr, h->rxBuf, len);
+    return port_send(h, addr, h->txBuf, len);
 }
 //////////////////////////////////////////////////////////////
 
@@ -200,7 +219,7 @@ static int cmd_proc(handle_t h, void *addr, void *data)
 #ifdef _WIN32
 extern int paras_rx_flag;
 extern int upgrade_ack_error;
-int comm_proc(handle_t h, void *addr, void *data, U16 len)
+int comm_recv_proc(handle_t h, void *addr, void *data, U16 len)
 {
     int r;
     U8 err=0;
@@ -253,38 +272,18 @@ int comm_proc(handle_t h, void *addr, void *data, U16 len)
         }
         break;
         
-        case TYPE_UPGRADE:
-        {
-            //err = upgrade_proc(p->data);
-        }
-        break;
-        
         case TYPE_ACK:
         {
             ack_t* ack = (ack_t*)p->data;
             
-            if (ack->type==TYPE_UPGRADE) {
-                if (ack->error==0) {
-                    upgrade_ack_error = 1;
-                }
-                else {
-                    if (ack->error== ERROR_FW_PKT_ID) {
-                        upgrade_ack_error = 2;
-                    }
-                    else {
-                        upgrade_ack_error = 3;
-                    }
-                }
-            }
-
             LOG("___ type_ack, type: %d\n", ack->type);
             //pkt_ack_reset(ack->type);
         }
         break;
 
-        case TYPE_LEAP:
+        case TYPE_HBEAT:
         {
-            LOG("___ type_leap\n");
+            LOG("___ TYPE_HBEAT\n");
             err=0;
         }
         break;
@@ -310,14 +309,8 @@ int comm_proc(handle_t h, void *addr, void *data, U16 len)
     
 }
 #else
-static void jumpto_app(handle_t h)
-{
-    comm_deinit(h);
-    board_deinit();
-    dal_jump_to_app();
-}
 
-static U8 _normal_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
+static U8 _normal_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p, int chkID)
 {
     int r;
     U8  err=0;
@@ -327,12 +320,6 @@ static U8 _normal_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
         case TYPE_SETT:
         {
             
-        }
-        break;
-				
-        case TYPE_UPGRADE:
-        {
-            upgrade_flag = 1;
         }
         break;
         
@@ -350,8 +337,7 @@ static U8 _normal_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
         }
         break;
         
-        case TYPE_LEAP:
-        case TYPE_TEST:
+        case TYPE_HBEAT:
         {
             err=0;
         }
@@ -365,16 +351,15 @@ static U8 _normal_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
     }
     
     if (p->askAck) {
-        send_ack(h, addr, p->type, err);
+        send_ack(h, addr, p->type, err, chkID);
     }
     else {
         if (err) {
-            send_err(h, addr, p->type, err);
+            send_err(h, addr, p->type, err, chkID);
         }
     }
     
     if(upgrade_flag==1) {
-        paras_set_upg();
         dal_reboot();
     }
     
@@ -383,7 +368,7 @@ static U8 _normal_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
 
 
 
-static U8 _upgrade_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
+static U8 _upgrade_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p, int chkID)
 {
     int r;
     U8  err=0;
@@ -392,16 +377,16 @@ static U8 _upgrade_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
         case TYPE_STAT:
         {
             curStat.sysState = sysState;
-            r = send_data(h, addr, TYPE_STAT, 0, &curStat, sizeof(curStat));
+            r = send_data(h, addr, TYPE_STAT, 0, &curStat, sizeof(curStat), chkID);
             if(r) {
-                err = ERROR_UART2_COM;
+                err = ERROR_OF(h->port);
             }
         }
         break;
         
-        case TYPE_UPGRADE:
+        case TYPE_FILE:
         {
-            err = upgrade_proc(p->data);  
+            //err = upgrade_proc(p->data);  
         }
         break;
         
@@ -418,12 +403,6 @@ static U8 _upgrade_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
             err = cmd_proc(h->h, addr, p->data);
         }
         break;
-        
-        case TYPE_ERROR:
-        {
-            err = ERROR_PKT_TYPE_UNSUPPORT;
-        }
-        break;
 
         default:
         {
@@ -433,29 +412,21 @@ static U8 _upgrade_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p)
     }
     
     if (p->askAck) {
-        send_ack(h, addr, p->type, err);
+        send_ack(h, addr, p->type, err, chkID);
     }
     else {
         if (err) {
-            send_err(h, addr, p->type, err);
+            send_err(h, addr, p->type, err, chkID);
         }
     }
     
-    if(upgrade_is_finished()) {
-        if(upgrade_is_app()) {
-            jumpto_app(h);
-        }
-        else {
-            paras_clr_upg();
-            dal_reboot();
-        }
-    }
+    
     
     return err;
 }
 
 
-int comm_proc(handle_t h, void *addr, void *data, int len)
+int comm_recv_proc(handle_t h, void *addr, void *data, int len)
 {
     int r;
     int err=0;
@@ -463,13 +434,13 @@ int comm_proc(handle_t h, void *addr, void *data, int len)
     comm_handle_t *ch=(comm_handle_t*)h;
     pkt_hdr_t *p=(pkt_hdr_t*)data;
 
-    err = pkt_check_hdr(p, len, sizeof(ch->rxBuf));
+    err = pkt_check_hdr(p, len, len, ch->chkID);
     if (err == ERROR_NONE) {
         if(sysState==STAT_UPGRADE) {
-            err = _upgrade_proc(ch, addr, p);
+            err = _upgrade_proc(ch, addr, p, ch->chkID);
         }
         else {
-            err = _normal_proc(ch, addr, p);
+            err = _normal_proc(ch, addr, p, ch->chkID);
         }
     } 
     
@@ -485,16 +456,14 @@ int com_send_paras(handle_t h, void *addr, U8 flag)
     comm_handle_t *ch=(comm_handle_t*)h;
     
     if (flag == 0) {      //ask paras
-        r = send_data(ch, addr, TYPE_PARA, 0, NULL, 0);
-        if (r) {
-            err = ERROR_UART2_COM;
-        }
+        r = send_data(ch, addr, TYPE_PARA, 0, NULL, 0, ch->chkID);
     }
     else {
-        r = send_data(ch, addr, TYPE_PARA, 1, &curPara, sizeof(curPara));
-        if (r ) {
-            err = ERROR_UART2_COM;
-        }
+        r = send_data(ch, addr, TYPE_PARA, 1, &curPara, sizeof(curPara), ch->chkID);
+    }
+    
+    if (r ) {
+        err = ERROR_OF(ch->port);
     }
     
     return err;
@@ -506,8 +475,8 @@ int comm_send_data(handle_t h, void *addr, U8 type, U8 nAck, void* data, int len
     int r;
     comm_handle_t *ch=(comm_handle_t*)h;
     
-    r =  send_data(ch, addr, type, nAck, data, len);
-    return (r == 0) ? 0 : ERROR_UART2_COM;
+    r =  send_data(ch, addr, type, nAck, data, len, ch->chkID);
+    return (r == 0) ? 0 : ERROR_OF(ch->port);
 }
 
 

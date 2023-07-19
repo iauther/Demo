@@ -22,19 +22,17 @@ int paras_load(void)
     if(sysState!=STAT_UPGRADE) {
         r = paras_get_fwinfo(&fwinfo);
         if(r==0) {
-            if(fwinfo.magic!=FW_MAGIC && fwinfo.magic!=UPG_MAGIC) {
+            if(fwinfo.magic!=FW_MAGIC) {
                 curPara = DEFAULT_PARAS.para;
                 r = paras_write(FILE_SETT, &DEFAULT_PARAS, sizeof(DEFAULT_PARAS));
             }
             else {
                 
-                paras_clr_upg();
                 if(memcmp(fwinfo.version, DEFAULT_PARAS.para.fwInfo.version, sizeof(fwinfo)-sizeof(fwinfo.magic))) {
                     paras_set_fwinfo(&DEFAULT_PARAS.para.fwInfo);
                 }
                 
                 r = paras_read(offsetof(paras_t, para), &curPara, sizeof(curPara));
-                paras_get_state(&sysState);
             }
         }
         else {
@@ -76,62 +74,12 @@ int paras_read(int id, void *data, int len)
     return nvm_read(id, data, len);
 }
 
+
 int paras_write(int id, void *data, int len)
 {
     return nvm_write(id, data, len);
 }
 
-
-int paras_write_node(node_t *n)
-{
-    U32 addr=offsetof(paras_t, para)+UPGRADE_INFO_ADDR;
-    
-    if(!n) {
-        return -1;
-    }
-    
-    addr += ((U32)n->ptr-(U32)&curPara);
-    return paras_write(addr, n->ptr, n->len);
-}
-
-
-int paras_get_magic(U32 *magic)
-{
-    int r=-1;
-    para_t *p=malloc(sizeof(para_t));
-    
-    if (!magic || !p) {
-        return -1;
-    }
-
-    r = paras_read(FILE_SETT, p, sizeof(para_t));
-    if(r==0) {
-        *magic = p->fwInfo.magic;
-    }
-    free(p);
-    
-    return r;
-}
-
-
-int paras_set_magic(U32 magic)
-{
-    int r=-1;
-    para_t *p=malloc(sizeof(para_t));
-    
-    if (!magic || !p) {
-        return -1;
-    }
-
-    r = paras_read(FILE_SETT, p, sizeof(para_t));
-    if(r==0) {
-        p->fwInfo.magic = magic;
-        r = paras_write(FILE_SETT, p, sizeof(para_t));
-    }
-    free(p);
-    
-    return r;
-}
 
 
 int paras_get_fwinfo(fw_info_t *fwinfo)
@@ -168,37 +116,6 @@ int paras_set_fwinfo(fw_info_t *fwinfo)
         r = paras_write(FILE_SETT, p, sizeof(para_t));
     }
     free(p);
-    
-    return r;
-}
-
-
-
-int paras_set_upg(void)
-{
-    int r;
-    U32 magic;
-    
-    r = paras_get_magic(&magic);
-    if(r==0 && magic!=UPG_MAGIC) {
-        magic = UPG_MAGIC;
-        r = paras_set_magic(magic);
-    }
-    
-    return r;
-}
-
-
-int paras_clr_upg(void)
-{
-    int r;
-    U32 magic=0;
-    
-    r = paras_get_magic(&magic);
-    if(r==0 && magic==UPG_MAGIC) {
-        magic = FW_MAGIC;
-        r = paras_set_magic(magic);
-    }
     
     return r;
 }

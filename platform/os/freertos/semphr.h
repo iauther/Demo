@@ -34,7 +34,7 @@
 	#error "include FreeRTOS.h" must appear in source files before "include semphr.h"
 #endif
 
-#include "freertos/queue.h"
+#include "freertos/xqueue.h"
 
 typedef QueueHandle_t SemaphoreHandle_t;
 

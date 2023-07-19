@@ -1,5 +1,23 @@
 #include "dal.h"
 #include "platform.h"
+#include "cfg.h"
+
+#define SDRAM_SIZE          (64*1024*1024)
+#define BANK6_SDRAM_ADDR    ((U32)(SDRAM_ADDR)) // SDRAMå¼€å§‹åœ°å€
+
+//SDRAMé…ç½®å‚æ•°
+#define SDRAM_MODEREG_BURST_LENGTH_1             ((U16)0x0000)
+#define SDRAM_MODEREG_BURST_LENGTH_2             ((U16)0x0001)
+#define SDRAM_MODEREG_BURST_LENGTH_4             ((U16)0x0002)
+#define SDRAM_MODEREG_BURST_LENGTH_8             ((U16)0x0004)
+#define SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL      ((U16)0x0000)
+#define SDRAM_MODEREG_BURST_TYPE_INTERLEAVED     ((U16)0x0008)
+#define SDRAM_MODEREG_CAS_LATENCY_2              ((U16)0x0020)
+#define SDRAM_MODEREG_CAS_LATENCY_3              ((U16)0x0030)
+#define SDRAM_MODEREG_OPERATING_MODE_STANDARD    ((U16)0x0000)
+#define SDRAM_MODEREG_WRITEBURST_MODE_PROGRAMMED ((U16)0x0000)
+#define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((U16)0x0200)
+
 
 
 static SDRAM_HandleTypeDef SDRAM_Handler = {0};
@@ -9,11 +27,11 @@ static int sdram_send_cmd(U8 cmd, U8 refresh, U16 regval)
     FMC_SDRAM_CommandTypeDef Command = {0};
     
     Command.CommandMode = cmd;
-    Command.CommandTarget = FMC_SDRAM_CMD_TARGET_BANK2; // Ä¿±êSDRAM´æ´¢ÇøÓò
-    Command.AutoRefreshNumber = refresh;				// ×ÔË¢ÐÂ´ÎÊý
-    Command.ModeRegisterDefinition = regval;			// ÒªÐ´ÈëÄ£Ê½¼Ä´æÆ÷µÄÖµ
+    Command.CommandTarget = FMC_SDRAM_CMD_TARGET_BANK2; // ç›®æ ‡SDRAMå­˜å‚¨åŒºåŸŸ
+    Command.AutoRefreshNumber = refresh;                //è‡ªåˆ·æ–°æ¬¡æ•°
+    Command.ModeRegisterDefinition = regval;            // è¦å†™å…¥æ¨¡å¼å¯„å­˜å™¨çš„å€¼
     
-	if (HAL_SDRAM_SendCommand(&SDRAM_Handler, &Command, 0XFFFF) == HAL_OK) {
+    if (HAL_SDRAM_SendCommand(&SDRAM_Handler, &Command, 0XFFFF) == HAL_OK) {
         return 1;  
     }
     else {
@@ -22,91 +40,58 @@ static int sdram_send_cmd(U8 cmd, U8 refresh, U16 regval)
 }
 static void sdram_config(SDRAM_HandleTypeDef *hsdram)
 {
-	U32 tmpmrd = 0;
+    U32 tmpmrd = 0;
     U32 timeout = 0xFFFF;
-	
-	/* Wait until the SDRAM controller is ready */
-	while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
-	{
-		timeout--;
-	}
-    // SDRAM¿ØÖÆÆ÷³õÊ¼»¯Íê³ÉÒÔºó»¹ÐèÒª°´ÕÕÈçÏÂË³Ðò³õÊ¼»¯SDRAM
-    sdram_send_cmd(FMC_SDRAM_CMD_CLK_ENABLE, 1, 0); 		// Ê±ÖÓÅäÖÃÊ¹ÄÜ
-    dal_delay_us(500);                                  		// ÖÁÉÙÑÓÊ±500us
-	timeout = 0xFFFF;
-	while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
-	{
-		timeout--;
-	}
-	sdram_send_cmd(FMC_SDRAM_CMD_PALL, 1, 0);       		// ¶ÔËùÓÐ´æ´¢ÇøÔ¤³äµç
-	timeout = 0xFFFF;
-	while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
-	{
-		timeout--;
-	}
-    sdram_send_cmd(FMC_SDRAM_CMD_AUTOREFRESH_MODE, 8, 0);	// ÉèÖÃ×ÔË¢ÐÂ´ÎÊý 
     
-	// ÅäÖÃÄ£Ê½¼Ä´æÆ÷
-	// bit0~bit2ÎªÖ¸¶¨Í»·¢·ÃÎÊµÄ³¤¶È
-	// bit3ÎªÖ¸¶¨Í»·¢·ÃÎÊµÄÀàÐÍ£¬bit4~bit6ÎªCASÖµ£¬bit7ºÍbit8ÎªÔËÐÐÄ£Ê½
-	// bit9ÎªÖ¸¶¨µÄÐ´Í»·¢Ä£Ê½£¬bit10ºÍbit11Î»±£ÁôÎ»
-	tmpmrd = (U32)(SDRAM_MODEREG_BURST_LENGTH_1  |		// ÉèÖÃÍ»·¢³¤¶È:1(¿ÉÒÔÊÇ1/2/4/8)
-              SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   |		// ÉèÖÃÍ»·¢ÀàÐÍ:Á¬Ðø(¿ÉÒÔÊÇÁ¬Ðø/½»´í)
-              SDRAM_MODEREG_CAS_LATENCY_2           |		// ÉèÖÃCASÖµ:2(¿ÉÒÔÊÇ2/3)
-              SDRAM_MODEREG_OPERATING_MODE_STANDARD |   	// ÉèÖÃ²Ù×÷Ä£Ê½:0±ê×¼Ä£Ê½
-              SDRAM_MODEREG_WRITEBURST_MODE_SINGLE);     	// ÉèÖÃÍ»·¢Ð´Ä£Ê½:1µ¥µã·ÃÎÊ
-		timeout = 0xFFFF;
-		while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
-	{
-		timeout--;
-	}
+    /* Wait until the SDRAM controller is ready */
+    while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
+    {
+        timeout--;
+    }
+    // SDRAMæŽ§åˆ¶å™¨åˆå§‹åŒ–å®Œæˆä»¥åŽè¿˜éœ€è¦æŒ‰ç…§å¦‚ä¸‹é¡ºåºåˆå§‹åŒ–SDRAM
+    sdram_send_cmd(FMC_SDRAM_CMD_CLK_ENABLE, 1, 0);         // æ—¶é’Ÿé…ç½®ä½¿èƒ½
+    dal_delay_us(500);                                      // è‡³å°‘å»¶æ—¶500us
+    timeout = 0xFFFF;
+    while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
+    {
+        timeout--;
+    }
+    sdram_send_cmd(FMC_SDRAM_CMD_PALL, 1, 0);               //å¯¹æ‰€æœ‰å­˜å‚¨åŒºé¢„å……ç”µ
+    timeout = 0xFFFF;
+    while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
+    {
+        timeout--;
+    }
+    sdram_send_cmd(FMC_SDRAM_CMD_AUTOREFRESH_MODE, 8, 0);   // è®¾ç½®è‡ªåˆ·æ–°æ¬¡æ•° 
     
-	sdram_send_cmd(FMC_SDRAM_CMD_LOAD_MODE, 1, tmpmrd);		// ÉèÖÃSDRAMµÄÄ£Ê½¼Ä´æÆ÷
-    
-    // Ë¢ÐÂÆµÂÊ¼ÆÊýÆ÷(ÒÔSDCLKÆµÂÊ¼ÆÊý)£¬¼ÆËã·½·¨:
-	// COUNT=SDRAMË¢ÐÂÖÜÆÚ/ÐÐÊý-20=SDRAMË¢ÐÂÖÜÆÚ(us)*SDCLKÆµÂÊ(Mhz)/ÐÐÊý-20
-    // SDRAMË¢ÐÂÖÜÆÚÎª64ms£¬SDCLK=96Mhz£¬ÐÐÊýÎª8192(2^13).
-	// COUNT=64*1000*96/8192-20=730
-	HAL_SDRAM_ProgramRefreshRate(&SDRAM_Handler, 730);	
-	timeout = 0xFFFF;
-	while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
-	{
-		timeout--;
-	}
-}
-
-
-
-int dal_sdram_read(U8 *buf, U32 offset, U32 len)
-{
-    if(!buf || !len || offset>=SDRAM_SIZE || offset+len>=SDRAM_SIZE) {
-        return -1;
+    // é…ç½®æ¨¡å¼å¯„å­˜å™¨
+    // bit0~bit2ä¸ºæŒ‡å®šçªå‘è®¿é—®çš„é•¿åº¦
+    // bit3ä¸ºæŒ‡å®šçªå‘è®¿é—®çš„ç±»åž‹ï¼Œbit4~bit6ä¸ºCASå€¼ï¼Œbit7å’Œbit8ä¸ºè¿è¡Œæ¨¡å¼
+    // bit9ä¸ºæŒ‡å®šçš„å†™çªå‘æ¨¡å¼ï¼Œbit10å’Œbit11ä½ä¿ç•™ä½
+    tmpmrd = (U32)(SDRAM_MODEREG_BURST_LENGTH_1  |          // è®¾ç½®çªå‘é•¿åº¦:1(å¯ä»¥æ˜¯1/2/4/8)
+              SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   |       //è®¾ç½®çªå‘ç±»åž‹:è¿žç»­(å¯ä»¥æ˜¯è¿žç»­/äº¤é”™)
+              SDRAM_MODEREG_CAS_LATENCY_2           |       // è®¾ç½®CASå€¼:2(å¯ä»¥æ˜¯2/3)
+              SDRAM_MODEREG_OPERATING_MODE_STANDARD |       // è®¾ç½®æ“ä½œæ¨¡å¼:0æ ‡å‡†æ¨¡å¼
+              SDRAM_MODEREG_WRITEBURST_MODE_SINGLE);        // è®¾ç½®çªå‘å†™æ¨¡å¼:1å•ç‚¹è®¿é—®
+        timeout = 0xFFFF;
+        while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
+    {
+        timeout--;
     }
     
-	for(; len!=0; len--) {
-		*buf++ = *(__IO U8 *)(BANK6_SDRAM_ADDR+offset);
-		offset++;
-	}
+    sdram_send_cmd(FMC_SDRAM_CMD_LOAD_MODE, 1, tmpmrd);     // è®¾ç½®SDRAMçš„æ¨¡å¼å¯„å­˜å™¨
     
-    return 0;
-}
-
-
-int dal_sdram_write(U8 *buf, U32 offset, U32 len)
-{
-    if(!buf || !len || offset>=SDRAM_SIZE || offset+len>=SDRAM_SIZE) {
-        return -1;
+    // åˆ·æ–°é¢‘çŽ‡è®¡æ•°å™¨(ä»¥SDCLKé¢‘çŽ‡è®¡æ•°)ï¼Œè®¡ç®—æ–¹æ³•:
+    // COUNT=SDRAMåˆ·æ–°å‘¨æœŸ/è¡Œæ•°-20=SDRAMåˆ·æ–°å‘¨æœŸ(us)*SDCLKé¢‘çŽ‡(Mhz)/è¡Œæ•°-20
+    // SDRAMåˆ·æ–°å‘¨æœŸä¸º64msï¼ŒSDCLK=96Mhzï¼Œè¡Œæ•°ä¸º8192(2^13).
+    // COUNT=64*1000*96/8192-20=730
+    HAL_SDRAM_ProgramRefreshRate(&SDRAM_Handler, 730);  
+    timeout = 0xFFFF;
+    while((__FMC_SDRAM_GET_FLAG(FMC_SDRAM_DEVICE, HAL_SDRAM_STATE_BUSY)) && (timeout > 0))
+    {
+        timeout--;
     }
-    
-	for(; len!=0; len--) {
-		*(__IO U8 *)(BANK6_SDRAM_ADDR+offset) = *buf;
-		offset++;
-		buf++;
-	}
-    
-    return 0;
 }
-
 
 
 
@@ -114,43 +99,43 @@ void HAL_SDRAM_MspInit(SDRAM_HandleTypeDef *hsdram)
 {
     GPIO_InitTypeDef init;
 
-	/*S1£ºÊ¹ÄÜFMCÊ±ÖÓºÍGPIOÊ±ÖÓ*/
-    __HAL_RCC_FMC_CLK_ENABLE();                 	    // Ê¹ÄÜFMCÊ±ÖÓ
-	__HAL_RCC_GPIOC_CLK_ENABLE();               	    // Ê¹ÄÜGPIOCÊ±ÖÓ
-    __HAL_RCC_GPIOD_CLK_ENABLE();               	    // Ê¹ÄÜGPIODÊ±ÖÓ
-    __HAL_RCC_GPIOE_CLK_ENABLE();               	    // Ê¹ÄÜGPIOEÊ±ÖÓ
-    __HAL_RCC_GPIOF_CLK_ENABLE();               	    // Ê¹ÄÜGPIOFÊ±ÖÓ
-    __HAL_RCC_GPIOG_CLK_ENABLE();               	    // Ê¹ÄÜGPIOGÊ±ÖÓ
-	__HAL_RCC_GPIOH_CLK_ENABLE();               	    // Ê¹ÄÜGPIOHÊ±ÖÓ
-	__HAL_RCC_GPIOI_CLK_ENABLE();               	    // Ê¹ÄÜGPIOIÊ±ÖÓ   
     
-    /*S2£ºÅäÖÃGPIO*/	
-    init.Mode = GPIO_MODE_AF_PP;          	// ÍÆÍì¸´ÓÃ
-    init.Pull = GPIO_PULLUP;              	// ÉÏÀ­
-    init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;	// ¸ßËÙ
-    init.Alternate = GPIO_AF12_FMC;			// ¸´ÓÃÎªFMC 
+    __HAL_RCC_FMC_CLK_ENABLE();  
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    __HAL_RCC_GPIOH_CLK_ENABLE();
+    __HAL_RCC_GPIOI_CLK_ENABLE();
+    
+    
+    init.Mode = GPIO_MODE_AF_PP;            
+    init.Pull = GPIO_PULLUP;                
+    init.Speed = GPIO_SPEED_FREQ_VERY_HIGH; 
+    init.Alternate = GPIO_AF12_FMC;         
 
     init.Pin = GPIO_PIN_0;
     HAL_GPIO_Init(GPIOC, &init);
-	
-    init.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_14 | GPIO_PIN_15;  	
+    
+    init.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_14 | GPIO_PIN_15;     
     HAL_GPIO_Init(GPIOD, &init);
 
     init.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | \
                GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
     HAL_GPIO_Init(GPIOE, &init);
-	
+    
     init.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | \
                GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
     HAL_GPIO_Init(GPIOF, &init);
-	
+    
     init.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_8 | GPIO_PIN_15;
     HAL_GPIO_Init(GPIOG, &init);
-	
+    
     init.Pin = GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | \
                GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
     HAL_GPIO_Init(GPIOH, &init);
-	
+    
     init.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | \
                GPIO_PIN_7 | GPIO_PIN_9 | GPIO_PIN_10;
     HAL_GPIO_Init(GPIOI, &init);
@@ -162,27 +147,27 @@ int dal_sdram_init(void)
     FMC_SDRAM_TimingTypeDef SDRAM_Timing = {0};
 
     SDRAM_Handler.Instance = FMC_SDRAM_DEVICE;
-    SDRAM_Handler.Init.SDBank = FMC_SDRAM_BANK2;							// SDRAM½ÓÔÚBANK6ÉÏ
-    SDRAM_Handler.Init.ColumnBitsNumber = FMC_SDRAM_COLUMN_BITS_NUM_9;     	// ÁÐÊýÁ¿9
-    SDRAM_Handler.Init.RowBitsNumber = FMC_SDRAM_ROW_BITS_NUM_13;          	// ÐÐÊýÁ¿13
-    SDRAM_Handler.Init.MemoryDataWidth = FMC_SDRAM_MEM_BUS_WIDTH_32;       	// Êý¾Ý¿í¶ÈÎª32Î»
-    SDRAM_Handler.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;  	// 4¸öBANK
-    SDRAM_Handler.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_2;               	// CASÎª2
-    SDRAM_Handler.Init.WriteProtection = FMC_SDRAM_WRITE_PROTECTION_DISABLE;// Ê§ÄÜÐ´±£»¤
-    SDRAM_Handler.Init.SDClockPeriod = FMC_SDRAM_CLOCK_PERIOD_2;           	// SDRAMÊ±ÖÓÎªHCLK/2=192MHz/2=96MHz=10.417ns
-    SDRAM_Handler.Init.ReadBurst = FMC_SDRAM_RBURST_ENABLE;                	// Ê¹ÄÜÍ»·¢
-    SDRAM_Handler.Init.ReadPipeDelay = FMC_SDRAM_RPIPE_DELAY_2;            	// RPIPEÉèÖÃÎª2¸öÊ±ÖÓÖÜÆÚÑÓ³Ù£¬ÒÔ½«Í»·¢¶Á´«Êä³¤¶ÈÉèÖÃÎª4¸ö×Ö
+    SDRAM_Handler.Init.SDBank = FMC_SDRAM_BANK2;                            // SDRAMæŽ¥åœ¨BANK6ä¸Š
+    SDRAM_Handler.Init.ColumnBitsNumber = FMC_SDRAM_COLUMN_BITS_NUM_9;      // åˆ—æ•°é‡9
+    SDRAM_Handler.Init.RowBitsNumber = FMC_SDRAM_ROW_BITS_NUM_13;           // è¡Œæ•°é‡13
+    SDRAM_Handler.Init.MemoryDataWidth = FMC_SDRAM_MEM_BUS_WIDTH_32;        // æ•°æ®å®½åº¦ä¸º32ä½
+    SDRAM_Handler.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;   // 4ä¸ªBANK
+    SDRAM_Handler.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_2;                // CASä¸º2
+    SDRAM_Handler.Init.WriteProtection = FMC_SDRAM_WRITE_PROTECTION_DISABLE;// å¤±èƒ½å†™ä¿æŠ¤
+    SDRAM_Handler.Init.SDClockPeriod = FMC_SDRAM_CLOCK_PERIOD_2;            // SDRAMæ—¶é’Ÿä¸ºHCLK/2=192MHz/2=96MHz=10.417ns
+    SDRAM_Handler.Init.ReadBurst = FMC_SDRAM_RBURST_ENABLE;                 // ä½¿èƒ½çªå‘
+    SDRAM_Handler.Init.ReadPipeDelay = FMC_SDRAM_RPIPE_DELAY_2;             // RPIPEè®¾ç½®ä¸º2ä¸ªæ—¶é’Ÿå‘¨æœŸå»¶è¿Ÿï¼Œä»¥å°†çªå‘è¯»ä¼ è¾“é•¿åº¦è®¾ç½®ä¸º4ä¸ªå­—
     
-    SDRAM_Timing.LoadToActiveDelay = 2;		                                // TMRD£¬¼ÓÔØÄ£Ê½¼Ä´æÆ÷µ½¼¤»îÊ±¼äµÄÑÓ³ÙÎª2¸öÊ±ÖÓÖÜÆÚ
-    SDRAM_Timing.ExitSelfRefreshDelay = 7;	                                // TXSR£¬´Ó·¢³ö×ÔË¢ÐÂÃüÁîµ½·¢³ö¼¤»îÃüÁîÖ®¼äµÄÑÓ³ÙÎª7¸öÊ±ÖÓÖÜÆÚ
-    SDRAM_Timing.SelfRefreshTime = 5;		                                // TRAS£¬×ÔË¢ÐÂÊ±¼äÎª5¸öÊ±ÖÓÖÜÆÚ
-    SDRAM_Timing.RowCycleDelay = 6;			                                // TRC£¬Ë¢ÐÂÃüÁîºÍ¼¤»îÃüÁîÖ®¼äµÄÑÓ³ÙÎª6¸öÊ±ÖÓÖÜÆÚ
-    SDRAM_Timing.WriteRecoveryTime = 3;		                                // TWR£¬Ð´ÃüÁîºÍÔ¤³äµçÃüÁîÖ®¼äµÄÑÓ³ÙÎª3¸öÊ±ÖÓÖÜÆÚ£¬±£Ö¤Êý¾Ý¿É¿¿Ð´Èë
-    SDRAM_Timing.RPDelay = 2;				                                // TRP£¬Ô¤³äµçÃüÁîÓëÆäËüÃüÁîÖ®¼äµÄÑÓ³ÙÎª2¸öÊ±ÖÓÖÜÆÚ
-    SDRAM_Timing.RCDDelay = 2;				                                // TRCD£¬¼¤»îÃüÁîÓë¶Á/Ð´ÃüÁîÖ®¼äµÄÑÓ³ÙÎª2¸öÊ±ÖÓÖÜÆÚ
+    SDRAM_Timing.LoadToActiveDelay = 2;                                     // TMRDï¼ŒåŠ è½½æ¨¡å¼å¯„å­˜å™¨åˆ°æ¿€æ´»æ—¶é—´çš„å»¶è¿Ÿä¸º2ä¸ªæ—¶é’Ÿå‘¨æœŸ
+    SDRAM_Timing.ExitSelfRefreshDelay = 7;                                  // TXSRï¼Œä»Žå‘å‡ºè‡ªåˆ·æ–°å‘½ä»¤åˆ°å‘å‡ºæ¿€æ´»å‘½ä»¤ä¹‹é—´çš„å»¶è¿Ÿä¸º7ä¸ªæ—¶é’Ÿå‘¨æœŸ
+    SDRAM_Timing.SelfRefreshTime = 5;                                       // TRASï¼Œè‡ªåˆ·æ–°æ—¶é—´ä¸º5ä¸ªæ—¶é’Ÿå‘¨æœŸ
+    SDRAM_Timing.RowCycleDelay = 6;                                         // TRCï¼Œåˆ·æ–°å‘½ä»¤å’Œæ¿€æ´»å‘½ä»¤ä¹‹é—´çš„å»¶è¿Ÿä¸º6ä¸ªæ—¶é’Ÿå‘¨æœŸ
+    SDRAM_Timing.WriteRecoveryTime = 3;                                     // TWRï¼Œå†™å‘½ä»¤å’Œé¢„å……ç”µå‘½ä»¤ä¹‹é—´çš„å»¶è¿Ÿä¸º3ä¸ªæ—¶é’Ÿå‘¨æœŸï¼Œä¿è¯æ•°æ®å¯é å†™å…¥
+    SDRAM_Timing.RPDelay = 2;                                               // TRPï¼Œé¢„å……ç”µå‘½ä»¤ä¸Žå…¶å®ƒå‘½ä»¤ä¹‹é—´çš„å»¶è¿Ÿä¸º2ä¸ªæ—¶é’Ÿå‘¨æœŸ
+    SDRAM_Timing.RCDDelay = 2;                                              // TRCDï¼Œæ¿€æ´»å‘½ä»¤ä¸Žè¯»/å†™å‘½ä»¤ä¹‹é—´çš„å»¶è¿Ÿä¸º2ä¸ªæ—¶é’Ÿå‘¨æœŸ
     HAL_SDRAM_Init(&SDRAM_Handler, &SDRAM_Timing);  
-	
-	sdram_config(&SDRAM_Handler);
+    
+    sdram_config(&SDRAM_Handler);
     
     return 0;
 }

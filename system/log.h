@@ -2,6 +2,7 @@
 #define __LOG_Hx__
 
 #include "types.h"
+#include "comm.h"
 
 typedef enum {
     LV_INFO,
@@ -20,7 +21,8 @@ typedef struct {
 extern log_cfg_t log_cfg;
 extern const char* log_string[LV_MAX];
 
-int log_init(void);
+int log_init(rx_cb_t callback);
+int log_deinit(void);
 int log_get(log_cfg_t *cfg);
 int log_set(log_cfg_t *cfg);
 
