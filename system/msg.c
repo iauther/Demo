@@ -9,7 +9,7 @@ msg_t* msg_init(int max, int msg_size)
 {
     msg_t *m=NULL;
     
-    m = (msg_t*)calloc(1, sizeof(msg_t));
+    m = (msg_t*)malloc(sizeof(msg_t));
     if(!m) {
         return NULL;
     }
@@ -27,13 +27,16 @@ msg_t* msg_init(int max, int msg_size)
 
 int msg_send(msg_t *m, void *ptr, int len, U32 timeout)
 {
-    if(!m || !ptr || !len || !len>m->msg_size) {
+    osStatus_t st;
+    
+    if(!m || !ptr || !len || len>m->msg_size) {
         return -1;
     }
 
 #ifdef OS_KERNEL
-    if(osMessageQueuePut(m->mq, ptr, 0, 0)!=osOK) {
-        return -1;
+    st = osMessageQueuePut(m->mq, ptr, 0, 0);
+    if(st!=osOK) {
+        return st;
     }
     osEventFlagsWait(m->ef, FLAGS_MASK, osFlagsWaitAny, timeout);
 #endif
@@ -44,12 +47,15 @@ int msg_send(msg_t *m, void *ptr, int len, U32 timeout)
 
 int msg_post(msg_t *m, void *ptr, int len)
 {
+    osStatus_t st;
+    
     if(!m || !ptr || !len || len>m->msg_size) {
         return -1;
     }
 
 #ifdef OS_KERNEL
-    if(osMessageQueuePut(m->mq, ptr, 0, 0)!=osOK) {
+    st = osMessageQueuePut(m->mq, ptr, 0, 0);
+    if(st!=osOK) {
         return -1;
     }
 #endif
@@ -60,24 +66,26 @@ int msg_post(msg_t *m, void *ptr, int len)
 
 int msg_recv(msg_t *m, void *ptr, int len)
 {
-    int r=0;
+    osStatus_t st;
     
     if(!m || !ptr || !len || len<m->msg_size) {
         return -1;
     }
 
 #ifdef OS_KERNEL
-    if(osMessageQueueGet(m->mq, ptr, NULL, osWaitForever)!=osOK) {
-        return -1;
+    st = osMessageQueueGet(m->mq, ptr, NULL, osWaitForever);
+    if(st!=osOK) {
+        return st;
     }
     
     if(m->ack) {
-        r = (osEventFlagsSet(m->ef, FLAGS_MASK)==osOK)?0:-1;
+        osEventFlagsSet(m->ef, FLAGS_MASK);
     }
 #endif
 
-    return r;
+    return 0;
 }
+
 
 
 int msg_reset(msg_t *m)

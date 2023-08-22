@@ -14,26 +14,24 @@ typedef struct {
     fs_driver_t *drv;
     FS_DEV      dev;
     FS_TYPE     tp;
-}fs_handle_t;
+}fx_handle_t;
 
 typedef struct {
     handle_t    fp;
-    fs_handle_t *fs;
+    fx_handle_t *fs;
 }file_handle_t;
 
 
+typedef struct {
+    fx_handle_t *fs;
+    char        path[20];
+}fs_handle_t;
 
 
-static fs_handle_t *fileHandle[FILE_MAX]={NULL};
-static const char *allFiles[FILE_MAX]={
-    "/cfg/mdf.json",
-    "/cfg/coef.dat",
-    "/cfg/sett.cfg",
-    
-    "/log/r.log",
-    "/bin/app.bin",
-    "/bin/boot.bin",
-};
+#define FS_MAX    5
+
+static fs_handle_t fsHandle[FS_MAX]={NULL};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 extern fs_driver_t fatfs_driver;
@@ -61,7 +59,7 @@ static fs_driver_t *fs_drivers[FS_MAX]={
 
 
 
-static void mk_p_dir(fs_handle_t *h, char *path)
+static void mk_p_dir(fx_handle_t *h, char *path)
 {
     char *p;
     char tmp[50];
@@ -75,10 +73,10 @@ static void mk_p_dir(fs_handle_t *h, char *path)
 }
 
 
-handle_t fs_init(FS_DEV dev, FS_TYPE tp)
+static handle_t fx_init(FS_DEV dev, FS_TYPE tp)
 {
     int i=0,r=0,sz;
-    fs_handle_t *h=malloc(sizeof(fs_handle_t));
+    fx_handle_t *h=malloc(sizeof(fx_handle_t));
 
     if(!h) {
         return NULL;
@@ -103,10 +101,10 @@ handle_t fs_init(FS_DEV dev, FS_TYPE tp)
 }
 
 
-int fs_deinit(handle_t h)
+static int fx_deinit(handle_t h)
 {
     int r=0,tp;
-    fs_handle_t *fh=(fs_handle_t*)h;
+    fx_handle_t *fh=(fx_handle_t*)h;
     
     if(!fh) {
         return -1;
@@ -121,10 +119,10 @@ int fs_deinit(handle_t h)
 }
 
 
-int fs_mount(handle_t fs, char *path)
+static int fx_mount(handle_t fs, char *path)
 {
     int i=0,r=0;
-    fs_handle_t *fh=(fs_handle_t*)fs;
+    fx_handle_t *fh=(fx_handle_t*)fs;
     
     if(!fh || !path) {
         return -1;
@@ -150,10 +148,10 @@ int fs_mount(handle_t fs, char *path)
 }
 
 
-int fs_umount(handle_t fs)
+static int fx_umount(handle_t fs)
 {
     int i=0,r=0;
-    fs_handle_t *fh=(fs_handle_t*)fs;
+    fx_handle_t *fh=(fx_handle_t*)fs;
     
     if(!fh) {
         return -1;
@@ -165,10 +163,10 @@ int fs_umount(handle_t fs)
 }
 
 
-handle_t fs_open(handle_t fs, char *path, FS_MODE mode)
+static handle_t fx_open(handle_t fs, char *path, FS_MODE mode)
 {
     file_handle_t *h;
-    fs_handle_t *fh=(fs_handle_t*)fs;
+    fx_handle_t *fh=(fx_handle_t*)fs;
     
     if(!fh || !path) {
         return NULL;
@@ -196,7 +194,7 @@ handle_t fs_open(handle_t fs, char *path, FS_MODE mode)
 }
 
 
-int fs_close(handle_t file)
+static int fx_close(handle_t file)
 {
     int r;
     file_handle_t *fh=(file_handle_t*)file;
@@ -216,7 +214,7 @@ int fs_close(handle_t file)
 }
 
 
-int fs_size(handle_t file)
+static int fx_size(handle_t file)
 {
     file_handle_t *fh=(file_handle_t*)file;
     
@@ -228,7 +226,7 @@ int fs_size(handle_t file)
 }
 
 
-int fs_read(handle_t file, void *buf, int buflen)
+static int fx_read(handle_t file, void *buf, int buflen)
 {
     int r=0,sz;
     file_handle_t *fh=(file_handle_t*)file;
@@ -249,7 +247,7 @@ int fs_read(handle_t file, void *buf, int buflen)
 }
 
 
-int fs_write(handle_t file, void *buf, int buflen, int sync)
+int fx_write(handle_t file, void *buf, int buflen, int sync)
 {
     int r=0,wl,sz;
     file_handle_t *fh=(file_handle_t*)file;
@@ -267,7 +265,7 @@ int fs_write(handle_t file, void *buf, int buflen, int sync)
 }
 
 
-int fs_append(handle_t file, void *buf, int buflen, int sync)
+static int fx_append(handle_t file, void *buf, int buflen, int sync)
 {
     int r=0,sz;
     file_handle_t *fh=(file_handle_t*)file;
@@ -287,7 +285,7 @@ int fs_append(handle_t file, void *buf, int buflen, int sync)
 }
 
 
-int fs_sync(handle_t file)
+static int fx_sync(handle_t file)
 {
     int r=0;
     file_handle_t *fh=(file_handle_t*)file;
@@ -302,7 +300,7 @@ int fs_sync(handle_t file)
 }
 
 
-int fs_seek(handle_t file, int offset)
+static int fx_seek(handle_t file, int offset)
 {
     int r;
     handle_t hd;
@@ -316,10 +314,36 @@ int fs_seek(handle_t file, int offset)
 }
 
 
-int fs_remove(handle_t fs, char *path)
+static int fx_length(handle_t fs, char *path)
+{
+    int r=0,length;
+    fx_handle_t *fh=(fx_handle_t*)fs;
+
+    if(!fh || !path) {
+        return -1;
+    }
+    
+    return  fh->drv->length(path);
+}
+
+static int fx_exist(handle_t fs, char *path)
+{
+    int r=0,length;
+    fx_handle_t *fh=(fx_handle_t*)fs;
+
+    if(!fh || !path) {
+        return -1;
+    }
+    
+    return  fh->drv->exist(path);
+}
+
+
+
+static int fx_remove(handle_t fs, char *path)
 {
     int r=0;
-    fs_handle_t *fh=(fs_handle_t*)fs;
+    fx_handle_t *fh=(fx_handle_t*)fs;
 
     if(!fh || !path) {
         return -1;
@@ -329,27 +353,27 @@ int fs_remove(handle_t fs, char *path)
 }
 
 
-int fs_get_space(handle_t fs, fs_space_t *sp)
+static int fx_get_space(handle_t fs, char *path, fs_space_t *sp)
 {
     int r;
-    fs_handle_t *fh=(fs_handle_t*)fs;
+    fx_handle_t *fh=(fx_handle_t*)fs;
     
     if(!fh) {
         return -1;
     }
     
-    r = fh->drv->get_space("", sp);
+    r = fh->drv->get_space(path, sp);
     
     return r;
 }
 
 
-int fs_scan(handle_t fs, char *path)
+static int fx_scan(handle_t fs, char *path)
 {
     int r;
     handle_t hd;
     fs_info_t info;
-    fs_handle_t *fh=(fs_handle_t*)fs;
+    fx_handle_t *fh=(fx_handle_t*)fs;
     
     if(!fh || !path) {
         return -1;
@@ -375,7 +399,7 @@ int fs_scan(handle_t fs, char *path)
 }
 
 
-int fs_save(handle_t fs, char *path, void *buf, int len)
+static int fx_save(handle_t fs, char *path, void *buf, int len)
 {
     int r,wl;
     handle_t fl;
@@ -384,7 +408,7 @@ int fs_save(handle_t fs, char *path, void *buf, int len)
         return -1;
     }
     
-    fl = fs_open(fs, path, FS_MODE_CREATE);
+    fl = fx_open(fs, path, FS_MODE_CREATE);
     if(!fl) {
         LOGE("fs_save, open %s failed\n", path);
         return -1;
@@ -399,7 +423,7 @@ int fs_save(handle_t fs, char *path, void *buf, int len)
 }
 
 
-int fs_print(handle_t fs, char *path, int str_print)
+static int fx_print(handle_t fs, char *path, int str_print)
 {
     int i,rl,tl=0;
     handle_t fl;
@@ -409,7 +433,7 @@ int fs_print(handle_t fs, char *path, int str_print)
         return -1;
     }
     
-    fl = fs_open(fs, path, FS_MODE_RW);
+    fl = fx_open(fs, path, FS_MODE_RW);
     if(!fl) {
         LOGE("fs open %s failed\n", path);
         return -1;
@@ -443,6 +467,255 @@ int fs_print(handle_t fs, char *path, int str_print)
     
     return 0;
 }
+/////////////////////////////////////////////////////////////////////
+static int do_mnount(int id, FS_DEV dev, FS_TYPE tp, char *mount_dir)
+{
+    int r;
+    handle_t fs;
+    
+    fs = fx_init(dev, tp);
+    if(fs) {
+        r = fx_mount(fs, mount_dir);
+        if(r==0) {
+            fsHandle[id].fs = fs;
+            strcpy(fsHandle[id].path, mount_dir);
+        }
+    }
+    
+    return r;
+}
+static handle_t find_fs(char *path)
+{
+    int i;
+    
+    for(i=0; i<FS_MAX; i++) {
+        if(strstr(path, fsHandle[i].path)) {
+            return fsHandle[i].fs;
+        }
+    }
+    
+    return NULL;
+}
+static handle_t find_mnt_fs(char *path)
+{
+    int i;
+    
+    for(i=0; i<FS_MAX; i++) {
+        if(strcmp(path, fsHandle[i].path)==0) {
+            return fsHandle[i].fs;
+        }
+    }
+    
+    return NULL;
+}
+
+
+int fs_init(void)
+{
+    int i,r;
+    handle_t fs;
+    
+    for(i=0; i<FS_MAX; i++) {
+        fsHandle[i].fs = NULL;
+        fsHandle[i].path[0] = 0;
+    }
+    
+    r  = do_mnount(0, DEV_SDMMC,  SDMMC_FS_TYPE,  SDMMC_MNT_PT);
+    if(r) {
+        return -1;
+    }
+    
+    //r = do_mnount(1, DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
+    
+    return r;
+}
+
+int fs_deinit(void)
+{
+    return 0;
+}
+
+
+handle_t fs_open(char *path, FS_MODE mode)
+{
+    handle_t fs=find_fs(path);
+    
+    if(!fs) {
+        LOGE("___ media not mounted!\n");
+        return NULL;
+    }
+    
+    return fx_open(fs, path, mode);
+}
+
+
+handle_t fs_openx(U8 id, FS_MODE mode)
+{
+    handle_t fs;
+    
+    if(id>=FILE_MAX) {
+        return NULL;
+    }
+    
+    fs = find_fs((char*)filesPath[id]);
+    if(!fs) {
+        LOGE("___ media not mounted!\n");
+        return NULL;
+    }
+    
+    return fx_open(fs, (char*)filesPath[id], mode);
+}
+
+
+int fs_close(handle_t file)
+{
+    return fx_close(file);
+}
+
+int fs_size(handle_t file)
+{
+    return fx_size(file);
+}
+
+int fs_read(handle_t file, void *buf, int buflen)
+{
+    return fx_read(file, buf, buflen);
+}
+
+int fs_write(handle_t file, void *buf, int buflen, int sync)
+{
+    return fx_write(file, buf, buflen, sync);
+}
+
+int fs_append(handle_t file, void *buf, int buflen, int sync)
+{
+    return fx_append(file, buf, buflen, sync);
+}
+
+
+int fs_remove(char *path)
+{
+    handle_t fs=find_fs(path);
+    
+    if(!fs) {
+        LOGE("___ media not mounted!\n");
+        return NULL;
+    }
+    
+    return fx_remove(fs, path);
+}
+
+int fs_sync(handle_t file)
+{
+    return fx_sync(file);
+}
+int fs_seek(handle_t file, int offset)
+{
+    return fx_seek(file, offset);
+}
+
+int fs_scan(char *path)
+{
+    handle_t fs=find_fs(path);
+    
+    if(!fs) {
+        LOGE("___ media not mounted!\n");
+        return NULL;
+    }
+    
+    return fx_scan(fs, path);
+}
+
+
+int fs_readx(int id, void *buf, int len)
+{
+    int rlen;
+    handle_t file;
+    
+    file = fs_openx(id, FS_MODE_RW);
+    if(!file) {
+        return -1;
+    }
+    
+    rlen = fs_read(file, buf, len);
+    fs_close(file);
+    
+    return rlen;
+}
+
+
+int fs_savex(int id, void *buf, int len)
+{
+    if(id>=FILE_MAX || !buf || !len) {
+        return -1;
+    }
+    
+    return fs_save((char*)filesPath[id], buf, len);
+}
+
+
+
+int fs_save(char *path, void *buf, int len)
+{
+    handle_t fs=find_fs(path);
+    
+    if(!fs) {
+        LOGE("___ media not mounted!\n");
+        return NULL;
+    }
+    
+    return fx_save(fs, path, buf, len);
+}
+
+int fs_length(char *path)
+{
+    handle_t fs=find_fs(path);
+    
+    if(!fs) {
+        LOGE("___ media not mounted!\n");
+        return -1;
+    }
+    
+    return fx_length(fs, path);
+}
+
+
+int fs_exist(char *path)
+{
+    handle_t fs=find_fs(path);
+    
+    if(!fs) {
+        LOGE("___ media not mounted!\n");
+        return -1;
+    }
+    
+    return fx_exist(fs, path);
+}
+
+
+int fs_lengthx(int id)
+{
+    if(id>=FILE_MAX) {
+        return -1;
+    }
+    
+    return fs_length((char*)filesPath[id]);
+}
+
+int fs_get_space(char *path, fs_space_t *sp)
+{
+    handle_t fs=find_mnt_fs(path);
+    
+    if(!fs) {
+        LOGE("___ fs_get_space %s is wrong!\n", path);
+        return NULL;
+    }
+    
+    return fx_get_space(fs, path, sp);
+}
+
+
+
 
 
 #define TEST_DEV_TYPE      DEV_SFLASH    //DEV_SDMMC
@@ -451,51 +724,6 @@ int fs_print(handle_t fs, char *path, int str_print)
 
 int fs_test(void)
 {
-    int r,rlen;
-    U8 tmp[100];
-    char *xpath="/sd/app.upg";
-    char *test="hello every one! good morning ...";
-    handle_t fl,fs;
-    
-    LOGE("\n\nfs_test\n");
-    
-    fs = fs_init(TEST_DEV_TYPE, TEST_FS_TYPE);
-    if(!fs) {
-        LOGE("____ myFs.sd init failed\n");
-        return -1;
-    }
-    
-
-    r = fs_mount(fs, TEST_MOUNT_PT);
-    if(r) {
-        LOGE("____ fs mount failed\n");
-        return -1;
-    }
-
-    fs_scan(fs, TEST_MOUNT_PT);
-    
-    
-    r = fs_save(fs, xpath, test, strlen(test)+1);
-    r = fs_print(fs, xpath, 0);
-    
-    
-#if 0
-    fl = fs_open(fs, path, FS_MODE_RW);
-    if(!fl) {
-        LOGE("____ fs open %s failed\n", path);
-        return -1;
-    }
-        
-    rlen = fs_read(fl, tmp, 100);
-    if(rlen>0) {
-        LOGD("_____%d\n", rlen);
-    }
-    
-    fs_close(fl);
-#endif
-    
-    fs_deinit(fs);
-    
     return 0;
 }
 

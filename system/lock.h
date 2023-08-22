@@ -5,8 +5,9 @@
 
 enum {
     LOCK_IMEM=0,
-    LOCK_XMEM,
-    LOCK_NVM,
+    LOCK_MEM,
+    LOCK_NOR,
+    LOCK_SFLASH,
     
     LOCK_MAX
 };

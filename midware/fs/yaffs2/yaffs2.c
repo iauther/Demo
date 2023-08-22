@@ -225,11 +225,48 @@ static int yaffs2_size(handle_t h)
     
     r = yaffs_fstat(hf->fp, &st);
     if(r) {
-        
+        return -1;
     }
     
     return st.st_size;
 }
+
+
+static int yaffs2_length(char *path)
+{
+    int r;
+    struct yaffs_stat st;
+    yaffs2_handle_t *hf=(yaffs2_handle_t*)h;
+    
+    if(!path || !length) {
+        return -1;
+    }
+    
+    r = yaffs_stat(path, &st);
+    if(r) {
+        return -1;
+    }
+    return st.st_size;
+}
+
+
+static int yaffs2_exist(char *path)
+{
+    int r;
+    struct yaffs_stat st;
+    yaffs2_handle_t *hf=(yaffs2_handle_t*)h;
+    
+    if(!path || !length) {
+        return -1;
+    }
+    
+    r = yaffs_stat(path, &st);
+    if(r==0) {
+        return 1;
+    }
+    return 0;
+}
+
 
 
 static int yaffs2_remove(char *path)
@@ -329,6 +366,8 @@ fs_driver_t yaffs2_driver={
     yaffs2_sync,
     yaffs2_truncate,
     yaffs2_size,
+    yaffs2_length,
+    yaffs2_exist,
     yaffs2_remove,
     yaffs2_mkdir,
     yaffs2_rmdir,

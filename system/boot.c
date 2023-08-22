@@ -29,35 +29,17 @@ static int ecxxx_recv_callback(void *data, int len)
 }
 
 static void boot_init(void)
-{
-    rs485_cfg_t rc;
-    ecxxx_cfg_t ec;
-    
+{    
     dal_init();
     log_init(NULL);
     rtcx_init();
    
-
-#ifdef USE_UART
-    rc.port = UART_2;
-    rc.baudrate = 115200;
-    rc.callback = rs485_recv_callback;
-    rs485_init(&rc);
-    
-    ec.port = UART_1;
-    ec.baudrate = 115200;
-    ec.callback = ecxxx_recv_callback;
-    ecxxx_init(&ec);
-#endif
-    
     upgrade_init();
 }
 
 static void boot_deinit(void)
 {
     log_deinit();
-    rs485_deinit();
-    ecxxx_deinit();
     
     upgrade_deinit();
 }

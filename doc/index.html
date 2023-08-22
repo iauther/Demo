@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>test</title>
+</head>
+
+<body>
+
+<script>
+    
+    function rawDataToProtocol(rawData) {
+        var jsonObj = {};
+        var pos=0;
+        var ALINK_PROP_REPORT_METHOD = "thing.event.property.batch.post";
+        
+        var uint8Array = new Uint8Array(rawData.length);
+        for (var i = 0; i < rawData.length; i++) {
+            uint8Array[i] = rawData[i] & 0xff;
+        }
+        
+        var dataView = new DataView(uint8Array.buffer, 0);
+        
+        jsonObj["method"] = ALINK_PROP_REPORT_METHOD; //ALink JSON格式，属性上报topic。
+        jsonObj["version"] = "1.0"; //ALink JSON格式，协议版本号固定字段。
+        jsonObj["id"] = "" + dataView.getInt32(pos); //ALink JSON格式，标示该次请求id值。
+        pos += 4;
+        
+        var channelid = dataView.getInt16(pos);
+        pos += 2;
+        
+        var sensorid  = dataView.getInt16(pos);
+        pos += 2;
+        
+        var signal    = dataView.getFloat32(pos);
+        pos += 4;
+        
+        var cnt = 2;//dataView.getInt16(pos);
+        pos += 2;
+        
+        //console.log("signal: "+signal);
+        
+        
+        var params = {};
+        var properties = {};
+        
+        var rms = [];
+        var asl = [];
+        var amp = [];
+        var ene = [];
+        
+        var time,tlen=0;
+        var ev = new DataView(uint8Array.buffer, pos);
+        for(i=0; i<cnt; i++) {
+            
+            time = 1691649231289;//ev.getBigUint64(tlen+16);
+            
+            rms[i] = {"value": ev.getFloat32(tlen+0), "time": time};
+            rms[i].time  = time;
+            
+            amp[i] = {"value": ev.getFloat32(tlen+4), "time": time};
+            amp[i].time  = time;
+            
+            asl[i] = {"value": ev.getFloat32(tlen+8), "time": time};
+            asl[i].time  = time;
+            
+            ene[i] = {"value": ev.getFloat32(tlen+12), "time": time};
+            ene[i].time  = time;
+            
+            tlen += 24;
+        }
+        
+        properties["ev_data:channelid"] = channelid;
+        properties["ev_data:sensorid"] = sensorid;
+        properties["ev_data:signal"] = signal;
+        
+        properties["ev_data:rms"] = rms;
+        properties["ev_data:asl"] = asl;
+        properties["ev_data:amp"] = amp;
+        properties["ev_data:ene"] = ene;
+        
+        params["properties"] = properties;
+        
+        jsonObj["params"] = params; //ALink JSON格式，params标准字段。
+        
+        return jsonObj;
+    }
+    
+    var RawData = new Uint8Array([0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x66,0x66,0x1E,0x41,0x02,
+                               0x00,0xB4,0xC8,0x06,0x3C,0x1B,0x2F,0xFD,0x3D,0x00,0x00,0x00,0x00,
+                               0xF5,0x7C,0xC3,0x35,0xC2,0x3A,0x76,0x70,0xB6,0xA2,0x00,0x00,0x38,
+                               0x00,0x00,0x00,0xEA,0x2B,0xBE,0xAE,0xAA,0x2E,0xF2,0xB3,0xC0,0xD4,
+                               0x02,0xC0,0xAA,0x3E,0x76,0x70,0xB6,0xA2,0x00,0x00,0x00]);
+ 
+    
+    var js = rawDataToProtocol(RawData);
+    
+    console.log(js);
+    
+    
+    
+    
+</script>
+
+</body>
+</html>

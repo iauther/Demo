@@ -4,11 +4,15 @@
 #include "types.h"
 
 typedef enum {
-    EV_AVE=0,     //average 
-    EV_RMS,
+    EV_RMS=0,
+    EV_AMP,
     EV_ASL,
+    EV_ENE,
+    EV_AVE,         //average
     EV_MIN,
     EV_MAX,
+    
+    EV_NUM
 }EV_TYPE;
 
 typedef enum {
@@ -18,8 +22,8 @@ typedef enum {
 }FLT_TYPE;
 
 
-int dsp_ev_calc(EV_TYPE ev, U16 *data, U32 len, F32 *result);
-int dsp_flt_calc(FLT_TYPE flt, U16 *data, U32 len);
+int dsp_ev_calc(EV_TYPE ev, F32 *data, U32 cnt, U32 freq, F32 *result);
+int dsp_flt_calc(FLT_TYPE flt, F32 *data, U32 cnt);
 
 
 #endif

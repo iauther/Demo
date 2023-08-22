@@ -10,7 +10,7 @@ int nvm_init(void)
     int r;
     
 #ifdef USE_FS
-    //r = fs_init(DEV_MMC, FS_FATFS);
+    r = fs_init();
 #else
     #ifdef USE_EEPROM
         r = at24cxx_init();

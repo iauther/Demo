@@ -7,17 +7,6 @@
         VAL：SysTick当前数值寄存器
         CALIB：SysTick校准数值寄存器
 */
-static U32 sistick_val=0;
-void systick_config(void)
-{
-    sistick_val = SystemCoreClock/1000;
-    if(SysTick_Config(sistick_val)) {
-        while(1);
-    }
-    
-    NVIC_SetPriority(SysTick_IRQn, 0x00U);
-}
-
 
 
 volatile static U32 systick_ms = 0;
@@ -102,13 +91,14 @@ void dal_delay_s(U32 s)
 }
 
 
-
-#ifdef OS_KERNEL
-#include "platform.h"
 U32 dal_get_tick (void)
 {
+#ifdef OS_KERNEL
     return ((U32)osKernelGetTickCount());
-}
+#else
+    return systick_ms;
 #endif
+}
+
 
 

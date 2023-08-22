@@ -192,7 +192,7 @@ static int cmd_proc(handle_t h, void *addr, void *data)
 {
     int r;
     U8  err=0;
-    cmd_t *c=(cmd_t*)data;
+    command_t *c=(command_t*)data;
     
     switch(c->cmd) {
 
@@ -376,11 +376,7 @@ static U8 _upgrade_proc(comm_handle_t *h, void *addr, pkt_hdr_t *p, int chkID)
     switch (p->type) {
         case TYPE_STAT:
         {
-            curStat.sysState = sysState;
-            r = send_data(h, addr, TYPE_STAT, 0, &curStat, sizeof(curStat), chkID);
-            if(r) {
-                err = ERROR_OF(h->port);
-            }
+            
         }
         break;
         
@@ -436,12 +432,7 @@ int comm_recv_proc(handle_t h, void *addr, void *data, int len)
 
     err = pkt_check_hdr(p, len, len, ch->chkID);
     if (err == ERROR_NONE) {
-        if(sysState==STAT_UPGRADE) {
-            err = _upgrade_proc(ch, addr, p, ch->chkID);
-        }
-        else {
-            err = _normal_proc(ch, addr, p, ch->chkID);
-        }
+        err = _normal_proc(ch, addr, p, ch->chkID);
     } 
     
     return err;
@@ -459,7 +450,7 @@ int com_send_paras(handle_t h, void *addr, U8 flag)
         r = send_data(ch, addr, TYPE_PARA, 0, NULL, 0, ch->chkID);
     }
     else {
-        r = send_data(ch, addr, TYPE_PARA, 1, &curPara, sizeof(curPara), ch->chkID);
+        r = send_data(ch, addr, TYPE_PARA, 1, &allPara, sizeof(allPara), ch->chkID);
     }
     
     if (r ) {

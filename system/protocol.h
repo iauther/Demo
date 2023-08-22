@@ -2,6 +2,8 @@
 #define __PROTOCOL_Hx__
 
 #include "types.h"
+#include "dsp.h"
+#include "dal_adc.h"
 
 #define FW_MAGIC            0xFACEBEAD
 #define PKT_MAGIC           0xDEADBEEF
@@ -24,6 +26,8 @@ enum {
 
 enum {
     STAT_STOP=0,
+    STAT_CALI,              //calibration
+    STAT_TEST,
     STAT_RUNNING,
     STAT_UPGRADE,
     
@@ -34,28 +38,27 @@ enum {
 
 enum {
     TYPE_CMD=0,
-    TYPE_STAT,
     TYPE_CAP,       //channel capture data
     TYPE_ACK,
+    TYPE_STAT,
     TYPE_SETT,
     TYPE_PARA,
-    TYPE_ERROR,
     TYPE_FILE,
     TYPE_TIME,
     TYPE_HBEAT,
+    TYPE_ERROR,
     
     TYPE_MAX
 };
 
 
 enum {
-    FILE_CFG=0,
-    FILE_CAL,
-    FILE_SETT,
+    FILE_PARA=0,
+    FILE_CALI,
     
+    FILE_CAP,       //adc data
+    FILE_UPG,
     FILE_LOG,
-    FILE_APP,
-    FILE_BOOT,
     
     FILE_MAX
 };
@@ -64,43 +67,109 @@ enum {
 #pragma pack (1)
 
 typedef struct {
-    U8  type;
+    char host[100];
+    U16  port;
+    char prdKey[20];
+    char prdSecret[64];
+    char devKey[32];
+    char devSecret[64];
+}net_para_t;
+typedef struct {
+    U8   addr;
+}mbus_para_t;
+typedef struct {
+    U8   type;
+    U8   auth;              //0: None 1: PAP  2: CHAP
+    char apn[20];
+}card_para_t;
+typedef struct {
+    U8   to;
+    U8   level;
+    U8   enable;
+}dbg_para_t;
+typedef struct {
+    U8   enable;
+    U32  fdiv;              //freq divider
+}dac_para_t;
+typedef struct {
+    U8   mode;
+    U32  period;            //second
+}smp_para_t;
+typedef struct {
+    F32     a;
+    F32     b;
+}coef_t;
+typedef struct {
+    U8      ch;
+    U32     smpFreq;        //hz
+    U32     smpTime;        //ms
+    U8      ev[EV_NUM];
+    U8      n_ev;
+    U8      upway;         //0: upload at once   1: upload once together
+    U8      upwav;
+    U32     smpPoints;
+    U32     evCalcLen;
     
-    
-}ev_cfg_t;
+    coef_t  coef;
+}adc_para_t;
 
 typedef struct {
-    U8  chID;
-    F32 caliParaA;
-    F32 caliParaB;
-    F32 coef;
-    
-    U32 freq;
-    U32 sampleTime;
-    U32 samplePoints;
-}ch_cfg_t;
+    net_para_t  net;
+    dac_para_t  dac;
+    smp_para_t  smp;
+    dbg_para_t  dbg;
+    mbus_para_t mbus;
+    card_para_t card;
+    adc_para_t  ch[CH_MAX];
+}user_para_t;
 
 typedef struct {
-    U32             len;   //ch_data_t total length, including the data length
-    U8              ch;
-    U32             sr;    //samplerate
-    date_time_t     tm;
-
-    U32             data[0];
+    U64             time;
+    F32             data[0];
+}cap_data_t;
+typedef struct {
+    U32             ch;
+    U32             id;
+    U64             time;
+    U32             evlen;
+    U32             dlen;
+    F32             data[0];
 }ch_data_t;
+
+typedef struct {
+    F32          rms;
+    F32          amp;
+    F32          asl;
+    F32          pwr;
+    
+    U64          time;
+}ev_data_t;
+
+typedef struct {
+    U32             id;
+    U16             ch;             //channelID
+    U16             ss;             //sensorID
+    F32             sig;
+    
+    U16             cnt;            //ev_data_t count
+    ev_data_t       ev[0];
+}upload_data_t;
 
 typedef struct {
     U8              cmd;
     U32             para;
-}cmd_t;
+}command_t;
 
 typedef struct {
-    U8              mode;
+    U8              xx;
     
 }sett_t;
 
 typedef struct {
-    U8              sysState;
+    U8              mode;
+    U8              state;
+    
+    date_time_t     dt;
 }state_t;
 
 typedef struct {
@@ -169,20 +238,20 @@ typedef struct {
 }md5_t;
 
 typedef struct {
-    state_t         stat;
     fw_info_t       fwInfo;
     sett_t          sett;
 }para_t;
 
 typedef struct {
-    U32             magic;
-    U8              state;
-}flag_t;
+    state_t         stat;
+    para_t          para;
+}sys_paras_t;
 
 typedef struct {
-    flag_t          flag;
-    para_t          para;
-}paras_t;
+    sys_paras_t     sys;
+    user_para_t     usr;
+}all_para_t;
+
 
 #pragma pack ()
 

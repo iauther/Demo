@@ -24,6 +24,13 @@
 
 #define SDRAM_TIMEOUT                            ((uint32_t)0x0000FFFF)
 
+
+/*
+    EXMC_SDRAM_DEVICE0: 0xC0000000~0xCFFFFFFF, 256MB
+    EXMC_SDRAM_DEVICE1: 0xD0000000~0xDFFFFFFF, 256MB
+*/
+
+
 static uint32_t sdram_device=EXMC_SDRAM_DEVICE0;
 int dal_sdram_init(void)
 {

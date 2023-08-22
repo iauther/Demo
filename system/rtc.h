@@ -10,7 +10,7 @@ int rtcx_read_time(date_time_t *dt);
 int rtcx_write_time(date_time_t *dt);
 int rtcx_set_alarm(date_time_t *dt);
 int rtcx_set_countdown(U32 sec);
-
+U64 rtcx_get_timestamp(void);
 int rtcx_print(U8 reg_start, int reg_cnt);
 #endif
 

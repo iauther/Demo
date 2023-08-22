@@ -16,12 +16,10 @@ enum {
 
 typedef struct {
     buf_t   rx;
-    buf_t   tx;
-    buf_t   vx;
     buf_t   ox; //dac output
 }spi_buf_t;
 
-typedef void (*spi_callback_t)(U16 *rx, U16 *ox, F32 *vx, int cnt);
+typedef void (*spi_callback_t)(U16 *rx, U16 *ox, U32 cnt);
 
 
 typedef struct {
@@ -46,5 +44,6 @@ int dal_spi_deinit(handle_t h);
 int dal_spi_read(handle_t h, U16 *data, U16 cnt, U32 timeout);
 int dal_spi_write(handle_t h, U16 *data, U16 cnt, U32 timeout);
 int dal_spi_readwrite(handle_t h, U16 *wdata, U16 *rdata, U16 cnt, U32 timeout);
+int dal_spi_enable(U8 on);
     
 #endif

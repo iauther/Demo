@@ -201,19 +201,57 @@ static int stdfs_size(handle_t h)
 {
     int r;
     long curPos,size;
+    struct stat st
     stdfs_handle_t *hf=(stdfs_handle_t*)h;
     
     if(!hf || !hf->fp) {
         return -1;
     }
     
-    curPos = ftell(hf->fp);
-    fseek(hf->fp, 0, SEEK_END);
-    size = ftell(hf->fp);
-    fseek(hf->fp, curPos, SEEK_SET);
+    r = fstat(hf->fp, &st);
+    if(r) {
+        return -1;
+    }
     
-    return size;
+    return st.st_size;
 }
+
+
+static int stdfs_length(char *path)
+{
+    int r;
+    struct stat st;
+    stdfs_handle_t *hf=(stdfs_handle_t*)h;
+    
+    if(!path || !length) {
+        return -1;
+    }
+    
+    r = stat(path, &st);
+    if(r) {
+        return -1;
+    }
+    return  st.st_size;
+}
+
+static int stdfs_exist(char *path)
+{
+    int r;
+    struct stat st;
+    stdfs_handle_t *hf=(stdfs_handle_t*)h;
+    
+    if(!path || !length) {
+        return -1;
+    }
+    
+    r = stat(path, &st);
+    if(r==0) {
+        return 1;
+    }
+    return 0;
+}
+
+
 
 #include "<dirent.h>"
 
@@ -281,7 +319,16 @@ static int stdfs_readdir(handle_t h, fs_info_t *info)
 
 static int stdfs_get_space(char *path, fs_space_t *sp)
 {
-    return 0;//GetLastError();
+    int r;
+    struct statfs diskInfo;
+    
+    r = statfs(path, &diskInfo);
+    if(r==0) {
+        sp->free = diskInfo.f_bfree*diskInfo.f_bsize;
+        sp->total = diskInfo.f_blocks*diskInfo.f_bsize;
+    }
+    
+    return r;//GetLastError();
 }
 
 
@@ -306,6 +353,8 @@ fs_driver_t stdfs_driver={
     stdfs_sync,
     stdfs_truncate,
     stdfs_size,
+    stdfs_length,
+    stdfs_exist,
     stdfs_remove,
     stdfs_mkdir,
     stdfs_rmdir,

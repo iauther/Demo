@@ -42,8 +42,6 @@ static fatfs_info_t* get_info(char *path)
     return info;
 }
 
-
-
 static int fatfs_init(FS_DEV dev, U32 start, U32 len)
 {
     return 0;
@@ -254,6 +252,42 @@ static int fatfs_size(handle_t h)
     }
     
     return f_size(&hf->fp);
+}
+
+
+static int fatfs_length(char *path)
+{
+    FRESULT fr;
+    FILINFO fno;
+ 
+    if(!path) {
+        return -1;
+    }
+    
+    fr = f_stat(path, &fno);
+    if(fr==FR_OK) {
+        return fno.fsize;
+    }
+    
+    return -1;
+}
+
+
+static int fatfs_exist(char *path)
+{
+    FRESULT fr;
+    FILINFO fno;
+ 
+    if(!path) {
+        return -1;
+    }
+    
+    fr = f_stat(path, &fno);
+    if(fr==FR_OK) {
+        return 1;
+    }
+    
+    return 0;
 }
 
 
@@ -521,6 +555,8 @@ fs_driver_t fatfs_driver={
     fatfs_sync,
     fatfs_truncate,
     fatfs_size,
+    fatfs_length,
+    fatfs_exist,
     fatfs_remove,
     fatfs_mkdir,
     fatfs_rmdir,

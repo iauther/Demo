@@ -67,7 +67,7 @@ int log_init(rx_cb_t callback)
     int r=0;
     dal_uart_cfg_t uc;
 
-    uc.mode = MODE_POLL;
+    uc.mode = MODE_IT;
     uc.port = LOG_UART;
     uc.msb  = 0;
     uc.baudrate = LOG_BAUDRATE;
@@ -82,6 +82,13 @@ int log_init(rx_cb_t callback)
     
     return 0;
 }
+
+
+int log_set_callback(rx_cb_t cb)
+{
+    return dal_uart_set_callback(logHandle, cb);
+}
+
 
 
 

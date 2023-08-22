@@ -38,6 +38,8 @@ int dal_uart_deinit(handle_t h);
 int dal_uart_read(handle_t h, U8 *data, int len);
 int dal_uart_write(handle_t h, U8 *data, int len);
 int dal_uart_rw(handle_t h, U8 *data, int len, U8 rw);
+
+int dal_uart_set_callback(handle_t h, rx_cb_t cb);
 #endif
 
 

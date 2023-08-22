@@ -191,8 +191,6 @@ handle_t dal_dac_init(dal_dac_cfg_t *cfg)
     tmr_config(h->cfg.port, h->cfg.freq);
     dac_config(h->cfg.port);
     
-    dal_dac_start(h);
-    
     return h;
 }
 

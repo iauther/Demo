@@ -60,6 +60,8 @@ typedef struct {
     int (*sync)(handle_t h);
     int (*truncate)(handle_t h, int len);
     int (*size)(handle_t h);
+    int (*length)(char *path);
+    int (*exist)(char *path);
     int (*remove)(char *path);
     int (*mkdir)(char *path);
     int (*rmdir)(char *path);
@@ -71,24 +73,29 @@ typedef struct {
 }fs_driver_t;
 
 
-handle_t fs_init(FS_DEV dev, FS_TYPE tp);
-int fs_deinit(handle_t fs);
-int fs_mount(handle_t fs, char *path);
-int fs_umount(handle_t fs);
-handle_t fs_open(handle_t fs, char *path, FS_MODE mode);
+int fs_init(void);
+int fs_deinit(void);
+handle_t fs_open(char *path, FS_MODE mode);
+handle_t fs_openx(U8 id, FS_MODE mode);
 int fs_close(handle_t file);
 int fs_size(handle_t file);
 int fs_read(handle_t file, void *buf, int buflen);
 int fs_write(handle_t file, void *buf, int buflen, int sync);
 int fs_append(handle_t file, void *buf, int buflen, int sync);
-int fs_remove(handle_t file, char *path);
+int fs_remove(char *path);
 int fs_sync(handle_t file);
 int fs_seek(handle_t file, int offset);
-int fs_get_space(handle_t fs, fs_space_t *sp);
-int fs_scan(handle_t fs, char *path);
-int fs_save(handle_t fs, char *path, void *buf, int len);
-int fs_print(handle_t fs, char *path, int str_print);
+int fs_scan(char *path);
+int fs_length(char *path);
+int fs_exist(char *path);
 
+int fs_lengthx(int id);
+int fs_readx(int id, void *buf, int len);
+int fs_savex(int id, void *buf, int len);
+
+int fs_get_space(char *path, fs_space_t *sp);
+int fs_save(char *path, void *buf, int len);
+int fs_print(char *path, int str_print);
 int fs_test(void);
 
 #ifdef __cplusplus

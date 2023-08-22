@@ -27,8 +27,11 @@
     
     #define MOUNT_POINT              "/"
     
-    #define CFG_DIR                  "/cfg"
-    #define DATA_DIR                 "/data"
+    #define SDMMC_MNT_PT             "/sd"
+    #define SDMMC_FS_TYPE            FS_FATFS
+    
+    #define SFLASH_MNT_PT            "/sf"
+    #define SFLASH_FS_TYPE           FS_FATFS
     
     #endif
  
@@ -37,28 +40,21 @@
     #define USE_NET_MODULE
    
    
-   #define ADC_BORD_V11             //new adc board
-   
     #define SPI_PWM_CS
     //#define SPI_QUAD                //need exchange the miso and mosi
     //#define GPIO_SPI
 
     //#define ADC_CONV_FLOAT
-
-    #define DAC_OUTPUT
-    #define DAC_FREQ_DIV             1//10
     
     #define SPI_MODE                 0  
-
-    #define SAMPLE_INV_TIME          10     //seconds
-
-
-    #define SAMPLE_FREQ             (500*KHZ)
-    #define ONCE_SAMPLE_TIME        20              //ms      
-
-
-    #define SAMPLE_POINTS           200
-    #define COMM_BUF_LEN            (SAMPLE_POINTS*4+32)
+    
+    //#define PROD_V2                 //字符串方式，支持批量上传
+    #define PROD_V3               //自定义格式，支持二进制上传
+    
+    #define USE_LAB_1
+    //#define USE_LAB_2
+    
+    
     
 #endif
 

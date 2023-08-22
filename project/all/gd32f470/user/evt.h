@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define EVT_DATA_LEN_MAX   0xFF
+#define EVT_DATA_LEN_MAX   240
 
 enum {
     EVT_ADS=0,
@@ -16,13 +16,18 @@ enum {
     
     EVT_TIMER,
     EVT_SAVE,
+    
+    EVT_CAP_START,
+    EVT_CAP_STOP,
+    
+    
 };
 
 typedef struct {
     void    *arg;
-    U8      evt;
-    U8      type;
-    U16     flag;
+    U32     evt;
+    U32     type;
+    U32     flag;
     U32     dLen;
     U8      data[EVT_DATA_LEN_MAX];
 }evt_t;

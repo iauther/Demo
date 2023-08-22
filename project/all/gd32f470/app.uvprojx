@@ -276,7 +276,7 @@
               <OCR_RVCT4>
                 <Type>1</Type>
                 <StartAddress>0x8000000</StartAddress>
-                <Size>0xd0000</Size>
+                <Size>0xf0000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
@@ -305,15 +305,15 @@
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
-                <StartAddress>0x10000000</StartAddress>
-                <Size>0x10000</Size>
+                <StartAddress>0x0</StartAddress>
+                <Size>0x0</Size>
               </OCR_RVCT10>
             </OnChipMemories>
             <RvctStartVector></RvctStartVector>
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>1</Optim>
+            <Optim>2</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -336,10 +336,10 @@
             <v6WtE>0</v6WtE>
             <v6Rtti>0</v6Rtti>
             <VariousControls>
-              <MiscControls>--diag_suppress=177,1296,550</MiscControls>
+              <MiscControls>--diag_suppress=111,177,550</MiscControls>
               <Define>GD32F470,OS_KERNEL=1</Define>
               <Undefine></Undefine>
-              <IncludePath>./user;../../../device;../../../system;../../../system/net;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/xmem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp</IncludePath>
+              <IncludePath>./user;../../../device;../../../system;../../../system/net;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/portfiles;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/data-model</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -434,24 +434,9 @@
               <FilePath>.\user\startup_gd32f450_470.s</FilePath>
             </File>
             <File>
-              <FileName>task_polling.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_polling.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_upgrade.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_upgrade.c</FilePath>
-            </File>
-            <File>
               <FileName>task_comm_recv.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\task\task_comm_recv.c</FilePath>
-            </File>
-            <File>
-              <FileName>task_comm_send.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_comm_send.c</FilePath>
             </File>
             <File>
               <FileName>task_data_cap.c</FileName>
@@ -462,6 +447,31 @@
               <FileName>task_data_proc.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\task\task_data_proc.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_comm_send.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\task_comm_send.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_mqtt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\task_mqtt.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_nvm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\task_nvm.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_polling.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\task_polling.c</FilePath>
+            </File>
+            <File>
+              <FileName>task.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\user\task.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -564,11 +574,6 @@
               <FilePath>..\..\..\system\list.c</FilePath>
             </File>
             <File>
-              <FileName>json.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\json.c</FilePath>
-            </File>
-            <File>
               <FileName>rs485.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\rs485.c</FilePath>
@@ -597,6 +602,11 @@
               <FileName>md5.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\md5.c</FilePath>
+            </File>
+            <File>
+              <FileName>cmd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\cmd.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -941,17 +951,22 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>midware/xmem</GroupName>
+          <GroupName>midware/mem</GroupName>
           <Files>
+            <File>
+              <FileName>mem.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mem\mem.c</FilePath>
+            </File>
             <File>
               <FileName>rtx_mem.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\xmem\rtx_mem.c</FilePath>
+              <FilePath>..\..\..\midware\mem\rtx_mem.c</FilePath>
             </File>
             <File>
-              <FileName>xmem.c</FileName>
+              <FileName>tiny.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\xmem\xmem.c</FilePath>
+              <FilePath>..\..\..\midware\mem\tiny.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -963,10 +978,15 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\json\cJSON.c</FilePath>
             </File>
+            <File>
+              <FileName>json.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\json\json.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>midware/fatfs</GroupName>
+          <GroupName>midware/fs/fatfs</GroupName>
           <Files>
             <File>
               <FileName>diskio.c</FileName>
@@ -996,7 +1016,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>midware/yaffs2</GroupName>
+          <GroupName>midware/fs/yaffs2</GroupName>
           <Files>
             <File>
               <FileName>qsort.c</FileName>
@@ -1131,7 +1151,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>midware/stdfs</GroupName>
+          <GroupName>midware/fs/stdfs</GroupName>
           <Files>
             <File>
               <FileName>stdfs.c</FileName>
@@ -1167,6 +1187,151 @@
               <FileName>dsp.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\dsp\dsp.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>midware/utils</GroupName>
+          <Files>
+            <File>
+              <FileName>utils_hmac.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\utils\utils_hmac.c</FilePath>
+            </File>
+            <File>
+              <FileName>utils_base64.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\utils\utils_base64.c</FilePath>
+            </File>
+            <File>
+              <FileName>utils_md5.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\utils\utils_md5.c</FilePath>
+            </File>
+            <File>
+              <FileName>utils_sha1.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\utils\utils_sha1.c</FilePath>
+            </File>
+            <File>
+              <FileName>utils_sha256.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\utils\utils_sha256.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>midware/mqtt</GroupName>
+          <Files>
+            <File>
+              <FileName>mqtt_sign.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mqtt_sign.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>midware/clink</GroupName>
+          <Files>
+            <File>
+              <FileName>aiot_mqtt_api.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\aiot_mqtt_api.c</FilePath>
+            </File>
+            <File>
+              <FileName>aiot_state_api.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\aiot_state_api.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_auth.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\utils\core_auth.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_diag.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\utils\core_diag.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_global.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\utils\core_global.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_http.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\utils\core_http.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_log.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\utils\core_log.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_sha256.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\utils\core_sha256.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_string.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\utils\core_string.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_adapter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\sysdep\core_adapter.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_sysdep.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\core\sysdep\core_sysdep.c</FilePath>
+            </File>
+            <File>
+              <FileName>aiot_at_api.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\portfiles\aiot_at_api.c</FilePath>
+            </File>
+            <File>
+              <FileName>hw_at_impl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\portfiles\hw_at_impl.c</FilePath>
+            </File>
+            <File>
+              <FileName>net_at_impl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\portfiles\net_at_impl.c</FilePath>
+            </File>
+            <File>
+              <FileName>sys_os_impl.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\portfiles\sys_os_impl.c</FilePath>
+            </File>
+            <File>
+              <FileName>ecxxx_tcp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\portfiles\module\ecxxx_tcp.c</FilePath>
+            </File>
+            <File>
+              <FileName>ali_ca_cert.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\external\ali_ca_cert.c</FilePath>
+            </File>
+            <File>
+              <FileName>at_port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\portfiles\at_port.c</FilePath>
+            </File>
+            <File>
+              <FileName>aiot_dm_api.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\components\data-model\aiot_dm_api.c</FilePath>
+            </File>
+            <File>
+              <FileName>aiot_ntp_api.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\components\ntp\aiot_ntp_api.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -1,6 +1,6 @@
 #include "list.h"
 #include "lock.h"
-#include "xmem.h"
+#include "mem.h"
 #include "log.h"
 
 
@@ -245,7 +245,7 @@ handle_t list_init(list_cfg_t *cfg)
     l->lock = lock_dynamic_new();
     l->cfg = *cfg;
     
-    l->free = (list_node_t**)eMalloc(sizeof(list_node_t)*l->cfg.max);
+    l->free = (list_node_t**)eCalloc(sizeof(list_node_t*)*l->cfg.max);
     
     return l;
 }
@@ -349,7 +349,7 @@ int list_addto(handle_t l, node_t *node, int index)
         return -1;
     }
     
-    if (hl->size>=hl->cfg.max) {
+    if (hl->cfg.max>0 && hl->size>=hl->cfg.max) {
         
         if(hl->cfg.mode==MODE_FILO) {
             lock_dynamic_release(hl->lock);

@@ -90,6 +90,7 @@ typedef struct {
     U8              hour;
     U8              min;
     U8              sec;
+    U16             ms;
 }time_s_t;
 
 typedef struct {
@@ -99,8 +100,8 @@ typedef struct {
 
 typedef struct {
     U8              *buf;
-    int             blen;
-    int             dlen;
+    U32             blen;
+    U32             dlen;
 }buf_t;
     
 typedef struct {

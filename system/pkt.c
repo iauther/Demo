@@ -173,7 +173,7 @@ int pkt_unpack_cap(void *data, int dlen, pkt_callback_t callback, int chkID)
         if(callback) {
             callback(cd);
         }
-        tlen += cd->len;
+        tlen += cd->dlen+sizeof(ch_data_t);
     }
     
     return 0;

@@ -5,20 +5,18 @@
 
 
 int paras_load(void);
-int paras_erase(void);
 int paras_reset(void);
-int paras_read(int id, void *data, int len);
-int paras_write(int id, void *data, int len);
 
-int paras_get_fwinfo(fw_info_t *fwinfo);
-int paras_set_fwinfo(fw_info_t *fwinfo);
+void paras_set_state(int state);
+int paras_get_state(void);
+int paras_get_run_datetime(date_time_t *dt);
 
-extern U8 sysState;
-extern U8 sysMode;
-extern state_t curStat;
-extern para_t  curPara;
-extern paras_t DEFAULT_PARAS;
-extern char *chJson;
+extern const char *all_para_ini;
+extern const char *all_para_json;
+extern const char *filesPath[];
+extern const all_para_t DFLT_PARA;
+
+extern all_para_t allPara;
 
 #endif
 

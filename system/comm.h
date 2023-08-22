@@ -5,17 +5,13 @@
 #include "pkt.h"
 #include "cfg.h"
 
-#ifdef _WIN32
-#define SAMPLE_POINTS           200
-#define COMM_BUF_LEN            (SAMPLE_POINTS*4+32)
-#endif
 
 typedef struct {
     U8          port;
     handle_t    h;
     
-    U8          rxBuf[COMM_BUF_LEN];
-    U8          txBuf[COMM_BUF_LEN];
+    U8          *rxBuf;
+    U8          *txBuf;
     
     int         chkID;
 }comm_handle_t;

@@ -1,4 +1,5 @@
 #include "rtc.h"
+#include "dal_rtc.h"
 #include "date.h"
 #include "sd30xx.h"
 #include "log.h"
@@ -6,17 +7,16 @@
 
 #define RETRY_TIMES   5
 
-
+static handle_t hpwr=NULL;
 const static date_time_t dflt_time={
     .date = {
         .year  = 2023,
-        .mon   = 7,
-        .day   = 20,
-        .week  = 4,
+        .mon   = 8,
+        .day   = 11,
     },
     
     .time = {
-        .hour = 0,
+        .hour = 8,
         .min  = 0,
         .sec  = 0,
     }
@@ -61,13 +61,31 @@ static int rtcx_quick_power_on(void)
 }
 
 ///////////////////////////////////////
+static void gpio_config(void)
+{
+    dal_gpio_cfg_t gc;
+    
+    gc.gpio.grp = GPIOA;
+    gc.gpio.pin = GPIO_PIN_1;
+    gc.mode = MODE_OUT_OD;
+    gc.pull = PULL_NONE;
+    gc.hl = 0;
+    hpwr = dal_gpio_init(&gc); //ÅäÖÃ
+}
+static void set_power(U8 on)
+{
+    dal_gpio_set_hl(hpwr, !on);
+}
+
 
 int rtcx_init(void)
 {
     int r,first;
     date_time_t dt;
     
+    gpio_config();
     sd30xx_init();
+    dal_rtc_init();
     
     first = rtcx_first();
     LOGD("__rtcx first: %d\n", first);
@@ -76,17 +94,14 @@ int rtcx_init(void)
     }
     
     if(first>0) {
-        r = rtcx_write_time((date_time_t*)&dflt_time);
+        dt = dflt_time;
+        dt.date.week = get_week(dt.date.year, dt.date.mon, dt.date.day);
+        
+        r = rtcx_write_time(&dt);
         if(r) {
             LOGE("__rtcx write time failed\n");
         }
     }
-    
-    r = rtcx_read_time(&dt);
-    if(r) {
-        LOGE("__rtcx read time failed!\n");
-    }
-    print_time("__rtcx time:", &dt);
     
     r = rtcx_quick_power_on();
     if(r) {
@@ -121,6 +136,8 @@ int rtcx_read_time(date_time_t *dt)
         dt->time.hour = tm.hour;
         dt->time.min  = tm.minute;
         dt->time.sec  = tm.second;
+        
+        dal_rtc_set(dt);
     }
     
     return r;
@@ -150,6 +167,7 @@ int rtcx_write_time(date_time_t *dt)
             break;
         }
     }
+    dal_rtc_set(dt);
     
     return r;
 }
@@ -175,6 +193,7 @@ int rtcx_set_alarm(date_time_t *dt)
     for(i=0; i<RETRY_TIMES; i++) {
         r = sd30xx_set_alarm(1, &tm);
         if(r==0) {
+            set_power(0);
             break;
         }
     }
@@ -197,6 +216,7 @@ int rtcx_set_countdown(U32 sec)
         if(r==0) {
             r = sd30xx_clr_irq();
             if(r==0) {
+                set_power(0);
                 break;
             }
         }
@@ -204,6 +224,13 @@ int rtcx_set_countdown(U32 sec)
     
     return r;
 }
+
+
+U64 rtcx_get_timestamp(void)
+{
+    return dal_rtc_get_timestamp();
+}
+
 
 
 int rtcx_print(U8 reg_start, int reg_cnt)

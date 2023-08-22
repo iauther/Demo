@@ -38,6 +38,21 @@
 
 #include "yaffs_ecc.h"
 
+
+#ifndef __CC_ARM
+size_t strnlen(const char *s, size_t count)
+{
+    const char *sc;
+
+    for (sc = s; count-- && *sc != '\0'; ++sc);
+    return sc - s;
+}
+#endif
+
+
+
+
+
 /* Forward declarations */
 
 static void yaffs_fix_null_name(struct yaffs_obj *obj, YCHAR *name,

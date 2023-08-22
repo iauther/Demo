@@ -260,7 +260,7 @@ static int cal_tmr_para(U32 freq, pwm_tmr_para_t *para)
     period = pclk/freq;
     for(pulse=1; pulse<period; pulse++) {
 
-        utime = 1000000000/freq;
+        utime = 1000000000/freq;        //ns
         htime = pulse*utime;
         ltime = (period-pulse)*utime;
         if(htime>30 && ltime>200) {
@@ -312,12 +312,10 @@ static int timer_config(pwm_tmr_para_t *para)
     timer_channel_output_mode_config(TIMER2, TIMER_CH_1,TIMER_OC_MODE_PWM0);
     timer_channel_output_shadow_config(TIMER2, TIMER_CH_1,TIMER_OC_SHADOW_DISABLE);
 
-#ifdef ADC_BORD_V11
     timer_channel_output_config(TIMER2,TIMER_CH_0, &oc);
     timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_0, para->pulse);
     timer_channel_output_mode_config(TIMER2, TIMER_CH_0,TIMER_OC_MODE_PWM0);
     timer_channel_output_shadow_config(TIMER2, TIMER_CH_0,TIMER_OC_SHADOW_DISABLE);
-#endif
 
     timer_primary_output_config(TIMER2, ENABLE);
     timer_dma_enable(TIMER2, TIMER_DMA_CH1D);
@@ -345,7 +343,7 @@ int dal_pwm_init(U32 freq)
     dma_config();
     timer_config(&para);
     
-    dal_pwm_start();
+    //dal_pwm_enable();
     
     return 0;
 }
@@ -370,20 +368,14 @@ int dal_pwm_set(U32 freq)
 }
 
 
-int dal_pwm_start(void)
+int dal_pwm_enable(U8 on)
 {
-    timer_enable(TIMER2);
+    if(on) timer_enable(TIMER2);
+    else   timer_disable(TIMER2);
     
     return 0;
 }
 
-
-int dal_pwm_stop(void)
-{
-    timer_disable(TIMER2);
-    
-    return 0;
-}
 
 
 int dal_pwm_deinit(void)

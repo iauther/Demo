@@ -12,14 +12,22 @@
 
 U32 sys_freq = 0;
 ////////////////////////////////////////
-
-extern void systick_config(void);
 static int dal_clk_init(void)
 {
-	nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);
-    systick_config();
+    U32 sistick_val = SystemCoreClock/1000;
+    
+    if(SysTick_Config(sistick_val)) {
+        while(1);
+    }
     
 	return 0;
+}
+
+
+void dal_set_priority(void)
+{
+    //nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);
+    //NVIC_SetPriority(SysTick_IRQn, 0x00U);
 }
 
 
@@ -27,7 +35,7 @@ int dal_init(void)
 {
     dal_clk_init();
     sys_freq = SystemCoreClock;
-
+    
 #ifndef BOOTLOADER
     dal_sdram_init();
 #endif
@@ -36,20 +44,19 @@ int dal_init(void)
 }
 
 
+
 int dal_set_vector(void)
 {
     int r;
     upg_info_t info;
-    U32 addr=APP_OFFSET+sizeof(upg_hdr_t);
+    U32 addr=FLASH_BASE|APP_OFFSET+sizeof(upg_hdr_t);
     
     r = upgrade_get_upg_info(&info);
     if(r==0) {
         addr = info.runAddr;
     }
-    addr |= FLASH_BASE;
-    LOGD("___dal_set_vector, addr: 0x%08x\n", addr);
-    
     nvic_vector_table_set(NVIC_VECTTAB_FLASH, addr);
+    
     __enable_irq();
     
     return 0;

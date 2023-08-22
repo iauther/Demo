@@ -12,7 +12,7 @@
 int power_init(void)
 {
     rtcx_init();
-    dal_pmu_init();
+    //dal_pmu_init();
     
     return 0;
 }

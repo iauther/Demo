@@ -24,8 +24,7 @@ typedef enum {
 
 typedef struct {
     U8          mode;
-    U32         max;        //the max count
-    handle_t    hmem;       //NULL: not use xmem, !NULL: use xmem
+    int         max;        //the max count
 }list_cfg_t;
 
 

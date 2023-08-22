@@ -20,6 +20,7 @@ typedef struct {
 
 
 int dal_init(void);
+void dal_set_priority(void);
 int dal_set_vector(void);
 void dal_reboot(void);
 U32 dal_get_freq(void);

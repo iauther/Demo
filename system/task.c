@@ -52,8 +52,10 @@ int task_wait(int taskID)
         return -1;
     }
     
-    //osThreadFlagsWait();
-    while(osThreadGetState(h->threadID)!=osThreadBlocked);
+    if(osKernelGetState()==osKernelRunning) {
+        //osThreadFlagsWait();
+        while(osThreadGetState(h->threadID)!=osThreadBlocked);
+    }
     
     return 0;
 }
@@ -127,14 +129,42 @@ int task_new(task_attr_t *tattr)
     
     h->threadID = osThreadNew(h->attr.func, h->attr.arg, &attr);    
     
-    if(!h->attr.runNow) {
-        osThreadSuspend(h->threadID);
-    }
-    
     taskHandle[h->attr.taskID] = h;
+    
+    if(osKernelGetState()==osKernelRunning) {
+        if(h->attr.runNow) {
+            osThreadYield();
+            while(osThreadGetState(h->threadID)!=osThreadBlocked);
+        }
+        else {
+            osThreadSuspend(h->threadID);
+        }
+    }
     
     return 0;
 }
+
+
+int task_simp_new(osThreadFunc_t fn, int stksize, void *arg, osThreadId_t *tid)
+{
+    osThreadId_t id;
+    const osThreadAttr_t attr={
+        .attr_bits  = 0U,
+        .cb_mem     = NULL, //?
+        .cb_size    = 0,
+        .stack_mem  = NULL,
+        .stack_size = stksize,
+        .priority   = osPriorityNormal,
+        .tz_module  = 0,
+    };
+    
+    id = osThreadNew(fn, arg, &attr); 
+    if(tid) *tid = id;
+    
+    return 0;
+}
+
+
 
 
 int task_start(int taskID)
@@ -212,6 +242,12 @@ int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len)
 }
 
 
+int task_trig(int taskID, U8 evt)
+{
+    return task_post(taskID, NULL, evt, 0, NULL, 0);
+}
+
+
 
 int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, void *arg, U32 ms, U32 times)
 {
@@ -256,6 +292,13 @@ int task_tmr_stop(int taskID)
     
     return 0;
 }
+
+
+int task_yield(void)
+{
+    return osThreadYield();
+}
+
 
 #endif
 

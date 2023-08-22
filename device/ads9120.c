@@ -4,6 +4,7 @@
 #include "dal_gpio.h"
 #include "dal_delay.h"
 #include "dal_dac.h"
+#include "paras.h"
 #include "log.h"
 #include "cfg.h"
 
@@ -83,7 +84,7 @@ typedef struct {
 
 static void ads_set_cs(U8 hl);
 static void ads_config(void);
-static void ads_callback(U16 *rx, U16 *ox, F32 *vx, int cnt);
+static void ads_callback(U16 *rx, U16 *ox, U32 cnt);
 
 
 static ads_handle_t adsHandle;
@@ -123,13 +124,22 @@ static inline void ads_other_init(void)
     dal_pwm_init(adsHandle.cfg.freq);
 #endif
 
-#ifdef DAC_OUTPUT
+    if(allPara.usr.dac.fdiv==0) {
+        allPara.usr.dac.fdiv = 1;
+    }
+    
     dc.port = DAC_1;
-    dc.freq = adsHandle.cfg.freq/DAC_FREQ_DIV;
+    dc.freq = adsHandle.cfg.freq/allPara.usr.dac.fdiv;
     dc.buf  = adsHandle.cfg.buf.ox.buf;
     dc.bufLen = adsHandle.cfg.buf.ox.blen;
     adsHandle.hdac = dal_dac_init(&dc);
-#endif
+    
+    if(allPara.usr.dac.enable) {
+        dal_dac_start(adsHandle.hdac);
+    }
+    else {
+        dal_dac_stop(adsHandle.hdac);
+    }
 }
 
 
@@ -601,20 +611,21 @@ static void inline ads_read(S16 *data)
 
 
 //////////////////////////////////////////////////////////////////
-static void ads_callback(U16 *rx, U16 *ox, F32 *vx, int cnt)
+static void ads_callback(U16 *rx, U16 *ox, U32 cnt)
 {
     int i,j=0;
-    
-    if(adsHandle.cfg.callback) {
-        adsHandle.cfg.callback(rx, cnt*2);
+
+    if(rx && adsHandle.cfg.callback) {
+        adsHandle.cfg.callback(rx, cnt);
     }
     
-    for(i=0; i<cnt; i++) { 
-#ifdef DAC_OUTPUT
-        if(i%DAC_FREQ_DIV==0) {
-            ox[j++] = (rx[i]<0x8000)?(rx[i]+0x8000):(rx[i]-0x8000);
+    if(ox && allPara.usr.dac.enable) {
+        for(i=0; i<cnt; i++) { 
+            if(i%allPara.usr.dac.fdiv==0) {
+                ox[j++] = (rx[i]<0x8000)?(rx[i]+0x8000):(rx[i]-0x8000);
+            }
+        
         }
-#endif
     }
 }
 static void ads_config(void)
@@ -669,8 +680,28 @@ int ads9120_init(ads9120_cfg_t *cfg)
     return 0;
 }
 
+static int ads_en_flag=0;
+int ads9120_enable(U8 on)
+{
+    if(ads_en_flag==on) {
+        return -1;
+    }
+    
+    dal_spi_enable(on);
+    dal_pwm_enable(on);
+    ads_en_flag = on;
+    
+    return 0;
+}
 
-int ads9120_read(S16 *data, U32 cnt)
+
+int ads9120_is_enabled(void)
+{
+    return ads_en_flag;
+}
+
+
+int ads9120_read(S16 *data, int cnt)
 {
     int i;
     
@@ -684,7 +715,7 @@ int ads9120_read(S16 *data, U32 cnt)
 
 int ads9120_conv(F32 *f, U16 *u, U32 cnt)
 {
-    int i;
+    U32 i;
     
     if(!f || !u || !cnt) {
         return -1;

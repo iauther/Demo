@@ -25,6 +25,7 @@ int log_init(rx_cb_t callback);
 int log_deinit(void);
 int log_get(log_cfg_t *cfg);
 int log_set(log_cfg_t *cfg);
+int log_set_callback(rx_cb_t cb);
 
 #if 0
 #define LOG(lv, fmt, ...)   if(log_cfg.en[lv]) {\

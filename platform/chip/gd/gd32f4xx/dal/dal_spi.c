@@ -3,6 +3,8 @@
 #include "dal_dac.h"
 #include "dal_gpio.h"
 #include "gd32f4xx_spi.h"
+#include "dal_delay.h"
+#include "log.h"
 
 #if defined(__CC_ARM)
 #pragma diag_suppress 1296
@@ -68,7 +70,7 @@ static void spi_dma_init(dal_spi_handle_t *h)
     init2.memory_inc = DMA_MEMORY_INCREASE_ENABLE;
     init2.memory_burst_width = DMA_MEMORY_BURST_4_BEAT;
     init2.periph_burst_width = DMA_MEMORY_BURST_4_BEAT;//DMA_PERIPH_BURST_SINGLE;
-    init2.critical_value = DMA_FIFO_2_WORD;
+    init2.critical_value = DMA_FIFO_4_WORD;
     //init2.circular_mode = DMA_CIRCULAR_MODE_DISABLE;
     init2.circular_mode = DMA_CIRCULAR_MODE_ENABLE;
     init2.direction = DMA_PERIPH_TO_MEMORY;
@@ -105,26 +107,34 @@ static void spi_dma_init(dal_spi_handle_t *h)
 
 void DMA1_Channel6_IRQHandler(void)     //spi dma rx
 {
-    int len;
+    U32 cnt;
+    //U32 v1,v2,v3,t1,t2,t3,flag=0;
     dal_spi_handle_t *h=spiHandle[SPI_5];
     
     //dma_channel_disable(DMA1, DMA_CH6);
     //dal_pwm_stop();
     //dal_dac_stop(h->cfg.hdac);
     
-    len = h->cfg.buf.rx.blen/4;
+    //t1=dal_get_tick();
+    
+    cnt = h->cfg.buf.rx.blen/4;     //双buffer，取总个数的一半
     if(dma_interrupt_flag_get(DMA1, DMA_CH6, DMA_INT_FLAG_HTF)) {
         dma_interrupt_flag_clear(DMA1, DMA_CH6, DMA_INT_FLAG_HTF);
+
         if(h && h->cfg.callback) {
-            h->cfg.callback((U16*)h->cfg.buf.rx.buf, (U16*)h->cfg.buf.ox.buf, (F32*)h->cfg.buf.vx.buf, len);
+            h->cfg.callback((U16*)h->cfg.buf.rx.buf, (U16*)h->cfg.buf.ox.buf, cnt);
         }
     }
     else if(dma_interrupt_flag_get(DMA1, DMA_CH6, DMA_INT_FLAG_FTF)) {
         dma_interrupt_flag_clear(DMA1, DMA_CH6, DMA_INT_FLAG_FTF);
+        
         if(h && h->cfg.callback) {
-            h->cfg.callback((U16*)h->cfg.buf.rx.buf+len, (U16*)h->cfg.buf.ox.buf+len, (F32*)h->cfg.buf.vx.buf+len, len);
+            h->cfg.callback((U16*)h->cfg.buf.rx.buf+cnt, (U16*)h->cfg.buf.ox.buf+cnt, cnt);
         }
     }
+    //t3=dal_get_tick();
+    
+    //LOGD("%d, %d ms\n", t2-t1, t3-t2);
     
     //dma_memory_address_config(DMA1, DMA_CH6, DMA_MEMORY_0, (U32)h->cfg.rx.buf);
     //dma_transfer_number_config(DMA1, DMA_CH6, h->cfg.rx.blen/2);
@@ -216,7 +226,7 @@ handle_t dal_spi_init(dal_spi_cfg_t *cfg)
         //spi_nss_output_disable(port);      //拉高cs
         //spi_ti_mode_enable(port);
     }
-    spi_enable(port);
+    //spi_enable(port);
     
     if(h->cfg.useDMA) {
         dma_channel_enable(DMA1, DMA_CH6);
@@ -355,4 +365,10 @@ int dal_spi_set_hw_cs(handle_t h, U8 hl)
 }
 
 
-
+int dal_spi_enable(U8 on)
+{
+    if(on) spi_enable(SPI5);
+    else   spi_disable(SPI5);
+    
+    return 0;
+}

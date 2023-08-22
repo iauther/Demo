@@ -339,6 +339,22 @@ int dal_uart_rw(handle_t h, U8 *data, int len, U8 rw)
 }
 
 
+
+int dal_uart_set_callback(handle_t h, rx_cb_t cb)
+{
+    dal_uart_handle_t *dh=(dal_uart_handle_t*)h;
+    
+    if(!dh) {
+        return -1;
+    }
+    
+    dh->cfg.para.callback = cb;
+    
+    return 0;
+}
+
+
+
 static void uartx_handler(U8 port)
 {
     dal_uart_handle_t *h=uartHandle[port];
