@@ -83,9 +83,15 @@ const all_para_t DFLT_PARA={
                 .n_ev       = 4,
                 .upway      = 0,
                 .upwav      = 0,
-                .coef       = {
-                    .a      = 1.0F,
-                    .b      = 0.0F,
+                .cali       = {
+                    .ch = 0,
+                    .rms = 40,
+                    .bias = 0,
+                    
+                    .coef={
+                        .a  = 1.0F,
+                        .b  = 0.0F,
+                    }
                 }
             },
             
@@ -97,11 +103,17 @@ const all_para_t DFLT_PARA={
                 .n_ev       = 4,
                 .upway      = 0,
                 .upwav      = 0,
-                .coef       = {
-                    .a      = 100.0F,
-                    .b      = 0.0F,
+                .cali       = {
+                    .ch = 0,
+                    .rms = 40,
+                    .bias = 0,
+                    
+                    .coef={
+                        .a  = 1.0F,
+                        .b  = 0.0F,
+                    }
                 }
-            },
+            }
         },
         
         .dbg = {
@@ -123,6 +135,19 @@ const all_para_t DFLT_PARA={
 };
 
 
+const date_time_t DFLT_TIME={
+    .date = {
+        .year  = 2023,
+        .mon   = 8,
+        .day   = 11,
+    },
+    
+    .time = {
+        .hour = 8,
+        .min  = 0,
+        .sec  = 0,
+    }
+};
 
 
 const char *all_para_json="{\
@@ -191,7 +216,6 @@ const char *all_para_ini="\
 
 const char *filesPath[FILE_MAX]={
     SFLASH_MNT_PT"/cfg/para.bin",
-    SFLASH_MNT_PT"/cfg/cali.bin",
     SDMMC_MNT_PT"/xxxx",
     
     SFLASH_MNT_PT"/upg/app.upg",

@@ -26,7 +26,16 @@ static F32 ev_rms_calc(F32 *data, U32 cnt)
 }
 static F32 ev_asl_calc(F32 *data, U32 cnt)
 {
-    return 0.0F;
+    U32 i;
+    F32 v=0.0F;
+    
+    for(i=0; i<cnt; i++) {
+        v += fabs(data[i]);
+    }
+    v /= cnt;
+    v *= 1000000;
+    
+    return (F32)(log10(v)*20);
 }
 
 static F32 ev_ene_calc(F32 *data, U32 cnt, U32 freq)
@@ -73,20 +82,15 @@ static F32 ev_max_calc(F32 *data, U32 cnt)
 static F32 ev_amp_calc(F32 *data, U32 cnt)
 {
     U32 i;
-    F32 min=data[0];
-    F32 max=data[0];
+    F32 max=fabs(data[0]);
     
     for(i=1; i<cnt; i++) {
-        if(data[i]>max) {
-            max = data[i];
-        }
-        
-        if(data[i]<min) {
-            min = data[i];
+        if(fabs(data[i])>max) {
+            max = fabs(data[i]);
         }
     }
     
-    return (max-min);
+    return max;
 }
 
 

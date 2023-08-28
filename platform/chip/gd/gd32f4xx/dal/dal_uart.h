@@ -2,7 +2,6 @@
 #define __DAL_UART_Hx__
 
 #include "types.h"
-#include "comm.h"
 
 enum {
     UART_0=0,

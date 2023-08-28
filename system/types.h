@@ -63,6 +63,7 @@ enum {
 
 
 typedef void*  handle_t;
+typedef int (*rx_cb_t)(handle_t h, void* addr, U32 evt, void* data, int len);
 
 #ifndef MAX
 #define MAX(a,b)    ((a>b)?a:b)

@@ -1,7 +1,6 @@
 #ifndef __NET_Hx__
 #define __NET_Hx__
 
-#include "comm.h"
 #include "eth/eth.h"
 #include "list.h"
 #include "dal.h"

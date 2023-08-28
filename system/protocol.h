@@ -27,8 +27,8 @@ enum {
 enum {
     STAT_STOP=0,
     STAT_CALI,              //calibration
+    STAT_CAP,
     STAT_TEST,
-    STAT_RUNNING,
     STAT_UPGRADE,
     
     STAT_POWEROFF=0x10,
@@ -37,8 +37,8 @@ enum {
 
 
 enum {
-    TYPE_CMD=0,
-    TYPE_CAP,       //channel capture data
+    TYPE_CAP=0,       //channel capture data
+    TYPE_CALI,        //calibration
     TYPE_ACK,
     TYPE_STAT,
     TYPE_SETT,
@@ -52,9 +52,9 @@ enum {
 };
 
 
+
 enum {
     FILE_PARA=0,
-    FILE_CALI,
     
     FILE_CAP,       //adc data
     FILE_UPG,
@@ -63,6 +63,9 @@ enum {
     FILE_MAX
 };
 
+#ifdef _WIN32
+#pragma warning(disable : 4200)
+#endif
 
 #pragma pack (1)
 
@@ -101,6 +104,12 @@ typedef struct {
 }coef_t;
 typedef struct {
     U8      ch;
+    F32     rms;
+    F32     bias;
+    coef_t  coef;
+}cali_t;
+typedef struct {
+    U8      ch;
     U32     smpFreq;        //hz
     U32     smpTime;        //ms
     U8      ev[EV_NUM];
@@ -110,9 +119,8 @@ typedef struct {
     U32     smpPoints;
     U32     evCalcLen;
     
-    coef_t  coef;
+    cali_t  cali;
 }adc_para_t;
-
 typedef struct {
     net_para_t  net;
     dac_para_t  dac;
@@ -127,6 +135,7 @@ typedef struct {
     U64             time;
     F32             data[0];
 }cap_data_t;
+
 typedef struct {
     U32             ch;
     U32             id;
@@ -137,12 +146,12 @@ typedef struct {
 }ch_data_t;
 
 typedef struct {
-    F32          rms;
-    F32          amp;
-    F32          asl;
-    F32          pwr;
+    F32             rms;
+    F32             amp;
+    F32             asl;
+    F32             pwr;
     
-    U64          time;
+    U64             time;
 }ev_data_t;
 
 typedef struct {
@@ -155,10 +164,12 @@ typedef struct {
     ev_data_t       ev[0];
 }upload_data_t;
 
+
 typedef struct {
-    U8              cmd;
-    U32             para;
-}command_t;
+    U8              ch;
+    U8              enable;
+}capture_t;
+
 
 typedef struct {
     U8              xx;
@@ -168,7 +179,6 @@ typedef struct {
 typedef struct {
     U8              mode;
     U8              state;
-    
     date_time_t     dt;
 }state_t;
 
@@ -188,7 +198,7 @@ typedef struct {
     U8              flag;
     U8              askAck;         //1: need ack     0: no need ack
     U16             dataLen;
-    U8              data[];
+    U8              data[0];
     //U8            checksum;
 }pkt_hdr_t;
 
@@ -197,7 +207,7 @@ typedef struct {
     U16             pkts;
     U16             pid;
     U16             dataLen;
-    U8              data[];
+    U8              data[0];
 }file_pkt_t;
 
 typedef struct {

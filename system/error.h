@@ -41,6 +41,7 @@ enum {
     
     //communication
     ERROR_ACK_TIMEOUT=0x50,
+    ERROR_NET_DISCONN,
     
     //system
     ERROR_I2C1_GEN=0x60,      //all i2c dev except for eeprom

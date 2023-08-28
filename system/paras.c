@@ -9,7 +9,7 @@
 #include "json.h"
 
 all_para_t allPara;
-
+static int prev_state=-1;
 ////////////////////////////////////////////////////////////
 int paras_load(void)
 {
@@ -52,6 +52,7 @@ int paras_load(void)
 
 void paras_set_state(int state)
 {
+    prev_state = allPara.sys.stat.state;
     allPara.sys.stat.state = state;
 }
 
@@ -59,6 +60,55 @@ void paras_set_state(int state)
 int paras_get_state(void)
 {
     return allPara.sys.stat.state;
+}
+
+
+int paras_state_restore(void)
+{
+    if(prev_state==-1) {
+        return -1;
+    }
+    
+    allPara.sys.stat.state = prev_state;
+    
+    return 0;
+}
+
+
+int paras_get_prev_state(void)
+{
+    return prev_state;
+}
+
+
+
+int paras_set_cali(U8 ch, cali_t *ca)
+{
+    if(ch>=CH_MAX || !ca) {
+        return -1;
+    }
+    
+    allPara.usr.ch[ch].cali = *ca;
+    return 0;
+}
+
+int paras_set_coef(U8 ch, coef_t *cf)
+{
+    if(ch>=CH_MAX || !cf) {
+        return -1;
+    }
+    
+    allPara.usr.ch[ch].cali.coef = *cf;
+    return 0;
+}
+
+
+adc_para_t* paras_get_adc_para(U8 ch)
+{
+    if(ch>=CH_MAX) {
+        return NULL;
+    }
+    return &allPara.usr.ch[ch];
 }
 
 

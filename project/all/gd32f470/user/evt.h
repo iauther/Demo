@@ -17,10 +17,6 @@ enum {
     EVT_TIMER,
     EVT_SAVE,
     
-    EVT_CAP_START,
-    EVT_CAP_STOP,
-    
-    
 };
 
 typedef struct {

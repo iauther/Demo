@@ -46,7 +46,7 @@ int log_set(log_cfg_t *cfg)
 }
 
 
-int log_print(LEVEL lv, char *fmt, ...)
+int log_print(LOG_LEVEL lv, char *fmt, ...)
 {
     va_list args;
 

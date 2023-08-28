@@ -77,21 +77,21 @@ int pkt_check_hdr(void *data, int dlen, int buflen, int chkID)
     chkcode_t cc1,cc2;
     U8 sum1,sum2,err=ERROR_NONE;
     U8 *p8=(U8*)data;
-    pkt_hdr_t *p=(pkt_hdr_t*)data;
-    int head_data_len=p->dataLen+PKT_HDR_LENGTH;
+    pkt_hdr_t *hdr=(pkt_hdr_t*)data;
+    int head_data_len=hdr->dataLen+PKT_HDR_LENGTH;
     int total_len=head_data_len+get_chkcode_len(chkID);
     
-    if (p->magic != PKT_MAGIC) {
+    if (hdr->magic != PKT_MAGIC) {
         err = ERROR_PKT_MAGIC;
     }
     
-    if (total_len != dlen || total_len>buflen) {
-        err = ERROR_PKT_LENGTH;
-    }
+    //if (total_len != dlen || total_len>buflen) {
+    //    err = ERROR_PKT_LENGTH;
+    //}
 
     if (err==ERROR_NONE && chkID!=CHK_NONE) {
         cc1 = get_chkcode(chkID, &p8[head_data_len]);
-        cc2 = cal_chkcode(chkID, p, p->dataLen+PKT_HDR_LENGTH);
+        cc2 = cal_chkcode(chkID, hdr, hdr->dataLen+PKT_HDR_LENGTH);
         if (memcmp(&cc1, &cc2, sizeof(chkcode_t))) {
             #ifdef _WIN32
             //LOG("____checksum: 0x%02x, p8 0x%02x\n", sum1, sum2);
@@ -107,37 +107,37 @@ int pkt_check_hdr(void *data, int dlen, int buflen, int chkID)
 static int do_pack(U8 type, U8 error, U8 nAck, void *data, int dlen, U8 *buf, int blen, int chkID)
 {
     chkcode_t cc;
-    pkt_hdr_t* p = (pkt_hdr_t*)buf;
-    int dataLen  = PKT_HDR_LENGTH+dlen;
-    U32 totalLen = dataLen+get_chkcode_len(chkID);
+    pkt_hdr_t* hdr=(pkt_hdr_t*)buf;
+    int dataLen=PKT_HDR_LENGTH+dlen;
+    U32 totalLen=dataLen+get_chkcode_len(chkID);
 
     if (totalLen>blen) {
         //LOGE("_____ do_pack len wrong, need: %d, max: %d\n", totalLen, blen);
         return -1;
     }
 
-    p->magic = PKT_MAGIC;
-    p->type = type;
-    p->flag = 0;
+    hdr->magic = PKT_MAGIC;
+    hdr->type = type;
+    hdr->flag = 0;
     
     if(type==TYPE_ACK) {
-        ack_t* ack = (ack_t*)p->data;
-        p->askAck = 0;
-        p->dataLen = sizeof(ack_t);
+        ack_t* ack = (ack_t*)hdr->data;
+        hdr->askAck = 0;
+        hdr->dataLen = sizeof(ack_t);
         ack->type = type;
         ack->error = error;
     }
     else if(type==TYPE_ERROR) {
-        error_t* err = (error_t*)p->data;
-        p->askAck = 0;
-        p->dataLen = sizeof(error_t);
+        error_t* err = (error_t*)hdr->data;
+        hdr->askAck = 0;
+        hdr->dataLen = sizeof(error_t);
         err->type = type;
         err->error = error;
     }
     else {
-        p->askAck = nAck;
-        p->dataLen = dlen;
-        memcpy(p->data, data, dlen);
+        hdr->askAck = nAck;
+        hdr->dataLen = dlen;
+        memcpy(hdr->data, data, dlen);
     }
     
     cc = cal_chkcode(chkID, buf, dataLen);

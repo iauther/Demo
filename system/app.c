@@ -13,7 +13,7 @@ int app_start(void)
 {
     //dal_set_vector();
     dal_init();
-    log_init(NULL);
+    //log_init(NULL);
     
     LOGD("\n__app start\n");
     

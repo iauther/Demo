@@ -1,6 +1,5 @@
 #include "task.h"
 #include "list.h"
-#include "comm.h"
 #include "paras.h"
 #include "dal_adc.h"
 #include "cfg.h"
@@ -56,31 +55,37 @@ static int data_proc_fn(U8 ch, adc_para_t *para, F32 *data, int len)
     ptmp->id = ch;                  //ÁÙÊ±ÓÃch´úÌæid
     ptmp->time = pcap->time;
     ptmp->dlen = 0;
-    ptmp->evlen = times*para->n_ev*4;
 
-    if(para->upwav) {
-        ptmp->dlen = len*4;
-        memcpy(pdata, pcap->data, ptmp->dlen);
+    if(paras_get_state()==STAT_CALI) {
+        ptmp->dlen = ptmp->dlen;
+        ptmp->evlen = 0;
     }
-    
-    ev = ev_tmp;
-    if(para->n_ev>0) {
-        for(i=0; i<times; i++) {
-            for(j=0; j<para->n_ev; j++) {
-                dsp_ev_calc((EV_TYPE)para->ev[j], pcap->data+i*para->evCalcLen, para->evCalcLen, para->smpFreq, ev+j);
-            }
-            
-            ev += para->n_ev;
+    else {
+        if(para->upwav) {
+            ptmp->dlen = len*4;
+            memcpy(pdata, pcap->data, ptmp->dlen);
         }
-        memcpy(pdata+ptmp->dlen, ev_tmp, ptmp->evlen);
+        ptmp->evlen = times*para->n_ev*4;
+        
+        ev = ev_tmp;
+        if(para->n_ev>0) {
+            for(i=0; i<times; i++) {
+                for(j=0; j<para->n_ev; j++) {
+                    dsp_ev_calc((EV_TYPE)para->ev[j], pcap->data+i*para->evCalcLen, para->evCalcLen, para->smpFreq, ev+j);
+                }
+                
+                ev += para->n_ev;
+            }
+            memcpy(pdata+ptmp->dlen, ev_tmp, ptmp->evlen);
+        }
     }
     
     tlen = ptmp->dlen+ptmp->evlen;
     if(tlen>0) {
         tlen += sizeof(ch_data_t);
         r = list_append(listBuffer.send, ptmp, tlen);
-        if(r) {
-            LOGE("___add to send failed\n");
+        if(r==0) {
+            task_trig(TASK_COMM_SEND, EVT_DATA);
         }
     }
     

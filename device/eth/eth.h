@@ -1,12 +1,17 @@
 #ifndef __ETH_Hx__
 #define __ETH_Hx__
 
-#include "devs.h"
-#include "lwip.h"
+#include "types.h"
+#include "cfg.h"
 
 #ifdef __cplusplus
  extern "C" {
 #endif
+
+
+#ifdef USE_ETH
+
+#include "lwip.h"
 
 
 typedef struct pbuf pbuf_t;
@@ -35,6 +40,7 @@ typedef struct {
 handle_t eth_init(eth_cfg_t *cfg);
 void eth_set_ip(handle_t h, char *ip, char *mask, char *gw);
 void eth_link_check(handle_t h);
+#endif
 
 #ifdef __cplusplus
 }

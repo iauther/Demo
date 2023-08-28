@@ -12,7 +12,7 @@ enum {
     CMD_ECXX=0,
     CMD_USER,
     
-    CMD_MAX
+    CMD_NUM
 };
 
 

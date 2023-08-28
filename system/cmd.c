@@ -2,7 +2,7 @@
 #include <string.h>
 
 
-const char *cmdStr[CMD_MAX]={
+const char *cmdStr[CMD_NUM]={
     "ECXX:",
     "USER:",
     
@@ -26,7 +26,7 @@ int cmd_get(char *data, cmd_t *cmd)
     
     memset(tmp, 0, sizeof(tmp));
     memcpy(tmp, data, CMD_HDR_MAX_LEN);
-    for(i=0; i<CMD_MAX; i++) {
+    for(i=0; i<CMD_NUM; i++) {
         if(strstr(tmp, cmdStr[i])) {
             r = i;
         }

@@ -4,6 +4,7 @@
 #include "aiot_at_api.h"
 #include "os_net_al.h"
 #include "dal_uart.h"
+#include "dal_gpio.h"
 #include "log.h"
 
 

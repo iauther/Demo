@@ -6,6 +6,7 @@
 #include "ads9120.h"
 #include "mem.h"
 #include "rtc.h"
+#include "dsp.h"
 #include "paras.h"
 #include "fs.h"
 #include "power.h"
@@ -13,7 +14,10 @@
 
 #ifdef OS_KERNEL
 
+#define CAP_INV_MS       (5*1000)
 
+
+static U64 cap_time=0;
 list_buf_t listBuffer;
 static void lbuf_init(U32 points)
 {
@@ -121,6 +125,7 @@ static void ads_data_task_proc(void *data, int length)
         }
     }
     else {
+        adsLength = 0;
         ads9120_enable(0);
     }
 }
@@ -134,15 +139,40 @@ static U64 get_start_time(U8 ch, U32 cnt)
     return (time-t_ms);
     
 }
-static void data_convert(U8 ch, F32 *f, U16 *u, U32 cnt)
+static void coef_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
 {
     U32 i;
-    coef_t *coef=&allPara.usr.ch[ch].coef;
+    adc_para_t *para=paras_get_adc_para(ch);
     
     for(i=0; i<cnt; i++) {
-        f[i] = VOLT(u[i])*coef->a+coef->b;
+        f[i] = VOLT(u[i])*para->cali.coef.a+para->cali.coef.b;
     }
 }
+static void cali_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
+{
+    U32 i;
+    F32 rms[10],x=0.0f,y=0.0f;
+    
+    adc_para_t *para=paras_get_adc_para(ch);
+    cali_t *ca=&para->cali;
+    coef_t *cf=&ca->coef;
+    
+    for(i=0; i<cnt; i++) {
+        f[i] = VOLT(u[i]);
+        y += f[i];
+    }
+    y /= cnt;
+    
+    for(i=0; i<10; i++) {
+        dsp_ev_calc(EV_RMS, f+i*(cnt/10), cnt/10, para->smpFreq, &rms[i]);
+        x += rms[i];
+    }
+    x /= 10;
+    
+    cf->a = ca->rms/(x*1000);
+    cf->b = ca->bias - (cf->a*y);
+}
+
 static void ads_data_callback(U16 *data, U32 cnt)
 {
     int r;
@@ -151,16 +181,24 @@ static void ads_data_callback(U16 *data, U32 cnt)
     U32 buflen=listBuffer.cap.blen;
     U32 tlen=sizeof(stime)+cnt*4;
     
-    if(tlen<buflen) {
-        F32 *f32=(F32*)(pbuf+sizeof(U64));
-        node_t node={pbuf, buflen, tlen};
+    if(paras_get_state()==STAT_CALI) {
+        F32 *f32=(F32*)(pbuf);
         
-        memcpy(pbuf, &stime, sizeof(stime));          //数据前带上时间戳
-        data_convert(CH_0, f32, data, cnt);
-        
-        r = task_post(TASK_DATA_CAP, NULL, EVT_ADS, 0, &node, sizeof(node));
-        
-        //LOGD("__1__%dms\n", dal_get_tick());
+        cali_calc(CH_0, f32, data, cnt);
+        paras_state_restore();
+    }
+    else {
+        if(tlen<buflen) {
+            F32 *f32=(F32*)(pbuf+sizeof(U64));
+            node_t node={pbuf, buflen, tlen};
+            
+            memcpy(pbuf, &stime, sizeof(stime));          //数据前带上时间戳
+            coef_calc(CH_0, f32, data, cnt);
+            
+            r = task_post(TASK_DATA_CAP, NULL, EVT_ADS, 0, &node, sizeof(node));
+            
+            //LOGD("__1__%dms\n", dal_get_tick());
+        }
     }
 }
 static void vib_data_callback(U8 *data, U32 len)
@@ -177,7 +215,7 @@ static int ads_init(U32 freq)
     ads9120_cfg_t ac;
     
     adsLength = 0;
-    points = (freq/1000)*10;       //10ms
+    points = (freq/1000)*10;            //10ms
     
     lbuf_init(points);
     
@@ -194,7 +232,7 @@ static int ads_init(U32 freq)
     
     r = ads9120_init(&ac);
     
-    //ads9120_enable(1);
+    ads9120_enable(1);
     
     return r;
 }
@@ -210,7 +248,11 @@ int api_cap_start(void)
         return -1;
     }
 
-    return task_trig(TASK_DATA_CAP, EVT_CAP_START);
+    adsLength = 0;
+    ads9120_enable(1);
+    cap_time = rtcx_get_timestamp();
+    
+    return 0;
 }
 int api_cap_stop(void)
 {
@@ -218,7 +260,9 @@ int api_cap_stop(void)
         return -1;
     }
     
-    return task_trig(TASK_DATA_CAP, EVT_CAP_STOP);
+    adsLength = 0;
+    ads9120_enable(0);
+    return 0;
 }
 
 
@@ -272,24 +316,16 @@ void task_data_cap_fn(void *arg)
             }
             break;
             
-            case EVT_CAP_START:
-            {
-                adsLength = 0;
-                ads9120_enable(1);
-            }
-            break;
-            
-            case EVT_CAP_STOP:
-            {
-                ads9120_enable(0);
-                adsLength = 0;
-            }
-            break;
-            
             case EVT_TIMER:
             {
-                static int cct=0;
-                LOGD("___ %d\n", cct++);
+                if(paras_get_state()==STAT_CAP) {
+                    U64 ctime=rtcx_get_timestamp();
+                    U64 xtime=ctime-cap_time;
+                    
+                    if(xtime>CAP_INV_MS) {
+                        api_cap_start();
+                    }
+                }
             }
             break;
         }

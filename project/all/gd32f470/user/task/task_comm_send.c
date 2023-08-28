@@ -1,19 +1,16 @@
-#include "comm.h"
 #include "task.h"
 #include "list.h"
-#include "ecxxx.h"
 #include "dal_rtc.h"
 #include "dal_delay.h"
 #include "fs.h"
+#include "rtc.h"
+#include "cfg.h"
+#include "comm.h"
 #include "paras.h"
 
 
 
-#define EV_SEND_CNT_THRESHOLD       200
-
-
-#define FILE_MAX_LEN  (1024*1024)
-
+#define FILE_MAX_LEN        (1024*1024)
 
 
 #ifdef OS_KERNEL
@@ -257,7 +254,7 @@ static U32 sendBuffer[500];
 static U32 sendDataID=5654673;
 static upload_data_t *pUpData=NULL;
 static int up_data_cnt=0;
-static int send_mqtt_data(void)
+static int upload_by_mqtt(void)
 {
     int i,r,tlen=0;
     int size=0;
@@ -266,6 +263,10 @@ static int send_mqtt_data(void)
     U32 step_ms;
     ev_data_t evdata;
     upload_data_t *up=(upload_data_t*)sendBuffer;    
+    
+    if(!mqtt_is_connected()) {
+        return -1;
+    }
     
     if(list_get(listBuffer.send, &node, 0)==0) {
         int times,evlen,cnt=0;
@@ -313,59 +314,67 @@ static int send_mqtt_data(void)
     
     return size;
 }
-
-#define TIMER_INTERVAL          300
-#define SEND_INTERVAL           (60*1000)
-static U32 total_time=0;
-void task_comm_send_fn(void *arg)
+static int upload_by_self(void)
 {
-    int i,r,cnt=0;
-    int  err=0;
-    evt_t e;
-    date_time_t dt;
+    int r,size=0;
     node_t node;
     
+    if(list_get(listBuffer.send, &node, 0)==0) {
+        ch_data_t *pch=(ch_data_t*)node.buf;
+        
+        r = comm_send_data(tasksHandle.hcom, NULL, TYPE_CAP, 0, node.buf, node.dlen);
+        if(r==0) list_remove(listBuffer.send, 0);
+        
+        size = list_size(listBuffer.send);
+    }
+    
+    return size;
+}
+
+
+//0: mqtt  1: self
+static void upload_data(int upway)
+{
+    int r=-1,state=paras_get_state();
+    
+    if(state!=STAT_CAP) {
+        return;
+    }
+    
+    switch(upway) {
+        case 0:
+        r = upload_by_mqtt();
+        break;
+        
+        case 1:
+        r = upload_by_self();
+        break;
+    }
+}
+
+
+
+void task_comm_send_fn(void *arg)
+{
+    int r;
+    evt_t e;
+
     myFlag.date = allPara.sys.stat.dt.date;
-    
-    //pUpData = eMalloc(sizeof(upload_data_t)+sizeof(ev_data_t)*EV_SEND_CNT_THRESHOLD);
-    
-    
-    task_tmr_start(TASK_COMM_SEND, tmr_trig_callback, NULL, TIMER_INTERVAL, TIME_INFINITE);
     
     while(1) {
         r = task_recv(TASK_COMM_SEND, &e, sizeof(e));
         if(r==0) {
             switch(e.evt) {
-                                
-                case EVT_COMM:
-                {
-                    //tmr_trig_callback(NULL);
-                }
-                break;
                 
-                case EVT_TIMER:
+                case EVT_DATA:
                 {
-                    //检查哪些数据没有发出去，读取后发出去
-                    
-                    if(mqtt_is_connected()) {
-                        int size = send_mqtt_data();
-                        
-                        //LOGD("___ send list %d\n", size);
-                        total_time += TIMER_INTERVAL;
-                        if(total_time>SEND_INTERVAL) {
-                            total_time = 0;
-                            
-                            if(size==0) {
-                                api_cap_start();
-                            }
-                        }
-                    }
+                    upload_data(1);
                 }
                 break;
             }
         }
         
-        task_yield();
+        osDelay(1);
     }
 }
 #endif

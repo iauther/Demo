@@ -54,7 +54,8 @@ static void mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, voi
         case AIOT_MQTTEVT_CONNECT: {
             LOGD("AIOT_MQTTEVT_CONNECT\n");
             mqttFlag.conn = 1;
-            api_cap_start();
+            
+            //api_cap_start(STAT_CAP);
             /* TODO: 处理SDK建连成功, 不可以在这里调用耗时较长的阻塞函数 */
         }
         break;

@@ -3,7 +3,6 @@
 
 
 #include "types.h"
-#include "comm.h"
 #include "dal_uart.h"
 
 typedef enum {

@@ -1,9 +1,10 @@
 #include "net.h"
-#include "comm.h"
 #include "log.h"
 #include "dal.h"
 #include "rs485.h"
 #include "mem.h"
+#include "pkt.h"
+#include "comm.h"
 #include "json.h"
 #include "lock.h"
 #include "dal_delay.h"
@@ -44,16 +45,13 @@ static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int le
     if(r==0) {
         task_post(TASK_COMM_RECV, NULL, EVT_LOG, 0, &cmd, sizeof(cmd));
     }
+    else {
+        node_t node={data, len, len};
+        task_post(TASK_COMM_RECV, NULL, EVT_COMM, 0, &node, sizeof(node));
+    }
     
     return r;
 }
-
-
-
-
-//////////////////////////////////////////////////////////
-
-
 
 ////////////////////////////////////////////////////////
 
@@ -93,20 +91,18 @@ static void start_task(int taskid, osPriority_t prio, int stkSize, osThreadFunc_
 
 static void start_tasks(void)
 {
-    start_task(TASK_COMM_SEND,  osPriorityNormal, 2048,  task_comm_send_fn,  5, NULL, 1);
     start_task(TASK_DATA_CAP,   osPriorityNormal, 2048,  task_data_cap_fn,   5, NULL, 1);
-    //start_task(TASK_DATA_PROC,  osPriorityNormal, 1024,  task_data_proc_fn,  5, NULL, 1);
+    start_task(TASK_COMM_SEND,   osPriorityNormal, 2048,  task_comm_send_fn,   5, NULL, 1);
     //start_task(TASK_POLLING,    osPriorityNormal, 1024,  task_polling_fn,    5, NULL, 1);
     
     task_simp_new(task_data_proc_fn, 2048, NULL, NULL);
+    //task_simp_new(task_comm_send_fn, 2048, NULL, NULL);
     task_simp_new(task_mqtt_fn, 2048, NULL, NULL);
     //task_simp_new(task_nvm_fn,  1024, NULL, NULL);
     
-    //tasksHandle.hcom = comm_init(PORT_NET, comm_recv_callback);
+    tasksHandle.hcom = comm_init(PORT_UART, log_recv_callback);
     
     //task_tmr_start(TASK_COMM_RECV, comm_tmr_callback, NULL, 200, TIME_INFINITE);
-    
-    //api_cap_start();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,7 +131,8 @@ void task_comm_recv_fn(void *arg)
                                 
                 case EVT_COMM:
                 {
-                    err = comm_recv_proc(tasksHandle.hcom, e.arg, e.data, e.dLen);
+                    node_t *nd=(node_t*)e.data;
+                    err = comm_recv_proc(tasksHandle.hcom, e.arg, nd->buf, nd->dlen);
                 }
                 break;
                 

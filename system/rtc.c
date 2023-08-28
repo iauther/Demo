@@ -1,6 +1,7 @@
 #include "rtc.h"
 #include "dal_rtc.h"
 #include "date.h"
+#include "paras.h"
 #include "sd30xx.h"
 #include "log.h"
 
@@ -8,19 +9,6 @@
 #define RETRY_TIMES   5
 
 static handle_t hpwr=NULL;
-const static date_time_t dflt_time={
-    .date = {
-        .year  = 2023,
-        .mon   = 8,
-        .day   = 11,
-    },
-    
-    .time = {
-        .hour = 8,
-        .min  = 0,
-        .sec  = 0,
-    }
-};
 
 static void print_time(char *s, date_time_t *dt)
 {
@@ -94,7 +82,7 @@ int rtcx_init(void)
     }
     
     if(first>0) {
-        dt = dflt_time;
+        dt = DFLT_TIME;
         dt.date.week = get_week(dt.date.year, dt.date.mon, dt.date.day);
         
         r = rtcx_write_time(&dt);

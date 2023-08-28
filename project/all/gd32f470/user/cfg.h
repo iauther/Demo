@@ -9,7 +9,7 @@
 #define LOG_UART                    UART_0
 #define LOG_BAUDRATE                (115200)
 
-#define COM_UART                    UART_4
+#define COM_UART                    UART_0
 #define COM_BAUDRATE                (115200)
 
 #define KHZ                         (1000)

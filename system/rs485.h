@@ -2,7 +2,6 @@
 #define __RS485_Hx__
 
 #include "types.h"
-#include "comm.h"
 
 typedef struct {
     U8        port;
