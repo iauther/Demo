@@ -18,74 +18,134 @@
 
 typedef struct {
     U8          ch;
-    adc_para_t  *para;
+    ch_para_t   *para;
 }arg_t;
 
 
-int list_cov_get(U8 ch, node_t *node)
-{
-    return list_get(listBuffer.cov[ch], node, 0);
-}
-void list_cov_remove(U8 ch)
-{
-    list_remove(listBuffer.cov[ch], 0);
-}
-void list_cov_add(U8 ch, void *data, int len)
-{    
-    list_append(listBuffer.cov[ch], data, len);
-}
-
-
 ////////////////////////////////////////////////////////////
-static U32 procLength=0;
-static F32 ev_tmp[100];
-static int data_proc_fn(U8 ch, adc_para_t *para, F32 *data, int len)
+static ev_data_t ev_tmp[100];
+static int data_proc_fn(handle_t l, U8 ch, F32 *data, int len)
 {
-    F32 *ev;
+    ev_data_t *p_ev=ev_tmp;
     int i,j,r,times;
     int tlen=0;
+    U64 time;
+    U32 step_ms;
+    task_buf_t *tb=&taskBuffer;
+    handle_t lsend=tb->send;
+    smp_para_t *smp=paras_get_smp();
+    ch_para_t *para=paras_get_ch_para(ch);
     
-    cap_data_t *pcap=(cap_data_t*)data;
-    ch_data_t *ptmp=(ch_data_t*)listBuffer.prc.buf;
-    U8 *pdata=(U8*)ptmp->data;
+    int ev_calc_wavlen=para->evCalcCnt*sizeof(raw_t);
+    int wavlen=len-sizeof(raw_data_t);
+    int smplen=paras_get_smp_cnt(ch)*sizeof(raw_t);
     
-    times = len/(para->evCalcLen*4);
+    raw_data_t *p_raw=(raw_data_t*)data;
+    ch_data_t  *p_ch=(ch_data_t*)tb->prc[ch].buf;
     
-    ptmp->ch = ch;
-    ptmp->id = ch;                  //临时用ch代替id
-    ptmp->time = pcap->time;
-    ptmp->dlen = 0;
-
-    if(paras_get_state()==STAT_CALI) {
-        ptmp->dlen = ptmp->dlen;
-        ptmp->evlen = 0;
-    }
-    else {
-        if(para->upwav) {
-            ptmp->dlen = len*4;
-            memcpy(pdata, pcap->data, ptmp->dlen);
-        }
-        ptmp->evlen = times*para->n_ev*4;
+    step_ms = 1000/para->smpFreq;
+    
+    if(wavlen>=ev_calc_wavlen) {
         
-        ev = ev_tmp;
+        //填充暂存数据头部ch_data_t
+        p_ch->ch = ch;
+        p_ch->time = p_raw->time;
+        p_ch->wavlen = wavlen;
+        memcpy(p_ch->data, p_raw->data, p_ch->wavlen);      //拷贝wav数据
+        
         if(para->n_ev>0) {
+            times = wavlen/ev_calc_wavlen;
             for(i=0; i<times; i++) {
                 for(j=0; j<para->n_ev; j++) {
-                    dsp_ev_calc((EV_TYPE)para->ev[j], pcap->data+i*para->evCalcLen, para->evCalcLen, para->smpFreq, ev+j);
+                    p_ev->tp = para->ev[j];
+                    p_ev->time = p_ch->time+i*para->evCalcCnt*step_ms;
+                    dsp_ev_calc(p_ev->tp, p_raw->data+i*para->evCalcCnt, para->evCalcCnt, para->smpFreq, &p_ev->data);
+                    p_ev++;
                 }
-                
-                ev += para->n_ev;
             }
-            memcpy(pdata+ptmp->dlen, ev_tmp, ptmp->evlen);
+            
+            p_ch->evlen = times*para->n_ev*sizeof(ev_data_t);
+           memcpy((U8*)p_ch->data+p_ch->wavlen, ev_tmp, p_ch->evlen);  //在wav数据后面追加ev数据
+        }
+        
+        tlen = p_ch->wavlen+p_ch->evlen;
+    }
+    else { //如果计算ev的数据个数比较多，大于一次采集的数据, 则进行缓存后再计算
+        
+        if(p_ch->wavlen>0 && p_ch->time>0) {    //已经有缓冲数据
+            if(p_ch->wavlen+wavlen>=ev_calc_wavlen){
+                int xlen=ev_calc_wavlen-p_ch->wavlen;
+                memcpy((U8*)p_ch->data+p_ch->wavlen, p_raw->data, xlen);
+                p_ch->wavlen += xlen;
+            }
+            else {
+                memcpy((U8*)p_ch->data+p_ch->wavlen, p_raw->data, wavlen);
+                p_ch->wavlen += wavlen;
+            }
+        }
+        else { //空数据，需要填充头部
+            p_ch->ch = ch;
+            p_ch->time = p_raw->time;
+            p_ch->wavlen = 0;
+            
+            memcpy((U8*)p_ch->data, p_raw->data, wavlen);
+            p_ch->wavlen += wavlen;
+        }
+        
+        //数据缓冲完成则进行计算
+        if(p_ch->wavlen>=ev_calc_wavlen) {
+            for(j=0; j<para->n_ev; j++) {
+                p_ev->tp = para->ev[j];
+                p_ev->time = p_ch->time;
+                dsp_ev_calc(p_ev->tp, p_ch->data, para->evCalcCnt, para->smpFreq, &p_ev->data);
+                p_ev++;
+            }
+            
+            p_ch->evlen = para->n_ev*sizeof(ev_data_t);
+            memcpy((U8*)p_ch->data+p_ch->wavlen, ev_tmp, p_ch->evlen);
+            
+            tlen = p_ch->wavlen+p_ch->evlen;
         }
     }
     
-    tlen = ptmp->dlen+ptmp->evlen;
+#if 1
     if(tlen>0) {
         tlen += sizeof(ch_data_t);
-        r = list_append(listBuffer.send, ptmp, tlen);
+        r = list_append(lsend, p_ch, tlen);
         if(r==0) {
             task_trig(TASK_COMM_SEND, EVT_DATA);
+            memset(p_ch, 0, sizeof(ch_data_t));
+        }
+    }
+    
+
+    //周期采样时，达到设定的长度则停止采样
+    if(smp->smp_mode==0) {
+        if(tb->rlen[ch]>=smplen) {
+            api_cap_stop(ch);
+            //list_clear(l);
+        }
+        else {
+            tb->rlen[ch] += wavlen;
+        }
+    }
+#endif
+    
+    return r;
+}
+
+
+static int ch_data_proc(void)
+{
+    int ch,r=0;
+    node_t nd;
+    handle_t *raw=taskBuffer.raw;
+    
+    for(ch=0; ch<CH_MAX; ch++) {
+        r = list_take(raw[ch], &nd, 0);      
+        if(r==0) {
+            data_proc_fn(raw[ch], ch, nd.buf, nd.dlen);
+            list_back(raw[ch], &nd);
         }
     }
     
@@ -93,38 +153,17 @@ static int data_proc_fn(U8 ch, adc_para_t *para, F32 *data, int len)
 }
 
 
-static int proc_iterator_fn(handle_t l, node_t *data, node_t *xd, void *p, int *act)
-{
-    arg_t *arg=(arg_t*)p; *act = ACT_REMOVE;
-    
-    procLength += xd->dlen;
-    return data_proc_fn(arg->ch, arg->para, (F32*)xd->buf, xd->dlen);
-}
-
-static int ch_data_proc(U8 ch, adc_para_t *para)
-{
-    int r=0;
-    arg_t arg={ch,para};
-    
-    r = list_iterator(listBuffer.ori[ch], NULL, proc_iterator_fn, &arg);
-    
-    return r;
-}
 
 
 void task_data_proc_fn(void *arg)
 {
-    int ch,r;
-    U8  err;
-    adc_para_t *pch=allPara.usr.ch;
+    int r;
     
     LOGD("_____ task data proc running\n");
     
     while(1) {
         
-        for(ch=0; ch<CH_MAX; ch++) {
-            r = ch_data_proc(ch, &pch[ch]);
-        }
+        ch_data_proc();
         
         osDelay(1);
     }

@@ -2,9 +2,12 @@
 #include "log.h"
 #include "dal.h"
 #include "rs485.h"
-#include "mem.h"
 #include "pkt.h"
+#include "dac.h"
+#include "fs.h"
+#include "rtc.h"
 #include "comm.h"
+#include "mem.h"
 #include "json.h"
 #include "lock.h"
 #include "dal_delay.h"
@@ -32,7 +35,12 @@ static int rs485_recv_callback(handle_t h, void *addr, U32 evt, void *data, int 
     
     return 0;
 }
-
+static int net_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
+{
+    task_post(TASK_COMM_RECV, NULL, EVT_RS485, 0, NULL, 0);
+    
+    return 0;
+}
 
 
 static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
@@ -59,13 +67,13 @@ static int hw_init(void)
 {
     int r=0;
     
-    dal_set_priority();
-    log_set_callback(log_recv_callback);
+    mem_init();
+    log_init(log_recv_callback);
     
-    lock_staic_init();
+    fs_init();
     json_init();
     paras_load();
-    mem_init();
+    dac_init();
     
     
     //ec_init();
@@ -91,29 +99,118 @@ static void start_task(int taskid, osPriority_t prio, int stkSize, osThreadFunc_
 
 static void start_tasks(void)
 {
+    
+    
     start_task(TASK_DATA_CAP,   osPriorityNormal, 2048,  task_data_cap_fn,   5, NULL, 1);
-    start_task(TASK_COMM_SEND,   osPriorityNormal, 2048,  task_comm_send_fn,   5, NULL, 1);
-    //start_task(TASK_POLLING,    osPriorityNormal, 1024,  task_polling_fn,    5, NULL, 1);
+    start_task(TASK_COMM_SEND,  osPriorityNormal, 2048,  task_comm_send_fn,  5, NULL, 1);
+    start_task(TASK_POLLING,    osPriorityNormal, 1024,  task_polling_fn,    5, NULL, 1);
     
     task_simp_new(task_data_proc_fn, 2048, NULL, NULL);
     //task_simp_new(task_comm_send_fn, 2048, NULL, NULL);
-    task_simp_new(task_mqtt_fn, 2048, NULL, NULL);
     //task_simp_new(task_nvm_fn,  1024, NULL, NULL);
     
-    tasksHandle.hcom = comm_init(PORT_UART, log_recv_callback);
+    //tasksHandle.hcom = comm_init(PORT_UART, NULL, log_recv_callback);
+    tasksHandle.hcomm = comm_init(PORT_NET, NULL, log_recv_callback);
     
-    //task_tmr_start(TASK_COMM_RECV, comm_tmr_callback, NULL, 200, TIME_INFINITE);
+    
 }
+
+
+int api_comm_connect(void)
+{
+    int r=0;
+    net_cfg_t cfg;
+    conn_para_t cp;
+    
+    if(!tasksHandle.hcomm) {
+        tasksHandle.hcomm = comm_init(PORT_NET, &cfg, net_recv_callback);
+    }
+    
+    if(tasksHandle.hcomm && !tasksHandle.hconn) {
+        cp.para = allPara.usr.net;
+        cp.callback = net_recv_callback;
+        cp.proto = PROTO_MQTT;
+        tasksHandle.hconn = comm_open(tasksHandle.hcomm, &cp);
+        if(tasksHandle.hconn) {
+            LOGD("___ comm_open ok!\n");
+        }
+    }
+    else {
+        r = 1;
+    }
+    
+    return r;
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
-static void comm_recv_init(void)
+static void user_cmd_proc(cmd_t *cmd)
 {
-    hw_init();
-    start_tasks();
+    switch(cmd->ID) {
+        case CMD_USER:
+        {
+            //cmd->str
+            
+        }
+        break;
+        
+        case CMD_CALI:
+        {
+            cali_sig_t sig={
+                .tms = 1,
+                .ch = CH_0,
+                .rms = 15,
+                .freq = 40000,
+                .bias = 0,
+            };
+            
+            sscanf(cmd->str, "%hu,%hu,%f,%d,%f", &sig.tms, &sig.ch, &sig.rms, &sig.freq, &sig.bias);
+            LOGD("___ calibration para, tms: %hu, ch: %hu, rms: %fmv, freq: %u, bias: %f\n", sig.tms, sig.ch, sig.rms, sig.freq, sig.bias);
+            
+            paras_set_cali_sig(sig.ch, &sig);
+            api_cap_start(sig.ch);
+            paras_set_state(STAT_CALI);
+        }
+        break;
+        
+        case CMD_DAC:
+        {
+            dac_param_t param;
+            
+            param.enable = 0;
+            param.fdiv = 1;
+            
+            sscanf(cmd->str, "%d,%d", &param.enable, &param.fdiv);
+            LOGD("___ config dac, en: %d, fdiv: %d\n", param.enable, param.fdiv);
+            
+            param.freq = 1000000;
+            param.points = paras_get_smp_cnt(CH_0);
+            
+            dac_set(&param);
+            
+        }
+        break;
+        
+        case CMD_PWR:
+        {
+            int r;
+            U32 countdown=1;
+            
+            sscanf(cmd->str, "%d", &countdown);
+            
+            LOGD("___ powerdown now, restart %d seconds later!\n", countdown);
+            r = rtcx_set_countdown(countdown);
+            LOGD("___ rtcx_set_countdown result: %d\n", r);
+        }
+        break;
+    }
+    
 }
+
+
 
 void task_comm_recv_fn(void *arg)
 {
@@ -121,9 +218,11 @@ void task_comm_recv_fn(void *arg)
     U8  err;
     evt_t e;
     
-    LOGD("_____ task comm recv running\n");
+    hw_init();
     
-    comm_recv_init();
+    LOGD("_____ task comm recv running\n");
+    start_tasks();
+    
     while(1) {
         r = task_recv(TASK_COMM_RECV, &e, sizeof(e));
         if(r==0) {
@@ -132,7 +231,7 @@ void task_comm_recv_fn(void *arg)
                 case EVT_COMM:
                 {
                     node_t *nd=(node_t*)e.data;
-                    err = comm_recv_proc(tasksHandle.hcom, e.arg, nd->buf, nd->dlen);
+                    err = comm_recv_proc(tasksHandle.hconn, "", nd->buf, nd->dlen);
                 }
                 break;
                 
@@ -145,30 +244,9 @@ void task_comm_recv_fn(void *arg)
                 case EVT_LOG:
                 {
                     cmd_t *cmd=(cmd_t*)e.data;
-                    
-                    
-                    switch(cmd->ID) {
-                        case CMD_USER:
-                        {
-                            char tmp[40];
-                            static int cnt=0;
-                            
-                            LOGD("____ CMD_KEY\n");
-                            
-                            //sprintf(tmp, "task send %d", cnt++);
-                            //ecxxx_send(PROTO_MQTT, tmp, strlen(tmp), 0);
-                        }
-                        break;
-                    }
+                    user_cmd_proc(cmd);
                 }
                 break;
-                
-                case EVT_TIMER:
-                {
-                    LOGD("____ timer\n");
-                }
-                break;
-                
             }
         }
         

@@ -71,7 +71,7 @@ static int stdfs_umount(FS_DEV dev)
 }
 
 
-static int stdfs_format(char *path)
+static int stdfs_format(FS_DEV dev, char *path)
 {
     return 0;//fformat(path, 1, 1, 1);
 }

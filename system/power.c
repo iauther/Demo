@@ -2,17 +2,32 @@
 #include "ecxxx.h"
 #include "ads9120.h"
 #include "dal_pmu.h"
+#include "dal_gpio.h"
 #include "dal_rtc.h"
 #include "log.h"
 #include "rtc.h"
 #include "cfg.h"
 
-
+typedef struct {
+    handle_t h4g;
+}pwr_handle_t;
+static pwr_handle_t pwrHandle;
+    
 
 int power_init(void)
 {
     rtcx_init();
     //dal_pmu_init();
+
+#ifndef BOOTLOADER
+    dal_gpio_cfg_t gc;
+    gc.gpio.grp = GPIOB;
+    gc.gpio.pin = GPIO_PIN_12;
+    gc.mode = MODE_OUT_PP;
+    gc.pull = PULL_NONE;
+    gc.hl = 0;
+    pwrHandle.h4g = dal_gpio_init(&gc);
+#endif
     
     return 0;
 }
@@ -48,9 +63,11 @@ int power_set_dev(U8 dev, U8 mode)
         {
             switch(mode) {
                 case POWER_MODE_ON:
+                dal_gpio_set_hl(pwrHandle.h4g, 1);
                 break;
                 
                 case POWER_MODE_OFF:
+                dal_gpio_set_hl(pwrHandle.h4g, 0);
                 break;
                 
                 case POWER_MODE_SLEEP:

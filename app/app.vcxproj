@@ -43,7 +43,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -74,9 +74,11 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>HV_STATICLIB;WIN32_LEAN_AND_MEAN;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HV_STATICLIB;WIN32_LEAN_AND_MEAN;NOMINMAX;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>inc;inc\hv;inc\wtl;inc\CSerialPort;lib\mqtt;.\src;..\fw\system;..\fw\midware\mqtt;inc\paho;inc\GuiLite;..\fw\midware\dsp;..\fw\midware\utils</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\inc;.\inc\hv;.\inc\wtl;.\inc\CSerialPort;.\lib\mqtt;.\src;..\fw\system;..\fw\midware\mqtt;.\inc\paho;.\inc\GuiLite;..\fw\midware\dsp;..\fw\midware\utils;.\inc\amqp;.\inc\uv;.\inc\amqp\amqpcpp;.\inc\rabbitmq-c</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -93,9 +95,11 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>HV_STATICLIB;WIN32_LEAN_AND_MEAN;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HV_STATICLIB;WIN32_LEAN_AND_MEAN;NOMINMAX;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>inc;inc\hv;inc\wtl;inc\CSerialPort;lib\mqtt;.\src;..\fw\system;..\fw\midware\mqtt;inc\paho;inc\GuiLite;..\fw\midware\dsp;..\fw\midware\utils</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\inc;.\inc\hv;.\inc\wtl;.\inc\CSerialPort;.\lib\mqtt;.\src;..\fw\system;..\fw\midware\mqtt;.\inc\paho;.\inc\GuiLite;..\fw\midware\dsp;..\fw\midware\utils;.\inc\amqp;.\inc\uv;.\inc\amqp\amqpcpp;.\inc\rabbitmq-c</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -111,14 +115,17 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>HV_STATICLIB;WIN32_LEAN_AND_MEAN;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HV_STATICLIB;WIN32_LEAN_AND_MEAN;NOMINMAX;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>inc;inc\hv;inc\wtl;inc\CSerialPort;lib\mqtt;.\src;..\fw\system;..\fw\midware\mqtt;inc\paho;inc\GuiLite;..\fw\midware\dsp;..\fw\midware\utils</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\inc;.\inc\hv;.\inc\wtl;.\inc\CSerialPort;.\lib\mqtt;.\src;..\fw\system;..\fw\midware\mqtt;.\inc\paho;.\inc\GuiLite;..\fw\midware\dsp;..\fw\midware\utils;.\inc\amqp;.\inc\uv;.\inc\amqp\amqpcpp;.\inc\rabbitmq-c</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>.\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>wtl;res</AdditionalIncludeDirectories>
@@ -130,15 +137,18 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>HV_STATICLIB;WIN32_LEAN_AND_MEAN;NDEBUG;_WINDOWS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HV_STATICLIB;WIN32_LEAN_AND_MEAN;NOMINMAX;NDEBUG;_WINDOWS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>inc;inc\hv;inc\wtl;inc\CSerialPort;lib\mqtt;.\src;..\fw\system;..\fw\midware\mqtt;inc\paho;inc\GuiLite;..\fw\midware\dsp;..\fw\midware\utils</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\inc;.\inc\hv;.\inc\wtl;.\inc\CSerialPort;.\lib\mqtt;.\src;..\fw\system;..\fw\midware\mqtt;.\inc\paho;.\inc\GuiLite;..\fw\midware\dsp;..\fw\midware\utils;.\inc\amqp;.\inc\uv;.\inc\amqp\amqpcpp;.\inc\rabbitmq-c</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>.\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>wtl;res</AdditionalIncludeDirectories>
@@ -157,27 +167,29 @@
     <ClInclude Include="..\fw\system\pkt.h" />
     <ClInclude Include="..\fw\system\rbuf.h" />
     <ClInclude Include="res\Resource.h" />
+    <ClInclude Include="src\CMyFrame.h" />
+    <ClInclude Include="src\myAmqp.h" />
     <ClInclude Include="src\myFile.h" />
     <ClInclude Include="src\myFrame.h" />
     <ClInclude Include="src\myLog.h" />
+    <ClInclude Include="src\myMqtt.h" />
     <ClInclude Include="src\mySerial.h" />
     <ClInclude Include="src\mySock.h" />
     <ClInclude Include="src\myWindow.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\fw\system\lock.c" />
-    <ClCompile Include="..\fw\system\rbuf.c" />
-    <ClCompile Include="lib\mqtt\mqtt_client.c" />
-    <ClCompile Include="lib\mqtt\mqtt_protocol.c" />
-    <ClCompile Include="src\comm.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\misc.cpp" />
+    <ClCompile Include="src\myAmqp.cpp" />
     <ClCompile Include="src\myFile.cpp" />
     <ClCompile Include="src\myLog.cpp" />
+    <ClCompile Include="src\myMqtt.cpp" />
     <ClCompile Include="src\mySerial.cpp" />
     <ClCompile Include="src\mySock.cpp" />
-    <ClCompile Include="src\pkt.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

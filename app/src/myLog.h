@@ -17,7 +17,7 @@ typedef struct {
     int  color;
 }level_t;
 
-void log_init(HWND hwnd, CRect* rc);
+void log_init(HWND hwnd, CRect rc, CFont font);
 HWND log_get_hwnd(void);
 void log_enable(int flag);
 int log_is_enable(void);

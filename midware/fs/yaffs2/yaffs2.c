@@ -83,7 +83,7 @@ static int yaffs2_umount(FS_DEV dev)
 }
 
 
-static int yaffs2_format(char *path)
+static int yaffs2_format(FS_DEV dev, char *path)
 {
     return yaffs_format(path, 1, 1, 1);
 }

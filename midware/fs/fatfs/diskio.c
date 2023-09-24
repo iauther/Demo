@@ -130,9 +130,8 @@ DRESULT disk_read (
         case DEV_SFLASH :
         {
             U32 xsec=512+sector;
-            U32 xaddr=xsec*4096;
             
-            sflash_read(xaddr, buff, count);
+            sflash_read(xsec*4096, buff, count*4096);
         }
         break;
         
@@ -180,11 +179,13 @@ DRESULT disk_write (
         
         case DEV_SFLASH :
         {
+            UINT i;
             U32 xsec=512+sector;
-            U32 xaddr=xsec*4096;
             
-            sflash_erase_sector(xsec);
-            sflash_write(xaddr, (void*)buff, count, 0);
+            for(i=0; i<count; i++) {
+                sflash_erase_sector(xsec+i);
+                sflash_write_sector(xsec+i, (U8*)buff+i*4096);
+            }
         }
         break;
         

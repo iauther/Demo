@@ -3,6 +3,7 @@
 #include <setupapi.h>
 #include <iostream>
 
+using namespace std;
 
 #pragma warning(disable: 4800)    //disable waring of TRUE => true
 #pragma warning(disable: 4267)    //disable waring of size_t => int
@@ -11,7 +12,7 @@
 #pragma comment(lib, "setupapi.lib")
 
 
-string wstringToString(const std::wstring& wstr)
+string wstringToString(const wstring& wstr)
 {
     // https://stackoverflow.com/questions/4804298/how-to-convert-wstring-into-string
     if (wstr.empty())

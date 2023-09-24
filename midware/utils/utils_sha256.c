@@ -114,7 +114,7 @@ uint64_t os_htobe64(uint64_t data)
 #endif
 static void utils_sha256_zeroize(void *v, size_t n)
 {
-    volatile unsigned char *p = v;
+    volatile uint8_t *p = (volatile uint8_t*)v;
     while (n--) {
         *p++ = 0;
     }

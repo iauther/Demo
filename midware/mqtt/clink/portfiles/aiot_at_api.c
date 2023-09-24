@@ -56,7 +56,7 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
         .cmd = "AT\r\n",
         .rsp = "OK",
     },
-#endif
+
     {   /* 关闭回显 */
         .cmd = "ATE0\r\n",
         .rsp = "OK",
@@ -69,7 +69,7 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
         .cmd = "AT+CGSN\r\n",
         .rsp = "OK",
     },
-#if 0
+
     {   /* 获取模组固件版本号 */
         .cmd = "AT+CGMR\r\n",
         .rsp = "OK",
@@ -287,7 +287,7 @@ static int32_t core_at_commands_send_sync(const core_at_cmd_item_t *cmd_list, ui
         core_log_hexdump(-1, 1, (unsigned char *)cmd_list[i].cmd, cmd_list[i].cmd_len);
         */
         
-        //printf("send cmd idx: %d, %s, len: %d\n", i, cmd_list[i].cmd, cmd_list[i].cmd_len);
+        //printf("send cmd %s, len: %d\n", cmd_list[i].cmd, cmd_list[i].cmd_len);
         
         at_handle.cmd_content = &cmd_list[i];
         res = core_at_uart_tx((uint8_t *)cmd_list[i].cmd, cmd_list[i].cmd_len, at_handle.tx_timeout);

@@ -3,9 +3,9 @@
 #include <rt_sys.h>
 #include <rt_misc.h>
 #include "dal_uart.h"
+#include "log.h"
 
 
-extern handle_t logHandle;
 #ifndef __MICROLIB
 
 #if (__ARMCC_VERSION<6000000)
@@ -199,7 +199,8 @@ void _sys_exit (int return_code) {
 #else
 int fputc(int ch, FILE *p)
 {
-	dal_uart_rw(logHandle, (u8*)&ch, 1, 1);	
+    handle_t h=log_get_handle();
+	dal_uart_rw(h, (u8*)&ch, 1, 1);	
 	return ch;
 }
 

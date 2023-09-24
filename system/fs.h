@@ -51,7 +51,7 @@ typedef struct {
     int (*init)(FS_DEV dev, U32 start, U32 len);
     int (*mount)(FS_DEV dev, char *path);
     int (*umount)(FS_DEV dev);
-    int (*format)(char *path);
+    int (*format)(FS_DEV dev, char *path);
     handle_t (*open)(char *path, FS_MODE mode);
     int (*close)(handle_t h);
     int (*read)(handle_t h, void *buf, int len);

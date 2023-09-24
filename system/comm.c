@@ -16,57 +16,84 @@ all_para_t allPara;
 #endif
 
 static all_para_t* p_all_para = &allPara;
-#define ERROR_OF(port) ((port)==PORT_UART)?ERROR_COMM_UART:(((port)==PORT_USB)?ERROR_COMM_USB:ERROR_COMM_ETH)
 
-
-static int port_init(comm_handle_t *h, U8 port, rx_cb_t callback)
+static comm_handle_t* port_handle[PORT_MAX]={NULL};
+static comm_handle_t *get_handle(handle_t h)
 {
-    int r;
-    h->port = port;
+    int i;
     
+    for(i=0; i<PORT_MAX; i++) {
+        if(h==port_handle[i]) {
+            return (comm_handle_t*)h;
+        }
+    }
+    
+    return port_handle[PORT_NET];
+}
 
-    switch(port) {
+static int port_init(comm_handle_t *h, void *para, rx_cb_t callback)
+{
+    if(h->port!=PORT_NET) {
+        return 0;
+    }
+
+    if (!para) {
+        return -1;
+    }
+
+#ifndef _WIN32
+    net_cfg_t *cfg=para;
+    int r = net_init(cfg);
+    if(r) {
+        return -1;
+    }
+    h->chkID = CHK_NONE;
+#endif
+    
+    return 0;
+        
+}
+
+static int port_deinit(comm_handle_t *h)
+{
+    if(h->port!=PORT_NET) {
+        return 0;
+    }
+    
+#ifndef _WIN32
+    return net_deinit();
+#endif
+
+    return 0;
+}
+
+
+static handle_t port_open(comm_handle_t *h, void *para)
+{
+    handle_t x=h;
+
+    switch(h->port) {
         
         case PORT_UART:
         {
 #ifdef _WIN32
-            int n;
-            sp_info_t* spInfo;
-            
-            n = h->mSerial.list(&spInfo);
-            h->mSerial.open(1);
+            int idx = *(int*)para;
+            h->mSerial.open(idx);
 #else
-            dal_uart_cfg_t cfg;
             
-            cfg.mode = MODE_IT;
-            cfg.port = COM_UART;
-            cfg.baudrate = COM_BAUDRATE;
-            cfg.para.callback = callback;
-            cfg.para.buf = h->rxBuf;
-            cfg.para.blen = sizeof(h->rxBuf);
-            cfg.para.dlen = 0;
-            h->h = dal_uart_init(&cfg);
-            if(!h->h) {
-                return -1;
-            }
+            h->h = log_get_handle();
             h->chkID = CHK_SUM;
 #endif
-
         }
         break;
         
         case PORT_NET:
         {
 #ifdef _WIN32
-            h->mSock.conn((char*)"192.168.1.9", 7788);
+            net_para_t* np = (net_para_t*)para;
+            x = h->mSock.conn(np->para.tcp.ip, np->para.tcp.port);
 #else
-            net_cfg_t cfg;
-            cfg.callback = callback;
-            h->h = net_init(&cfg);
-            if(!h->h) {
-                return -1;
-            }
-            h->chkID = CHK_NONE;
+            x = net_conn(para);
 #endif
         }
         break;
@@ -78,39 +105,41 @@ static int port_init(comm_handle_t *h, U8 port, rx_cb_t callback)
 #else
             //h->chkID = CHK_NONE;
 #endif
+            
         }
         break;
-        
+
         default:
-            return -1;
+            return NULL;
     }
+    port_handle[h->port] = h;
     
-    return 0;
+    return x;
 }
 
 
-static int port_deinit(comm_handle_t *h)
+static int port_close(comm_handle_t *h, handle_t conn)
 {
-    int r=0;
+    int i,r=-1;
     
     switch(h->port) {
-        
+    
         case PORT_UART:
         {
 #ifdef _WIN32
             r = h->mSerial.close();
 #else
-            r = dal_uart_deinit(h->h);
+            
 #endif
         }
         break;
-        
+
         case PORT_NET:
         {
 #ifdef _WIN32
-            r = h->mSock.disconn();
+            r = h->mSerial.close();
 #else
-            r = net_deinit(h->h);
+            r = net_disconn(conn);
 #endif
         }
         break;
@@ -124,19 +153,15 @@ static int port_deinit(comm_handle_t *h)
 #endif
         }
         break;
-        
-        default:
-            return -1;
     }
     
     return r;
 }
 
 
-static int port_read(comm_handle_t *h, void *data, int len)
+static int port_read(comm_handle_t *h, handle_t conn, void *para, void *data, int len)
 {
     int r=0;
-    
 
     switch(h->port) {
         case PORT_UART:
@@ -152,9 +177,9 @@ static int port_read(comm_handle_t *h, void *data, int len)
         case PORT_NET:
         {
 #ifdef _WIN32
-            r = h->mSock.read(data, len);
+            r = h->mSock.read(conn, data, len);
 #else
-            //r = net_read(h->h, addr, data, len);
+            r = net_read(conn, para, data, len);
 #endif
         }
         break;
@@ -164,7 +189,7 @@ static int port_read(comm_handle_t *h, void *data, int len)
 #ifdef _WIN32
 
 #else
-            //r = net_write(h->h, addr, data, len);
+            //r = usb_write(h->h, data, len);
 #endif
         }
         break;
@@ -177,10 +202,9 @@ static int port_read(comm_handle_t *h, void *data, int len)
 }
 
 
-static int port_write(comm_handle_t *h, void *addr, void *data, int len)
+static int port_write(comm_handle_t *h, handle_t conn, void *para, void *data, int len)
 {
     int r=0;
-    
 
     switch(h->port) {
         case PORT_UART:
@@ -196,9 +220,9 @@ static int port_write(comm_handle_t *h, void *addr, void *data, int len)
         case PORT_NET:
         {
 #ifdef _WIN32
-            r = h->mSock.write(data, len);
+            r = h->mSock.write(conn, data, len);
 #else
-            r = net_write(h->h, addr, data, len);
+            r = net_write(conn, para, data, len);
 #endif
         }
         break;
@@ -220,42 +244,60 @@ static int port_write(comm_handle_t *h, void *addr, void *data, int len)
     return r;
 }
 
-static int send_data(comm_handle_t *h, void *addr, U8 type, U8 nAck, void *data, int dlen, int chkID)
+static int send_data(handle_t h, void *para, U8 type, U8 nAck, void *data, int dlen)
 {
     int len;
+    comm_handle_t *ch=NULL;
     
-    len = pkt_pack_data(type, nAck, data, dlen, h->txBuf, sizeof(h->txBuf), chkID);
+    ch = get_handle(h);
+    if(!ch) {
+        return -1;
+    }
+    
+    len = pkt_pack_data(type, nAck, data, dlen, ch->txBuf, sizeof(ch->txBuf), ch->chkID);
     if(len<=0) {
         return len;
     }
     
-    return port_write(h, addr, h->txBuf, len);
+    return port_write(ch, h, para, ch->txBuf, len);
 }
-static int send_ack(comm_handle_t *h, void *addr, U8 type, U8 err, int chkID)
+static int send_ack(handle_t h, void *para, U8 type, U8 err)
 {
     int len;
+    comm_handle_t *ch=NULL;
     
-    len = pkt_pack_ack(type, err, h->txBuf, sizeof(h->txBuf), chkID);
+    ch = get_handle(h);
+    if(!ch) {
+        return -1;
+    }
+    
+    len = pkt_pack_ack(type, err, ch->txBuf, sizeof(ch->txBuf), ch->chkID);
     if(len<=0) {
         return -1;
     }
     
-    return port_write(h, addr, h->txBuf, len);
+    return port_write(ch, h, para, ch->txBuf, len);
 }
-static int send_err(comm_handle_t *h, void *addr, U8 type, U8 err, int chkID)
+static int send_err(handle_t h, void *para, U8 type, U8 err)
 {
     int len;
+    comm_handle_t *ch=NULL;
     
-    len = pkt_pack_err(type, err, h->txBuf, sizeof(h->txBuf), chkID);
+    ch = get_handle(h);
+    if(!ch) {
+        return -1;
+    }
+    
+    len = pkt_pack_err(type, err, ch->txBuf, sizeof(ch->txBuf), ch->chkID);
     if(len<=0) {
         return -1;
     }
     
-    return port_write(h, addr, h->txBuf, len);
+    return port_write(ch, h, para, ch->txBuf, len);
 }
 //////////////////////////////////////////////////////////////
 
-handle_t comm_init(U8 port, rx_cb_t cb)
+handle_t comm_init(U8 port, void *para, rx_cb_t cb)
 {
     int r;
     comm_handle_t *h=(comm_handle_t*)calloc(1, sizeof(comm_handle_t));
@@ -263,7 +305,9 @@ handle_t comm_init(U8 port, rx_cb_t cb)
         return NULL;
     }
     
-    r = port_init(h, port, cb);
+    h->port = port;
+    
+    r = port_init(h, para, cb);
     if(r) {
         free(h);
         return NULL;
@@ -276,6 +320,7 @@ handle_t comm_init(U8 port, rx_cb_t cb)
 int comm_deinit(handle_t h)
 {
     comm_handle_t *ch=(comm_handle_t*)h;
+    
     if(!ch) {
         return -1;
     }
@@ -286,17 +331,43 @@ int comm_deinit(handle_t h)
 }
 
 
+handle_t comm_open(comm_handle_t *h, void *para)
+{
+    if(!h) {
+        return NULL;
+    }
+    
+    return port_open(h, para);
+}
+
+int comm_close(handle_t conn)
+{
+    comm_handle_t *h=NULL;
+    
+    h = get_handle(conn);
+    if(!h) {
+        return -1;
+    }
+    
+    return port_close(h, conn);
+}
+
 
 //////////////////////////////////////////
-int comm_recv_proc(handle_t h, void *addr, void *data, int len)
+int comm_recv_proc(handle_t h, void *para, void *data, int len)
 {
     int r;
     int err=0;
     node_t nd;
-    comm_handle_t *hcom=(comm_handle_t*)h;
     pkt_hdr_t *hdr=(pkt_hdr_t*)data;
-
-    err = pkt_check_hdr(hdr, len, len, hcom->chkID);
+    comm_handle_t *ch=NULL;
+    
+    ch = get_handle(h);
+    if(!ch) {
+        return -1;
+    }
+    
+    err = pkt_check_hdr(hdr, len, len, ch->chkID);
     if (err == ERROR_NONE) {
         switch (hdr->type) {
         case TYPE_SETT:
@@ -332,8 +403,8 @@ int comm_recv_proc(handle_t h, void *addr, void *data, int len)
 #ifdef _WIN32
             all_para_t* pa = p_all_para;
             ch_data_t *cd=(ch_data_t*)hdr->data;
-            adc_para_t* pr = &pa->usr.ch[cd->ch];
-            F32* ev, *s = (F32*)(cd->data + cd->dlen);
+            ch_para_t* pr = &pa->usr.ch[cd->ch];
+            F32* ev, *s = (F32*)(cd->data + cd->wavlen);
             
             int cnt = cd->evlen / (4 * pr->n_ev);
             for (int i = 0; i < cnt; i++) {
@@ -346,11 +417,11 @@ int comm_recv_proc(handle_t h, void *addr, void *data, int len)
 #else
             capture_t *cap=(capture_t*)hdr->data;
             if(cap->enable) {
-                api_cap_start();
+                api_cap_start(CH_0);
                 paras_set_state(STAT_CAP);
             }
             else {
-                api_cap_stop();
+                api_cap_stop(CH_0);
                 paras_set_state(STAT_STOP);
             }
 #endif
@@ -362,13 +433,13 @@ int comm_recv_proc(handle_t h, void *addr, void *data, int len)
         
         case TYPE_CALI:
         {
-            cali_t *ca= (cali_t*)hdr->data;
+            cali_sig_t *sig= (cali_sig_t*)hdr->data;
 #ifdef _WIN32    
 
 
 #else
-            paras_set_cali(ca->ch, ca);
-            api_cap_start();
+            paras_set_cali_sig(sig->ch, sig);
+            api_cap_start(CH_0);
             paras_set_state(STAT_CALI);
 #endif
             err = 0;
@@ -395,11 +466,11 @@ int comm_recv_proc(handle_t h, void *addr, void *data, int len)
     }
     
     if (hdr->askAck) {
-        send_ack(hcom, addr, hdr->type, err, hcom->chkID);
+        send_ack(h, para, hdr->type, err);
     }
     else {
         if (err) {
-            send_err(hcom, addr, hdr->type, err, hcom->chkID);
+            send_err(h, para, hdr->type, err);
         }
     }
     } 
@@ -408,41 +479,39 @@ int comm_recv_proc(handle_t h, void *addr, void *data, int len)
 }
 
 
-int com_send_paras(handle_t h, void *addr, U8 flag)
+int com_send_paras(handle_t h, void *para, U8 flag)
 {
     int r;
     U8  err=0;
-    comm_handle_t *ch=(comm_handle_t*)h;
     
     if (flag == 0) {      //ask paras
-        r = send_data(ch, addr, TYPE_PARA, 0, NULL, 0, ch->chkID);
+        r = send_data(h, para, TYPE_PARA, 0, NULL, 0);
     }
     else {
-        r = send_data(ch, addr, TYPE_PARA, 1, p_all_para, sizeof(allPara), ch->chkID);
+        r = send_data(h, para, TYPE_PARA, 1, p_all_para, sizeof(allPara));
     }
     
     if (r ) {
-        err = ERROR_OF(ch->port);
+        err = 0;//ERROR_OF(ch->port);
     }
     
     return err;
 }
 
 
-int comm_send_data(handle_t h, void *addr, U8 type, U8 nAck, void* data, int len)
+int comm_send_data(handle_t h, void *para, U8 type, U8 nAck, void* data, int len)
 {
     int r;
-    comm_handle_t *ch=(comm_handle_t*)h;
     
-    r =  send_data(ch, addr, type, nAck, data, len, ch->chkID);
-    return (r == 0) ? 0 : ERROR_OF(ch->port);
+    r =  send_data(h, para, type, nAck, data, len);
+    return (r == 0) ? 0 : -1;
 }
 
 
-int comm_pure_send(handle_t h, void *addr, void* data, int len)
+int comm_pure_send(handle_t h, void *para, void* data, int len)
 {
     comm_handle_t *ch=(comm_handle_t*)h;
-    return port_write(ch, addr, data, len);
+    return port_write(ch, h, para, data, len);
 }
 
 
@@ -454,10 +523,10 @@ int comm_check_timeout(handle_t h, void *addr, U8 type)
 }
 
 
-int comm_recv_data(handle_t h, void* data, int len)
+int comm_recv_data(handle_t h, void *para, void* data, int len)
 {
     comm_handle_t *ch=(comm_handle_t*)h;
     
-    return port_read(ch, data, len);
+    return port_read(ch, h, para, data, len);
 }
 

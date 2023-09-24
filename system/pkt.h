@@ -19,6 +19,9 @@ enum {
     PORT_USB=0,
     PORT_NET,
     PORT_UART,
+    PORT_MQTT,
+
+    PORT_MAX
 };
 
 enum {

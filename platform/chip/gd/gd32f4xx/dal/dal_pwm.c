@@ -126,7 +126,7 @@ static void timer0_config(void)
 }
 void DMA1_Channel0_IRQHandler(void)
 {
-#if 0
+#if 0  
     if(dma_interrupt_flag_get(DMA0, DMA_CH4, DMA_INT_FLAG_FTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH4, DMA_INT_FLAG_FTF);
     

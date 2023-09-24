@@ -1,56 +1,62 @@
 #ifndef __NET_Hx__
 #define __NET_Hx__
 
-#include "eth/eth.h"
-#include "list.h"
-#include "dal.h"
-
-
-#define CONN_MAX  20
-
+#include "types.h"
+#include "netio.h"
+#include "protocol.h"
 
 enum {
-    NET_ETH=0,
-    NET_WIFI,
-
-    NET_MAX,
+    ROLE_CLIENT=0,
+    ROLE_SERVER,
 };
 
 enum {
-    NET_EVT_NEW_CONN=0,
-    NET_EVT_DIS_CONN,
-    NET_EVT_DATA_IN,
+    PROTO_TCP=0,
+    PROTO_UDP,
+    PROTO_MQTT,
+    PROTO_COAP,
 };
 
-
-#define DHCP_OFF                   (uint8_t) 0
-#define DHCP_START                 (uint8_t) 1
-#define DHCP_WAIT_ADDRESS          (uint8_t) 2
-#define DHCP_ADDRESS_ASSIGNED      (uint8_t) 3
-#define DHCP_TIMEOUT               (uint8_t) 4
-#define DHCP_LINK_DOWN             (uint8_t) 5
 
 typedef struct {
-    rx_cb_t     callback;
+    char        *host;
+    char        *ip;
+    U16         port;
+}net_addr_t;
+
+typedef struct {
     char        *ip;
     char        *mask;
     char        *gateway;
-}net_cfg_t;
-
+}net_gate_t;
 
 typedef struct {
-    handle_t        eth;
-    net_cfg_t       cfg;
-    
-    void            *conn;
-    void            *newconn;
-}net_handle_t;
+    netio_cfg_t ioc;
+    net_gate_t  gate;
+}net_cfg_t;
+
+typedef struct {
+    U8          proto;
+    net_para_t  para;
+    rx_cb_t     callback;
+}conn_para_t;
+
+typedef struct {
+    handle_t     h;
+    U8           proto;
+    rx_cb_t      callback;
+}conn_handle_t;
 
 
+int net_init(net_cfg_t *cfg);
+int net_deinit(void);
 
-handle_t net_init(net_cfg_t *cfg);
-int net_deinit(handle_t h);
-int net_write(handle_t h, void *conn, U8 *data, int len);
-int net_broadcast(handle_t h, U8 *data, int len);
+handle_t net_conn(conn_para_t *para);
+int net_disconn(handle_t hconn);
+
+int net_read(handle_t hconn, void *para, void *data, int len);
+int net_write(handle_t hconn, void *para, void *data, int len);
+
+int net_broadcast(void *data, int len);
 
 #endif

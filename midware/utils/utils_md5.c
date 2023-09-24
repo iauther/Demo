@@ -9,15 +9,13 @@
 #include <string.h>
 
 #include "utils_md5.h"
-
-
-#define MD5_DIGEST_SIZE 16
+#include "utils_hmac.h"
 
 
 /* Implementation that should never be optimized out by the compiler */
 static void utils_md5_zeroize(void *v, size_t n)
 {
-    volatile uint8_t *p = v;
+    volatile uint8_t *p = (volatile uint8_t*)v;
     while (n--) {
         *p++ = 0;
     }

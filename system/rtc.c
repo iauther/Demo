@@ -1,5 +1,6 @@
 #include "rtc.h"
 #include "dal_rtc.h"
+#include "dal_gpio.h"
 #include "date.h"
 #include "paras.h"
 #include "sd30xx.h"

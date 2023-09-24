@@ -95,15 +95,15 @@ static F32 ev_amp_calc(F32 *data, U32 cnt)
 
 
 
-int dsp_ev_calc(EV_TYPE ev, F32 *data, U32 cnt, U32 freq, F32 *result)
+int dsp_ev_calc(U8 tp, F32 *data, U32 cnt, U32 freq, F32 *result)
 {
     F32 v=0.0F;
     
-    if(!data || !cnt || !result) {
+    if(tp>=EV_NUM || !data || !cnt || !result) {
         return -1;
     }
     
-    switch(ev) {
+    switch(tp) {
         case EV_AVE: v = ev_ave_calc(data, cnt); break;
         case EV_RMS: v = ev_rms_calc(data, cnt); break;
         case EV_ASL: v = ev_asl_calc(data, cnt); break;
@@ -122,28 +122,28 @@ int dsp_ev_calc(EV_TYPE ev, F32 *data, U32 cnt, U32 freq, F32 *result)
 
 
 
-static void flt_fir_calc(F32 *data, U32 cnt)
+static void fl_fir_calc(F32 *data, U32 cnt)
 {
     
 }
-static void flt_iir_calc(F32 *data, U32 cnt)
+static void fl_iir_calc(F32 *data, U32 cnt)
 {
     
 }
-static void flt_fft_calc(F32 *data, U32 cnt)
+static void fl_fft_calc(F32 *data, U32 cnt)
 {
     
 }
-int dsp_flt_calc(FLT_TYPE flt, F32 *data, U32 cnt)
+int dsp_fl_calc(U8 tp, F32 *data, U32 cnt)
 {
-    if(!data || !cnt) {
+    if(tp>=FL_NUM || !data || !cnt) {
         return -1;
     }
     
-    switch(flt) {
-        case FLT_FIR: flt_fir_calc(data, cnt); break;
-        case FLT_IIR: flt_iir_calc(data, cnt); break;
-        case FLT_FFT: flt_fft_calc(data, cnt); break;
+    switch(tp) {
+        case FL_FIR: fl_fir_calc(data, cnt); break;
+        case FL_IIR: fl_iir_calc(data, cnt); break;
+        case FL_FFT: fl_fft_calc(data, cnt); break;
         default: return -1;
     }
     

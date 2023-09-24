@@ -16,14 +16,16 @@ typedef enum {
 }EV_TYPE;
 
 typedef enum {
-    FLT_FIR=0,
-    FLT_IIR,
-    FLT_FFT,
+    FL_FIR=0,
+    FL_IIR,
+    FL_FFT,
+    
+    FL_NUM
 }FLT_TYPE;
 
 
-int dsp_ev_calc(EV_TYPE ev, F32 *data, U32 cnt, U32 freq, F32 *result);
-int dsp_flt_calc(FLT_TYPE flt, F32 *data, U32 cnt);
+int dsp_ev_calc(U8 tp, F32 *data, U32 cnt, U32 freq, F32 *result);
+int dsp_fl_calc(U8 tp, F32 *data, U32 cnt);
 
 
 #endif

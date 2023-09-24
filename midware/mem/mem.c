@@ -1,4 +1,5 @@
 #include "mem.h"
+#include "log.h"
 #include "lock.h"
 #include "tiny.h"
 #include "rtx_mem.h"
@@ -6,38 +7,33 @@
 #include <stdlib.h>
 
 typedef struct {
-    U8 *start;
-    int  len; 
+    U8      *start;
+    int     len;
+    
+    handle_t lock;
 }mem_para_t;
 
 
-#define USE_TINY
+//#define USE_TINY
 
 
-static U8 *sdramAddr=(U8*)SDRAM_ADDR;
-static U32 sdramLength=SDRAM_LEN;
-
-static mem_para_t xParam={NULL,0};
+static mem_para_t xParam={(U8*)SDRAM_ADDR,SDRAM_LEN, NULL};
 
 int mem_init(void)
 {
     int r;
     
-    lock_static_hold(LOCK_MEM);
-    
 #ifdef USE_TINY
-    tiny_init(sdramAddr, sdramLength);
+    tiny_init(xParam.start, xParam.len);
 #else
-    r = rtx_mem_init(sdramBuffer, sdramLength);
+    r = rtx_mem_init(xParam.start, xParam.len);
     if(r) {
-        lock_static_release(LOCK_MEM);
+        LOGE("___ mem_init failed\n");
         return -1;
     }
 #endif
     
-    xParam.start = sdramAddr;
-    xParam.len = sdramLength;
-    lock_static_release(LOCK_MEM);
+    xParam.lock = lock_init();
     
     return 0;
 }
@@ -53,7 +49,7 @@ void* mem_malloc(STRATEGY stg, int len, U8 zero)
         return NULL;
     }
     
-    lock_static_hold(LOCK_MEM);
+    lock_on(xParam.lock);
     if(stg==SRAM_FIRST) {
         p1 = malloc(len);
         if(!p1) {
@@ -75,8 +71,12 @@ void* mem_malloc(STRATEGY stg, int len, U8 zero)
         }
     }
     
+    if(((U32)p1)%4) {
+        LOGE("___ p1: 0x%08x not align 4 byte!!!\n", (U32)p1);
+    }
+    
     if(p1 && zero) memset(p1, 0, len);
-    lock_static_release(LOCK_MEM);
+    lock_off(xParam.lock);
 
     return p1;
 }
@@ -88,11 +88,12 @@ int mem_free(void *ptr)
     int r=0;
     void* p1 = ptr;
     
-    lock_static_hold(LOCK_MEM);
+    
     if(!xParam.start || !xParam.len || !ptr) {
-        lock_static_release(LOCK_MEM);
         return -1;
     }
+    
+    lock_on(xParam.lock);
     
     if((U32)p1>=(U32)xParam.start) {
 #ifdef USE_TINY
@@ -104,10 +105,26 @@ int mem_free(void *ptr)
     else {
         free(p1);
     }
-    lock_static_release(LOCK_MEM);
+    lock_off(xParam.lock);
     
     return r;
 }
+
+
+int mem_get_free(void)
+{
+    //extern U32 base_sp;
+    //return (int)(base_sp - __malloc_heap_start);
+    return 0;
+}
+
+int mem_get_used(void)
+{
+    //extern ulong base_sp;
+    //return (int)(_heap_base - __malloc_heap_start);
+    return 0;
+}
+
 
 
 

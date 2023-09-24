@@ -22,7 +22,6 @@ osThreadId_t link_process_id;
 
 typedef struct {
     handle_t hurt;
-    handle_t hpwr;
     handle_t hdtr;
 }at_handle_t;
 
@@ -39,7 +38,7 @@ int32_t at_uart_send(uint8_t *p_data, uint16_t len, uint32_t timeout)
 {
     int r;
     
-    //LOGD("##:%s", (char*)p_data);
+    LOGD("##:%s", (char*)p_data);
     r = dal_uart_write(atHandle.hurt, p_data, len);
     return (r==0)?len:0;
 }
@@ -47,7 +46,7 @@ int32_t at_uart_send(uint8_t *p_data, uint16_t len, uint32_t timeout)
 
 static int at_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
 {
-    //LOGD("$$:%s", (char*)data);
+    LOGD("$$:%s", (char*)data);
     aiot_at_hal_recv_handle((uint8_t*)data, len);
     return 0;
 }
@@ -69,14 +68,6 @@ int32_t at_hal_init(void)
     }
     
 #if 1
-    if(!atHandle.hpwr) {
-        gc.gpio.grp = GPIOB;
-        gc.gpio.pin = GPIO_PIN_12;
-        gc.mode = MODE_OUT_OD;
-        gc.pull = PULL_NONE;
-        gc.hl = 1;
-        atHandle.hpwr = dal_gpio_init(&gc); //配置
-    }
    
     if(!atHandle.hdtr) {
         gc.gpio.grp = GPIOA;
@@ -95,7 +86,7 @@ int32_t at_hal_init(void)
     /*at_module_init*/
     int res = aiot_at_init();
     if (res < 0) {
-        printf("aiot_at_init failed\r\n");
+        LOGE("aiot_at_init failed\r\n");
         return -1;
     }
 
@@ -107,7 +98,7 @@ int32_t at_hal_init(void)
     /*初始化模组及获取到IP网络*/
     res = aiot_at_bootstrap();
     if (res < 0) {
-        printf("aiot_at_bootstrap failed\r\n");
+        LOGE("aiot_at_bootstrap failed\r\n");
         return -1;
     }
 

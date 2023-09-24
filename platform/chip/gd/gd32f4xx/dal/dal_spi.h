@@ -16,10 +16,9 @@ enum {
 
 typedef struct {
     buf_t   rx;
-    buf_t   ox; //dac output
 }spi_buf_t;
 
-typedef void (*spi_callback_t)(U16 *rx, U16 *ox, U32 cnt);
+typedef void (*spi_callback_t)(U16 *rx, U32 cnt);
 
 
 typedef struct {

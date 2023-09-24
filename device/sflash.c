@@ -312,6 +312,21 @@ int sflash_erase_sector(U32 sec)
 }
 
 
+int sflash_write_sector(U32 sec, void *data)
+{
+    int i,cnt,offset;
+    U32 addr=sec*SFLASH_SECTOR_SIZE;
+    
+    cnt = SFLASH_SECTOR_SIZE/SFLASH_PAGE_SIZE;
+    for(i=0; i<cnt; i++) {
+        offset = i*SFLASH_PAGE_SIZE;
+        page_write(addr+offset, (U8*)data+offset, SFLASH_PAGE_SIZE, 0);
+    }
+    
+    return 0;
+}
+
+
 int sflash_read(U32 addr, void* buf, U32 len)
 {
     U32 i;

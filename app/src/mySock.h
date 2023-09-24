@@ -13,14 +13,12 @@ public:
     mySock();
     ~mySock();
 
-    int conn(char *ip, int port);
-    int disconn(void);
-    int read(void* data, int len);
-    int write(void *data, int len);
+    void* conn(char *ip, int port);
+    int disconn(void* conn);
+    int read(void* conn, void* data, int len);
+    int write(void* conn, void *data, int len);
     
 private:
-    hv::TcpClient   tc;
-    hv::UdpClient   uc;
     
     htimed_mutex_t mutex;
 

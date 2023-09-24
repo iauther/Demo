@@ -698,27 +698,27 @@ int upgrade_handle(void *data, int len)
     int r=0;
     U8  err=0;
     static U8 *pbuf=NULL;
-    file_pkt_t *fp=(file_pkt_t*)data;
+    file_hdr_t *hdr=(file_hdr_t*)data;
 
     #if 0
     if(!pbuf) {
         pbuf = malloc(TMP_LEN);
     }
 
-    if(fp->dataLen==0) {
+    if(hdr->dataLen==0) {
         return ERROR_FW_PKT_LENGTH;
     }
     
-    if(fp->pkts==0 || (fp->pid>0 && fp->pkts>0 && fp->pid>=fp->pkts)) {
+    if(hdr->pkts==0 || (hdr->pid>0 && hdr->pkts>0 && hdr->pid>=hdr->pkts)) {
         return ERROR_FW_PKT_ID;
     }
     
-    if(fp->pid==0) {
+    if(hdr->pid==0) {
         
         
     }
     
-    if(fp->pid!=upgCurPktId) {
+    if(hdr->pid!=upgCurPktId) {
         return ERROR_FW_PKT_ID;
     }
 #endif

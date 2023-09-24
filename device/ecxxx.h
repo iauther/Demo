@@ -73,21 +73,6 @@ typedef enum {
     ACCESS_MODE_DIRECT,
 }ACCESS_MODE;
 
-enum {
-    TOPIC_PUB=0,
-    TOPIC_SUB,
-    TOPIC_PSUB,  //PUB & SUB
-    
-    TOPIC_MAX
-};
-
-
-enum {
-    PROTO_TCP=0,
-    PROTO_UDP,
-    PROTO_MQTT,
-};
-
 
 enum {
     MQTT_ERR_DISCONN=1,
@@ -112,25 +97,6 @@ typedef struct {
 
 
 typedef struct {
-    char *ip;
-    U16  port;
-}ecxxx_tcp_t;
-
-typedef struct {
-    U8  cid;    //client ID
-    U8  fmt;    //0:×Ö·û   1£º¶þ½øÖÆ
-    U16 mid;
-}ecxxx_mqtt_t;
-
-
-typedef struct {
-    char clientID[64];
-    char username[64];
-    char password[64];
-}ecxxx_login_t;
-
-
-typedef struct {
     U8          port;
     U32         baudrate;
     ecxxx_cb_t  cb;
@@ -138,22 +104,20 @@ typedef struct {
 
 
 
-int ecxxx_init(ecxxx_cfg_t *cfg);
-int ecxxx_deinit(void);
-int ecxxx_write(void *data, int len, int timeout);
-int ecxxx_wait(U32 ms, char *ok, char *err);
-int ecxxx_reg(APN_ID apnID);
-int ecxxx_power(U8 on);
-int ecxxx_restart(void);
+handle_t ecxxx_init(ecxxx_cfg_t *cfg);
+int ecxxx_deinit(handle_t h);
+int ecxxx_wait(handle_t h, U32 ms, char *ok, char *err);
+int ecxxx_reg(handle_t h, APN_ID apnID);
+int ecxxx_power(handle_t h, U8 on);
+int ecxxx_restart(handle_t h);
 
-int ecxxx_ntp(char *server, U16 port);
+int ecxxx_ntp(handle_t h, char *server, U16 port);
 
-int ecxxx_conn(int proto, void *para);
-int ecxxx_disconn(int proto);
-int ecxxx_send(int proto, void *data, int len, int timeout);
-int ecxxx_clear(void);
-int ecxxx_err_proc(int proto, int err);
-int ecxxx_poll(void);
+int ecxxx_conn(handle_t h, void *para);
+int ecxxx_disconn(handle_t h);
+int ecxxx_write(handle_t h, void *data, int len, int timeout);
+int ecxxx_clear(handle_t h);
+int ecxxx_poll(handle_t h);
 
 int ecxxx_test(void);
 #endif

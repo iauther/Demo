@@ -11,7 +11,7 @@ public:
     ~myLog();
 
 
-    void init(HWND hwnd, CRect* rc);
+    void init(HWND hwnd, CRect rc, CFont font);
     void enable(int flag);
     int  is_enable(void);
     HWND get_hwnd(void);
@@ -25,6 +25,7 @@ private:
     int   en_flag;
     TCHAR buffer[LOG_BUF_LEN];
     level_t lev[LV_MAX];
+    int   inited;
 
     int char2wchar(wchar_t* wchar, int wlen, char* cchar);
     int is_tailof(TCHAR* src, TCHAR* str);
@@ -33,6 +34,7 @@ private:
 
 myLog::myLog()
 {
+    inited = 0;
     en_flag = 1;
 
     lev[LV_INFO].enable = 1;
@@ -52,15 +54,15 @@ myLog::~myLog()
 
 }
 
-void myLog::init(HWND hwnd, CRect* rc)
+void myLog::init(HWND hwnd, CRect rc, CFont font)
 {
-    dbg.Create(hwnd, rc, "log", WS_CHILD | ES_LEFT | ES_NOHIDESEL | WS_TABSTOP | ES_MULTILINE | ES_WANTRETURN | WS_VSCROLL | ES_AUTOVSCROLL);
-
-    //dbg.Create(hwnd, rc, "log",  ES_LEFT | ES_NOHIDESEL | WS_TABSTOP | ES_MULTILINE | ES_WANTRETURN | WS_VSCROLL | ES_AUTOVSCROLL);
-
-	dbg.SetReadOnly(1);
-	dbg.LimitText(0x99999999);
-	dbg.ShowScrollBar(1);
+    dbg.Create(hwnd, rc, NULL, WS_CHILD | ES_LEFT | ES_NOHIDESEL | WS_TABSTOP | ES_MULTILINE | ES_WANTRETURN | WS_VSCROLL | ES_AUTOVSCROLL);
+    
+	dbg.SetReadOnly(TRUE);
+	dbg.LimitText(MAXDWORD);
+	dbg.ShowScrollBar(SB_VERT);
+    dbg.SetFont(font);
+    inited = 1;
 }
 
 
@@ -71,7 +73,7 @@ void myLog::print(LOG_LEVEL lv, TCHAR *txt)
     TCHAR fmt[200];
     SCROLLINFO ScroInfo;
 
-    if (!en_flag || !lev[lv].enable) {
+    if (!inited || !en_flag || !lev[lv].enable) {
         return;
     }
 
@@ -157,9 +159,9 @@ int myLog::is_tailof(TCHAR* src, TCHAR* str)
 
 //////////////////////////////////////////////////
 static myLog mLog;
-void log_init(HWND hwnd, CRect* rc)
+void log_init(HWND hwnd, CRect rc, CFont font)
 {
-    mLog.init(hwnd, rc);
+    mLog.init(hwnd, rc, font);
 }
 
 HWND log_get_hwnd(void)

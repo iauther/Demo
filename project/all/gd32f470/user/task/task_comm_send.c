@@ -16,9 +16,9 @@
 #ifdef OS_KERNEL
 static int comm_iterator_fn(handle_t l, node_t *data, node_t *node, void *arg, int *act)
 {
-    void *addr=(void*)(*(U32*)node->buf);
+    handle_t hconn=(handle_t)(*(U32*)node->buf);
     
-    comm_send_data(tasksHandle.hcom, addr, TYPE_CAP, 0, data->buf, data->dlen);
+    comm_send_data(tasksHandle.hconn, "", TYPE_CAP, 0, data->buf, data->dlen);
     *act = ACT_NONE;
     
     return 0;
@@ -45,7 +45,7 @@ static int data_save_bin(ch_data_t *pch)
     int dayMin=(24*60);
     int flen,wlen,maxCnt,maxLen;
     
-    maxCnt = dayMin/allPara.usr.smp.period;
+    maxCnt = dayMin/allPara.usr.smp.smp_period;
     maxLen = FILE_MAX_LEN;//allPara.usr.chn[ch].samplePoints*4*maxCnt;
     
     if(!xHandle) {
@@ -72,7 +72,7 @@ static int data_save_bin(ch_data_t *pch)
     }
     
     if(xHandle) {
-        wlen = fs_append(xHandle, pch->data, pch->dlen, 0);
+        wlen = fs_append(xHandle, pch->data, pch->wavlen, 0);
         if(wlen>0) {
             if(fs_size(xHandle)>=maxLen) {
                 fs_close(xHandle);
@@ -93,15 +93,15 @@ static int data_save_csv(ch_data_t *pch)
     char tmp[60];
     date_time_t dt;
     handle_t fs=0;
-    int dayMin=(24*60);
+    int dayMin=(24*3600);
     int flen,wlen,maxCnt,maxLen;
     fs_space_t sp;
     
-    maxCnt = dayMin/allPara.usr.smp.period;
-    maxLen = allPara.usr.ch[pch->ch].smpPoints*4*maxCnt;
+    maxCnt = dayMin/allPara.usr.smp.smp_period;
+    maxLen = paras_get_smp_cnt(pch->ch)*4*maxCnt;
     
     r = fs_get_space(SDMMC_MNT_PT, &sp);
-    if(r==0 && sp.free<pch->dlen*10) {
+    if(r==0 && sp.free<pch->wavlen*10) {
         LOGE("___ SDMMC is full, total: %lld, free: %lld\n", sp.total, sp.free);
         return -1;
     }
@@ -132,8 +132,8 @@ static int data_save_csv(ch_data_t *pch)
     if(xHandle) {
         int dw=6;
         int onelen=FILE_BUF_LEN/dw;
-        int times=pch->dlen/onelen;
-        int left=pch->dlen%onelen;
+        int times=pch->wavlen/onelen;
+        int left=pch->wavlen%onelen;
         int offset;
         
         //一个浮点数占位dw个字节
@@ -177,8 +177,8 @@ typedef struct {
 }my_flag_t;
 
 
-extern int mqtt_pub_str(upload_data_t *up);
-extern int mqtt_pub_raw(upload_data_t *up);
+
+extern int mqtt_pub_raw(void *data, int len);
 extern int mqtt_is_connected(void);
 
 //check the unupload file and send it out
@@ -250,66 +250,25 @@ static int file_upload_chk(U8 ch, my_flag_t *mf)
 
 //////////////////////////////////////////////////////////////////////////
 static my_flag_t myFlag;
-static U32 sendBuffer[500];
-static U32 sendDataID=5654673;
-static upload_data_t *pUpData=NULL;
-static int up_data_cnt=0;
 static int upload_by_mqtt(void)
 {
     int i,r,tlen=0;
     int size=0;
     node_t node;
-    U64 stime_ms;
-    U32 step_ms;
-    ev_data_t evdata;
-    upload_data_t *up=(upload_data_t*)sendBuffer;    
+    handle_t list=taskBuffer.send;
     
     if(!mqtt_is_connected()) {
         return -1;
     }
     
-    if(list_get(listBuffer.send, &node, 0)==0) {
-        int times,evlen,cnt=0;
-        ch_data_t *pch=(ch_data_t*)node.buf;
-        adc_para_t *para=&allPara.usr.ch[pch->ch];
-        F32 *ev=pch->data+pch->dlen/4;
-        
-        evlen = 4*para->n_ev;
-        times = pch->evlen/evlen;
-        
-        step_ms = (1000*para->evCalcLen)/para->smpFreq;
-        stime_ms = pch->time;
-        
-        up->ch = pch->ch;
-        up->ss = up->ch;        //暂时用通道代替sensorID
-        up->sig = 9.9F;
-        up->cnt = times;
-        up->id = sendDataID;
-        
-        for(i=0; i<up->cnt; i++) {
-            evdata.rms = ev[0];
-            evdata.amp = ev[1];
-            evdata.asl = ev[2];
-            evdata.pwr = ev[3];
-            evdata.time = stime_ms+i*step_ms;
-            memcpy(&up->ev[i], &evdata, sizeof(ev_data_t));
-            
-            ev += para->n_ev;
-        }
-        
-        LOGD("___ time: %lld, cnt: %d\n", stime_ms, times);
-#ifdef PROD_V2
-        r = mqtt_pub_str(up);
-#else
-        r = mqtt_pub_raw(up);
-#endif
+    if(list_get(list, &node, 0)==0) {
+
+        r = mqtt_pub_raw(node.buf, node.dlen);
         //data_save_csv(pch);
-    
-        sendDataID++;
         
-        if(r==0) list_remove(listBuffer.send, 0);
+        if(r==0) list_remove(list, 0);
         
-        size = list_size(listBuffer.send);
+        size = list_size(list);
     }
     
     return size;
@@ -318,36 +277,70 @@ static int upload_by_self(void)
 {
     int r,size=0;
     node_t node;
+    handle_t list=taskBuffer.send;
     
-    if(list_get(listBuffer.send, &node, 0)==0) {
+    if(list_get(list, &node, 0)==0) {
         ch_data_t *pch=(ch_data_t*)node.buf;
         
-        r = comm_send_data(tasksHandle.hcom, NULL, TYPE_CAP, 0, node.buf, node.dlen);
-        if(r==0) list_remove(listBuffer.send, 0);
+        r = comm_send_data(tasksHandle.hconn, "", TYPE_CAP, 0, node.buf, node.dlen);
+        if(r==0) list_remove(taskBuffer.send, 0);
         
-        size = list_size(listBuffer.send);
+        size = list_size(list);
+    }
+    
+    return size;
+}
+static int upload_by_debug(void)
+{
+    int i,j,size=0,grps;
+    node_t node;
+    handle_t list=taskBuffer.send;
+    
+    if(list_take(list, &node, 0)==0) {
+        ch_data_t *p_ch=(ch_data_t*)node.buf;
+        const char *ev_str[EV_NUM]={"rms","asl","ene","ave","min","max"};
+
+        ch_para_t *para=&allPara.usr.ch[p_ch->ch];
+        ev_data_t *ev=(ev_data_t*)((U8*)p_ch->data+p_ch->wavlen);
+        
+        grps = 1;//pdata->evlen/(para->n_ev*sizeof(ev_data_t));
+        for(i=0; i<grps; i++) {
+            for(j=0; j<para->n_ev; j++) {
+                LOGD("%s: %f\n", ev_str[para->ev[j]], ev[j].data);
+            }
+            LOGD("\n");
+        }
+        list_back(list, &node);
+        
+        size = list_size(list);
     }
     
     return size;
 }
 
 
-//0: mqtt  1: self
+
+//0: mqtt  1: self   2: debug
+enum {
+    MQTT=0,
+    SELF,
+    DEBUG,
+};
 static void upload_data(int upway)
 {
     int r=-1,state=paras_get_state();
     
-    if(state!=STAT_CAP) {
-        return;
-    }
-    
     switch(upway) {
-        case 0:
+        case MQTT:
         r = upload_by_mqtt();
         break;
         
-        case 1:
+        case SELF:
         r = upload_by_self();
+        break;
+        
+        case DEBUG:
+        r = upload_by_debug();
         break;
     }
 }
@@ -368,7 +361,7 @@ void task_comm_send_fn(void *arg)
                 
                 case EVT_DATA:
                 {
-                    upload_data(1);
+                    upload_data(DEBUG);
                 }
                 break;
             }

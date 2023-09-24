@@ -5,7 +5,10 @@
 
 
 typedef struct {
-	dal_dac_cfg_t   cfg;
+	U8              port;
+    dal_dac_para_t  para;
+    
+    U8              inited;
 }dal_dac_handle_t;
 
 #define PRESCALER   2
@@ -103,7 +106,7 @@ static void dma_cnt_reset(dal_dac_handle_t *h)
     U32 dax,dma,paddr;
     dma_channel_enum chn;
     
-    if(h->cfg.port==DAC_0) {
+    if(h->port==DAC_0) {
         dax = DAC0,
         dma = DMA0;
         chn = DMA_CH5;
@@ -115,7 +118,7 @@ static void dma_cnt_reset(dal_dac_handle_t *h)
     }
     
     dma_channel_disable(dma, chn);
-    dma_transfer_number_config(dma, chn, h->cfg.bufLen/2);
+    dma_transfer_number_config(dma, chn, h->para.blen/2);
     dma_channel_enable(dma, chn);
 }
 
@@ -178,18 +181,23 @@ static void dac_config(U8 port)
 
 
 
-handle_t dal_dac_init(dal_dac_cfg_t *cfg)
+handle_t dal_dac_init(U8 port)
 {
-    dal_dac_handle_t *h=calloc(1, sizeof(dal_dac_handle_t));
+    dal_dac_handle_t *h=NULL;
+    
+    if(port>=DAC_MAX) {
+        LOGE("___ dac port wrong\n");
+        return NULL;
+    }
+    
+    h = calloc(1, sizeof(dal_dac_handle_t));
     if(!h) {
         return NULL;
     }
-    h->cfg = *cfg;
+    h->port = port;
     
-    gpio_config(h->cfg.port);
-    dma_config(h->cfg.port, h->cfg.buf, h->cfg.bufLen);
-    tmr_config(h->cfg.port, h->cfg.freq);
-    dac_config(h->cfg.port);
+    gpio_config(h->port);
+    dac_config(h->port);
     
     return h;
 }
@@ -210,24 +218,23 @@ int dal_dac_deinit(handle_t h)
 
 
 
-int dal_dac_set_freq(handle_t h, U32 freq)
+int dal_dac_set(handle_t h, dal_dac_para_t *para)
 {
     int r;
-    dac_tmr_para_t para;
     dal_dac_handle_t *dh=(dal_dac_handle_t*)h;
     
-    if(!dh) {
+    if(!dh || !para) {
         return -1;
     }
+    dh->para = *para;
     
-    r = cal_tmr_para(freq, &para);
-    if(r) {
-        return -1;
-    }
-    timer_autoreload_value_config(TIMER7, para.value);
+    dma_config(dh->port, dh->para.buf, dh->para.blen);
+    tmr_config(dh->port, dh->para.freq);
+    dh->inited = 1;
     
     return 0;
 }
+
 
 
 int dal_dac_start(handle_t h)
@@ -235,11 +242,11 @@ int dal_dac_start(handle_t h)
     U32 dax;
     dal_dac_handle_t *dh=(dal_dac_handle_t*)h;
 
-    if(!dh) {
+    if(!dh || !dh->inited) {
         return -1;
     }
     
-    dax = (dh->cfg.port==DAC_0)?DAC0:DAC1;
+    dax = (dh->port==DAC_0)?DAC0:DAC1;
     dac_enable(dax); 
     
     return 0;
@@ -256,7 +263,7 @@ int dal_dac_stop(handle_t h)
     }
     
     //dma_cnt_reset(dh);
-    dax = (dh->cfg.port==DAC_0)?DAC0:DAC1;
+    dax = (dh->port==DAC_0)?DAC0:DAC1;
     dac_disable(dax);
     
     return 0;

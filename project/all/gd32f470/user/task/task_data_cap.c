@@ -6,233 +6,226 @@
 #include "ads9120.h"
 #include "mem.h"
 #include "rtc.h"
-#include "dsp.h"
 #include "paras.h"
-#include "fs.h"
+#include "dac.h"
 #include "power.h"
 
 
 #ifdef OS_KERNEL
 
-#define CAP_INV_MS       (5*1000)
 
-
-static U64 cap_time=0;
-list_buf_t listBuffer;
-static void lbuf_init(U32 points)
+static U64 cap_time[CH_MAX]={0};
+task_buf_t taskBuffer;
+static void buf_init()
 {
     int i;
     list_cfg_t lc;
-    list_buf_t *lb=&listBuffer;
-    adc_para_t *pch=allPara.usr.ch;    
-    
-    //为采集任务申请临时内存
-    lb->cap.blen = points*4*2+32;
-    lb->cap.buf = eMalloc(lb->cap.blen); 
-    
-    //为计算任务申请临时内存
-    lb->prc.blen = points*4*2+32;
-    lb->prc.buf = eMalloc(lb->prc.blen); 
+    int len1,len2;
+    ch_para_t *para;
+    task_buf_t *tb=&taskBuffer;
     
     lc.max = 10;
     lc.mode = MODE_FIFO;
     for(i=0; i<CH_MAX; i++) {
         
-        if(lb->ori[i]) {
-            list_free(lb->ori[i]);
-            lb->ori[i]=NULL;
+        if(tb->raw[i]) {
+            list_free(tb->raw[i]);
+            tb->raw[i]=NULL;
         }
-        if(lb->cov[i]) {
-            list_free(lb->cov[i]);
-            lb->cov[i]=NULL;
+        tb->raw[i] = list_init(&lc);
+        
+        tb->rlen[i] = 0;
+        
+        //为采集任务申请临时内存
+        if(tb->cap[i].buf) {
+            xFree(tb->cap[i].buf);
+        }
+        tb->cap[i].blen = paras_get_smp_cnt(i)*sizeof(raw_t)+sizeof(raw_data_t);
+        tb->cap[i].buf = eMalloc(tb->cap[i].blen); 
+        
+        para = paras_get_ch_para(i);
+        
+        //为计算任务申请临时内存
+        if(tb->prc[i].buf) {
+            xFree(tb->prc[i].buf);
         }
         
-        if(pch[i].ch<CH_MAX) {
-            lb->ori[i] = list_init(&lc);
-            lb->cov[i] = list_init(&lc);
-        }
+        int once_smp_len=(para->smpFreq/1000)*SAMPLE_INT_INTERVAL*sizeof(raw_t);
+        int once_ev_calc_data_len=para->evCalcCnt*sizeof(raw_t);
+        
+        len1 = once_smp_len+para->n_ev*sizeof(ev_data_t)*(once_smp_len/once_ev_calc_data_len)+sizeof(ch_data_t);
+        len2 = once_ev_calc_data_len+para->n_ev*sizeof(ev_data_t)+sizeof(ch_data_t);
+        tb->prc[i].blen = MAX(len1,len2);
+        tb->prc[i].buf = eMalloc(tb->prc[i].blen); 
+        tb->prc[i].dlen = 0;
     }
     
     //lc.max = 10;
-    lb->send = list_init(&lc);
+    tb->send = list_init(&lc);
 }
 
-
-
-static U32 adsLength=0;
-static inline U32 get_totalLen(U8 ch)
-{
-    return allPara.usr.ch[ch].smpPoints*4;
-}
-
-#if 0  //将数据拷贝移到任务进行，防止锁影响数据采集
-static void ads_data_cb_proc(F32 *data, int cnt)
-{
-    int r,len=cnt*4,xlen=0;
-    int tlen=get_totalLen(CH_0);
-    U8 *pbuf=listBuffer.cap.buf;
-    U64 time=rtcx_get_timestamp();
-
-    if(adsLength<tlen)
-    {
-        xlen += sizeof(time);
-        memcpy(pbuf, &time, xlen);
-        
-        if(adsLength+len>tlen) {        //截断数据，只保留用户需要的长度
-            len = tlen-adsLength;
-        }
-        
-        memcpy(pbuf+xlen, data, len);
-        xlen += len;
-        
-        r = list_append(listBuffer.ori[CH_0], pbuf, xlen);
-        if(r==0) {
-            adsLength += len;
-            //LOGD("___ori datalen: %d, %dms\n", len, dal_get_tick_ms());
-            LOGD("___add to ori ok, %dms\n", dal_get_tick());
-        }
-        else {
-            LOGD("___add to ori failed\n");
-        }
-    }
-    else {
-        ads9120_enable(0);
-    }
-}
-#endif
-
-static void ads_data_task_proc(void *data, int length)
-{
-    int r,xlen=0;
-    int dlen,tlen=get_totalLen(CH_0);
-
-    if(adsLength<tlen)
-    {
-        if(adsLength+dlen>tlen) {        //截断数据，只保留用户需要的长度
-            dlen = tlen-adsLength;
-        }
-        else {
-            dlen=length-sizeof(U64);
-        }
-        
-        r = list_append(listBuffer.ori[CH_0], data, dlen+sizeof(U64));
-        if(r==0) {
-            adsLength += dlen;
-            //LOGD("___add to ori ok, %dms\n", dal_get_tick());
-        }
-        else {
-            LOGD("___add to ori failed\n");
-        }
-    }
-    else {
-        adsLength = 0;
-        ads9120_enable(0);
-    }
-}
 
 static U64 get_start_time(U8 ch, U32 cnt)
 {
     U64 time=rtcx_get_timestamp();
-    adc_para_t *para=&allPara.usr.ch[ch];
+    ch_para_t *para=paras_get_ch_para(ch);
     U32 t_ms=(1000*(cnt-1))/para->smpFreq;
     
     return (time-t_ms);
     
 }
-static void coef_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
+
+
+static void volt_convert(U8 ch, F32 *f, U16 *u, U32 cnt)
 {
     U32 i;
-    adc_para_t *para=paras_get_adc_para(ch);
+    coef_t *coef=&paras_get_ch_para(ch)->coef;
     
     for(i=0; i<cnt; i++) {
-        f[i] = VOLT(u[i])*para->cali.coef.a+para->cali.coef.b;
+        f[i] = (MVOLT(u[i])-coef->b)/coef->a;
     }
 }
-static void cali_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
+
+
+static void cali_calc_1(U8 ch, F32 *f, U16 *u, U32 cnt)
 {
     U32 i;
-    F32 rms[10],x=0.0f,y=0.0f;
-    
-    adc_para_t *para=paras_get_adc_para(ch);
-    cali_t *ca=&para->cali;
-    coef_t *cf=&ca->coef;
+    F32 rms,x=0.0f,y=0.0f;
+    ch_para_t *para=paras_get_ch_para(ch);
+    cali_sig_t *sig=&paras_get_cali(ch)->sig;
     
     for(i=0; i<cnt; i++) {
-        f[i] = VOLT(u[i]);
+        f[i] = MVOLT(u[i]);
         y += f[i];
     }
     y /= cnt;
+
+    dsp_ev_calc(EV_RMS, f, cnt, para->smpFreq, &rms);
+    para->coef.a = rms/sig->rms;
+    para->coef.b = sig->bias - (para->coef.a*y);
     
-    for(i=0; i<10; i++) {
-        dsp_ev_calc(EV_RMS, f+i*(cnt/10), cnt/10, para->smpFreq, &rms[i]);
-        x += rms[i];
-    }
-    x /= 10;
+    LOGD("____cali: coef.a: %f, coef.b: %f\n", para->coef.a, para->coef.b);
     
-    cf->a = ca->rms/(x*1000);
-    cf->b = ca->bias - (cf->a*y);
+    task_trig(TASK_POLLING, EVT_SAVE);
 }
+
+
+static void cali_calc_2(U8 ch, F32 *f, U16 *u, U32 cnt)
+{
+    U32 i;
+    F32 rms;
+    ch_para_t *para=paras_get_ch_para(ch);
+    cali_t *cali=paras_get_cali(ch);
+    
+    for(i=0; i<cnt; i++) {
+        f[i] = MVOLT(u[i]);
+    }
+    dsp_ev_calc(EV_RMS, f, cnt, para->smpFreq, &rms);
+    
+    cali->rms[cali->cnt-1].out = rms;
+    
+    if(cali->cnt>=2) {
+        para->coef.a = (cali->rms[1].out-cali->rms[0].out)/(cali->rms[1].in-cali->rms[0].in);
+        para->coef.b = cali->rms[1].out - para->coef.a*cali->rms[1].in;
+        
+        LOGD("____cali: coef.a: %f, coef.b: %f\n", para->coef.a, para->coef.b);
+        
+        task_trig(TASK_POLLING, EVT_SAVE);
+        cali->cnt = 0;
+    }
+}
+
 
 static void ads_data_callback(U16 *data, U32 cnt)
 {
-    int r;
-    U64 stime=get_start_time(CH_0, cnt);
-    U8 *pbuf=listBuffer.cap.buf;
-    U32 buflen=listBuffer.cap.blen;
-    U32 tlen=sizeof(stime)+cnt*4;
+    node_t node={data, cnt*2, cnt*2};
+    task_post(TASK_DATA_CAP, NULL, EVT_ADS, 0, &node, sizeof(node));
+}
+static void vib_data_callback(U16 *data, U32 cnt)
+{
+    node_t node={data,cnt*2,cnt*2};
+    task_post(TASK_DATA_CAP, NULL, EVT_ADC, 0, &node, sizeof(node));
+}
+
+
+#define CALI_THD_CNT            30
+static int ads_data_cnt=0;
+static int ads_data_proc(node_t *nd)
+{
+    int i,r,cnt=nd->dlen/2;
+    U16 *data=(U16*)nd->buf;
+    task_buf_t *tb=&taskBuffer;
+    handle_t list=tb->raw[CH_0];
+    raw_data_t *raw=(raw_data_t*)tb->cap[CH_0].buf;
+    
+    if(ads_data_cnt<CALI_THD_CNT) {
+        ads_data_cnt++;
+        return -1;
+    }
     
     if(paras_get_state()==STAT_CALI) {
-        F32 *f32=(F32*)(pbuf);
         
-        cali_calc(CH_0, f32, data, cnt);
+        cali_t *cali=paras_get_cali(CH_0); 
+        
+        if(cali->sig.tms==1) {
+            cali_calc_1(CH_0, raw->data, data, cnt);
+        }
+        else {
+            cali_calc_2(CH_0, raw->data, data, cnt);
+        }
+        
         paras_state_restore();
     }
     else {
-        if(tlen<buflen) {
-            F32 *f32=(F32*)(pbuf+sizeof(U64));
-            node_t node={pbuf, buflen, tlen};
+        U64 stime=get_start_time(CH_0, cnt);
+        U32 buflen=tb->cap[CH_0].blen;
+        U32 tlen=cnt*sizeof(raw_t)+sizeof(raw_data_t);
+        
+        dac_data_fill(data, cnt);       //output to dac
+        
+        if(tlen<buflen) {            
+            raw->time = stime;
+            volt_convert(CH_0, raw->data, data, cnt);
             
-            memcpy(pbuf, &stime, sizeof(stime));          //数据前带上时间戳
-            coef_calc(CH_0, f32, data, cnt);
-            
-            r = task_post(TASK_DATA_CAP, NULL, EVT_ADS, 0, &node, sizeof(node));
+            r = list_append(list, raw, tlen);
             
             //LOGD("__1__%dms\n", dal_get_tick());
         }
     }
-}
-static void vib_data_callback(U8 *data, U32 len)
-{
-    node_t node={data,len,len};
-
-    task_post(TASK_DATA_CAP, NULL, EVT_ADC, 0, &node, sizeof(node));
+    
+    return 0;
 }
 
-static int ads_init(U32 freq)
+
+
+static int ads_init(void)
 {
     int r,len;
     U32 points;
+    dac_param_t dp;
     ads9120_cfg_t ac;
+    ch_para_t *para=paras_get_ch_para(CH_0);
     
-    adsLength = 0;
-    points = (freq/1000)*10;            //10ms
-    
-    lbuf_init(points);
+    points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;            //10ms
     
     len = points*sizeof(U16)*2;         //*2表示双buffer
     ac.buf.rx.buf  = (U8*)eMalloc(len);
     ac.buf.rx.blen = len;
     
-    len = points*sizeof(U16);
-    ac.buf.ox.buf  = (U8*)eMalloc(len);
-    ac.buf.ox.blen = len;
-    
-    ac.freq = freq;
+    ac.freq = para->smpFreq;
     ac.callback = ads_data_callback;
     
     r = ads9120_init(&ac);
     
-    ads9120_enable(1);
+    dp.freq = para->smpFreq;
+    dp.points = points;
+    dp.enable = allPara.usr.dac.enable;
+    dp.fdiv   = allPara.usr.dac.fdiv;
+    dac_set(&dp);
+    
+    
+    api_cap_start(CH_0);
+    paras_set_state(STAT_CAP);
     
     return r;
 }
@@ -242,45 +235,81 @@ static int vib_init(void)
 }
 /////////////////////////////////////////////////
 
-int api_cap_start(void)
+int api_cap_start(U8 ch)
+{
+    if(ch==CH_0) {
+        if(ads9120_is_enabled()) {
+            return -1;
+        }
+
+        ads_data_cnt = 0;
+        ads9120_enable(1);
+        dac_start();
+    }
+    else {
+        
+    }
+    
+    cap_time[ch] = rtcx_get_timestamp();
+    
+    return 0;
+}
+int api_cap_stop(U8 ch)
+{
+    int i;
+    task_buf_t *tb=&taskBuffer;
+    
+    if(ch==CH_0) {
+        if(!ads9120_is_enabled()) {
+            return -1;
+        }
+        
+        ads_data_cnt = 0;
+        ads9120_enable(0);
+        dac_stop();
+    }
+    else {
+        
+    }
+    
+    //list_clear(tb->raw[ch]);
+    tb->rlen[ch] = 0;
+    
+    return 0;
+}
+
+//所有通道都停止采集时返回1
+int api_cap_stoped(void)
 {
     if(ads9120_is_enabled()) {
-        return -1;
+        return 0;
     }
+    
+    return 1;
+}
 
-    adsLength = 0;
-    ads9120_enable(1);
-    cap_time = rtcx_get_timestamp();
-    
-    return 0;
-}
-int api_cap_stop(void)
+int api_cap_period_start(U8 ch)
 {
-    if(!ads9120_is_enabled()) {
-        return -1;
+    smp_para_t *smp=paras_get_smp();
+    U32 inv_time=(rtcx_get_timestamp()-cap_time[ch])/1000;       //计算采样间隔
+    
+    if(smp->smp_mode==0 && inv_time>=smp->smp_period) {
+        api_cap_start(ch);
     }
     
-    adsLength = 0;
-    ads9120_enable(0);
     return 0;
 }
+
 
 
 ///////////////////////////////////////////
 
 static void cap_config(void)
 {
-    U32 sFreq=allPara.usr.ch[CH_0].smpFreq;
-    
-    ads_init(sFreq);
+    ads_init();
     vib_init();
 }
 
-static void cap_tmr_callback(void *arg)
-{
-    //task_post(TASK_DATA_CAP, NULL, EVT_TIMER, 0, NULL, 0);
-    task_trig(TASK_DATA_CAP, EVT_TIMER);
-}
 
 void task_data_cap_fn(void *arg)
 {
@@ -289,9 +318,8 @@ void task_data_cap_fn(void *arg)
     evt_t e;    
     
     LOGD("_____ task data cap running\n");
+    buf_init();
     cap_config();
-    
-    //task_tmr_start(TASK_DATA_CAP, cap_tmr_callback, NULL, 5, TIME_INFINITE);
     
     while(1) {
         r = task_recv(TASK_DATA_CAP, &e, sizeof(e));
@@ -309,23 +337,7 @@ void task_data_cap_fn(void *arg)
             
             case EVT_ADS:
             {
-                node_t *nd=(node_t*)e.data;
-                
-                //LOGD("__2__%dms\n", dal_get_tick());
-                ads_data_task_proc(nd->buf, nd->dlen);
-            }
-            break;
-            
-            case EVT_TIMER:
-            {
-                if(paras_get_state()==STAT_CAP) {
-                    U64 ctime=rtcx_get_timestamp();
-                    U64 xtime=ctime-cap_time;
-                    
-                    if(xtime>CAP_INV_MS) {
-                        api_cap_start();
-                    }
-                }
+                ads_data_proc((node_t*)e.data);
             }
             break;
         }

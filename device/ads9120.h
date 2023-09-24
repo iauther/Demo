@@ -8,7 +8,7 @@
 #define VREF        (4.096F)
 #define LSB         ((VREF*2)/65536)
 #define VOLT(x)     (((S16)(x))*LSB)
-
+#define MVOLT(x)    (((S16)(x))*LSB*1000)
 
 typedef void (*ads_data_t)(U16 *data, U32 cnt);
 

@@ -61,7 +61,7 @@ static int fatfs_mount(FS_DEV dev, char *path)
         return 0;
     }
     
-    info = (fatfs_info_t*)malloc(sizeof(fatfs_info_t));;
+    info = (fatfs_info_t*)calloc(1, sizeof(fatfs_info_t));;
     if(!info) {
         return -1;
     }
@@ -94,16 +94,17 @@ static int fatfs_umount(FS_DEV dev)
     return 0;
 }
 
-
-static int fatfs_format(char *path)
+static U8 workbuf[1024];
+static int fatfs_format(FS_DEV dev, char *path)
 {
     MKFS_PARM para;
+    char *disk[DEV_MAX]={"0:","1:","2:","3:"};
             
-    para.fmt = FM_EXFAT;
+    para.fmt = FM_ANY;
     para.n_fat = 0;
     para.n_root = 0;
     para.au_size = 1024;
-    return f_mkfs(path, &para, NULL, 1024);
+    return f_mkfs(disk[dev], &para, workbuf, sizeof(workbuf));
 }
 
 
@@ -123,7 +124,7 @@ static handle_t fatfs_open(char *path, FS_MODE mode)
     
     info = get_info(path);
     if(!info) {
-        LOGE("___ media not mount!\n");
+        LOGE("___ %s not mount!\n", path);
         free(h); return NULL;
     }
     
@@ -258,15 +259,24 @@ static int fatfs_size(handle_t h)
 
 static int fatfs_length(char *path)
 {
-    FRESULT fr;
+    FRESULT r;
     FILINFO fno;
+    char tmp[100];
+    fatfs_info_t *info;
  
     if(!path) {
         return -1;
     }
     
-    fr = f_stat(path, &fno);
-    if(fr==FR_OK) {
+    info = get_info(path);
+    if(!info) {
+        LOGE("___ %s not mount!\n", path);
+        return -1;
+    }
+    
+    snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
+    r = f_stat(tmp, &fno);
+    if(r==FR_OK) {
         return fno.fsize;
     }
     
@@ -276,15 +286,24 @@ static int fatfs_length(char *path)
 
 static int fatfs_exist(char *path)
 {
-    FRESULT fr;
+    FRESULT r;
     FILINFO fno;
+    char tmp[100];
+    fatfs_info_t *info;
  
     if(!path) {
         return -1;
     }
     
-    fr = f_stat(path, &fno);
-    if(fr==FR_OK) {
+    info = get_info(path);
+    if(!info) {
+        LOGE("___ %s not mount!\n", path);
+        return -1;
+    }
+    
+    snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
+    r = f_stat(path, &fno);
+    if(r==FR_OK) {
         return 1;
     }
     
@@ -303,7 +322,7 @@ static int fatfs_remove(char *path)
     
     info = get_info(path);
     if(!info) {
-        LOGE("___ media not mount!\n");
+        LOGE("___ fatfs_remove, %s not mount!\n", path);
         return -1;
     }
     
@@ -323,7 +342,7 @@ static int fatfs_mkdir(char *path)
     
     info = get_info(path);
     if(!info) {
-        LOGE("___ media not mount!\n");
+        LOGE("___ fatfs_mkdir, %s not mount!\n", path);
         return -1;
     }
     
@@ -343,7 +362,7 @@ static int fatfs_rmdir(char *path)
     
     info = get_info(path);
     if(!info) {
-        LOGE("___ media not mount!\n");
+        LOGE("___ fatfs_rmdir, %s not mount!\n", path);
         return -1;
     }
     
@@ -366,14 +385,14 @@ static handle_t fatfs_opendir(char *path)
     
     info = get_info(path);
     if(!info) {
-        LOGE("___ media not mount!\n");
+        LOGE("___ fatfs_opendir, %s not mount!\n", path);
         free(h); return NULL;
     }
     
     snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
     r = f_opendir((DIR*)h, tmp);
     if(r) {
-        LOGE("___f_opendir failed, %d\n", r);
+        LOGE("___f_opendir %s failed, %d\n", tmp, r);
         free(h); return NULL;
     }
     

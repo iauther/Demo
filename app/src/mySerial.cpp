@@ -9,7 +9,7 @@ static CSerialPort mSerial;
 
 mySerial::mySerial()
 {
-    nPort = 0;
+    nPort = -1;
 }
 
 mySerial::~mySerial()
@@ -20,13 +20,13 @@ mySerial::~mySerial()
 
 int mySerial::open(int id)
 {
-    if (vInfo.empty()) {
+    if (nPort<0) {
         list(NULL);
-        if (vInfo.empty()) {
+        if (nPort<0) {
             return -1;
         }
 
-        if (id>= vInfo.size()) {
+        if (id>= nPort) {
             return -1;
         }
     }
@@ -42,13 +42,15 @@ int mySerial::open(int id)
     mSerial.setReadIntervalTimeout(1);
     bool r = mSerial.open();
 
-    return  r?0:-1;// mSerial.open(port, 115200);
+    return  r?0:-1;
 }
 
 int mySerial::list(sp_info_t**info)
 {
+    std::vector<itas109::SerialPortInfo>  vInfo;
+
     vInfo = CSerialPortInfo::availablePortInfos();
-    nPort =(vInfo.size()>PORT_MAX)?PORT_MAX: vInfo.size();
+    nPort =(vInfo.size()> SPORT_MAX)? SPORT_MAX : vInfo.size();
 
     for(int i=0; i< nPort; i++) {
         sInfo[i] = vInfo[i];

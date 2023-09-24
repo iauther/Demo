@@ -41,7 +41,7 @@ typedef struct {
 }uart_info_t;
 
    
-static uart_info_t uartInfo[UART_MAX]={
+const static uart_info_t uartInfo[UART_MAX]={
     
     {USART0, RCU_USART0, {RCU_GPIOA, GPIOA, GPIO_PIN_10, GPIO_AF_7}, {RCU_GPIOA, GPIOA, GPIO_PIN_9,  GPIO_AF_7}, USART0_IRQn, {DMA0, RCU_DMA0, DMA_CH0, DMA_SUBPERI0, DMA0_Channel0_IRQn}, {DMA0, RCU_DMA0, DMA_CH7, DMA_SUBPERI7, DMA0_Channel7_IRQn}},
     {USART1, RCU_USART1, {RCU_GPIOA, GPIOA, GPIO_PIN_3,  GPIO_AF_7}, {RCU_GPIOA, GPIOA, GPIO_PIN_2,  GPIO_AF_7}, USART1_IRQn, {DMA0, RCU_DMA0, DMA_CH1, DMA_SUBPERI1, DMA0_Channel1_IRQn}, {DMA0, RCU_DMA0, DMA_CH6, DMA_SUBPERI6, DMA0_Channel6_IRQn}},
@@ -73,7 +73,7 @@ static dal_uart_handle_t* uartHandle[UART_MAX]={NULL};
 
 static void uart_dma_init(dal_uart_handle_t *h)
 {
-    uart_info_t *info=&uartInfo[h->cfg.port];
+    uart_info_t *info=(uart_info_t*)&uartInfo[h->cfg.port];
     dma_single_data_parameter_struct init;
     dma_info_t *dma;
     
@@ -112,7 +112,7 @@ static void uart_dma_init(dal_uart_handle_t *h)
 
 static void uart_dma_send(dal_uart_handle_t *h, U8 *data, int len)
 {
-    uart_info_t *info=&uartInfo[h->cfg.port];
+    uart_info_t *info=(uart_info_t*)&uartInfo[h->cfg.port];
     dma_info_t *dma=&info->dmaTx;;
     
     usart_flag_clear(info->urt, USART_FLAG_TC);
@@ -127,14 +127,14 @@ static void uart_dma_send(dal_uart_handle_t *h, U8 *data, int len)
 
 static void uart_dma_stop(dal_uart_handle_t *h)
 {
-    uart_info_t *info=&uartInfo[h->cfg.port];
+    uart_info_t *info=(uart_info_t*)&uartInfo[h->cfg.port];
     
     usart_disable(info->urt);
 }
 static void uart_dma_rx_proc(dal_uart_handle_t *h)
 {
     int recv_len=0;
-    uart_info_t *info=&uartInfo[h->cfg.port];
+    uart_info_t *info=(uart_info_t*)&uartInfo[h->cfg.port];
     dma_info_t *dma=&info->dmaRx;;
     
     if(usart_interrupt_flag_get(info->urt,USART_INT_FLAG_IDLE) != RESET) {
@@ -159,7 +159,7 @@ static void uart_it_rx_proc(dal_uart_handle_t *h)
 {
     FlagStatus fs;
     U8 port=h->cfg.port;
-    uart_info_t *info=&uartInfo[port];
+    uart_info_t *info=(uart_info_t*)&uartInfo[port];
     
     if (RESET != usart_interrupt_flag_get(info->urt, USART_INT_FLAG_RBNE) && 
         (RESET != usart_flag_get(info->urt, USART_FLAG_RBNE))) {
@@ -191,14 +191,18 @@ handle_t dal_uart_init(dal_uart_cfg_t *cfg)
         return NULL;
     }
     
+    if(uartHandle[cfg->port]) {
+        return uartHandle[cfg->port];
+    }
+    
     h = calloc(1, sizeof(dal_uart_handle_t));
     if(!h) {
         return NULL;
     }
     h->cfg = *cfg;
     
-    info = &uartInfo[h->cfg.port];
-    h->lock = lock_dynamic_new();
+    info = (uart_info_t*)&uartInfo[h->cfg.port];
+    h->lock = lock_init();
     
     /* ¿ªÆôÊ±ÖÓ */
     rcu_periph_clock_enable(info->rx.rcu); 
@@ -265,7 +269,7 @@ int dal_uart_deinit(handle_t h)
     }
     
     urt = uartInfo[dh->cfg.port].urt;
-    lock_dynamic_free(dh->lock);
+    lock_free(dh->lock);
     usart_deinit(urt);
     uartHandle[dh->cfg.port] = NULL;
     
@@ -286,7 +290,7 @@ int dal_uart_read(handle_t h, U8 *data, int len)
         return -1;
     }
     
-    lock_dynamic_hold(dh->lock);
+    lock_on(dh->lock);
     urt = uartInfo[dh->cfg.port].urt;
     if(dh->cfg.mode==MODE_POLL) {
         for(i=0; i<len; i++) {
@@ -294,7 +298,7 @@ int dal_uart_read(handle_t h, U8 *data, int len)
             while(RESET == usart_flag_get(urt,USART_FLAG_TBE));
         }
     }
-    lock_dynamic_release(dh->lock);
+    lock_off(dh->lock);
     
     return 0;
 }
@@ -310,7 +314,7 @@ int dal_uart_write(handle_t h, U8 *data, int len)
         return -1;
     }
     
-    lock_dynamic_hold(dh->lock);
+    lock_on(dh->lock);
     urt = uartInfo[dh->cfg.port].urt;
     if(dh->cfg.mode==MODE_DMA) {
         uart_dma_send(dh, data, len);
@@ -322,7 +326,7 @@ int dal_uart_write(handle_t h, U8 *data, int len)
             while(usart_flag_get(urt,USART_FLAG_TBE) == RESET);
         }
     }
-    lock_dynamic_release(dh->lock);
+    lock_off(dh->lock);
     
     return 0;
 }
@@ -358,7 +362,7 @@ int dal_uart_set_callback(handle_t h, rx_cb_t cb)
 static void uartx_handler(U8 port)
 {
     dal_uart_handle_t *h=uartHandle[port];
-    uart_info_t *info=&uartInfo[port];
+    uart_info_t *info=(uart_info_t*)&uartInfo[port];
 #if 1
     if(usart_interrupt_flag_get(info->urt,USART_INT_FLAG_ERR_ORERR)
 	   ||usart_interrupt_flag_get(info->urt,USART_INT_FLAG_ERR_NERR)

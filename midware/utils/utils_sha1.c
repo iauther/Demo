@@ -14,7 +14,7 @@
 /* Implementation that should never be optimized out by the compiler */
 static void utils_sha1_zeroize(void *v, size_t n)
 {
-    volatile unsigned char *p = v;
+    volatile uint8_t *p = (volatile uint8_t*)v;
     while (n--) {
         *p++ = 0;
     }

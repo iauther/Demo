@@ -1,11 +1,11 @@
 #include "protocol.h"
 #include "cfg.h"
 
-#define STR1(x)         #x
-#define STR(x)          STR1(x)
+#define STR1(x)             #x
+#define STR(x)              STR1(x)
     
-#define HOST            "iot-06z00cq4vq4hkzx.mqtt.iothub.aliyuncs.com"
-#define PORT            1883
+#define HOST                "iot-06z00cq4vq4hkzx.mqtt.iothub.aliyuncs.com"
+#define PORT                1883
 
 #ifdef PROD_V2
     #define PRD_KEY         "izenXXeJiFN"
@@ -56,12 +56,17 @@ const all_para_t DFLT_PARA={
     .usr = {
         
         .net = {
-            .host      = HOST,
-            .port      = PORT,
-            .prdKey    = PRD_KEY,
-            .prdSecret = PRD_SECRET,
-            .devKey    = DEV_KEY,
-            .devSecret = DEV_SECRET,
+            .mode = 1,                  //默认连接平台
+            .para = {
+                .plat={
+                    .host      = HOST,
+                    .port      = PORT,
+                    .prdKey    = PRD_KEY,
+                    .prdSecret = PRD_SECRET,
+                    .devKey    = DEV_KEY,
+                    .devSecret = DEV_SECRET,
+                }
+            }
         },
         
         .mbus = {
@@ -81,17 +86,14 @@ const all_para_t DFLT_PARA={
                 .smpTime    = 20,
                 .ev         = {0,1,2,3},
                 .n_ev       = 4,
+                .evCalcCnt  = 1000,
                 .upway      = 0,
                 .upwav      = 0,
-                .cali       = {
-                    .ch = 0,
-                    .rms = 40,
-                    .bias = 0,
-                    
-                    .coef={
-                        .a  = 1.0F,
-                        .b  = 0.0F,
-                    }
+                .savwav     = 1,
+                
+                .coef={
+                    .a  = 200.0F,
+                    .b  = 0.0F,
                 }
             },
             
@@ -101,17 +103,14 @@ const all_para_t DFLT_PARA={
                 .smpTime    = 20,
                 .ev         = {0,1,2,3},
                 .n_ev       = 4,
+                .evCalcCnt  = 100,
                 .upway      = 0,
                 .upwav      = 0,
-                .cali       = {
-                    .ch = 0,
-                    .rms = 40,
-                    .bias = 0,
-                    
-                    .coef={
-                        .a  = 1.0F,
-                        .b  = 0.0F,
-                    }
+                .savwav     = 1,
+                
+                .coef={
+                    .a  = 1.0F,
+                    .b  = 0.0F,
                 }
             }
         },
@@ -123,13 +122,21 @@ const all_para_t DFLT_PARA={
         },
         
         .smp = {
-            .mode   = 0,
-            .period = 3600*3,
+            .pwr_mode   = 0,
+            .smp_mode   = 0,
+            .smp_period = 2,
         },
         
         .dac = {
             .enable = 0,
             .fdiv   = 1,
+        }
+    },
+    
+    .var = {
+        .cali={
+            {.cnt=0},
+            {.cnt=0},
         }
     }
 };
@@ -172,8 +179,9 @@ const char *all_para_json="{\
          },\
     \"smpPara\":\
          {\
-             \"mode\":           0,            \
-             \"period\":         \"10m\"       \
+             \"pwr_mode\":         0,          \
+             \"smp_mode\":         \"10m\"     \
+             \"smp_period\":       \"3h\"      \
          },\
     \"chPara\":[\
          {\
@@ -181,7 +189,7 @@ const char *all_para_json="{\
             \"smpFreq\":        1000000,       \
             \"smpTime\":        20,            \
             \"ev\":             [0,1,2,3],     \
-            \"evCalcLen\":      1000,          \
+            \"evCalcCnt\":      10000,         \
             \"upway\":          0,             \
             \"upwav\":          0              \
         },\
@@ -190,7 +198,7 @@ const char *all_para_json="{\
             \"smpFreq\":        1000000,       \
             \"smpTime\":        20,            \
             \"ev\":             [1],           \
-            \"evCalcLen\":      1000,          \
+            \"evCalcCnt\":      1000,          \
             \"upway\":          0,             \
             \"upwav\":          0              \
         }],\

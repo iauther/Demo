@@ -305,8 +305,8 @@
               </OCR_RVCT9>
               <OCR_RVCT10>
                 <Type>0</Type>
-                <StartAddress>0x0</StartAddress>
-                <Size>0x0</Size>
+                <StartAddress>0x10000000</StartAddress>
+                <Size>0x10000</Size>
               </OCR_RVCT10>
             </OnChipMemories>
             <RvctStartVector></RvctStartVector>
@@ -339,7 +339,7 @@
               <MiscControls>--diag_suppress=111,177,550</MiscControls>
               <Define>GD32F470,OS_KERNEL=1</Define>
               <Undefine></Undefine>
-              <IncludePath>./user;../../../device;../../../system;../../../system/net;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/portfiles;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/data-model</IncludePath>
+              <IncludePath>./user;../../../device;../../../system;../../../system/net;../../../system/net/protocols/mqtt;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/portfiles;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/data-model</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -498,6 +498,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\device\sd30xx.c</FilePath>
             </File>
+            <File>
+              <FileName>dac.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\device\dac.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -617,6 +622,26 @@
               <FileName>net.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\net\net.c</FilePath>
+            </File>
+            <File>
+              <FileName>netio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\net\netio.c</FilePath>
+            </File>
+            <File>
+              <FileName>mqtt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\net\protocols\mqtt\mqtt.c</FilePath>
+            </File>
+            <File>
+              <FileName>mqtt_ali.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\net\protocols\mqtt\mqtt_ali.c</FilePath>
+            </File>
+            <File>
+              <FileName>mqtt_self.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\net\protocols\mqtt\mqtt_self.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1217,16 +1242,6 @@
               <FileName>utils_sha256.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\utils\utils_sha256.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>midware/mqtt</GroupName>
-          <Files>
-            <File>
-              <FileName>mqtt_sign.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\mqtt_sign.c</FilePath>
             </File>
           </Files>
         </Group>

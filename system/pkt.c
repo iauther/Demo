@@ -109,7 +109,7 @@ static int do_pack(U8 type, U8 error, U8 nAck, void *data, int dlen, U8 *buf, in
     chkcode_t cc;
     pkt_hdr_t* hdr=(pkt_hdr_t*)buf;
     int dataLen=PKT_HDR_LENGTH+dlen;
-    U32 totalLen=dataLen+get_chkcode_len(chkID);
+    int totalLen=dataLen+get_chkcode_len(chkID);
 
     if (totalLen>blen) {
         //LOGE("_____ do_pack len wrong, need: %d, max: %d\n", totalLen, blen);
@@ -173,7 +173,7 @@ int pkt_unpack_cap(void *data, int dlen, pkt_callback_t callback, int chkID)
         if(callback) {
             callback(cd);
         }
-        tlen += cd->dlen+sizeof(ch_data_t);
+        //tlen += cd->wavlen+sizeof(ch_data_t);
     }
     
     return 0;

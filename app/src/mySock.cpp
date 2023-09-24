@@ -26,15 +26,16 @@ mySock::~mySock()
 }
 
 
-int mySock::conn(char *ip, int port)
+void* mySock::conn(char *ip, int port)
 {
     int fd;
     reconn_setting_t rc;
+    hv::TcpClient tc;
     
     fd = tc.createsocket(port, ip);
     if(fd<0) {
         LOGE("___ createsocket failed\n");
-        return -1;
+        return NULL;
     }
     
     datalen = 0;
@@ -49,12 +50,14 @@ int mySock::conn(char *ip, int port)
 	
     tc.start();
 	    
-    return 0;
+    return NULL;
 }
 
 
-int mySock::disconn(void)
+int mySock::disconn(void* conn)
 {
+    hv::TcpClient tc;
+
     tc.stop();
     tc.closesocket();
     htimed_mutex_destroy(&mutex);
@@ -63,7 +66,7 @@ int mySock::disconn(void)
 }
 
 
-int mySock::read(void *data, int len)
+int mySock::read(void* conn, void *data, int len)
 {
     int xlen = (len > datalen) ? datalen : len;
 
@@ -76,7 +79,8 @@ int mySock::read(void *data, int len)
 }
 
 
-int mySock::write(void* data, int len)
+int mySock::write(void* conn, void* data, int len)
 {
+    hv::TcpClient tc;
     return tc.send(data, len);
 }

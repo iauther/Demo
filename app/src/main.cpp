@@ -2,19 +2,27 @@
 #include "protocol.h"
 #include "myLog.h"
 #include "myFile.h"
-#include "myWindow.h"
 #include "pkt.h"
 #include "rbuf.h"
 #include "comm.h"
 #include "log.h"
 
+//#define USE_MYFRAME
+//#define USE_CMYRAME
+
 #define DEBUG_ON
 #define USE_SERIAL
 
-
-
 #define BUF_LEN				80000
 #define MY_TIMER			(WM_USER+0x01)
+
+#ifdef USE_MYFRAME
+#include "myFrame.h"
+#elif defined USE_CMYRAME
+#include "CMyFrame.h"
+#else
+#include "myWindow.h"
+#endif
 
 
 #ifdef USE_SERIAL
@@ -35,10 +43,15 @@ typedef struct {
 }buf_data_t;
 
 typedef struct {
-	myWindow	 myWin;
-
 	U8          sysState;
-	CAppModule  module;
+
+#ifdef USE_MYFRAME
+	myFrame	     myWin;
+#elif defined USE_CMYRAME
+	CMyFrame     myWin;
+#else
+	myWindow	 myWin;
+#endif
 
 	buf_data_t  com;
 	buf_data_t  sock;
@@ -47,6 +60,7 @@ typedef struct {
 	
 	handle_t    hcomm;
 }my_handle_t;
+
 
 static UINT_PTR	tmrID;
 static my_handle_t myHandle;
@@ -99,13 +113,7 @@ static int pkt_proc(U8 *data, int len, int buflen)
 
 		case TYPE_CALI:
 		{
-			cali_t *ca= (cali_t*)hdr->data;
 			
-			LOGD("ch: %d\n", ca->ch);
-			LOGD("ch: %f\n", ca->rms);
-			LOGD("bias: %f\n", ca->bias);
-			LOGD("coef.a: %f\n", ca->coef.a);
-			LOGD("coef.b: %f\n", ca->coef.b);
 		}
 		break;
 	}
@@ -113,43 +121,24 @@ static int pkt_proc(U8 *data, int len, int buflen)
 	return 0;
 }
 
-
-int io_init(void)
+#if 0
+static int io_read(void *buf, int buflen)
 {
-#ifdef USE_SERIAL
-	myHandle.hcomm = comm_init(PORT_UART, NULL);
-#else
-	myHandle.hcomm = comm_init(PORT_NET, NULL);
-#endif
-
-	return myHandle.hcomm ? 0 : -1;
+	return myHandle.myWin.port_read(buf, buflen);
 }
-int io_deinit(void)
+static int io_write(U8 type, U8 nack, void* data, int datalen)
 {
-	comm_deinit(myHandle.hcomm);
-
-	return 0;
-}
-
-int io_read(void* buf, int len)
-{
-	return comm_recv_data(myHandle.hcomm, buf, len);
-}
-
-int io_write(U8 type, U8 nAck, void* data, int len)
-{
-	return comm_send_data(myHandle.hcomm, NULL, type, nAck, data, len);
+	return myHandle.myWin.port_write(type, nack, data, datalen);
 }
 
 
-
+static int quit = 0;
 static DWORD dataRecvThread(LPVOID lpParam)
 {
 	int rlen, find, wlen;
 	handle_t hrb = myHandle.com.hrb;
 	BYTE* rxBuf = myHandle.com.rx;
 
-	io_init();
 
 	rbuf_reset(hrb);
 	memset(rxBuf, 0, BUF_LEN);
@@ -163,7 +152,6 @@ static DWORD dataRecvThread(LPVOID lpParam)
 			break;
 		}
 	}
-	io_deinit();
 
 	return 0;
 }
@@ -216,30 +204,57 @@ static DWORD dataProcThread(LPVOID lpParam)
 
 	return 0;
 }
+#endif
 
-
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+#define WIN_WIDTH		1200
+#define WIN_HEIGHT		900
+CAppModule appModule;
+int Run(LPTSTR /*lpstrCmdLine*/ = NULL, int nCmdShow = SW_SHOWDEFAULT)
 {
-    MSG msg;
+	CMessageLoop* pLoop = appModule.GetMessageLoop();
 
-    myHandle.module.Init(NULL, hInstance);  //初始化模型
-	//AtlInitCommonControls(ICC_COOL_CLASSES | ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES | ICC_TREEVIEW_CLASSES | ICC_DATE_CLASSES);
+	ATLASSERT(pLoop != NULL);
 
-    CRect rc = CRect(POINT{ 400, 100 }, POINT{ 1400, 700 });
-	myHandle.myWin.Create(NULL, rc, _T("test"), WS_VISIBLE | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME);
 
-	CreateThread(NULL, NULL, dataRecvThread, NULL, 0, NULL);
-	//CreateThread(NULL, NULL, dataProcThread, NULL, 0, NULL);
+	myHandle.myWin.ShowWindow(nCmdShow);
 
-    while (GetMessage(&msg, NULL, 0,0)>0) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
+	int nRet = pLoop->Run();
 
-	myHandle.module.Term();
+	appModule.RemoveMessageLoop();
 
-    return 0;
+	return nRet;
 }
 
+int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lpstrCmdLine, int nCmdShow)
+{
+	CMessageLoop theLoop;
 
+	HRESULT hRes = ::OleInitialize(NULL);
+	ATLASSERT(SUCCEEDED(hRes));
+
+	//::DefWindowProc(NULL, 0, 0, 0L);
+
+	AtlInitCommonControls(ICC_COOL_CLASSES | ICC_BAR_CLASSES | ICC_USEREX_CLASSES);
+
+	hRes = appModule.Init(NULL, hInstance);
+	ATLASSERT(SUCCEEDED(hRes));
+
+	
+	appModule.AddMessageLoop(&theLoop);
+
+	CRect rc = CRect(POINT{ 400, 100 }, POINT{ 1400, 900 });
+	myHandle.myWin.Create(NULL, rc, _T("test"), WS_VISIBLE | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME);
+
+	//CreateThread(NULL, NULL, dataRecvThread, NULL, 0, NULL);
+	//CreateThread(NULL, NULL, dataProcThread, NULL, 0, NULL);
+
+	int nRet = Run(lpstrCmdLine, nCmdShow);
+
+	appModule.RemoveMessageLoop();
+
+	appModule.Term();
+	::OleUninitialize();
+
+	return nRet;
+}
 

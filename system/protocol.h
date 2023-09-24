@@ -69,6 +69,13 @@ enum {
 
 #pragma pack (1)
 
+typedef F32     raw_t;
+typedef F32     ev_t;
+
+typedef struct {
+    char ip[40];
+    U16  port;
+}tcp_para_t;
 typedef struct {
     char host[100];
     U16  port;
@@ -76,6 +83,13 @@ typedef struct {
     char prdSecret[64];
     char devKey[32];
     char devSecret[64];
+}plat_para_t;
+typedef struct {
+    U8   mode;              //0: tcp, 1: plat
+    union {
+        tcp_para_t  tcp;
+        plat_para_t plat;
+    }para;
 }net_para_t;
 typedef struct {
     U8   addr;
@@ -95,8 +109,9 @@ typedef struct {
     U32  fdiv;              //freq divider
 }dac_para_t;
 typedef struct {
-    U8   mode;
-    U32  period;            //second
+    U8   pwr_mode;          //0:no powerdown    1: period powerdown
+    U8   smp_mode;          //0: period sample  1: threshold trigger sample   2: continuous sample
+    U32  smp_period;        //unit: second
 }smp_para_t;
 typedef struct {
     F32     a;
@@ -104,23 +119,17 @@ typedef struct {
 }coef_t;
 typedef struct {
     U8      ch;
-    F32     rms;
-    F32     bias;
-    coef_t  coef;
-}cali_t;
-typedef struct {
-    U8      ch;
     U32     smpFreq;        //hz
     U32     smpTime;        //ms
     U8      ev[EV_NUM];
     U8      n_ev;
-    U8      upway;         //0: upload at once   1: upload once together
+    U8      upway;         //0: upload realtime   1: delay upload together
     U8      upwav;
-    U32     smpPoints;
-    U32     evCalcLen;
+    U8      savwav;
+    U32     evCalcCnt;
     
-    cali_t  cali;
-}adc_para_t;
+    coef_t  coef;
+}ch_para_t;
 typedef struct {
     net_para_t  net;
     dac_para_t  dac;
@@ -128,48 +137,39 @@ typedef struct {
     dbg_para_t  dbg;
     mbus_para_t mbus;
     card_para_t card;
-    adc_para_t  ch[CH_MAX];
-}user_para_t;
+    ch_para_t   ch[CH_MAX];
+}usr_para_t;
 
 typedef struct {
+    U32             tp;
     U64             time;
-    F32             data[0];
-}cap_data_t;
+    F32             data;
+}ev_data_t;
 
 typedef struct {
     U32             ch;
-    U32             id;
     U64             time;
+    U32             wavlen;
     U32             evlen;
-    U32             dlen;
     F32             data[0];
 }ch_data_t;
 
 typedef struct {
-    F32             rms;
-    F32             amp;
-    F32             asl;
-    F32             pwr;
-    
+    U8              batt;
+    S8              temp;
+    F32             sig_s;      //strength
+    F32             sig_q;      //quality
     U64             time;
-}ev_data_t;
-
-typedef struct {
-    U32             id;
-    U16             ch;             //channelID
-    U16             ss;             //sensorID
-    F32             sig;
-    
-    U16             cnt;            //ev_data_t count
-    ev_data_t       ev[0];
-}upload_data_t;
-
+}stat_data_t;
 
 typedef struct {
     U8              ch;
     U8              enable;
 }capture_t;
 
+typedef struct {
+    U32             cntdown;
+}powerdown_t;
 
 typedef struct {
     U8              xx;
@@ -204,11 +204,12 @@ typedef struct {
 
 /////////////upgrade define////////////////////
 typedef struct {
+    U8              ftype;
     U16             pkts;
     U16             pid;
     U16             dataLen;
     U8              data[0];
-}file_pkt_t;
+}file_hdr_t;
 
 typedef struct {
     U32             magic;           //FW_MAGIC
@@ -255,11 +256,32 @@ typedef struct {
 typedef struct {
     state_t         stat;
     para_t          para;
-}sys_paras_t;
+}sys_para_t;
 
 typedef struct {
-    sys_paras_t     sys;
-    user_para_t     usr;
+    U16             tms;        //times
+    U16             ch;
+    F32             rms;        //mv
+    U32             freq;
+    F32             bias;
+}cali_sig_t;
+typedef struct {
+    F32         in;
+    F32         out;
+}cali_rms_t;
+typedef struct {
+    U32             cnt;
+    cali_rms_t      rms[2];
+    cali_sig_t      sig;
+}cali_t;
+typedef struct {
+    cali_t          cali[CH_MAX];
+}gbl_var_t;
+
+typedef struct {
+    sys_para_t      sys;
+    usr_para_t      usr;
+    gbl_var_t       var;
 }all_para_t;
 
 

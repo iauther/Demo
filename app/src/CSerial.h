@@ -6,8 +6,6 @@
 #include <string>
 #include <windows.h>
 
-using namespace std;
-
 #define MAXLEN      4096
 #define RITO_TIME   10
 #define MAX_PORT	50

@@ -113,7 +113,6 @@ void DMA1_Channel6_IRQHandler(void)     //spi dma rx
     
     //dma_channel_disable(DMA1, DMA_CH6);
     //dal_pwm_stop();
-    //dal_dac_stop(h->cfg.hdac);
     
     //t1=dal_get_tick();
     
@@ -122,14 +121,14 @@ void DMA1_Channel6_IRQHandler(void)     //spi dma rx
         dma_interrupt_flag_clear(DMA1, DMA_CH6, DMA_INT_FLAG_HTF);
 
         if(h && h->cfg.callback) {
-            h->cfg.callback((U16*)h->cfg.buf.rx.buf, (U16*)h->cfg.buf.ox.buf, cnt);
+            h->cfg.callback((U16*)h->cfg.buf.rx.buf, cnt);
         }
     }
     else if(dma_interrupt_flag_get(DMA1, DMA_CH6, DMA_INT_FLAG_FTF)) {
         dma_interrupt_flag_clear(DMA1, DMA_CH6, DMA_INT_FLAG_FTF);
         
         if(h && h->cfg.callback) {
-            h->cfg.callback((U16*)h->cfg.buf.rx.buf+cnt, (U16*)h->cfg.buf.ox.buf+cnt, cnt);
+            h->cfg.callback((U16*)h->cfg.buf.rx.buf+cnt, cnt);
         }
     }
     //t3=dal_get_tick();
@@ -140,7 +139,6 @@ void DMA1_Channel6_IRQHandler(void)     //spi dma rx
     //dma_transfer_number_config(DMA1, DMA_CH6, h->cfg.rx.blen/2);
     
     //dal_pwm_start();
-    //dal_dac_start(h->cfg.hdac);
     //dma_channel_enable(DMA1, DMA_CH6);
 }
 

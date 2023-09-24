@@ -4,62 +4,109 @@
 #include "log.h"
 
 
-typedef struct list_node {
-    struct list_node    *prev;
-    struct list_node    *next;
+typedef struct dlist_node {
     node_t              data;
-}list_node_t;
+    struct dlist_node   *prev;
+    struct dlist_node   *next;
+}dlist_node_t;
 
 typedef struct {
-    list_node_t         *head;
-    list_node_t         *tail;
+    dlist_node_t        *head;
+    dlist_node_t        *tail;
     int                 size;
+}dlist_t;
+
+
+typedef struct {
+    dlist_t             used;
   
     handle_t            lock;
     list_cfg_t          cfg;
     
-    list_node_t         **free;
-} list_t;
+    dlist_t             free;
+}list_t;
 
 
-static list_node_t* node_from_free(list_t *l, int dlen)
+static dlist_node_t* node_from_free(list_t *l, int dlen)
 {
     int i;
-    list_node_t *xd=NULL;
+    dlist_node_t *tmp=NULL;
+    dlist_t *dl=&l->free;
     
-    for(i=0; i<l->cfg.max; i++) {
-        xd = l->free[i];
-        if(xd && xd->data.buf && xd->data.blen>=dlen) {
-            xd = l->free[i];
-            l->free[i] = NULL;
-            return xd;
+    tmp = dl->head;         //从头部开始搜索合适节点
+    while(tmp) {
+        if(tmp->data.buf && tmp->data.blen>=dlen) {
+            
+            if(tmp==dl->head) {            //head
+                if(dl->size==1) {
+                    dl->head = NULL;
+                    dl->tail = NULL;
+                }
+                else {
+                    tmp->next->prev = NULL;
+                    dl->head = tmp->next;
+                }
+            }
+            else if(tmp==dl->tail) {
+                if(dl->size==1) {
+                    dl->head = NULL;
+                    dl->tail = NULL;
+                }
+                else {
+                    tmp->next->next = NULL;
+                    dl->tail = tmp->next;
+                }
+            }
+            else {
+                tmp->prev->next = tmp->next;
+                tmp->next->prev = tmp->prev;
+            }
+            
+            dl->size--;
+            
+            return tmp;
         }
+        tmp = tmp->next;
     }
     
     return NULL;
 }
-static int node_to_free(list_t *l, list_node_t *node)
+static int node_to_free(list_t *l, dlist_node_t *node)
 {
-    int i;
+    int r=-1;
+    dlist_node_t *tmp=NULL;
+    dlist_t *dl=&l->free;
     
-    for(i=0; i<l->cfg.max; i++) {
-        if(l->free[i]==NULL) {
-            l->free[i] = node;
-            return 0;
+    tmp = dl->tail;          //新节点加在free列表尾部
+    if(tmp==NULL) {          //无节点
+        node->prev = NULL;
+        node->next = NULL;
+        
+        dl->head = node;
+        dl->tail = node;
+    }
+    else {
+        node->prev = tmp;
+        node->next = NULL;
+        
+        dl->tail = node;
+        if(dl->head==NULL) {
+            dl->head = node;
         }
     }
+    dl->size++;
     
-    return -1;
+    return 0;
 }
 
 
-static list_node_t *node_new(list_t *l, void *data, int len)
+static dlist_node_t *node_new(list_t *l, void *data, int len)
 {
-    list_node_t *node=NULL;
+    dlist_node_t *node=NULL;
     
     node = node_from_free(l, len);
     if(!node) {
-        node = eMalloc(sizeof(list_node_t));
+        node = eMalloc(sizeof(dlist_node_t));
         if (!node) return NULL;
         
         node->prev = NULL;
@@ -78,16 +125,8 @@ static list_node_t *node_new(list_t *l, void *data, int len)
 
     return node;
 }
-static int node_free(list_t *l, list_node_t *node)
+static int node_free(list_t *l, dlist_node_t *node)
 {
-    int i;
-    
-    for(i=0; i<l->cfg.max; i++) {
-        if(l->free[i]==node) {
-            l->free[i] = NULL;
-        }
-    }
-    
     xFree(node->data.buf);
     xFree(node);
     
@@ -95,94 +134,54 @@ static int node_free(list_t *l, list_node_t *node)
 }
 
 
-static int node_remove(list_t *l, list_node_t *node)
+static int node_remove(list_t *l, dlist_node_t *node, U8 del)
 {
     int index;
-    list_node_t *xd=node;
+    dlist_node_t *tmp=node;
+    dlist_t *dl=&l->used;
     
-    if(xd==l->head) {
-        if(l->size==1) {
-            l->head = NULL;
-            l->tail = NULL;
+    if(tmp==dl->head) {
+        if(dl->size==1) {
+            dl->head = NULL;
+            dl->tail = NULL;
         }
         else {
-            l->head = xd->next;
-            if(l->head) {
-                l->head->prev = NULL;
+            dl->head = tmp->next;
+            if(dl->head) {
+                dl->head->prev = NULL;
             }
         }
     }
-    else if(xd==l->tail) {
-        if(l->size==1) {
-            l->head = NULL;
-            l->tail = NULL;
+    else if(tmp==dl->tail) {
+        if(dl->size==1) {
+            dl->head = NULL;
+            dl->tail = NULL;
         }
         else {
-            l->tail = xd->prev;
-            if(l->tail) {
-                l->tail->next = NULL;
+            dl->tail = tmp->prev;
+            if(dl->tail) {
+                dl->tail->next = NULL;
             }
         }
     }
     else {
-        xd->prev->next = xd->next;
-        xd->next->prev = xd->prev;
+        tmp->prev->next = tmp->next;
+        tmp->next->prev = tmp->prev;
     }
+    dl->size--;
     
-    node_to_free(l, xd);
-    l->size--;
+    if(del) {
+        node_free(l, node);
+    }
+    else {
+        node_to_free(l, tmp);
+    }
     
     return 0;
 }
 
-static int node_delete(list_t *l, list_node_t *node)
+static int node_set(list_t *l, dlist_node_t *node, node_t *nd)
 {
-    int i;
-    
-    int index;
-    list_node_t *xd=node;
-    
-    if(xd==l->head) {
-        if(l->size==1) {
-            l->head = NULL;
-            l->tail = NULL;
-        }
-        else {
-            l->head = xd->next;
-            if(l->head) {
-                l->head->prev = NULL;
-            }
-        }
-    }
-    else if(xd==l->tail) {
-        if(l->size==1) {
-            l->head = NULL;
-            l->tail = NULL;
-        }
-        else {
-            l->tail = xd->prev;
-            if(l->tail) {
-                l->tail->next = NULL;
-            }
-        }
-    }
-    else {
-        xd->prev->next = xd->next;
-        xd->next->prev = xd->prev;
-    }
-    
-    node_free(l, xd);
-    l->size--;
-    
-    return -1;
-}
-
-static int node_set(list_t *l, list_node_t *node, node_t *nd)
-{
-    if(!node) {
-        return -1;
-    }
-    
     xFree(node->data.buf);
     node->data.buf = eMalloc(nd->dlen);
     if(!node->data.buf) {
@@ -196,22 +195,19 @@ static int node_set(list_t *l, list_node_t *node, node_t *nd)
     return 0;
 }
 
-
-
-static list_node_t *node_get(list_t *l, int index)
+static dlist_node_t *node_get(list_t *l, int index)
 {
+    dlist_t *dl=&l->used;
+    
     if(index==0) {
-        return l->head;
+        return dl->head;
     }
-    else if(index==l->size-1) {
-        return l->tail;
-    }
-    else if (index<0 || index>=l->size) {
-        return NULL;
+    else if(index==dl->size-1) {
+        return dl->tail;
     }
     else {
         int idx=0;
-        list_node_t *tmp=l->head;
+        dlist_node_t *tmp=dl->head;
         
         while(tmp) {
             if(idx==index) {
@@ -226,7 +222,6 @@ static list_node_t *node_get(list_t *l, int index)
 }
 
 
-
 ///////////////////////////////////////////////////////////
 handle_t list_init(list_cfg_t *cfg)
 {
@@ -239,13 +234,15 @@ handle_t list_init(list_cfg_t *cfg)
     if (!l)
         return NULL;
     
-    l->head = NULL;
-    l->tail = NULL;
-    l->size = 0;
-    l->lock = lock_dynamic_new();
+    l->used.head = NULL;
+    l->used.tail = NULL;
+    l->used.size = 0;
+    l->lock = lock_init();
     l->cfg = *cfg;
     
-    l->free = (list_node_t**)eCalloc(sizeof(list_node_t*)*l->cfg.max);
+    l->free.head = NULL;
+    l->free.tail = NULL;
+    l->free.size = 0;
     
     return l;
 }
@@ -254,29 +251,32 @@ handle_t list_init(list_cfg_t *cfg)
 int list_free(handle_t l)
 {
     int i;
-    list_node_t *xd;
+    dlist_node_t *xd;
     list_t *hl=(list_t*)l;
     
     if(!hl) {
         return -1;
     }
     
-    lock_dynamic_hold(hl->lock);
-    xd = hl->head;
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
+    xd = hl->used.head;
     while(xd) {
         node_free(hl, xd);
         xd = xd->next;
     }
-    for(i=0; i<hl->cfg.max; i++) {
-        xd = hl->free[i];
-        if(xd) {
-            node_free(hl, xd);
-        }
-    }
-    lock_dynamic_release(hl->lock);
     
-    lock_dynamic_free(hl->lock);
-    free(hl->free);
+    xd = hl->free.head;
+    while(xd) {
+        node_free(hl, xd);
+        xd = xd->next;
+    }
+    lock_off(hl->lock);
+    
+    lock_free(hl->lock);
+    free(hl->free.head);
     free(hl);
     
     return 0;
@@ -285,22 +285,25 @@ int list_free(handle_t l)
 
 int list_get(handle_t l, node_t *node, int index)
 {
-    list_node_t *nd;
+    dlist_node_t *nd;
     list_t *hl=(list_t*)l;
     
-    if(!hl || !node) {
+    if(!hl || !node || index<0) {
         return -1;
     }
     
-    lock_dynamic_hold(hl->lock);
-    if (index>=hl->size) {
-        lock_dynamic_release(hl->lock);
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
+    if (index>=hl->used.size) {
+        lock_off(hl->lock);
         return -1;
     }
     
     nd = node_get(hl, index);
     *node = nd->data;
-    lock_dynamic_release(hl->lock);    
+    lock_off(hl->lock);    
     
     return 0;
 }
@@ -308,16 +311,19 @@ int list_get(handle_t l, node_t *node, int index)
 
 int list_set(handle_t l, node_t *node, int index)
 {
-    list_node_t *nd;
+    dlist_node_t *nd;
     list_t *hl=(list_t*)l;
     
-    if(!hl) {
+    if(!hl || !node || index<0) {
         return -1;
     }
     
-    lock_dynamic_hold(hl->lock);
-    if (index>=hl->size) {
-        lock_dynamic_release(hl->lock);
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
+    if (index>=hl->used.size) {
+        lock_off(hl->lock);
         return -1;
     }
     
@@ -325,10 +331,61 @@ int list_set(handle_t l, node_t *node, int index)
     if(nd) {
         node_set(hl, nd, node);
     }
-    lock_dynamic_release(hl->lock);
+    lock_off(hl->lock);
     
     return nd?0:-1;
 }
+
+
+int list_take(handle_t l, node_t *node, int index)
+{
+    dlist_node_t *nd;
+    list_t *hl=(list_t*)l;
+    
+    if(!hl || !node || index<0) {
+        return -1;
+    }
+    
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
+    if (hl->used.size<=0 || index>=hl->used.size) {
+        lock_off(hl->lock);
+        return -1;
+    }
+    
+    nd = node_get(hl, index);
+    *node = nd->data;
+    node_remove(hl, nd, 0);
+    
+    lock_off(hl->lock);    
+    
+    return 0;
+}
+
+
+int list_back(handle_t l, node_t *node)
+{
+    dlist_node_t dn;
+    list_t *hl=(list_t*)l;
+    
+    if(!hl || !node) {
+        return -1;
+    }
+    
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
+    dn.data = *node;
+    node_to_free(l, &dn);
+    
+    lock_off(hl->lock);
+    
+    return 0;
+}
+
 
 
 
@@ -336,63 +393,69 @@ int list_addto(handle_t l, node_t *node, int index)
 {
     int idx=0;
     list_t *hl=(list_t*)l;
-    list_node_t *xd,*tmp;
+    dlist_node_t *xd,*tmp;
+    dlist_t *dl=NULL;
     
-    if (!hl) {
+    if(!hl || !node) {
         return -1;
     }
     
-    lock_dynamic_hold(hl->lock);
-    if (index>hl->size) {
-        LOGE("list_addto, invalid index, size: %d, index: %d\n", hl->size, index);
-        lock_dynamic_release(hl->lock);
+    if(lock_on(hl->lock)) {
         return -1;
     }
     
-    if (hl->cfg.max>0 && hl->size>=hl->cfg.max) {
+    dl = &hl->used;
+    if (index>dl->size) {
+        LOGE("list_addto, invalid index, size: %d, index: %d\n", dl->size, index);
+        lock_off(hl->lock);
+        return -1;
+    }
+    
+    if (hl->cfg.max>0 && dl->size>=hl->cfg.max) {
         
         if(hl->cfg.mode==MODE_FILO) {
-            lock_dynamic_release(hl->lock);
+            //LOGW("___ list is full, FILO mode, new data is discard\n");
+            lock_off(hl->lock);
             return 0;
         }
         else {
             xd = node_get(hl, 0);
-            node_remove(hl, xd);
+            node_remove(hl, xd, 0);
+            //LOGW("___ list is full, size: %d, FIFO mode, old data is discard\n", dl->size);
         }
     }
     
     tmp = node_new(hl, node->buf, node->dlen);
     if(!tmp) {
-        LOGE("list_addto, malloc %d error, l: 0x%08x\n", node->dlen, (U32)hl);
-        lock_dynamic_release(hl->lock);
+        LOGE("list_addto, malloc %d error, l: 0x%08x, used.size: %d, free.size: %d\n", node->dlen, (U32)hl, hl->used.size, hl->free.size);
+        lock_off(hl->lock);
         return -1;
     }
     
-    if(hl->size==0) {
-        
+    if(dl->size==0) {
         tmp->prev = NULL;
         tmp->next = NULL;
         
-        hl->head = tmp;
-        hl->tail = tmp;
+        dl->head = tmp;
+        dl->tail = tmp;
     }
     else {
     
-        if(index==0) {                  //head
+        if(index==0) {                                  //head
             tmp->prev = NULL;
-            tmp->next = hl->head;
+            tmp->next = dl->head;
             
             xd->prev = tmp;
-            hl->head = tmp;
+            dl->head = tmp;
         }
-        else if((index==(hl->size)) || (index==-1)) {   //tail
+        else if((index==(dl->size)) || (index==-1)) {   //tail
             
-            hl->tail->next = tmp;
+            dl->tail->next = tmp;
             
-            tmp->prev = hl->tail;
+            tmp->prev = dl->tail;
             tmp->next = NULL;
             
-            hl->tail = tmp;
+            dl->tail = tmp;
         }
         else {
             
@@ -405,9 +468,9 @@ int list_addto(handle_t l, node_t *node, int index)
             tmp->next = xd;
         }
     }
-    hl->size++;
+    dl->size++;
         
-    lock_dynamic_release(hl->lock);
+    lock_off(hl->lock);
     
     return 0;
 }
@@ -424,17 +487,20 @@ int list_append(handle_t l, void *data, U32 len)
 int list_remove(handle_t l, int index)
 {
     int r;
-    list_node_t *xd;
+    dlist_node_t *xd;
     list_t *hl=(list_t*)l;
     
     if (!hl) {
         return -1;
     }
     
-    lock_dynamic_hold(hl->lock);
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
     xd = node_get(l, index);
-    r = node_remove(hl, xd);
-    lock_dynamic_release(hl->lock);
+    r = node_remove(hl, xd, 0);
+    lock_off(hl->lock);
     
     return r;
 }
@@ -444,21 +510,28 @@ int list_remove(handle_t l, int index)
 int list_delete(handle_t l, int index)
 {
     int r;
-    list_node_t *xd;
+    dlist_node_t *xd;
     list_t *hl=(list_t*)l;
     
     if (!hl) {
         return -1;
     }
     
-    lock_dynamic_hold(hl->lock);
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
+    if(index>=hl->used.size) {
+        lock_off(hl->lock);
+        return -1;
+    }
+    
     xd = node_get(l, index);
     r = node_free(hl, xd);
-    lock_dynamic_release(hl->lock);
+    lock_off(hl->lock);
     
     return r;
 }
-
 
 
 int list_size(handle_t l)
@@ -470,30 +543,69 @@ int list_size(handle_t l)
         return -1;
     }
     
-    lock_dynamic_hold(hl->lock);
-    size = hl->size;
-    lock_dynamic_release(hl->lock);
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
+    size = hl->used.size;
+    lock_off(hl->lock);
     
     return size;
 }
 
+
+int list_clear(handle_t l)
+{
+    dlist_node_t *xd;
+    list_t *hl=(list_t*)l;
+    
+    if (!hl) {
+        return -1;
+    }
+    
+    if(lock_on(hl->lock)) {
+        return -1;
+    }
+    
+    if(hl->used.size<=0) {
+        lock_off(hl->lock);
+        return -1;
+    }
+    
+    xd = hl->used.head;
+    while(xd) {
+        node_remove(hl, xd, 0);
+        xd = xd->next;
+    }
+    lock_off(hl->lock);
+    
+    return 0;
+}
+
+
+
 int list_iterator(handle_t l, node_t *node, list_callback_t callback, void *arg)
 {
     int r=0,act=0;
-    list_node_t *xd=NULL;
+    dlist_node_t *xd=NULL;
     list_t *hl=(list_t*)l;
+    dlist_t *dl=NULL;
 
     if (!hl) {
         return -1;
     }
-
-    lock_dynamic_hold(hl->lock);
-    if (hl->size==0) {
-        lock_dynamic_release(hl->lock);
+    
+    if(lock_on(hl->lock)) {
         return -1;
     }
     
-    xd = hl->head;
+    dl = &hl->used;
+    if (dl->size==0) {
+        lock_off(hl->lock);
+        return -1;
+    }
+    
+    xd = dl->head;
     while (xd) {
         if (callback) {
             r = callback(hl, node, &xd->data, arg, &act);
@@ -501,16 +613,16 @@ int list_iterator(handle_t l, node_t *node, list_callback_t callback, void *arg)
                 break;
             }
             else if(act==ACT_REMOVE) {
-                node_remove(l, xd);
+                node_remove(l, xd, 0);
             }
             else if(act==ACT_DELETE) {
-                node_delete(l, xd);
+                node_remove(l, xd, 1);
             }
         }
         
         xd = xd->next;
     }
-    lock_dynamic_release(hl->lock);
+    lock_off(hl->lock);
     
     return r;
 }

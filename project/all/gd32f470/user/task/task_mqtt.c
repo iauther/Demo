@@ -367,11 +367,11 @@ static int mqtt_init(void)
         memset(&cred, 0, sizeof(aiot_sysdep_network_cred_t));
         cred.option = AIOT_SYSDEP_NETWORK_CRED_NONE;
         
-        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_HOST, (void *)netPara->host);
-        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_PORT, (void *)&netPara->port);
-        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_PRODUCT_KEY, (void *)netPara->prdKey);
-        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_DEVICE_NAME, (void *)netPara->devKey);
-        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_DEVICE_SECRET, (void *)netPara->devSecret);
+        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_HOST, (void *)netPara->para.plat.host);
+        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_PORT, (void *)&netPara->para.plat.port);
+        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_PRODUCT_KEY, (void *)netPara->para.plat.prdKey);
+        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_DEVICE_NAME, (void *)netPara->para.plat.devKey);
+        aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_DEVICE_SECRET, (void *)netPara->para.plat.devSecret);
         aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_NETWORK_CRED, (void *)&cred);
 
         aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_RECV_HANDLER, (void *)mqtt_default_recv_handler);
@@ -448,75 +448,8 @@ static int mqtt_sub(void)
     
     return 0;
 }
-static char mqttPayload[1000];
-static char mqttTopic[100];
-static char mqttTemp[EV_NUM][200];
-int mqtt_pub_str(upload_data_t *up)
-{
-    int32_t i,r;
-    char topic[100];
-    char tmp[80];
-    char sid[20];
-    net_para_t *netPara=&allPara.usr.net;
-    
-    if(!mqttFlag.conn) {
-        return -1;
-    }
-    
-    sprintf(sid, "?%d", up->id);
-    sprintf(mqttTopic, "/sys/%s/%s/thing/event/property/batch/post", netPara->prdKey, netPara->devKey);
-    sprintf(mqttPayload, "{\"method\":\"thing.event.property.batch.post\",\"version\":\"1.0\",\"id\":%s,\"params\":{\"ev_data:channelid\":%d,\"ev_data:sensorid\":%d,\"ev_data:signal\":%0.2f,", sid, up->ch, up->ss, up->sig);
-    
-    strcpy(mqttTemp[EV_RMS], "\"ev_data:rms\":[");
-    strcpy(mqttTemp[EV_AMP], "\"ev_data:amp\":[");
-    strcpy(mqttTemp[EV_ASL], "\"ev_data:asl\":[");
-    strcpy(mqttTemp[EV_ENE], "\"ev_data:ene\":[");
-    
-#if 1
-    //////////////////////////////////////
-    for(i=0; i<up->cnt; i++) {
-        
-        ev_data_t *ev=&up->ev[i];
-        
-        sprintf(tmp, "{\"value\":%2.4f, \"time\":%lld}", ev->rms, ev->time);
-        if(i<up->cnt-1) strcat(tmp, ",");
-        strcat(mqttTemp[EV_RMS], tmp);
 
-        sprintf(tmp, "{\"value\":%2.4f, \"time\":%lld}", ev->amp, ev->time);
-        if(i<up->cnt-1) strcat(tmp, ",");
-        strcat(mqttTemp[EV_AMP], tmp);
-        
-        sprintf(tmp, "{\"value\":%2.4f, \"time\":%lld}", ev->asl, ev->time);
-        if(i<up->cnt-1) strcat(tmp, ",");
-        strcat(mqttTemp[EV_ASL], tmp);
-        
-        sprintf(tmp, "{\"value\":%2.4f, \"time\":%lld}", ev->pwr, ev->time);
-        if(i<up->cnt-1) strcat(tmp, ",");
-        strcat(mqttTemp[EV_ENE], tmp);
-    }
-#endif
-
-    strcat(mqttTemp[EV_RMS], "],");
-    strcat(mqttTemp[EV_AMP], "],");
-    strcat(mqttTemp[EV_ASL], "],");
-    strcat(mqttTemp[EV_ENE], "]");
-    
-    strcat(mqttPayload, mqttTemp[EV_RMS]);
-    strcat(mqttPayload, mqttTemp[EV_AMP]);
-    strcat(mqttPayload, mqttTemp[EV_ASL]);
-    strcat(mqttPayload, mqttTemp[EV_ENE]);    
-    
-    strcat(mqttPayload, "}}");
-    
-    r = aiot_mqtt_pub(mqtt_handle, mqttTopic, (uint8_t *)mqttPayload, (uint32_t)strlen(mqttPayload), 1);
-    if (r<0) {
-        LOGE("aiot_mqtt_pub failed, r: -0x%04X\n", -r);
-        return -1;
-    }
-    
-    return 0;
-}
-int mqtt_pub_raw(upload_data_t *up)
+int mqtt_pub_raw(void *data, int len)
 {
     int r,tlen=0;
     aiot_dm_msg_t msg;
@@ -524,14 +457,12 @@ int mqtt_pub_raw(upload_data_t *up)
 
     if(!mqttFlag.conn) {
         return -1;
-    }
-    
-    tlen = sizeof(upload_data_t)+sizeof(ev_data_t)*up->cnt;
+    }    
     
     memset(&msg, 0, sizeof(aiot_dm_msg_t));
     msg.type = AIOT_DMMSG_RAW_DATA;
-    msg.data.raw_data.data = (U8*)up;
-    msg.data.raw_data.data_len = tlen;
+    msg.data.raw_data.data = (U8*)data;
+    msg.data.raw_data.data_len = len;
 
     r = aiot_dm_send(dm_handle, &msg);
     

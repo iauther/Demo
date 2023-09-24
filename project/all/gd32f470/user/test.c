@@ -114,6 +114,112 @@ static int ads_init(void)
     return r;
 }
 
+
+#define ONCE_LEN        (1024*4)
+int upgrade_test(void)
+{
+    int flen;
+    int r,rlen,index=0;
+    U8 *pbuf=NULL;
+    int upg_flag=0;
+    char *app=SDMMC_MNT_PT"/app.upg";
+    handle_t fl,fs; // = fs_init();
+    
+    pbuf = (U8*)malloc(ONCE_LEN);
+    if(!pbuf) {
+        LOGE("____ upgrade test malloc failed\n");
+        return -1;
+    }
+    
+    r = fs_mount(fs, MOUNT_DIR);
+    if(r) {
+        LOGE("____ fs mount failed\n");
+        goto fail;
+    }
+    
+    //fs_scan(fs, MOUNT_DIR);
+    
+    
+    fl = fs_open(fs, app, FS_MODE_RW);
+    if(!fl) {
+        LOGE("____ %s open failed\n", app);
+        goto fail;
+    }
+    
+    flen = fs_size(fl);
+    if(flen<=0) {
+        LOGE("____ upgrade file len wrong\n");
+        fs_close(fl);
+        goto fail;
+    }
+        
+    LOGD("____ upgrade file len: %d\n", flen);
+    
+    while(1) {
+        rlen = fs_read(fl, pbuf, ONCE_LEN);
+        //LOGD("_____%d, 0x%02x, 0x%02x, \n", rlen, tmp[0], tmp[1]);
+        if(rlen>0) {
+            
+            if(index==0) {
+                fw_info_t *info1=(fw_info_t*)pbuf;
+                fw_info_t info2;
+                
+                print_fw_info("111", info1);
+                
+                r = upgrade_get_fw_info(&info2);
+                if(r==0) {
+                    print_fw_info("222", &info2);
+                    
+                    if(memcmp(info1, &info2, sizeof(fw_info_t))==0) {
+                        LOGD("____ fw is same, quit!\n");
+                        break;
+                    }
+                }
+            }
+            
+            if(rlen<ONCE_LEN) {
+                r = upgrade_write(pbuf, rlen, -1);
+                if(r) {
+                    LOGE("____ upgrade failed\n");
+                }
+                else {
+                    LOGD("____ upgrade ok\n");
+                    upg_flag = 1;
+                }
+                break;
+            }
+            
+            r = upgrade_write(pbuf, rlen, index++);
+            if(r) {
+                LOGE("____ upgrade write failed, index: %d\n", index);
+                break;
+            }
+        }
+        else {
+            LOGE("____ fs_read error\n");
+            break;
+        }
+    }
+    fs_close(fl);
+    
+    if(upg_flag) {
+        LOGD("____ reboot now ...\n\n\n");
+        dal_reboot();
+    }
+
+fail:
+    fs_deinit(fs);
+    
+    return r;
+}
+
+
+
+
+
+
+
+
 U32 wake_time=0;
 void test_main(void)
 {

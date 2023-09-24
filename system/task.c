@@ -248,6 +248,18 @@ int task_trig(int taskID, U8 evt)
 }
 
 
+int task_msg_clear(int taskID)
+{
+    task_handle_t *h=taskHandle[taskID];
+    
+    if(taskID<0 || taskID>=TASK_MAX || !h || !h->threadID) {
+        return -1;
+    }
+    
+    return msg_reset(h->msg);
+}
+
+
 
 int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, void *arg, U32 ms, U32 times)
 {

@@ -61,7 +61,7 @@ static ads_pin_info_t adsPinInfo[PIN_MAX]={
     {{GPIOB, GPIO_PIN_5 , MODE_OUT_PP, PULL_NONE, 1}},  //COV
     {{GPIOD, GPIO_PIN_6 , MODE_IN,     PULL_NONE, 1}},  //RVS
     
-    {{GPIOA, GPIO_PIN_15, MODE_OUT_PP, PULL_NONE, 1}},  //PWR,  高开低关
+    {{GPIOA, GPIO_PIN_15, MODE_OUT_PP, PULL_NONE, 0}},  //PWR,  高开低关
     
 };
 
@@ -69,7 +69,6 @@ static ads_pin_info_t adsPinInfo[PIN_MAX]={
 
 typedef struct {
     ads9120_cfg_t cfg;
-    handle_t      hdac;
     handle_t      hspi;
     U8            inited;
     
@@ -84,7 +83,7 @@ typedef struct {
 
 static void ads_set_cs(U8 hl);
 static void ads_config(void);
-static void ads_callback(U16 *rx, U16 *ox, U32 cnt);
+static void ads_callback(U16 *rx, U32 cnt);
 
 
 static ads_handle_t adsHandle;
@@ -111,7 +110,7 @@ static inline void conv_start_once(void)
 static inline void ads_other_init(void)
 {
     dal_gpio_cfg_t gc;
-    dal_dac_cfg_t dc;
+    
     
 #ifdef SPI_PWM_CS
     if(adsHandle.hpin[PIN_CS]) {
@@ -123,23 +122,6 @@ static inline void ads_other_init(void)
     
     dal_pwm_init(adsHandle.cfg.freq);
 #endif
-
-    if(allPara.usr.dac.fdiv==0) {
-        allPara.usr.dac.fdiv = 1;
-    }
-    
-    dc.port = DAC_1;
-    dc.freq = adsHandle.cfg.freq/allPara.usr.dac.fdiv;
-    dc.buf  = adsHandle.cfg.buf.ox.buf;
-    dc.bufLen = adsHandle.cfg.buf.ox.blen;
-    adsHandle.hdac = dal_dac_init(&dc);
-    
-    if(allPara.usr.dac.enable) {
-        dal_dac_start(adsHandle.hdac);
-    }
-    else {
-        dal_dac_stop(adsHandle.hdac);
-    }
 }
 
 
@@ -229,12 +211,12 @@ static inline void ads_spi_init(void)
 #else
         cfg.useDMA = 0;
 #endif
-        cfg.hdac = adsHandle.hdac;
         if(cfg.useDMA) {
             cfg.buf = adsHandle.cfg.buf;
             cfg.callback = ads_callback;
         }
         adsHandle.hspi = dal_spi_init(&cfg);
+        dal_spi_enable(1);
     }
 }
 static inline void ads_spi_deinit(void)
@@ -611,21 +593,12 @@ static void inline ads_read(S16 *data)
 
 
 //////////////////////////////////////////////////////////////////
-static void ads_callback(U16 *rx, U16 *ox, U32 cnt)
+static void ads_callback(U16 *rx, U32 cnt)
 {
     int i,j=0;
 
     if(rx && adsHandle.cfg.callback) {
         adsHandle.cfg.callback(rx, cnt);
-    }
-    
-    if(ox && allPara.usr.dac.enable) {
-        for(i=0; i<cnt; i++) { 
-            if(i%allPara.usr.dac.fdiv==0) {
-                ox[j++] = (rx[i]<0x8000)?(rx[i]+0x8000):(rx[i]-0x8000);
-            }
-        
-        }
     }
 }
 static void ads_config(void)
@@ -680,6 +653,7 @@ int ads9120_init(ads9120_cfg_t *cfg)
     return 0;
 }
 
+
 static int ads_en_flag=0;
 int ads9120_enable(U8 on)
 {
@@ -687,7 +661,7 @@ int ads9120_enable(U8 on)
         return -1;
     }
     
-    dal_spi_enable(on);
+    ads9120_power(on);
     dal_pwm_enable(on);
     ads_en_flag = on;
     
@@ -735,7 +709,7 @@ int ads9120_power(U8 on)
     handle_t hpwr=adsHandle.hpin[PIN_PWR];
     
     if(adsHandle.inited) {
-        dal_gpio_set_hl(hpwr, !on);
+        dal_gpio_set_hl(hpwr, on);
     }
         
     return 0;

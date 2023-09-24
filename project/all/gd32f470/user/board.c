@@ -8,9 +8,6 @@ int board_init(void)
 {
     int r=0;
 
-    lock_staic_init();
-    paras_load();
-    json_init();
     
     return 0;
 }

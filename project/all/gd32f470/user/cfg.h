@@ -24,21 +24,22 @@
     //#define USE_YAFFS
     #define USE_FATFS
     //#define USE_UBIFS
-    
-    #define MOUNT_POINT              "/"
-    
+        
     #define SDMMC_MNT_PT             "/sd"
     #define SDMMC_FS_TYPE            FS_FATFS
     
-    #define SFLASH_MNT_PT            "/sf"
+    //#define SFLASH_MNT_PT            "/sf"
+    #define SFLASH_MNT_PT            "/sd"
     #define SFLASH_FS_TYPE           FS_FATFS
     
     #endif
- 
+    
     
     #define SYS_FREQ                (240*MHZ)
     #define USE_NET_MODULE
    
+   
+   #define SAMPLE_INT_INTERVAL      10  //采样中断间隔时间, 单位: ms
    
     #define SPI_PWM_CS
     //#define SPI_QUAD                //need exchange the miso and mosi

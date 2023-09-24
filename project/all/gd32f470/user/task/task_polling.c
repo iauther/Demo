@@ -4,15 +4,17 @@
 #include "cfg.h"
 #include "dal.h"
 #include "date.h"
+#include "power.h"
 #include "dal_rtc.h"
 #include "dal_sd.h"
 #include "upgrade.h"
 #include "paras.h"
+#include "dal_adc.h"
 #include "dal_delay.h"
 #include "aiot_at_api.h"
 
 
-#define POLL_TIME       200
+#define POLL_TIME       1000
 
 #define UPG_FILE        SFLASH_MNT_PT"/app.upg"
 #define TMP_LEN         (0x100*8)
@@ -145,20 +147,21 @@ fail:
 
 static U32 get_run_time(void)
 {
-    U32 tt1,tt2;
-    date_time_t dt;
-    date_time_t *dt2=&dt,*dt1=&allPara.sys.stat.dt;
+    U32 t1,t2;
+    date_time_t dt1,dt2;
     
-    dal_rtc_get(&dt);
-    get_timestamp(dt1, &tt1);
-    get_timestamp(dt2, &tt2);
+    paras_get_datetime(&dt1);
+    dal_rtc_get(&dt2);
     
-    return (tt2-tt1);
+    get_timestamp(&dt1, &t1);
+    get_timestamp(&dt2, &t2);
+    
+    return (t2-t1);
 }
 static void poweroff_polling(void)
 {
     
-    U8 mode=allPara.usr.smp.mode;
+    U8 mode=allPara.usr.smp.pwr_mode;
     
     switch(mode) {
         
@@ -206,6 +209,28 @@ static void polling_tmr_callback(void *arg)
 }
 
 
+static int conn_flag=0;
+static osThreadId_t connThdId=NULL;
+static void task_conn_fn(void *arg)
+{
+    power_set_dev(POWER_DEV_ECXXX, POWER_MODE_ON);
+    conn_flag = api_comm_connect();
+    if(!conn_flag) {
+        power_set_dev(POWER_DEV_ECXXX, POWER_MODE_OFF);
+    }
+    
+    connThdId = NULL;
+}
+static void start_conn_task()
+{
+    smp_para_t *smp=paras_get_smp();
+    
+    //周期模式采样时，采样完成再启动连接，避免4g对信号造成干扰
+    if(smp->smp_mode==0 && api_cap_stoped() && !connThdId) {
+        task_simp_new(task_conn_fn, 1024, NULL, &connThdId);
+    }
+}
+
 
 void task_polling_fn(void *arg)
 {
@@ -230,11 +255,18 @@ void task_polling_fn(void *arg)
                     stat_polling();
                     poweroff_polling();
                     //upgrade_polling();
+                    
+                    api_cap_period_start(CH_0);
+                    
+                    //start_conn_task();
                 }
                 break;
                 
-                default:
-                continue;
+                case EVT_SAVE:
+                {
+                    paras_save();
+                }
+                break;
             }
         }
         

@@ -18,7 +18,7 @@ typedef struct {
 
 handle_t rbuf_init(void *buf, int size)
 {
-    rbuf_handle_t *h=calloc(1, sizeof(rbuf_handle_t));
+    rbuf_handle_t *h=(rbuf_handle_t*)calloc(1, sizeof(rbuf_handle_t));
     
     if(!h) {
         return NULL;
@@ -28,8 +28,8 @@ handle_t rbuf_init(void *buf, int size)
 	h->pw   = 0;
 	h->dlen = 0;
 	h->size = size;
-	h->buf  = buf;
-    h->lock = lock_dynamic_new();
+	h->buf  = (U8*)buf;
+    h->lock = lock_init();
 	
 	return h;
 }
@@ -43,7 +43,7 @@ int rbuf_free(handle_t h)
         return -1;
     }
     
-    lock_dynamic_free(rh->lock);
+    lock_free(rh->lock);
     free(rh);
     
     return 0;
@@ -59,9 +59,9 @@ int rbuf_read(handle_t h, U8 *buf, int len, U8 shift)
         return -1;
     }
     
-    lock_dynamic_hold(rh->lock);
+    lock_on(rh->lock);
     if(rh->dlen==0) {       //buffer is null
-        lock_dynamic_release(rh->lock);
+        lock_off(rh->lock);
         return 0;
     }
     
@@ -102,7 +102,7 @@ int rbuf_read(handle_t h, U8 *buf, int len, U8 shift)
         rh->pr = (rh->pr + rlen) % rh->size;        //更新读指针
         rh->dlen -= rlen;
     }
-    lock_dynamic_release(rh->lock);
+    lock_off(rh->lock);
 
 	return rlen;
 }
@@ -116,10 +116,10 @@ int rbuf_read_shift(handle_t h, int len)
         return -1;
     }
 
-    lock_dynamic_hold(rh->lock);
+    lock_on(rh->lock);
     rh->pr = (rh->pr + len) % rh->size;        //更新读指针
     rh->dlen -= len;
-    lock_dynamic_release(rh->lock);
+    lock_off(rh->lock);
 
     return 0;
 }
@@ -133,9 +133,9 @@ int rbuf_write(handle_t h, U8 *buf, int len)
         return -1;
     }
 
-    lock_dynamic_hold(rh->lock);
+    lock_on(rh->lock);
     if(rh->dlen==rh->size) {        //buffer is full
-        lock_dynamic_release(rh->lock);
+        lock_off(rh->lock);
         return 0;
     }
     
@@ -169,7 +169,7 @@ int rbuf_write(handle_t h, U8 *buf, int len)
 
     rh->pw = (rh->pw + wlen) % rh->size;        //更新写指针
     rh->dlen += wlen;
-    lock_dynamic_release(rh->lock);
+    lock_off(rh->lock);
 
 	return wlen;
 }
@@ -184,11 +184,11 @@ int rbuf_reset(handle_t h)
         return -1;
     }
 
-    lock_dynamic_hold(rh->lock);
+    lock_on(rh->lock);
     rh->pr = 0;
     rh->pw = 0;
     rh->dlen = 0;
-    lock_dynamic_release(rh->lock);
+    lock_off(rh->lock);
 
     return 0;
 }
@@ -203,9 +203,9 @@ int rbuf_get_size(handle_t h)
         return -1;
     }
     
-    lock_dynamic_hold(rh->lock);
+    lock_on(rh->lock);
     size = rh->size;
-    lock_dynamic_release(rh->lock);
+    lock_off(rh->lock);
 
 	return size;
 }
@@ -220,9 +220,9 @@ int rbuf_get_dlen(handle_t h)
         return -1;
     }
     
-    lock_dynamic_hold(rh->lock);
+    lock_on(rh->lock);
     dlen = rh->dlen;
-    lock_dynamic_release(rh->lock);
+    lock_off(rh->lock);
 
 	return dlen;
 }

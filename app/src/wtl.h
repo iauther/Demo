@@ -26,4 +26,3 @@
 #include "atlddx.h"
 #include "atlsplit.h"
 #include "atlgdi.h"
-
