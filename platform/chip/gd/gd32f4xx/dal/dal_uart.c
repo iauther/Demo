@@ -67,6 +67,8 @@ typedef struct {
     
     urt_buf_t      dr;
     urt_buf_t      dt;
+    
+    rx_cb_t        callback[CB_MAX+1];
 }dal_uart_handle_t;
 
 static dal_uart_handle_t* uartHandle[UART_MAX]={NULL};
@@ -133,7 +135,7 @@ static void uart_dma_stop(dal_uart_handle_t *h)
 }
 static void uart_dma_rx_proc(dal_uart_handle_t *h)
 {
-    int recv_len=0;
+    int i,recv_len=0;
     uart_info_t *info=(uart_info_t*)&uartInfo[h->cfg.port];
     dma_info_t *dma=&info->dmaRx;;
     
@@ -146,8 +148,12 @@ static void uart_dma_rx_proc(dal_uart_handle_t *h)
             
             dma_memory_address_config(dma->dma, dma->chn, DMA_MEMORY_0, (U32)h->dr.buf);
             dma_transfer_number_config(dma->dma, dma->chn, URT_BUF_LEN);
-            if(h->cfg.para.callback && recv_len) {
-                h->cfg.para.callback(NULL, NULL, 0, h->dr.buf, recv_len);
+            if(recv_len) {
+                for(i=CB_MAX; i>=0; i--) {
+                    if(h->callback[i]) {
+                        h->callback[i](NULL,NULL,0,h->dr.buf, recv_len);
+                    }
+                }
             }
             
             dma_flag_clear(dma->dma, dma->chn, DMA_FLAG_FTF);
@@ -157,6 +163,7 @@ static void uart_dma_rx_proc(dal_uart_handle_t *h)
 }
 static void uart_it_rx_proc(dal_uart_handle_t *h)
 {
+    int i;
     FlagStatus fs;
     U8 port=h->cfg.port;
     uart_info_t *info=(uart_info_t*)&uartInfo[port];
@@ -172,8 +179,13 @@ static void uart_it_rx_proc(dal_uart_handle_t *h)
     else if (RESET != usart_interrupt_flag_get(info->urt, USART_INT_FLAG_IDLE)) {
         usart_interrupt_flag_clear(info->urt, USART_INT_FLAG_IDLE);
         usart_data_receive(info->urt);                                        // 清除接收完成标志位
-        if(h->cfg.para.callback && h->dr.dlen>0) {
-            h->cfg.para.callback(NULL,NULL,0,h->dr.buf, h->dr.dlen);
+        
+        if(h->dr.dlen>0) {
+            for(i=CB_MAX; i>0; i--) {
+                if(h->callback[i]) {
+                    h->callback[i](NULL,NULL,0,h->dr.buf, h->dr.dlen);
+                }
+            }
             h->dr.dlen = 0;
         }
     }
@@ -200,6 +212,7 @@ handle_t dal_uart_init(dal_uart_cfg_t *cfg)
         return NULL;
     }
     h->cfg = *cfg;
+    h->callback[CB_MAX] = cfg->para.callback;
     
     info = (uart_info_t*)&uartInfo[h->cfg.port];
     h->lock = lock_init();
@@ -344,15 +357,15 @@ int dal_uart_rw(handle_t h, U8 *data, int len, U8 rw)
 
 
 
-int dal_uart_set_callback(handle_t h, rx_cb_t cb)
+int dal_uart_set_callback(handle_t h, int id, rx_cb_t cb)
 {
     dal_uart_handle_t *dh=(dal_uart_handle_t*)h;
     
-    if(!dh) {
+    if(!dh || id>=CB_MAX) {
         return -1;
     }
     
-    dh->cfg.para.callback = cb;
+    dh->callback[id] = cb;
     
     return 0;
 }

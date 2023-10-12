@@ -60,14 +60,6 @@ int task_wait(int taskID)
     return 0;
 }
 
-static void tmr_callback(void *arg)
-{
-    task_handle_t *h=(task_handle_t*)arg;
-    if(h && h->tmrFunc && h->allTimes>0 && h->curTimes<h->allTimes) {
-        h->tmrFunc(arg);
-        h->curTimes++;
-    }
-}
 static void task_free(task_handle_t **h)
 {
     taskHandle[(*h)->attr.taskID] = NULL;
@@ -145,7 +137,7 @@ int task_new(task_attr_t *tattr)
 }
 
 
-int task_simp_new(osThreadFunc_t fn, int stksize, void *arg, osThreadId_t *tid)
+int start_task_simp(osThreadFunc_t fn, int stksize, void *arg, osThreadId_t *tid)
 {
     osThreadId_t id;
     const osThreadAttr_t attr={
@@ -260,47 +252,94 @@ int task_msg_clear(int taskID)
 }
 
 
-
-int task_tmr_start(int taskID, osTimerFunc_t tmrFunc, void *arg, U32 ms, U32 times)
+static void timer_callback_fn(void *arg)
+{
+    timer_handle_t *h=(timer_handle_t*)arg;
+    
+    if(h && h->fn) {
+        if(h->tTimes>0) {
+            if(h->cTimes<h->tTimes) {
+                h->fn(h->arg);
+                h->cTimes++;
+            }
+            else {
+                osTimerStop(h->tid);
+            }
+        }
+        else {
+            h->fn(h->arg);
+        }
+    }
+}
+handle_t task_timer_init(osTimerFunc_t fn, void *arg, int ms, int times)
 {
     osTimerType_t type;
     osStatus_t st;
-    task_handle_t *h=taskHandle[taskID];
+    timer_handle_t *h=malloc(sizeof(task_handle_t));
     
-    if(taskID<0 || taskID>=TASK_MAX || !h || !h->threadID) {
-        return -1;
+    if(!h || !fn || !ms || !times) {
+        return NULL;
     }
     
-    h->allTimes = times;
-    h->curTimes = 0;
-    h->tmrFunc = tmrFunc;
-    h->tmrArg = arg;
+    h->tTimes = times;
+    h->cTimes = 0;
+    h->fn = fn;
+    h->arg = arg;
+    h->ms  = ms;
     
-    type = (times>1)?osTimerPeriodic:osTimerOnce;
-    //if(h->tmrID) osTimerDelete(h->tmrID);
-    
-    h->tmrID = osTimerNew(tmr_callback, type, h, NULL);
-    if(!h->tmrID) {
-        return -1;
+    type = (times==1)?osTimerOnce:osTimerPeriodic;
+    h->tid = osTimerNew(timer_callback_fn, type, h, NULL);
+    if(!h->tid) {
+        free(h);
+        return NULL;
     }
     
-    st = osTimerStart(h->tmrID, ms);
-    
-    return st;
+    return h;
 }
 
 
-int task_tmr_stop(int taskID)
+int task_timer_start(handle_t h)
 {
-    task_handle_t *h=taskHandle[taskID];
+    osStatus_t st;
+    timer_handle_t *th=(timer_handle_t*)h;
     
-    if(taskID<0 || taskID>=TASK_MAX || !h || !h->threadID) {
+    if(!th) {
         return -1;
     }
     
-    osTimerStop(h->tmrID);
-    osTimerDelete(h->tmrID);
-    h->tmrID = NULL;
+    st = osTimerStart(th->tid, th->ms);
+    if(st!=osOK) {
+        return -1;
+    }
+    
+    return 0;
+}
+
+
+int task_timer_stop(handle_t h)
+{
+    timer_handle_t *th=(timer_handle_t*)h;
+    
+    if(!th) {
+        return -1;
+    }
+    
+    osTimerStop(th->tid);
+    
+    
+    return 0;
+}
+
+int task_timer_free(handle_t h)
+{
+    timer_handle_t *th=(timer_handle_t*)h;
+    
+    if(!th) {
+        return -1;
+    }
+    
+    osTimerDelete(th->tid);
+    free(th);
     
     return 0;
 }

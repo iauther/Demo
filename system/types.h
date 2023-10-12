@@ -66,16 +66,19 @@ typedef void*  handle_t;
 typedef int (*rx_cb_t)(handle_t h, void* addr, U32 evt, void* data, int len);
 
 #ifndef MAX
-#define MAX(a,b)    ((a>b)?a:b)
+#define MAX(a,b)    (((a)>(b))?(a):(b))
 #endif
 
 #ifndef MIN
-#define MIN(a,b)    ((a<b)?a:b)
+#define MIN(a,b)    (((a)<(b))?(a):(b))
 #endif
 
 #ifndef ABS
 #define ABS(a)      (((a)>=0)?(a):((a)*(-1)))
 #endif
+
+#define MAX3(a,b,c) MAX(MAX(a,b),c)
+#define MIN3(a,b,c) MIN(MIN(a,b),c)
 
 
 #define offset_of(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)

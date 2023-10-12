@@ -3949,7 +3949,7 @@ int yaffs_dump_dev_reldir(struct yaffs_obj *reldir, const YCHAR *path)
 	if (reldir) {
 		struct yaffs_dev *dev = reldir->my_dev;
 
-		printf("\n"
+		LOGD("\n"
 		       "n_page_writes.......... %d\n"
 		       "n_page_reads........... %d\n"
 		       "n_erasures....... %d\n"

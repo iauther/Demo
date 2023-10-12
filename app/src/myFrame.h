@@ -275,15 +275,15 @@ public:
 		//infPaneUpdate();
 	}
 
-	all_para_t allPara;
+	
 	void infPaneUpdate(void)
 	{
 		int i;
 		TCHAR tmp[100];
 		
-		//info.Clear();
+		info.Clear();
 
-		//extern all_para_t allPara;
+		extern all_para_t allPara;
 		sys_para_t* sys = &allPara.sys;
 		sprintf(tmp, "fw.version: %s\n", sys->para.fwInfo.version);	info.AppendText(tmp);
 		sprintf(tmp, "fw.bldtime: %s\n", sys->para.fwInfo.bldtime);	info.AppendText(tmp);

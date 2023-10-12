@@ -224,7 +224,7 @@ handle_t dal_spi_init(dal_spi_cfg_t *cfg)
         //spi_nss_output_disable(port);      //À­¸ßcs
         //spi_ti_mode_enable(port);
     }
-    //spi_enable(port);
+    spi_enable(port);
     
     if(h->cfg.useDMA) {
         dma_channel_enable(DMA1, DMA_CH6);

@@ -55,7 +55,7 @@
     #define USE_LAB_1
     //#define USE_LAB_2
     
-    
+    #define DEMO_TEST
     
 #endif
 

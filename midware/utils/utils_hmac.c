@@ -68,12 +68,12 @@ void utils_hmac_md5(char *msg, int msg_len, char *digest, char *key, int key_len
 void utils_hmac_sha1_hex(char *msg, int msg_len, char *digest, char *key, int key_len)
 {
     if ((NULL == msg) || (NULL == digest) || (NULL == key)) {
-        printf("parameter is Null,failed!");
+        LOGE("parameter is Null,failed!");
         return;
     }
 
     if (key_len > KEY_IOPAD_SIZE) {
-        printf("key_len > size(%d) of array", KEY_IOPAD_SIZE);
+        LOGE("key_len > size(%d) of array", KEY_IOPAD_SIZE);
         return;
     }
 
@@ -114,12 +114,12 @@ void utils_hmac_sha1_hex(char *msg, int msg_len, char *digest, char *key, int ke
 void utils_hmac_sha256(char *msg, int msg_len, char *digest, char *key, int key_len)
 {
     if ((NULL == msg) || (NULL == digest) || (NULL == key)) {
-        printf("parameter is Null,failed!");
+        LOGE("parameter is Null,failed!");
         return;
     }
 
     if (key_len > KEY_IOPAD_SIZE) {
-        printf("key_len > size(%d) of array", KEY_IOPAD_SIZE);
+        LOGE("key_len > size(%d) of array", KEY_IOPAD_SIZE);
         return;
     }
 
@@ -164,12 +164,12 @@ void utils_hmac_sha256(char *msg, int msg_len, char *digest, char *key, int key_
 void utils_hmac_sha1(char *msg, int msg_len, char *digest, char *key, int key_len)
 {
     if ((NULL == msg) || (NULL == digest) || (NULL == key)) {
-        printf("parameter is Null,failed!");
+        LOGE("parameter is Null,failed!");
         return;
     }
 
     if (key_len > KEY_IOPAD_SIZE) {
-        printf("key_len > size(%d) of array", KEY_IOPAD_SIZE);
+        LOGE("key_len > size(%d) of array", KEY_IOPAD_SIZE);
         return;
     }
 
@@ -214,12 +214,12 @@ void utils_hmac_sha1(char *msg, int msg_len, char *digest, char *key, int key_le
 void utils_hmac_sha1_raw(char *msg, int msg_len, char *digest, char *key, int key_len)
 {
     if ((NULL == msg) || (NULL == digest) || (NULL == key)) {
-        printf("parameter is Null,failed!");
+        LOGE("parameter is Null,failed!");
         return;
     }
 
     if (key_len > KEY_IOPAD_SIZE) {
-        printf("key_len > size(%d) of array", KEY_IOPAD_SIZE);
+        LOGE("key_len > size(%d) of array", KEY_IOPAD_SIZE);
         return;
     }
 
@@ -329,30 +329,32 @@ int get_chipID(char *id, int len)
 
 
 
-int utils_hmac_sign(meta_data_t *meta, sign_data_t *sign, SIGN_TYPE sType)
+int utils_hmac_sign(net_para_t *para, sign_data_t *sign, SIGN_TYPE sType)
 {
     char deviceId[PRODUCT_KEY_MAXLEN + DEVICE_NAME_MAXLEN + 2] = {0};
     char tmp[SIGN_SOURCE_MAXLEN] = {0};
     int res;
+    plat_para_t *plat=NULL;
 
-    if (!meta || !sign) {
+    if (!para || !sign) {
         return -1;
     }
+    plat = &para->para.plat;
     
     memset(sign, 0, sizeof(sign_data_t));
-    if ((strlen(meta->productKey) > PRODUCT_KEY_MAXLEN) || (strlen(meta->deviceName) > DEVICE_NAME_MAXLEN) ||
-        (strlen(meta->deviceSecret) > DEVICE_SECRET_MAXLEN)) {
+    if ((strlen(plat->prdKey) > PRODUCT_KEY_MAXLEN) || (strlen(plat->devKey) > DEVICE_NAME_MAXLEN) ||
+        (strlen(plat->devSecret) > DEVICE_SECRET_MAXLEN)) {
         return -1;
     }
     
     if(sType==SIGN_HMAC_SHA256) {
-        snprintf(deviceId, sizeof(deviceId), "%s&%s", meta->deviceName, meta->productKey);
+        snprintf(deviceId, sizeof(deviceId), "%s&%s", plat->devKey, plat->prdKey);
         snprintf(sign->clientId, sizeof(sign->clientId), "%s|securemode=3,signmethod=hmacsha256,timestamp=%s|", deviceId, TIMESTAMP_VALUE);
         
-        snprintf(sign->username, sizeof(sign->username), "%s&%s", meta->deviceName, meta->productKey);
-        snprintf(tmp, sizeof(tmp), "clientId%sdeviceName%sproductKey%stimestamp%s", deviceId, meta->deviceName, meta->productKey, TIMESTAMP_VALUE);
+        snprintf(sign->username, sizeof(sign->username), "%s&%s", plat->devKey, plat->prdKey);
+        snprintf(tmp, sizeof(tmp), "clientId%sdeviceName%sproductKey%stimestamp%s", deviceId, plat->devKey, plat->prdKey, TIMESTAMP_VALUE);
         
-        utils_hmac_sha256(tmp, strlen(tmp), sign->password, meta->deviceSecret, strlen(meta->deviceSecret));
+        utils_hmac_sha256(tmp, strlen(tmp), sign->password, plat->devSecret, strlen(plat->devSecret));
     }
     else {
         get_chipID(deviceId, sizeof(deviceId));
@@ -368,14 +370,14 @@ int utils_hmac_sign(meta_data_t *meta, sign_data_t *sign, SIGN_TYPE sType)
         }
 #endif
         
-        snprintf(sign->username, sizeof(sign->username), "%s&%s", meta->deviceName, meta->productKey);
-        snprintf(tmp, sizeof(tmp), "clientId%sdeviceName%sproductKey%stimestamp%s", deviceId, meta->deviceName, meta->productKey, TIMESTAMP_VALUE);
+        snprintf(sign->username, sizeof(sign->username), "%s&%s", plat->devKey, plat->prdKey);
+        snprintf(tmp, sizeof(tmp), "clientId%sdeviceName%sproductKey%stimestamp%s", deviceId, plat->devKey, plat->prdKey, TIMESTAMP_VALUE);
         
         if(sType==SIGN_HMAC_SHA1) {
-            utils_hmac_sha1(tmp, strlen(tmp), sign->password, meta->deviceSecret, strlen(meta->deviceSecret));
+            utils_hmac_sha1(tmp, strlen(tmp), sign->password, plat->devSecret, strlen(plat->devSecret));
         }
         else {  //SIGN_HMAC_MD5
-            utils_hmac_md5(tmp, strlen(tmp), sign->password, meta->deviceSecret, strlen(meta->deviceSecret));
+            utils_hmac_md5(tmp, strlen(tmp), sign->password, plat->devSecret, strlen(plat->devSecret));
         }
     }
     

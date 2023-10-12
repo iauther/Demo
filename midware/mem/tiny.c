@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include "log.h"
 
 // Casts a size_t to its closest aligned size
 #define ALIGN_SIZE(size) ((size + ALIGNMENT - 1) & ~(ALIGNMENT - 1))
@@ -207,10 +208,10 @@ size_t tiny_block_size() { return ALIGNMENT; }
 
 // Prints a summary of the library
 void tiny_print(bool summary, bool last_op, bool heap) {
-    printf("\n");
+    LOGD("\n");
     if(summary) {
         tiny_summary summ = tiny_inspect();
-        printf(
+        LOGD(
             "\n|  Tiny summary  |\n\n"
             "Alignment: %lu\n"
             "Alignment type alias: %s\n"
@@ -236,7 +237,7 @@ void tiny_print(bool summary, bool last_op, bool heap) {
     }
 
     if(last_op) {
-        printf(
+        LOGD(
             "\n|  Last tiny operation  |\n\n"
             "Operation: %s\n"
             "Status: %s\n"
@@ -248,15 +249,15 @@ void tiny_print(bool summary, bool last_op, bool heap) {
     }
 
     if(heap) {
-        printf("\n|  Tiny heap  |\n\n");
+        LOGD("\n|  Tiny heap  |\n\n");
         if(tiny.buffer == NULL || tiny.size == 0) {
-            printf("Heap not allocated\n");
+            LOGD("Heap not allocated\n");
         } else {
             tiny_block *header = &tiny.buffer[0];
             tiny_block_section info = read_header(header);
             size_t i = 0;
             while(info.size > 0) {
-                printf(
+                LOGD(
                     "Section %lu:\n"
                     "    Taken: %s\n"
                     "    Size: %lu blocks (%lu bytes)\n"
@@ -271,7 +272,7 @@ void tiny_print(bool summary, bool last_op, bool heap) {
                 header = next_section(header);
                 info = read_header(header);
             } 
-            printf("No more sections\n");
+            LOGD("No more sections\n");
         }
     }
 }

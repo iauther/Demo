@@ -2,11 +2,7 @@
 #define __COMM_Hx__
 
 #include "types.h"
-
-#ifdef _WIN32
-#include "mySock.h"
-#include "mySerial.h"
-#endif
+#include "net.h"
 
 #define COMM_BUF_LEN   1000
 
@@ -30,10 +26,10 @@ typedef struct {
 extern "C" {
 #endif
 
-handle_t comm_init(U8 port, void *para, rx_cb_t cb);
+handle_t comm_init(U8 port, void *para);
 int comm_deinit(handle_t h);
 
-handle_t comm_open(comm_handle_t *h, void *para);
+handle_t comm_open(handle_t h, void *para);
 int comm_close(handle_t conn);
 
 int comm_data_proc(handle_t h, void *para, void* data, int len);

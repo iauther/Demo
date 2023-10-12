@@ -7,3 +7,6 @@
 #include "comm.c"
 #include "rbuf.c"
 #include "lock.c"
+#include "net.c"
+#include "cJSON.c"
+#include "json.c"

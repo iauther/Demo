@@ -1,6 +1,8 @@
 #ifndef __MYMQTT_Hx__
 #define __MYMQTT_Hx__
 
+#include "mqtt.h"
+
 //#define USE_HV
 
 typedef void (*mymqtt_print_t)(const char* format, ...);
@@ -33,7 +35,6 @@ enum {
     MODE_USR,
 };
 
-
 enum {
     TOPIC_DN_USR=0,
 
@@ -53,23 +54,23 @@ enum {
 };
 
 
-
 class myMqtt {
 public:
     myMqtt();
     ~myMqtt();
     
-    void* conn(meta_data_t* md);
-    void* conn(char *host, int port, char* cliendID, char* username, char* password);
+    void* conn(conn_para_t* para, void* userdata);
+    void* conn(conn_para_t* para, sign_data_t* sign, void* userdata);
 
     int disconn(void* conn);
     int is_connected(void* conn);
-    int publish(void* conn, char *topic, char *payload, int qos);
-    int subscribe(void* conn, char* topic);
+    int pub(void* conn, mqtt_para_t *para, void* payload, int payloadlen);
+    int sub(void* conn, mqtt_para_t* para);
     int read(void* conn, void* buf, int buflen);
 
 private:
     mqtt_callback_t cb;
+    uint16_t packet_id;
 
     int set_cb(void *conn);
 };

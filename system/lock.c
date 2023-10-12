@@ -18,7 +18,7 @@ handle_t lock_init(void)
 #ifdef OS_KERNEL
     h = osMutexNew(NULL);
     if(!h) {
-        LOGE("___ lock init failed\n");
+        return NULL;
     }
 #endif
 
@@ -31,7 +31,6 @@ int lock_on(handle_t h)
     int r=0;
     
     if(!h) {
-        LOGE("___ lock on failed, invalid lock handle!\n");
         return -1;
     }
     
@@ -44,7 +43,6 @@ int lock_on(handle_t h)
 #endif
     
     if(r) {
-        LOGE("___ lock on failed, %d\n", r);
         return -1;
     }
 

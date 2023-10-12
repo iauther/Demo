@@ -201,7 +201,7 @@ static int stdfs_size(handle_t h)
 {
     int r;
     long curPos,size;
-    struct stat st
+    struct stat st;
     stdfs_handle_t *hf=(stdfs_handle_t*)h;
     
     if(!hf || !hf->fp) {

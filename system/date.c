@@ -6,14 +6,16 @@
 //__date__: "Jul 27 2012"
 //__TIME__: "21:06:19"
 
+const char *sys_date=__DATE__;
+const char *sys_time=__TIME__;
 
-static U16 get_year(char *date)
+static U16 get_year(const char *date)
 {
     U16 year=((date[7]-'0')*1000 + (date[8]-'0')*100 + (date[9]-'0')*10 + date[10]-'0');
     
     return year;
 }
-static U8 get_month(char *date)
+static U8 get_month(const char *date)
 {
     U8 mon;
     
@@ -44,7 +46,7 @@ static U8 get_month(char *date)
         
     return mon;
 }
-static U8 get_day(char *date)
+static U8 get_day(const char *date)
 {
     int day,year;
     char tmp[10];
@@ -53,19 +55,19 @@ static U8 get_day(char *date)
     
     return (U8)day;
 }
-static U8 get_hour(char *time)
+static U8 get_hour(const char *time)
 {
     U8 hour = ((time[0] - '0') * 10 + time[1] - '0');
     
     return hour;
 }
-static U8 get_min(char *time)
+static U8 get_min(const char *time)
 {
     U8 min = ((time[3] - '0') * 10 + time[4] - '0');
     
     return min;
 }
-static U8 get_sec(char *time)
+static U8 get_sec(const char *time)
 {
     U8 sec = ((time[6] - '0') * 10 + time[7] - '0');
     
@@ -146,26 +148,36 @@ int get_time(char *time_s, time_s_t *time)
 }
 
 
-int get_date_string(char *date, void *str)
+int get_date_str(void *str, int len)
 {
-    if(!str) {
+    if(!str || !len) {
         return -1;
     }
     
-    sprintf(str, "%d%02d%02d", get_year(date), get_month(date), get_day(date));
+    snprintf((char*)str, len, "%d%02d%02d", get_year(sys_date), get_month(sys_date), get_day(sys_date));
     
     return 0;
 }
 
 
-int get_time_string(char *time, void *str)
+int get_time_str(void *str, int len)
 {
-    if(!str) {
+    if(!str || !len) {
         return -1;
     }
     
-    sprintf(str, "%d%d%d", get_hour(time), get_min(time), get_sec(time));
+    snprintf((char*)str, len, "%02d%02d%02d", get_hour(sys_time), get_min(sys_time), get_sec(sys_time));
     
+    return 0;
+}
+
+
+int get_datetime_str(void *str, int len)
+{
+    if(!str || !len) {
+        return -1;
+    }
+    snprintf((char*)str, len, "%d%02d%02d_%d%02d%02d", get_year(sys_date), get_month(sys_date), get_day(sys_date), get_hour(sys_time), get_min(sys_time), get_sec(sys_time));
     return 0;
 }
 

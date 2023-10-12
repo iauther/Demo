@@ -647,6 +647,11 @@ int upgrade_erase(int total_len)
 }
 
 
+int upgrade_info_erase(void)
+{
+    return dal_nor_erase(UPG_INFO_OFFSET, sizeof(upg_info_t));
+}
+
 
 int upgrade_write(U8 *data, int len, int index)
 {

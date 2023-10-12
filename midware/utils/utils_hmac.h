@@ -10,7 +10,7 @@
 
 #include <string.h>
 #include <stdint.h>
-
+#include "protocol.h"
 
 #define KEY_IOPAD_SIZE        (64)
 #define MD5_DIGEST_SIZE       (16)
@@ -61,7 +61,7 @@ typedef enum {
 extern "C" {
 #endif
 
-int utils_hmac_sign(meta_data_t *meta, sign_data_t *sign, SIGN_TYPE sType);
+int utils_hmac_sign(net_para_t *para, sign_data_t *sign, SIGN_TYPE sType);
 
 
 #ifdef __cplusplus

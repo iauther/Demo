@@ -46,9 +46,6 @@
     <ClInclude Include="..\fw\system\lock.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\myFrame.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\myLog.h">
       <Filter>头文件</Filter>
     </ClInclude>

@@ -125,7 +125,7 @@ int log_init(rx_cb_t callback)
 
 int log_set_callback(rx_cb_t cb)
 {
-    return dal_uart_set_callback(logHandle.hlog, cb);
+    return dal_uart_set_callback(logHandle.hlog, 0, cb);
 }
 
 

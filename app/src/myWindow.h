@@ -7,6 +7,7 @@
 #include "comm.h"
 #include "mySerial.h"
 #include "myMqtt.h"
+#include "json.h"
 
 enum {
 
@@ -28,9 +29,13 @@ enum {
 	ID_UPGRADE,
 	ID_REBOOT,
 
-	ID_LOG_EN,
-	ID_LOG_CLR,
-	ID_LOG_SAV,
+	ID_LOG_SET,
+	ID_DATA_TO,
+	ID_DEFAULT,
+
+	ID_DBG_EN,
+	ID_DBG_CLR,
+	ID_DBG_SAV,
 
 	ID_TAB,
 	ID_PAGE_CMD,
@@ -38,27 +43,31 @@ enum {
 	ID_PAGE_LOG,
 	ID_PAGE_SETT,
 	
+	
 };
 
 
 
 #define PROD_KEY		"izenceucjUD"
 #define PROD_SECRET		"xWYqWMNG3XQe7aEZ"
-#define DEV_NAME		"PCTOOL"
-#define DEV_SECRET		"5e6c2795ee8c04552a84c39f304fa4d5"
+#define DEV_NAME		"PC_1"
+#define DEV_SECRET		"13fb3f8472374971d3c27bced47644db"
 
 #define HOST_URL        "iot-06z00cq4vq4hkzx.mqtt.iothub.aliyuncs.com"
 #define HOST_PORT       1883
 
-static meta_data_t meta = {
+static plat_para_t platPara = {
+	HOST_URL,
+	HOST_PORT,
+
 	PROD_KEY,
 	PROD_SECRET,
 	DEV_NAME,
 	DEV_SECRET,
-
-	HOST_URL,
-	HOST_PORT,
 };
+
+
+
 
 static const char* sub_topic[TOPIC_SUB_MAX] = {
 	"user/get",
@@ -74,36 +83,59 @@ static const char* pub_topic[TOPIC_PUB_MAX] = {
 
 
 static HANDLE ackEvent;
-static myMqtt mMqtt;
+extern all_para_t allPara;
+
+class myPane : public CPaneContainer,
+	           public CMessageFilter,
+	           public CIdleHandler
+{
+	virtual BOOL PreTranslateMessage(MSG* pMsg)
+	{
+		return FALSE;
+	}
+
+	virtual BOOL OnIdle()
+	{
+		return FALSE;
+	}
+
+	LRESULT OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+	{
+		extern CAppModule appModule;
+		CMessageLoop* pLoop = appModule.GetMessageLoop();
+		pLoop->AddMessageFilter(this);
+		pLoop->AddIdleHandler(this);
+	}
+};
 
 
 class myWindow : public CWindowImpl<myWindow, CWindow>
 {
-
 public:
-	CFont   gFont;
-	CTabCtrl tab;
-	CEdit    info;
+	CFont      gFont;
+	CTabCtrl   tab;
+	CEdit      info;
 	CPagerCtrl pageCmd,pageCali,pageLog,pageSett;
 	CComboBox  port,portList;
 
 	void* hconn;
-
-	CSplitterWindow    vSplit;		//主窗口，垂直分割
-	CHorSplitterWindow hSplit1;		//右窗口，水平分割
-	CHorSplitterWindow hSplit2;
+	CSplitterWindow    vSplit;		        //主窗口，垂直分割
+	CHorSplitterWindow hSplit1,hSplit2;		//右窗口，水平分割
 	CPaneContainer     wavPane, infPane, cmdPane, dbgPane;
 	CButton btOpen, btCali, btStart;
-	CButton btEna, btSav, btClr;
+	CButton btEna, btSav, btClr,btTo;
 	CButton btCfgr, btCfgw, btUpg,btBoot;
-	CButton btCali1, btCali2;
+	CButton btCali1, btCali2, btDflt;
 
 	handle_t hand[PORT_MAX] = {NULL};
-	int  portID = PORT_MQTT;
+	handle_t conn = NULL;
+	int  portID = PORT_NET;
 	mySerial mSerial;
 
 	int dev_opened=0;
+	int para_recved=0;
 	int dev_started=0;
+	int cali_cnt = 0;
 
 	int log_started=0;
 	int log_enabled=0;
@@ -123,7 +155,7 @@ public:
 		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnLButtonDown)
 		MESSAGE_HANDLER(WM_LBUTTONUP, OnLButtonUp)
 
-		COMMAND_RANGE_CODE_HANDLER(ID_OPEN, ID_LOG_SAV, BN_CLICKED, OnBtnClicked)
+		COMMAND_RANGE_CODE_HANDLER(ID_OPEN, ID_DBG_SAV, BN_CLICKED, OnBtnClicked)
 
 		//NOTIFY_HANDLER(IDC_TABCTRLDOWN, TCN_SELCHANGE, OnSelChangeTab)
 		
@@ -169,7 +201,7 @@ public:
 		);
 	}
 
-	void port_init(void)
+	void port_add(void)
 	{
 		const char* portName[PORT_MAX] = {
 			"usb",
@@ -234,74 +266,165 @@ public:
 		infPane.SetClient(info);
 		//::SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 
-		//info.SetReadOnly(1);
-		//info.LimitText(5000);
-		//info.ShowScrollBar(SB_VERT);
-		//info.SetFont(gFont);
-
-		info.AppendText("9999999999999\r\n");
-
-
-		//infPaneUpdate();
+		info.SetReadOnly(1);
+		info.LimitText(5000);
+		info.ShowScrollBar(SB_VERT);
+		info.SetFont(gFont);
 	}
 
-	all_para_t allPara;
-	void inf_pane_update(void)
+	int tailof(char* src, char* str)
+	{
+		int len1 = _tcslen(src);
+		int len2 = _tcslen(str);
+		int cmp = _tcscmp(src + len1 - len2, str);
+
+		return (cmp == 0) ? 1 : 0;
+	}
+
+	void info_print(char* txt)
+	{
+		int n=0;
+		TCHAR fmt[200];
+		SCROLLINFO ScroInfo;
+
+		//支持\r\n和\n换行
+		if (tailof(txt, (char*)"\n")) {
+			TCHAR* x = _tcsrchr(txt, '\n');
+			if (x) _tcscpy(x, "\r\n");
+		}
+
+
+		info.SetRedraw(FALSE);
+		int txtLen = info.GetWindowTextLength();
+		info.SetSel(txtLen, txtLen);				 //移动光标到最后
+		info.SetFocus();                             //移动光标到最后
+		info.ReplaceSel(txt);						 //在光标的位置加入最新的输出日志行
+		info.LineScroll(info.GetLineCount());
+		info.SetRedraw(TRUE);
+	}
+
+
+	void load_para(void)
+	{
+		int r;
+		FILE* fp=NULL;
+		struct stat st;
+		char* pbuf = NULL;
+		const char* path = "app.ini";
+
+		r = stat(path, &st);
+		if (r == 0) {		//文件存在
+			fp = fopen(path, "r");
+			if (!fp) {	
+				LOGE("___ %s open failed\n", path);
+				return;
+			}
+
+			pbuf = new char[st.st_size];
+			if (!pbuf) {
+				LOGE("___ pbuf new failed\n");
+				return;
+			}
+
+			//解析文本，获取参数
+
+
+			fread(pbuf, 1, st.st_size, fp);
+
+			delete[] pbuf;
+			fclose(fp);
+		}
+		else {				//文件不存在则创建
+			fp = fopen(path, "wt");
+			if (!fp) {
+				LOGE("___ %s create failed\n");
+				return;
+			}
+
+			//fprintf(fp, "", );
+
+			fclose(fp);
+		}
+	}
+
+
+	void info_clear(void)
+	{
+		info.SetWindowText("");
+	}
+
+	void info_update(void)
 	{
 		int i;
-		TCHAR tmp[100];
+		char tmp[100];
 		
-		//info.Clear();
+		info.SetWindowText("");
 
-		//extern all_para_t allPara;
 		sys_para_t* sys = &allPara.sys;
-		sprintf(tmp, "fw.version: %s\n", sys->para.fwInfo.version);	info.AppendText(tmp);
-		sprintf(tmp, "fw.bldtime: %s\n", sys->para.fwInfo.bldtime);	info.AppendText(tmp);
-		sprintf(tmp, "fw.length: %d\n", sys->para.fwInfo.length);	info.AppendText(tmp);
-		sprintf(tmp, "fw.length: %d\n", sys->para.fwInfo.length);	info.AppendText(tmp);
-		sprintf(tmp, "sys.mode: %d\n", sys->stat.mode);				info.AppendText(tmp);
-		sprintf(tmp, "sys.state: %d\n", sys->stat.state);			info.AppendText(tmp);
-
-		usr_para_t* usr = &allPara.usr;
-		sprintf(tmp, "card.apn: %s\n", usr->card.apn);				info.AppendText(tmp);
-		sprintf(tmp, "card.type: %d\n", usr->card.type);			info.AppendText(tmp);
-		sprintf(tmp, "card.auth: %d\n", usr->card.auth);			info.AppendText(tmp);
-		if (usr->net.mode == 0) {
-			sprintf(tmp, "net.ip: %s\n", usr->net.para.tcp.ip);				info.AppendText(tmp);
-			sprintf(tmp, "net.port: %d\n", usr->net.para.tcp.port);				info.AppendText(tmp);
+		sprintf(tmp, "fw.version: %s\n", sys->para.fwInfo.version);				    info_print(tmp);
+		sprintf(tmp, "fw.bldtime: %s\n", sys->para.fwInfo.bldtime);				    info_print(tmp);
+		sprintf(tmp, "dev.devID: 0x%08x\n", sys->para.devInfo.devID);			    info_print(tmp);
+		sprintf(tmp, "dev.datato: %s\n", sys->para.sett.datato?"app":"ali");	    info_print(tmp);
+																				    
+		//sprintf(tmp, "fw.length: %d\n", sys->para.fwInfo.length);				    info_print(tmp);
+		sprintf(tmp, "sys.mode: %d\n", sys->stat.mode);							    info_print(tmp);
+		sprintf(tmp, "sys.state: %d\n", sys->stat.state);						    info_print(tmp);
+																				    
+		usr_para_t* usr = &allPara.usr;											    
+		sprintf(tmp, "card.apn: %s\n", usr->card.apn);							    info_print(tmp);
+		sprintf(tmp, "card.type: %d\n", usr->card.type);						    info_print(tmp);
+		sprintf(tmp, "card.auth: %d\n", usr->card.auth);						    info_print(tmp);
+		if (usr->net.mode == 0) {												    
+			sprintf(tmp, "net.ip: %s\n", usr->net.para.tcp.ip);					    info_print(tmp);
+			sprintf(tmp, "net.port: %d\n", usr->net.para.tcp.port);				    info_print(tmp);
 		}
 		else {
-			sprintf(tmp, "net.host: %s\n", usr->net.para.plat.host);				info.AppendText(tmp);
-			sprintf(tmp, "net.port: %d\n", usr->net.para.plat.port);				info.AppendText(tmp);
-			sprintf(tmp, "net.devKey: %s\n", usr->net.para.plat.devKey);			info.AppendText(tmp);
-			sprintf(tmp, "net.devSec: %s\n", usr->net.para.plat.devSecret);		info.AppendText(tmp);
-			sprintf(tmp, "net.prdKey: %s\n", usr->net.para.plat.prdKey);			info.AppendText(tmp);
-			sprintf(tmp, "net.prdSec: %s\n", usr->net.para.plat.prdSecret);		info.AppendText(tmp);
+			sprintf(tmp, "net.host: %s\n", usr->net.para.plat.host);				info_print(tmp);
+			sprintf(tmp, "net.port: %d\n", usr->net.para.plat.port);				info_print(tmp);
+			sprintf(tmp, "net.devKey: %s\n", usr->net.para.plat.devKey);			info_print(tmp);
+			sprintf(tmp, "net.devSecret: %s\n", usr->net.para.plat.devSecret);		info_print(tmp);
+			sprintf(tmp, "net.prdKey: %s\n", usr->net.para.plat.prdKey);			info_print(tmp);
+			sprintf(tmp, "net.devSecret: %s\n", usr->net.para.plat.prdSecret);		info_print(tmp);
 		}
-		sprintf(tmp, "smp.smp_mode: %d\n", usr->smp.smp_mode);		info.AppendText(tmp);
-		sprintf(tmp, "smp.smp_period: %ds\n", usr->smp.smp_period);	info.AppendText(tmp);
+		sprintf(tmp, "smp.pwr_mode: %d\n", usr->smp.pwr_mode);						info_print(tmp);
+		sprintf(tmp, "smp.pwr_period: %ds\n", usr->smp.pwr_period);					info_print(tmp);
 		
 		for (i = 0; i < CH_MAX; i++) {
-			sprintf(tmp, "ch[%d].upway: %d\n",		i, usr->ch[i].upway);       info.AppendText(tmp);
-			sprintf(tmp, "ch[%d].upwav: %d\n",		i, usr->ch[i].upwav);       info.AppendText(tmp);
-			sprintf(tmp, "ch[%d].smpFreq: %d\n",	i, usr->ch[i].smpFreq);     info.AppendText(tmp);
-			sprintf(tmp, "ch[%d].smpTime: %d\n",	i, usr->ch[i].smpTime);     info.AppendText(tmp);
-			sprintf(tmp, "ch[%d].n_ev: %d\n",		i, usr->ch[i].n_ev);        info.AppendText(tmp);
-			sprintf(tmp, "ch[%d].evCalcCnt: %d\n",	i, usr->ch[i].evCalcCnt);   info.AppendText(tmp);
-			sprintf(tmp, "ch[%d].coef.a: %f\n",		i, usr->ch[i].coef.a);      info.AppendText(tmp);
-			sprintf(tmp, "ch[%d].coef.b: %f\n",		i, usr->ch[i].coef.b);      info.AppendText(tmp);
+			sprintf(tmp, "ch[%d].upway: %d\n",		  i, usr->ch[i].upway);         info_print(tmp);
+			sprintf(tmp, "ch[%d].upwav: %d\n",		  i, usr->ch[i].upwav);         info_print(tmp);
+			sprintf(tmp, "ch[%d].smpFreq: %d\n",	  i, usr->ch[i].smpFreq);       info_print(tmp);
+			sprintf(tmp, "ch[%d].smpPoints: %d\n",	  i, usr->ch[i].smpPoints);     info_print(tmp);
+			sprintf(tmp, "ch[%d].smpInterval: %d\n",  i, usr->ch[i].smpInterval);   info_print(tmp);
+			sprintf(tmp, "ch[%d].smpTimes: %d\n",     i, usr->ch[i].smpTimes);      info_print(tmp);
+			sprintf(tmp, "ch[%d].ampThreshold: %f\n", i, usr->ch[i].ampThreshold);  info_print(tmp);
+			sprintf(tmp, "ch[%d].messDuration: %d\n", i, usr->ch[i].messDuration);  info_print(tmp);
+			sprintf(tmp, "ch[%d].trigDelay: %d\n",    i, usr->ch[i].trigDelay);     info_print(tmp);
+
+
+			sprintf(tmp, "ch[%d].n_ev: %d\n",		i, usr->ch[i].n_ev);            info_print(tmp);
+			sprintf(tmp, "ch[%d].evCalcCnt: %d\n",	i, usr->ch[i].evCalcCnt);       info_print(tmp);
+			sprintf(tmp, "ch[%d].coef.a: %f\n",		i, usr->ch[i].coef.a);          info_print(tmp);
+			sprintf(tmp, "ch[%d].coef.b: %f\n",		i, usr->ch[i].coef.b);          info_print(tmp);
 		}
+
+		sprintf(tmp, "dac.enable: %d\n",	usr->dac.enable);		                info_print(tmp);
+		sprintf(tmp, "dac.fdiv: %d\n",		usr->dac.fdiv);		                    info_print(tmp);
+		sprintf(tmp, "mbus.addr: 0x%02x\n", usr->mbus.addr);	                    info_print(tmp);
+																                    
+		sprintf(tmp, "dbg.enable: %d\n",	usr->dbg.enable);	                    info_print(tmp);
+		sprintf(tmp, "dbg.level: %d\n",		usr->dbg.level);	                    info_print(tmp);
+		sprintf(tmp, "dbg.to: %d\n",		usr->dbg.to);		                    info_print(tmp);
 	}
 
 	void cmd_pane_init(void)
 	{
 		CRect rc;
+		HWND hwnd;
 
+#ifdef USE_TAB
 		cmdPane.GetClientRect(&rc);
-		tab.Create(cmdPane, rc, NULL, WS_CHILD | WS_VISIBLE, NULL, ID_TAB, NULL);
+		//tab.Create(cmdPane, rc, NULL, WS_CHILD | WS_VISIBLE, NULL, ID_TAB, NULL);
 		//tab.ModifyStyleEx(0, WS_EX_CONTROLPARENT);
-		tab.ModifyStyle(DS_CONTROL, 0);
-		cmdPane.SetClient(tab);
 
 		tab.SetFont(gFont);
 		tab.InsertItem(0, "cmd");
@@ -314,7 +437,6 @@ public:
 		pageCali.Create(tab, rc, NULL, WS_CHILD | WS_VISIBLE, NULL, ID_PAGE_CALI, NULL);
 		pageLog.Create(tab,  rc, NULL, WS_CHILD | WS_VISIBLE, NULL, ID_PAGE_LOG,  NULL);
 		pageSett.Create(tab, rc, NULL, WS_CHILD | WS_VISIBLE, NULL, ID_PAGE_SETT, NULL);
-		
 
 		rc.top += 21;
 		rc.bottom -= 1;
@@ -322,21 +444,24 @@ public:
 		rc.right -= 1;
 
 		tab.SetCurSel(0);
+		//tab.HighlightItem(0);
 
 		pageCmd.MoveWindow(rc);
 		pageCali.MoveWindow(rc);
 		pageLog.MoveWindow(rc);
 		pageSett.MoveWindow(rc);
 		
-
 		pageCmd.ShowWindow(SW_SHOW);
 		pageCali.ShowWindow(SW_HIDE);
 		pageLog.ShowWindow(SW_HIDE);
 		pageSett.ShowWindow(SW_HIDE);
-		
+#endif
 
-#if 1
-		
+		//cmdPane.SetClient(tab);
+		//cmdPane.SetClient(pageCmd);
+		hwnd = cmdPane;
+		//hwnd = pageCmd;
+	
 #define BTN_WIDTH   80
 #define BTN_HEIGHT  30
 
@@ -346,87 +471,109 @@ public:
 		//command buttons
 		rc.left = 20;
 		rc.right = rc.left + BTN_WIDTH;
-		rc.top = 20;
+		rc.top = 60;
 		rc.bottom = rc.top + BTN_HEIGHT;
-		btOpen.Create(pageCmd, rc, "open", WS_CHILD | WS_VISIBLE, NULL, ID_OPEN, NULL);
+		btOpen.Create(hwnd, rc, "open", WS_CHILD | WS_VISIBLE, NULL, ID_OPEN, NULL);
 		btOpen.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
-		btStart.Create(pageCmd, rc, "start", WS_CHILD | WS_VISIBLE, NULL, ID_START, NULL);
+		btStart.Create(hwnd, rc, "start", WS_CHILD | WS_VISIBLE, NULL, ID_START, NULL);
 		btStart.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
-		btCfgr.Create(pageCmd, rc, "cfg-r", WS_CHILD | WS_VISIBLE, NULL, ID_CONFIG_R, NULL);
+		btCfgr.Create(hwnd, rc, "cfg-r", WS_CHILD | WS_VISIBLE, NULL, ID_CONFIG_R, NULL);
 		btCfgr.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
-		btCfgw.Create(pageCmd, rc, "cfg-w", WS_CHILD | WS_VISIBLE, NULL, ID_CONFIG_W, NULL);
+		btCfgw.Create(hwnd, rc, "cfg-w", WS_CHILD | WS_VISIBLE, NULL, ID_CONFIG_W, NULL);
 		btCfgw.SetFont(gFont);
 
-		//log control button
+		rc.left = rc.right + BTN_WGAP;
+		rc.right = rc.left + BTN_WIDTH;
+		btDflt.Create(hwnd, rc, "default", WS_CHILD | WS_VISIBLE, NULL, ID_DEFAULT, NULL);
+		btDflt.SetFont(gFont);
+
 		rc.left = 20;
 		rc.top = rc.bottom + BTN_HGAP;
 		rc.right = rc.left + BTN_WIDTH;
 		rc.bottom = rc.top + BTN_HEIGHT;
-		btEna.Create(pageCmd, rc, "log off", WS_CHILD | WS_VISIBLE, NULL, ID_LOG_EN, NULL);
-		btEna.SetFont(gFont);
+		btCali1.Create(hwnd, rc, "cali-1", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_1, NULL);
+		btCali1.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
-		btClr.Create(pageCmd, rc, "log clr", WS_CHILD | WS_VISIBLE, NULL, ID_LOG_CLR, NULL);
-		btClr.SetFont(gFont);
+		btCali2.Create(hwnd, rc, "cali-2", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_2, NULL);
+		btCali2.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
-		btSav.Create(pageCmd, rc, "log save", WS_CHILD | WS_VISIBLE, NULL, ID_LOG_SAV, NULL);
-		btSav.SetFont(gFont);
-
-		rc.left = rc.right + BTN_WGAP;
-		rc.right = rc.left + BTN_WIDTH;
-		btUpg.Create(pageCmd, rc, "upgrade", WS_CHILD | WS_VISIBLE, NULL, ID_UPGRADE, NULL);
+		btUpg.Create(hwnd, rc, "upgrade", WS_CHILD | WS_VISIBLE, NULL, ID_UPGRADE, NULL);
 		btUpg.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
-		btBoot.Create(pageCmd, rc, "reboot", WS_CHILD | WS_VISIBLE, NULL, ID_REBOOT, NULL);
+		btBoot.Create(hwnd, rc, "reboot", WS_CHILD | WS_VISIBLE, NULL, ID_REBOOT, NULL);
 		btBoot.SetFont(gFont);
 
+		//dbg control button
+		rc.left = 20;
+		rc.top = rc.bottom + BTN_HGAP;
+		rc.right = rc.left + BTN_WIDTH;
+		rc.bottom = rc.top + BTN_HEIGHT;
+		btEna.Create(hwnd, rc, "dbg off", WS_CHILD | WS_VISIBLE, NULL, ID_DBG_EN, NULL);
+		btEna.SetFont(gFont);
+
+		rc.left = rc.right + BTN_WGAP;
+		rc.right = rc.left + BTN_WIDTH;
+		btClr.Create(hwnd, rc, "dbg clr", WS_CHILD | WS_VISIBLE, NULL, ID_DBG_CLR, NULL);
+		btClr.SetFont(gFont);
+
+		rc.left = rc.right + BTN_WGAP;
+		rc.right = rc.left + BTN_WIDTH;
+		btSav.Create(hwnd, rc, "dbg save", WS_CHILD | WS_VISIBLE, NULL, ID_DBG_SAV, NULL);
+		btSav.SetFont(gFont);
+
+		rc.left = rc.right + BTN_WGAP;
+		rc.right = rc.left + BTN_WIDTH;
+		btTo.Create(hwnd, rc, "to ali", WS_CHILD | WS_VISIBLE, NULL, ID_DATA_TO, NULL);
+		btTo.SetFont(gFont);
+
+#ifdef USE_TAB
+		hwnd = pageCali;
 		//在cali页面添加校准按钮
 		rc.left = 20;
 		rc.right = rc.left + BTN_WIDTH;
 		rc.top = 20;
 		rc.right = rc.left + BTN_WIDTH;
 		rc.bottom = rc.top + BTN_HEIGHT;
-		btCali1.Create(pageCali, rc, "cali 1", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_1, NULL);
+		btCali1.Create(hwnd, rc, "cali 1", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_1, NULL);
 		btCali1.SetFont(gFont);
 
 		rc.left = 20;
 		rc.top = rc.bottom + BTN_HGAP;
 		rc.right = rc.left + BTN_WIDTH;
 		rc.bottom = rc.top + BTN_HEIGHT;
-		btCali2.Create(pageCali, rc, "cali 2", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_2, NULL);
+		btCali2.Create(hwnd, rc, "cali 2", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_2, NULL);
 		btCali2.SetFont(gFont);
-
-
 
 #define PORT_WIDTH   80
 #define PORT_HEIGHT  30
 
+		hwnd = pageSett;
 		rc.left = 20;
 		rc.right = rc.left + PORT_WIDTH;
 		rc.top = 40;
 		rc.bottom = rc.top + PORT_HEIGHT;
-		port.Create(pageSett, rc, NULL, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | CBS_HASSTRINGS, NULL, ID_PORT, NULL);
-		port_init();
+		port.Create(hwnd, rc, NULL, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | CBS_HASSTRINGS, NULL, ID_PORT, NULL);
+		port_add();
 
 		rc.left = rc.right + 20;
 		rc.right = rc.left + PORT_WIDTH;
-		portList.Create(pageSett, rc, NULL, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | CBS_HASSTRINGS, NULL, ID_PORT_LIST, NULL);
+		portList.Create(hwnd, rc, NULL, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | CBS_HASSTRINGS, NULL, ID_PORT_LIST, NULL);
 		port_list_refresh();
-
 #endif
 	}
 
@@ -452,8 +599,8 @@ public:
 		//CClientDC dc(m_hWnd);
 		//dc.SetTextColor(RGB(0, 0, 0));
 
-		
-
+		json_init();
+		port_init();
 	}
 
 	void add_button(HWND hwnd)
@@ -463,16 +610,16 @@ public:
 
 		GetClientRect(&rc);
 
-		rc.left = 20;
-		rc.top = 20;
-		rc.bottom = 60;
-		rc.right = 60;
+		rc.left = 40;
+		rc.top = 40;
+		rc.bottom = 80;
+		rc.right = 100;
 		//https://learn.microsoft.com/zh-cn/windows/win32/controls/button-styles?redirectedfrom=MSDN
 		//BS_AUTORADIOBUTTON 单选框
 		//BS_CHECKBOX 复选框，右侧带有标题的选择框
 		//BS_RADIOBUTTON 单选按钮，右边显示文本
 		//BS_GROUPBOX 指定一个组框
-		bt.Create(hwnd, rc, NULL, WS_CHILD | WS_VISIBLE, NULL, ID_OPEN, NULL);
+		//bt.Create(hwnd, rc, "test", WS_CHILD | WS_VISIBLE, NULL, ID_TEST, NULL);
 	}
 
 
@@ -524,6 +671,8 @@ public:
 		vSplit.SetSplitterExtendedStyle(SPLIT_NONINTERACTIVE);
 		hSplit1.SetSplitterExtendedStyle(SPLIT_NONINTERACTIVE);
 		hSplit2.SetSplitterExtendedStyle(SPLIT_NONINTERACTIVE);
+
+		//add_button(infPane);
 	}
 
 	void pane_init(void)
@@ -533,47 +682,10 @@ public:
 		dbg_pane_init();
 	}
 
-	void mqtt_open(void)
+	static int data_recv_callback(handle_t h, void* addr, U32 evt, void* data, int len)
 	{
-		hconn = mMqtt.conn(&meta);
-		if (!hconn) {
-			LOGE("___ mqtt conn failed!\n");
-			return;
-		}
-		LOGE("___ mqtt conn ok!\n");
-
-		mqtt_sub();
-	}
-	void mqtt_close(void)
-	{
-		mMqtt.disconn(hconn);
-	}
-	void mqtt_sub(void)
-	{
-		char tmp[200];
-
-		snprintf(tmp, sizeof(tmp), "/%s/%s/user/get", PROD_KEY, DEV_NAME);
-		mMqtt.subscribe(hconn, tmp);
-
-		snprintf(tmp, sizeof(tmp), "/%s/%s/user/set", PROD_KEY, DEV_NAME);
-		mMqtt.subscribe(hconn, tmp);
-	}
-
-	int mqtt_read(void* buf, int buflen)
-	{
-		return mMqtt.read(hconn, buf, buflen);
-	}
-	int mqtt_write(U8 type, U8 nAck, void* data, int len)
-	{
-		int r;
-		char topic[200];
-		char tmp[1000];
-
-		//pkt_pack();
-		sprintf(topic, "/%s/%s/user/set", PROD_KEY, DEV_NAME);
-		r = mMqtt.publish(hconn, topic, tmp, 1);
-
-		return r;
+		LOGD("___ mqtt data recved, %d\n", len);
+		return 0;
 	}
 
 	int set_port(int port)
@@ -586,86 +698,453 @@ public:
 		return 0;
 	}
 
+	net_para_t netPara;
+	int  prevPortID = portID;
+
+	int get_string(char *src, int src_len, const char *head, const char s_tok, int s_tok_index, const char e_tok, int e_tok_index, char *str, int str_len)
+	{
+		int ok=0,sl;
+		int s_idx = -1, e_idx = -1;
+		char *p, *e, *ps=NULL, *pe=NULL;
+		
+		e = src + src_len;
+		p = strstr(src, head);
+		if (!p) {
+			LOGE("___ %s not found!\n", head);
+			return -1;
+		}
+
+		p += strlen(head);
+		while (p<e) {
+			if (*p == s_tok) {
+				s_idx++;
+			}
+			if (*p == e_tok) {
+				e_idx++;
+			}
+
+			if (s_idx == s_tok_index && !ps) {
+				ps = p + 1;
+			}
+			if (e_idx == e_tok_index && !pe) {
+				pe = p - 1;
+			}
+
+			if (ps && pe) {
+				ok = 1;
+				sl = pe - ps + 1;
+				break;
+			}
+
+			p++;
+		}
+
+		if (!ok) {
+			LOGE("___ not find the demand string, s_idx: %d, e_idx: %d\n", s_idx, e_idx);
+			return -1;
+		}
+
+		if (str_len < sl) {
+			LOGE("___ str buf len %d is too small, need %d\n", str_len, sl);
+			return -1;
+		}
+
+		memcpy(str, ps, sl);
+		str[sl] = 0;
+		
+		return 0;
+	}
+
+
+	int load_net_para(net_para_t *para)
+	{
+		int   r=0,flen;
+		char* fbuf,*p;
+		const char *path = "app.ini";
+
+		r = load_file(path, &fbuf, &flen);
+		if (r) {
+			LOGE("___ load_file %s failed\n", path);
+			return -1;
+		}
+
+		para->mode = 1;
+		r = get_string(fbuf, flen, "APP:", '"', 0, '"', 1, para->para.plat.devKey, sizeof(para->para.plat.devKey));
+		r = get_string(fbuf, flen, "APP:", '"', 2, '"', 3, para->para.plat.devSecret, sizeof(para->para.plat.devSecret));
+
+		delete[] fbuf;
+
+		return r;
+	}
+
+	int port_init()
+	{
+		handle_t h = comm_init(portID, NULL);
+		if (!h) {
+			LOGE("___ comm_init failed!\n");
+			return -1;
+		}
+		hand[portID] = h;
+
+		return 0;
+	}
+
+	int port_deinit()
+	{
+		comm_deinit(hand[portID]);
+		hand[portID] = NULL;
+	}
+
 	int port_open()
 	{
-		if (portID ==PORT_MQTT) {
-			mqtt_open();
+		conn_para_t para;
+
+		netPara.mode = 1;
+		netPara.para.plat = platPara;
+		load_net_para(&netPara);
+
+		para.callback = NULL;
+		para.proto = PROTO_MQTT;
+		para.para = &netPara;
+		conn = comm_open(hand[portID], &para);
+		if (!conn) {
+			LOGE("___ comm_open failed!\n");
+			return -1;
 		}
-		else {
-			if (!hand[portID]) {
-				hand[portID] = comm_init(PORT_UART, &portID,  NULL);
-			}
-		}
+		LOGD("___ comm_open ok!\n");
+
+		prevPortID = portID;
 
 		return 0;
 	}
 	int port_close(void)
 	{
-		if (!hand[portID]) {
-			return -1;
-		}
-		
-		comm_deinit(hand[portID]);
-		hand[portID] = NULL;
+		comm_close(conn);
 
 		return 0;
 	}
 
 	int port_read(void* data, int len)
 	{
-		if (portID == PORT_MQTT) {
-			return mqtt_read(data, len);
+		if (!conn) {
+			return -1;
 		}
-		else {
-			return comm_recv_data(hand[portID], NULL, data, len);
-		}
+
+		return comm_recv_data(conn, NULL, data, len);
 	}
 
 	int port_write(U8 type, U8 nack, void* data, int len)
 	{
-		if (portID==PORT_MQTT) {
-			return mqtt_write(type, nack, data, len);
+		if (!conn) {
+			return -1;
 		}
-		else {
-			return comm_send_data(hand[portID], NULL, type, nack, data, len);
+
+		return comm_send_data(conn, NULL, type, nack, data, len);
+	}
+
+	int port_pure_write(U8* data, int len)
+	{
+		if (!conn) {
+			return -1;
+		}
+
+		return comm_pure_send(conn, NULL, data, len);
+	}
+
+	int send_ack(U8 type, U8 err, U8 chkID)
+	{
+		int len;
+		U8 tmp[100];
+
+		len = pkt_pack_ack(type, err, tmp, sizeof(tmp), chkID);
+		if (len <= 0) {
+			return -1;
+		}
+
+		return port_pure_write(tmp, len);
+	}
+
+	int data_proc(void* data, int len, U8 chk)
+	{
+		int r;
+		int err = 0;
+		node_t nd;
+		pkt_hdr_t* hdr = (pkt_hdr_t*)data;
+
+		err = pkt_check_hdr(hdr, len, len, chk);
+		if (err == ERROR_NONE) {
+			switch (hdr->type) {
+			case TYPE_SETT:
+			{
+
+			}
+			break;
+
+			case TYPE_PARA:
+			{
+				all_para_t* pa = (all_para_t*)hdr->data;
+
+				if (!para_recved || memcmp(&allPara, pa, sizeof(allPara))) {
+					allPara = *pa;
+					info_update();
+
+					stop_timer();
+					para_recved = 1;
+				}
+			}
+			break;
+
+			case TYPE_ACK:
+			{
+				ack_t* ack = (ack_t*)hdr->data;
+			}
+			break;
+
+			case TYPE_CAP:
+			{
+				if (para_recved) {
+					int i, j;
+					all_para_t* pa = &allPara;
+					ch_data_t* pc = (ch_data_t*)hdr->data;
+					ch_para_t* pr = &pa->usr.ch[pc->ch];
+					ev_data_t* ev = (ev_data_t*)((U8*)(pc->data) + pc->wavlen);
+					const char* ev_str[EV_NUM] = { "rms","amp","asl","ene","ave","min","max" };
+
+					int grps = pc->evlen / (pr->n_ev * sizeof(ev_data_t));
+					for (i = 0; i < grps; i++) {
+						for (j = 0; j < pr->n_ev; j++) {
+							LOGD("%s[%d]: %0.5f\n", ev_str[pr->ev[j]], i, ev[j].data);
+						}
+					}
+					LOGD("\n");
+				}
+			}
+			break;
+
+
+			case TYPE_CALI:
+			{
+				cali_sig_t* sig = (cali_sig_t*)hdr->data;
+
+				err = 0;
+			}
+			break;
+
+			case TYPE_STAT:
+			{
+				err = 0;
+			}
+			break;
+
+			case TYPE_HBEAT:
+			{
+				err = 0;
+			}
+			break;
+
+			default:
+			{
+				err = ERROR_PKT_TYPE;
+			}
+			break;
+			}
+
+			if (hdr->askAck || err) {
+				send_ack(hdr->type, err, chk);
+			}
+		}
+
+		return err;
+	}
+
+
+	void start_timer(void)
+	{
+		if (!para_recved) {
+			SetTimer(100, 2000, NULL);
 		}
 	}
 
-	//SetTimer(88, 200, NULL);
+	void stop_timer(void)
+	{
+		KillTimer(100);
+	}
+
+	int load_file(const char *path, char **fbuf, int *flen)
+	{
+		int r;
+		char* buf = NULL;
+		struct stat st;
+
+		r = stat(path, &st);
+		if (r) {
+			return -1;
+		}
+
+		FILE* fp = fopen(path, "rt");
+		if (!fp) {
+			return -1;
+		}
+		buf = new char[st.st_size];
+		if (!buf) {
+			fclose(fp);
+			return -1;
+		}
+
+		r = fread(buf, 1, st.st_size, fp);
+		if (fbuf) {
+			*fbuf = buf;
+		}
+
+		if (flen) {
+			*flen = st.st_size;
+		}
+
+		fclose(fp);
+
+		return 0;
+	}
+
 
 	LRESULT OnBtnClicked(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
 	{
 		int r;
+		const char* path = "app.ini";
 		CButton btn = hWndCtl;
+
+		if (!dev_opened) {
+			if ((wID != ID_OPEN) && (wID != ID_DBG_EN) && (wID != ID_DBG_CLR) && (wID != ID_DBG_SAV)) {
+				LOGE("___ dev not opened!\n");
+				return -1;
+			}
+		}
+		else {
+			if (!para_recved && wID==ID_CONFIG_R) {
+				LOGE("___ cfg not recved!\n");
+				return -1;
+			}
+		}
 
 		switch (wID) {
 		case ID_OPEN:
 		{
+			int r;
+
 			if (dev_opened == 0) {
-				port_open();
+				r = port_open();
+				if (r==0) {
+					dev_opened = 1;
+					start_timer();
+					btOpen.SetWindowText("close");
+				}
 			}
 			else {
-				port_close();
+				stop_timer();
+
+				r = port_close();
+				if (r == 0) {
+					dev_opened = 0;
+					para_recved = 0;
+
+					info_clear();
+					cali_cnt = 0;
+
+					btOpen.SetWindowText("open");
+				}
 			}
-			dev_opened = dev_opened?0:1;
-			btOpen.SetWindowText(dev_opened?"close":"open");
 		}
 		break;
 
 		case ID_CALI_1:
-		case ID_CALI_2:
 		{
 			cali_sig_t sig;
+			char* fbuf;
+			char tmp[100];
+			int r,flen;
+			
+			r = load_file(path, &fbuf, &flen);
+			if (r) {
+				LOGE("___ load file %s failed\n", path);
+				return -1;
+			}
 
-			sig.ch = 0;
-			sig.rms = 40.0f;
-			sig.freq = 40000;
-			sig.bias = 0.0f;
+			sig.tms = 1;
+
+			r = get_string(fbuf, flen, "CALI1:", '[', 0, ']', 0, tmp, sizeof(tmp));
+			if (r) {
+				//MessageBox();
+				LOGE("___ CALI1 param is wrong, can't find \"CALI1:\"\n");
+				return -1;
+			}
+
+			r = sscanf(tmp, "%hd,%f,%d,%f", &sig.ch, &sig.rms, &sig.freq, &sig.bias);
+			if (r!=4) {
+				LOGE("___ CALI1 param number is wrong!\n");
+				return -1;
+			}
 			r = port_write(TYPE_CALI, 0, &sig, sizeof(sig));
+
+			LOGD("___ CALI-1 ch: %d, rms: %0.5f, freq: %d, bias: %0.5f\n", sig.ch, sig.rms, sig.freq, sig.bias);
+
+			delete[] fbuf;
 		}
 		break;
 
+		case ID_CALI_2:
+		{
+			cali_sig_t sig;
+			char* fbuf,*p,*p1;
+			char tmp[100];
+			int r, flen;
 
+			r = load_file(path, &fbuf, &flen);
+			if (r) {
+				LOGE("___ load file %s failed\n", path);
+				return -1;
+			}
+
+			if (cali_cnt%2==0) {
+				sig.tms = 2;
+				
+				r = get_string(fbuf, flen, "CALI2:", '[', 0, ']', 0, tmp, sizeof(tmp));
+				if (r) {
+					//MessageBox();
+					return -1;
+				}
+
+				r = sscanf(tmp, "%hd,%f,%d,%f]", &sig.ch, &sig.rms, &sig.freq, &sig.bias);
+				if (r != 4) {
+					LOGE("___ CALI2 param number: %d is wrong!\n", r);
+					return -1;
+				}
+
+				r = port_write(TYPE_CALI, 0, &sig, sizeof(sig));
+
+				LOGD("___ CALI-2 first, ch: %d, rms: %0.5f, freq: %d, bias: %0.5f\n", sig.ch, sig.rms, sig.freq, sig.bias);
+			}
+			else {
+
+				r = get_string(fbuf, flen, "CALI2:", '[', 1, ']', 1, tmp, sizeof(tmp));
+				if (r) {
+					//MessageBox();
+					return -1;
+				}
+
+				r = sscanf(tmp, "%hd,%f,%d,%f", &sig.ch, &sig.rms, &sig.freq, &sig.bias);
+				if (r != 4) {
+					LOGE("___ CALI2 param number: %d is wrong!\n", r);
+					return -1;
+				}
+
+				r = port_write(TYPE_CALI, 0, &sig, sizeof(sig));
+
+				LOGD("___ CALI-2 second, ch: %d, rms: %0.5f, freq: %d, bias: %0.5f\n", sig.ch, sig.rms, sig.freq, sig.bias);
+			}
+
+			cali_cnt++;
+			delete[] fbuf;
+		}
+		break;
 
 		case ID_START:
 		{
@@ -680,23 +1159,51 @@ public:
 		}
 		break;
 
-		case ID_CONFIG_R:
+		case ID_CONFIG_R:		//读取设备配置文件
 		{
 			LPCTSTR lpcstrFilter = _T("json Files (*.json)\0*.json\0");
 			CFileDialog dlg(TRUE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
 			if (dlg.DoModal() == IDOK)
 			{
-				FILE* fp = fopen(dlg.m_ofn.lpstrFile, "r");
+				int rlen,jslen = sizeof(usr_para_t)*100;
+				char* js = new char[jslen];
+				if (js) {
+					rlen = json_from(js, jslen, &allPara.usr);
+					if (rlen>0) {
+						FILE* fp = fopen(dlg.m_ofn.lpstrFile, "wt");
+						if (fp) {
+							fwrite(js, 1, rlen, fp);
+							fclose(fp);
+						}
+					}
+				}
+			}
+		}
+		break;
+
+
+		case ID_CONFIG_W:		//下发配置文件到设备
+		{
+			LPCTSTR lpcstrFilter = _T("json Files (*.json)\0*.json\0");
+			CFileDialog dlg(TRUE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
+			if (dlg.DoModal() == IDOK)
+			{
+				FILE* fp = fopen(dlg.m_ofn.lpstrFile, "rt");
 				if (fp) {	//start send upg file
 					struct stat st;
 					int r = stat(dlg.m_ofn.lpstrFile, &st);
 					char* fbuf = new char[st.st_size];
 					if (fbuf) {
+						usr_para_t usr;
 						int rlen = fread(fbuf, 1, st.st_size, fp);
+						
+						r = json_to(fbuf, &usr);
+						if (r == 0) {
+							all_para_t all = allPara;
 
-						//send file
-
-
+							all.usr = usr;
+							r = port_write(TYPE_PARA, 1, &all, sizeof(all));
+						}
 						delete[] fbuf;
 					}
 					fclose(fp);
@@ -705,29 +1212,9 @@ public:
 		}
 		break;
 
-
-		case ID_CONFIG_W:
+		case ID_DEFAULT:
 		{
-			LPCTSTR lpcstrFilter = _T("json Files (*.json)\0*.json\0");
-			CFileDialog dlg(FALSE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
-			if (dlg.DoModal() == IDOK)
-			{
-				FILE* fp = fopen(dlg.m_ofn.lpstrFile, "r");
-				if (fp) {	//start send upg file
-					struct stat st;
-					int r = stat(dlg.m_ofn.lpstrFile, &st);
-					char* fbuf = new char[st.st_size];
-					if (fbuf) {
-						int rlen = fread(fbuf, 1, st.st_size, fp);
-
-						//send file
-
-
-						delete[] fbuf;
-					}
-					fclose(fp);
-				}
-			}
+			r = port_write(TYPE_DFLT, 0, NULL, 0);
 		}
 		break;
 
@@ -758,12 +1245,12 @@ public:
 
 		case ID_REBOOT:
 		{
-			//comm_send();
+			r = port_write(TYPE_REBOOT, 0, NULL, 0);
 		}
 		break;
 
 
-		case ID_LOG_EN:
+		case ID_DBG_EN:
 		{
 			if (log_is_enable()) {
 				log_enable(0);
@@ -774,18 +1261,38 @@ public:
 		}
 		break;
 
-		case ID_LOG_CLR:
+		case ID_DBG_CLR:
 		{
 			log_clear();
 		}
 		break;
 
-		case ID_LOG_SAV:
+		case ID_DBG_SAV:
 		{
-			//extern void writeFile(U8 ch, void* data, int len);
+			const char* path = "log.txt";
+
+			int r = log_save(path);
+			if (r==0) {
+				LOGD("___ %s save ok!\n", path);
+			}
 		}
 		break;
+
+		case ID_DATA_TO:
+		{
+			static int data_to = 0;
+			r = port_write(TYPE_DATATO, 0, NULL, 0);
+			if (r==0) {
+				data_to = data_to ? 0 : 1;
+				btTo.SetWindowText(data_to?"to app":"to ali");
+			}
 		}
+		break;
+
+		}
+
+		
+		
 
 		return 0;
 	}
@@ -858,20 +1365,19 @@ public:
 		gbl_init();
 		split_init();
 		pane_init();
-
-		//mqtt_open();
-
 		LOGD("___ all init ok!\n");
-
+		
 		return 0;
 	}
 
 	int t_cnt = 0;
 	LRESULT OnTimer(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled)
 	{
+		int r;
 
-
-		LOGD("____cnt: %d\n", t_cnt++);
+		if (dev_opened && !para_recved) {
+			r = port_write(TYPE_PARA, 0, NULL, 0);
+		}
 
 		return 0;
 	}

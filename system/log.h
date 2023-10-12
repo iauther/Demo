@@ -7,7 +7,7 @@
 #include "types.h"
 
 typedef enum {
-    LV_INFO,
+    LV_INFO=0,
     LV_DEBUG,
     LV_WARN,
     LV_ERROR,

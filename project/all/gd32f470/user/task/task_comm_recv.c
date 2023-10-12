@@ -13,6 +13,7 @@
 #include "dal_delay.h"
 #include "paras.h"
 #include "cmd.h"
+#include "list.h"
 
 
 #ifdef OS_KERNEL
@@ -22,6 +23,15 @@
 
 tasks_handle_t tasksHandle={0};
 
+static void recv_list_init(void)
+{
+    list_cfg_t lc;
+    tasks_handle_t *th=&tasksHandle;
+    
+    lc.max = 10;
+    lc.mode = MODE_FIFO;
+    th->rcv = list_init(&lc);
+}
 
 static void comm_tmr_callback(void *arg)
 {
@@ -37,7 +47,10 @@ static int rs485_recv_callback(handle_t h, void *addr, U32 evt, void *data, int 
 }
 static int net_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
 {
-    task_post(TASK_COMM_RECV, NULL, EVT_RS485, 0, NULL, 0);
+    int r = list_append(tasksHandle.rcv, data, len);
+    if(r==0) {
+        task_trig(TASK_COMM_RECV, EVT_COMM);
+    }
     
     return 0;
 }
@@ -54,8 +67,10 @@ static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int le
         task_post(TASK_COMM_RECV, NULL, EVT_LOG, 0, &cmd, sizeof(cmd));
     }
     else {
-        node_t node={data, len, len};
-        task_post(TASK_COMM_RECV, NULL, EVT_COMM, 0, &node, sizeof(node));
+        r = list_append(tasksHandle.rcv, data, len);
+        if(r==0) {
+            task_trig(TASK_COMM_RECV, EVT_COMM);
+        }
     }
     
     return r;
@@ -74,9 +89,7 @@ static int hw_init(void)
     json_init();
     paras_load();
     dac_init();
-    
-    
-    //ec_init();
+    recv_list_init();
     
     return r;
 }
@@ -99,20 +112,13 @@ static void start_task(int taskid, osPriority_t prio, int stkSize, osThreadFunc_
 
 static void start_tasks(void)
 {
-    
-    
     start_task(TASK_DATA_CAP,   osPriorityNormal, 2048,  task_data_cap_fn,   5, NULL, 1);
-    start_task(TASK_COMM_SEND,  osPriorityNormal, 2048,  task_comm_send_fn,  5, NULL, 1);
-    start_task(TASK_POLLING,    osPriorityNormal, 1024,  task_polling_fn,    5, NULL, 1);
+    start_task_simp(task_data_proc_fn, 2048, NULL, NULL);
     
-    task_simp_new(task_data_proc_fn, 2048, NULL, NULL);
-    //task_simp_new(task_comm_send_fn, 2048, NULL, NULL);
-    //task_simp_new(task_nvm_fn,  1024, NULL, NULL);
-    
-    //tasksHandle.hcom = comm_init(PORT_UART, NULL, log_recv_callback);
-    tasksHandle.hcomm = comm_init(PORT_NET, NULL, log_recv_callback);
-    
-    
+    start_task(TASK_POLLING,    osPriorityNormal, 2048,  task_polling_fn,    5, NULL, 1);
+	  start_task(TASK_COMM_SEND,  osPriorityNormal, 2048,  task_comm_send_fn,  5, NULL, 1);
+	
+    //start_task_simp(task_nvm_fn,  1024, NULL, NULL);
 }
 
 
@@ -123,11 +129,11 @@ int api_comm_connect(void)
     conn_para_t cp;
     
     if(!tasksHandle.hcomm) {
-        tasksHandle.hcomm = comm_init(PORT_NET, &cfg, net_recv_callback);
+        tasksHandle.hcomm = comm_init(PORT_NET, &cfg);
     }
     
     if(tasksHandle.hcomm && !tasksHandle.hconn) {
-        cp.para = allPara.usr.net;
+        cp.para = &allPara.usr.net;
         cp.callback = net_recv_callback;
         cp.proto = PROTO_MQTT;
         tasksHandle.hconn = comm_open(tasksHandle.hcomm, &cp);
@@ -142,6 +148,20 @@ int api_comm_connect(void)
     return r;
 }
 
+int api_comm_send_para(void)
+{
+    int r;
+    U8 to=DATATO_USR;
+    extern U8 para_send_flag;
+    
+    if(!tasksHandle.hcomm || !tasksHandle.hconn || para_send_flag) {
+        return -1;
+    }
+    
+    r = comm_send_data(tasksHandle.hconn, &to, TYPE_PARA, 1, &allPara, sizeof(allPara));
+    
+    return r;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -227,11 +247,15 @@ void task_comm_recv_fn(void *arg)
         r = task_recv(TASK_COMM_RECV, &e, sizeof(e));
         if(r==0) {
             switch(e.evt) {
-                                
                 case EVT_COMM:
                 {
-                    node_t *nd=(node_t*)e.data;
-                    err = comm_recv_proc(tasksHandle.hconn, "", nd->buf, nd->dlen);
+                    list_node_t *lnode=NULL;
+                    handle_t list=tasksHandle.rcv;
+                    
+                    if(list_take(list, &lnode, 0)==0) {
+                        err = comm_recv_proc(tasksHandle.hconn, NULL, lnode->data.buf, lnode->data.dlen);
+                        list_back(list, lnode);
+                    }
                 }
                 break;
                 

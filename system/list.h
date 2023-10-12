@@ -22,6 +22,13 @@ typedef enum {
     
 }LIST_ACT;
 
+
+typedef struct list_node {
+    node_t              data;
+    struct list_node    *prev;
+    struct list_node    *next;
+}list_node_t;
+
 typedef struct {
     U8          mode;
     int         max;        //the max count
@@ -39,11 +46,14 @@ int list_free(handle_t l);
 int list_get(handle_t l, node_t *node, int index);
 int list_set(handle_t l, node_t *node, int index);
 
-int list_take(handle_t l, node_t *node, int index);
-int list_back(handle_t l, node_t *node);
+int list_take(handle_t l, list_node_t **lnode, int index);
+int list_back(handle_t l, list_node_t *lnode);
+int list_discard(handle_t l, list_node_t *lnode);
 
 int list_addto(handle_t l, node_t *node, int index);
 int list_append(handle_t l, void *data, U32 len);
+int list_infront(handle_t l, void *data, U32 len);
+
 int list_remove(handle_t l, int index);
 int list_delete(handle_t l, int index);
 int list_size(handle_t l);

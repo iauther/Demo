@@ -1,6 +1,25 @@
 #include "pkt.h"
 #include "log.h"
 
+
+#ifdef _WIN32
+#include <windows.h>
+U32 get_devID(void)
+{
+    int id[4];
+
+    __cpuidex(id, 1, 0);
+    return id[0];
+}
+#else
+#include "paras.h"
+static U32 get_devID(void)
+{
+    return allPara.sys.para.devInfo.devID;
+}
+#endif
+
+
 static chkcode_t get_chkcode(int chkID, U8* cc)
 {
     chkcode_t chk={0};
@@ -104,44 +123,43 @@ int pkt_check_hdr(void *data, int dlen, int buflen, int chkID)
 }
 
 
-static int do_pack(U8 type, U8 error, U8 nAck, void *data, int dlen, U8 *buf, int blen, int chkID)
+static int do_pack(U8 isAck, U8 type, U8 error, U8 askAck, void* data, int dlen, U8* buf, int blen, int chkID)
 {
     chkcode_t cc;
-    pkt_hdr_t* hdr=(pkt_hdr_t*)buf;
-    int dataLen=PKT_HDR_LENGTH+dlen;
-    int totalLen=dataLen+get_chkcode_len(chkID);
+    pkt_hdr_t* hdr = (pkt_hdr_t*)buf;
+    int dataLen = sizeof(pkt_hdr_t) + (isAck ? sizeof(ack_t) : dlen);
+    int totalLen = dataLen + get_chkcode_len(chkID);
 
-    if (totalLen>blen) {
+    if (totalLen > blen) {
         //LOGE("_____ do_pack len wrong, need: %d, max: %d\n", totalLen, blen);
         return -1;
     }
 
     hdr->magic = PKT_MAGIC;
-    hdr->type = type;
+    hdr->devID = get_devID();
     hdr->flag = 0;
-    
-    if(type==TYPE_ACK) {
+
+    if (isAck) {
         ack_t* ack = (ack_t*)hdr->data;
+
+        hdr->type = TYPE_ACK;
         hdr->askAck = 0;
         hdr->dataLen = sizeof(ack_t);
         ack->type = type;
         ack->error = error;
     }
-    else if(type==TYPE_ERROR) {
-        error_t* err = (error_t*)hdr->data;
-        hdr->askAck = 0;
-        hdr->dataLen = sizeof(error_t);
-        err->type = type;
-        err->error = error;
-    }
     else {
-        hdr->askAck = nAck;
+        hdr->type = type;
+        hdr->askAck = askAck;
         hdr->dataLen = dlen;
+
         memcpy(hdr->data, data, dlen);
     }
-    
-    cc = cal_chkcode(chkID, buf, dataLen);
-    set_chkcode(chkID, &cc, &buf[dataLen]);
+
+    if (chkID!=CHK_NONE) {
+        cc = cal_chkcode(chkID, buf, dataLen);
+        set_chkcode(chkID, &cc, &buf[dataLen]);
+    }
         
     return totalLen;
 }
@@ -149,46 +167,14 @@ static int do_pack(U8 type, U8 error, U8 nAck, void *data, int dlen, U8 *buf, in
 
 int pkt_pack_data(U8 type, U8 nAck, void *data, int dlen, U8 *buf, int blen, int chkID)
 {
-    return do_pack(type, 0, nAck, data, dlen, buf, blen, chkID);
+    return do_pack(0, type, 0, nAck, data, dlen, buf, blen, chkID);
 }
 
 
-
-int pkt_unpack_cap(void *data, int dlen, pkt_callback_t callback, int chkID)
+int pkt_pack_ack(U8 type, U8 err, U8 *buf, int blen, int chkID)
 {
-    int tlen=0;
-    ch_data_t *cd=NULL;
-    pkt_hdr_t *p=(pkt_hdr_t*)data;
-    
-    if(p->type!= TYPE_CAP) {
-        return -1;
-    }
-    
-    while(1) {
-        if(tlen>=p->dataLen) {
-            break;
-        }
-        
-        cd = (ch_data_t*)(p->data+tlen);
-        if(callback) {
-            callback(cd);
-        }
-        //tlen += cd->wavlen+sizeof(ch_data_t);
-    }
-    
-    return 0;
+    return do_pack(1, type, err, 0, NULL, 0, buf, blen, chkID);
 }
 
-
-int pkt_pack_ack(U8 type, U8 error, U8 *buf, int blen, int chkID)
-{
-    return do_pack(type, error, 0, NULL, 0, buf, blen, chkID);
-}
-
-
-int pkt_pack_err(U8 type, U8 error, U8 *buf, int blen, int chkID)
-{
-    return do_pack(type, error, 0, NULL, 0, buf, blen, chkID);
-}
 
 

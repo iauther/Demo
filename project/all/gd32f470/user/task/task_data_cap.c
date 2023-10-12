@@ -14,13 +14,14 @@
 #ifdef OS_KERNEL
 
 
+static handle_t htmr=NULL;
 static U64 cap_time[CH_MAX]={0};
 task_buf_t taskBuffer;
 static void buf_init()
 {
     int i;
     list_cfg_t lc;
-    int len1,len2;
+    int len1,len2,len3;
     ch_para_t *para;
     task_buf_t *tb=&taskBuffer;
     
@@ -28,36 +29,47 @@ static void buf_init()
     lc.mode = MODE_FIFO;
     for(i=0; i<CH_MAX; i++) {
         
-        if(tb->raw[i]) {
-            list_free(tb->raw[i]);
-            tb->raw[i]=NULL;
+        if(tb->var[i].raw) {
+            list_free(tb->var[i].raw);
+            tb->var[i].raw=NULL;
         }
-        tb->raw[i] = list_init(&lc);
+        tb->var[i].raw = list_init(&lc);
         
-        tb->rlen[i] = 0;
+        tb->var[i].rlen = 0;
+        tb->var[i].slen = 0;
+        tb->var[i].times = 0;
+        tb->var[i].ts[0] = 0;
+        tb->var[i].ts[1] = 0;
         
         //为采集任务申请临时内存
-        if(tb->cap[i].buf) {
-            xFree(tb->cap[i].buf);
+        if(tb->var[i].cap.buf) {
+            xFree(tb->var[i].cap.buf);
         }
-        tb->cap[i].blen = paras_get_smp_cnt(i)*sizeof(raw_t)+sizeof(raw_data_t);
-        tb->cap[i].buf = eMalloc(tb->cap[i].blen); 
+        tb->var[i].cap.blen = paras_get_smp_cnt(i)*sizeof(raw_t)+sizeof(raw_data_t)+32;
+        tb->var[i].cap.buf = eMalloc(tb->var[i].cap.blen); 
         
         para = paras_get_ch_para(i);
         
         //为计算任务申请临时内存
-        if(tb->prc[i].buf) {
-            xFree(tb->prc[i].buf);
+        if(tb->var[i].prc.buf) {
+            xFree(tb->var[i].prc.buf);
         }
         
-        int once_smp_len=(para->smpFreq/1000)*SAMPLE_INT_INTERVAL*sizeof(raw_t);
+        int once_smp_len=(para->smpFreq/1000)*SAMPLE_INT_INTERVAL*sizeof(raw_t)+32;
         int once_ev_calc_data_len=para->evCalcCnt*sizeof(raw_t);
         
-        len1 = once_smp_len+para->n_ev*sizeof(ev_data_t)*(once_smp_len/once_ev_calc_data_len)+sizeof(ch_data_t);
-        len2 = once_ev_calc_data_len+para->n_ev*sizeof(ev_data_t)+sizeof(ch_data_t);
-        tb->prc[i].blen = MAX(len1,len2);
-        tb->prc[i].buf = eMalloc(tb->prc[i].blen); 
-        tb->prc[i].dlen = 0;
+        //计算单次采集能满足ev计算时所需内存长度
+        len1 = once_smp_len+para->n_ev*sizeof(ev_data_t)*(once_smp_len/once_ev_calc_data_len)+sizeof(ch_data_t)+32;
+        
+        //计算特征值计算时需要的内存长度
+        len2 = once_ev_calc_data_len+para->n_ev*sizeof(ev_data_t)+sizeof(ch_data_t)+32;
+        
+        //计算阈值触发时缓存设定要求所需内存长度, (1ms+smpPoints)*2
+        len3 = (para->smpPoints+para->smpFreq/1000)*2*sizeof(raw_t)+32;
+        
+        tb->var[i].prc.blen = MAX3(len1,len2,len3);
+        tb->var[i].prc.buf = eMalloc(tb->var[i].prc.blen); 
+        tb->var[i].prc.dlen = 0;
     }
     
     //lc.max = 10;
@@ -72,7 +84,6 @@ static U64 get_start_time(U8 ch, U32 cnt)
     U32 t_ms=(1000*(cnt-1))/para->smpFreq;
     
     return (time-t_ms);
-    
 }
 
 
@@ -86,7 +97,7 @@ static void volt_convert(U8 ch, F32 *f, U16 *u, U32 cnt)
     }
 }
 
-
+extern U8 para_send_flag;
 static void cali_calc_1(U8 ch, F32 *f, U16 *u, U32 cnt)
 {
     U32 i;
@@ -106,6 +117,7 @@ static void cali_calc_1(U8 ch, F32 *f, U16 *u, U32 cnt)
     
     LOGD("____cali: coef.a: %f, coef.b: %f\n", para->coef.a, para->coef.b);
     
+    para_send_flag = 0;
     task_trig(TASK_POLLING, EVT_SAVE);
 }
 
@@ -130,6 +142,7 @@ static void cali_calc_2(U8 ch, F32 *f, U16 *u, U32 cnt)
         
         LOGD("____cali: coef.a: %f, coef.b: %f\n", para->coef.a, para->coef.b);
         
+        para_send_flag = 0;
         task_trig(TASK_POLLING, EVT_SAVE);
         cali->cnt = 0;
     }
@@ -155,8 +168,8 @@ static int ads_data_proc(node_t *nd)
     int i,r,cnt=nd->dlen/2;
     U16 *data=(U16*)nd->buf;
     task_buf_t *tb=&taskBuffer;
-    handle_t list=tb->raw[CH_0];
-    raw_data_t *raw=(raw_data_t*)tb->cap[CH_0].buf;
+    handle_t list=tb->var[CH_0].raw;
+    raw_data_t *raw=(raw_data_t*)tb->var[CH_0].cap.buf;
     
     if(ads_data_cnt<CALI_THD_CNT) {
         ads_data_cnt++;
@@ -178,12 +191,12 @@ static int ads_data_proc(node_t *nd)
     }
     else {
         U64 stime=get_start_time(CH_0, cnt);
-        U32 buflen=tb->cap[CH_0].blen;
+        U32 buflen=tb->var[CH_0].cap.blen;
         U32 tlen=cnt*sizeof(raw_t)+sizeof(raw_data_t);
         
         dac_data_fill(data, cnt);       //output to dac
         
-        if(tlen<buflen) {            
+        if(tlen<=buflen) {            
             raw->time = stime;
             volt_convert(CH_0, raw->data, data, cnt);
             
@@ -222,11 +235,12 @@ static int ads_init(void)
     dp.enable = allPara.usr.dac.enable;
     dp.fdiv   = allPara.usr.dac.fdiv;
     dac_set(&dp);
-    
-    
+
+#ifdef DEMO_TEST
     api_cap_start(CH_0);
     paras_set_state(STAT_CAP);
-    
+#endif
+
     return r;
 }
 static int vib_init(void)
@@ -271,9 +285,13 @@ int api_cap_stop(U8 ch)
     else {
         
     }
-    
-    //list_clear(tb->raw[ch]);
-    tb->rlen[ch] = 0;
+    tb->var[ch].rlen = 0;
+    tb->var[ch].slen = 0;
+    tb->var[ch].times = 0;
+    tb->var[ch].ts[0] = 0;
+    tb->var[ch].ts[1] = 0;
+    tb->var[ch].cap.dlen = 0;
+    tb->var[ch].prc.dlen = 0;
     
     return 0;
 }
@@ -288,18 +306,18 @@ int api_cap_stoped(void)
     return 1;
 }
 
-int api_cap_period_start(U8 ch)
+
+int api_cap_power(U8 ch, U8 on)
 {
-    smp_para_t *smp=paras_get_smp();
-    U32 inv_time=(rtcx_get_timestamp()-cap_time[ch])/1000;       //计算采样间隔
-    
-    if(smp->smp_mode==0 && inv_time>=smp->smp_period) {
-        api_cap_start(ch);
+    if(ch==CH_0) {
+        ads9120_power(on);
+    }
+    else {
+        //
     }
     
     return 0;
 }
-
 
 
 ///////////////////////////////////////////

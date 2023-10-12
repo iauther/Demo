@@ -2,7 +2,7 @@
 #include "myMqtt.h"
 #include "log.h"
 
-#define RX_BUF_LEN   8000
+#define RX_BUF_LEN   80000
 
 
 #ifdef USE_HV
@@ -63,25 +63,32 @@ static void on_mqtt(mqtt_client_t* cli, int type)
     }
 }
 #else
-#pragma comment(lib, "lib/paho-mqtt3c.lib")
+//#pragma comment(lib, "lib/paho-mqtt3c.lib")
+#pragma comment(lib, "lib/paho-mqtt3c-static.lib")
+//#pragma comment(lib, "lib/paho-mqtt3as-static.lib")
 #endif
 
 typedef struct {
 #ifdef USE_HV
-    mqtt_client_t* mc;
+    mqtt_client_t*  mc;
 #else
-    MQTTClient     mc;
+    MQTTClient      mc;
 #endif
 
     mqtt_callback_t mcb;
 
-    HANDLE  hMutex;
-    HANDLE  hThread;
-    DWORD   threadId;
-    int     quit;
+    HANDLE          hMutex;
+    HANDLE          hThread;
+    DWORD           threadId;
+    int             quit;
 
-    int     dlen;
-    char    buffer[RX_BUF_LEN];
+    int             dlen;
+    char            buffer[RX_BUF_LEN];
+
+    conn_para_t     para;
+    void*           userdata;
+
+    uint16_t        packet_id;
 }mqtt_conn_t;
 
 
@@ -148,16 +155,21 @@ static void msg_published(void* conn, int dt, int packet_type, MQTTProperties* p
 static int msg_arrived(void* conn, char* topicName, int topicLen, MQTTClient_message* m)
 {
     mqtt_conn_t* hconn = (mqtt_conn_t*)conn;
+    conn_handle_t* hc = (conn_handle_t*)hconn->userdata;
 
-    LOGD("recv: %s\n", (char*)m->payload);
+    //LOGD("recv: %s\n", (char*)m->payload);
 
     lock(hconn);
-    memcpy(hconn->buffer, m->payload, m->payloadlen);
-    hconn->dlen = m->payloadlen;
+    memcpy(hconn->buffer+hconn->dlen, m->payload, m->payloadlen);
+    hconn->dlen += m->payloadlen;
     unlock(hconn);
 
-    MQTTClient_freeMessage(&m);
+    if (hc && hc->para.callback) {
+        hc->para.callback(conn, NULL, 0, m->payload, m->payloadlen);
+    }
+
     MQTTClient_free(topicName);
+    MQTTClient_freeMessage(&m);
 
     return 1;
 }
@@ -165,17 +177,27 @@ static void msg_complete(void* conn, MQTTClient_deliveryToken dt)
 {
     mqtt_conn_t* hconn = (mqtt_conn_t*)conn;
 
-    LOGD("msgComplete\n");
+    //LOGD("msg_complete\n");
 
 }
 static void msg_lostconn(void* conn, char* cause)
 {
     mqtt_conn_t* hconn = (mqtt_conn_t*)conn;
+
+    LOGD("msg_lostconn, %s\n", cause);
 }
 static void msg_disconn(void* conn, MQTTProperties* properties, enum MQTTReasonCodes reasonCode)
 {
     mqtt_conn_t* hconn = (mqtt_conn_t*)conn;
+
+    LOGD("msg_lostconn, %d\n", reasonCode);
 }
+static void msg_trace(enum MQTTCLIENT_TRACE_LEVELS level, char* message)
+{
+    LOGD("___trace %d, %s\n", level, message);
+}
+
+
 #endif
 
 ////////////////////////////////////////////////////////////////////////////
@@ -193,6 +215,7 @@ myMqtt::myMqtt()
     cb.lostconn = msg_lostconn;
     cb.complete = msg_complete;
     cb.disconn = msg_disconn;
+    cb.trace = NULL;// msg_trace;
 #endif
 
     
@@ -209,19 +232,19 @@ myMqtt::~myMqtt()
     
 }
 
-void* myMqtt::conn(meta_data_t* md)
+void* myMqtt::conn(conn_para_t* para, void *userdata)
 {
     sign_data_t sign;
 
-    if (!md) {
+    if (!para) {
         return NULL;
     }
 
-    utils_hmac_sign(md, &sign, SIGN_HMAC_SHA1);
-    return conn(md->hostUrl, md->port, sign.clientId, sign.username, sign.password);
+    utils_hmac_sign(para->para, &sign, SIGN_HMAC_SHA1);
+    return conn(para, &sign, userdata);
 }
 
-void* myMqtt::conn(char *host, int port, char *cliendID, char *username, char *password)
+void* myMqtt::conn(conn_para_t* para, sign_data_t *sign, void *userdata)
 {
     int r;
     mqtt_conn_t* hconn = new mqtt_conn_t;
@@ -229,6 +252,7 @@ void* myMqtt::conn(char *host, int port, char *cliendID, char *username, char *p
     if (!hconn) {
         return NULL;
     }
+    hconn->para = *para;
 
 #ifdef USE_HV
     reconn_setting_t rc;
@@ -258,18 +282,25 @@ void* myMqtt::conn(char *host, int port, char *cliendID, char *username, char *p
     MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer;
     MQTTClient_willOptions wopts = MQTTClient_willOptions_initializer;
 
-    r = MQTTClient_create(&hconn->mc, host, cliendID,
+    r = MQTTClient_create(&hconn->mc, para->para->para.plat.host, sign->clientId,
         MQTTCLIENT_PERSISTENCE_NONE, NULL);
     if (r != MQTTCLIENT_SUCCESS) {
         LOGE("__MQTTClient_create failed, %d\n", r);
+        MQTTClient_destroy(&hconn->mc);
         goto failed;
     }
 
-    opts.keepAliveInterval = 80;
+    r = set_cb(hconn);
+    if (r) {
+        LOGE("__mqtt set_cb, %d\n", r);
+        goto failed;
+    }
+
+    opts.keepAliveInterval = 100;
     opts.cleansession = 1;
-    opts.username = username;
-    opts.password = password;
-    opts.MQTTVersion = MQTTVERSION_3_1_1;
+    opts.username = sign->username;
+    opts.password = sign->password;
+    opts.MQTTVersion = opts.MQTTVersion;
 
     opts.will = &wopts;
     opts.will->message = "will message";
@@ -283,18 +314,18 @@ void* myMqtt::conn(char *host, int port, char *cliendID, char *username, char *p
         LOGE("__MQTTClient_connect failed, %d\n", r);
         goto failed;
     }
-    LOGD("__MQTTClient_connect ok!\n");
 #endif
 
-    r = set_cb(hconn);
-    if (r) {
-        LOGE("__mqtt set_cb, %d\n", r);
-        goto failed;
-    }
+    char tmp[100];
+    sprintf(tmp, "/%s/+/user/get", para->para->para.plat.prdKey);
+    MQTTClient_subscribe(hconn->mc, tmp, 1);
 
     lock_new(hconn);
+    
     hconn->quit = 0;
     hconn->dlen = 0;
+    hconn->packet_id = 0;
+    hconn->userdata = userdata;
     hconn->hThread = CreateThread(NULL, NULL, mqttThread, (LPVOID)hconn, 0, &hconn->threadId);
     
     return hconn;
@@ -305,6 +336,7 @@ failed:
 #else
     MQTTClient_destroy(&hconn->mc);
 #endif
+    delete hconn;
 
     return NULL;
 }
@@ -332,7 +364,7 @@ int myMqtt::disconn(void* conn)
     MQTTClient_destroy(&hconn->mc);
 
     hconn->quit = 1;
-    WaitForSingleObject(hconn->hThread, INFINITE);
+    WaitForSingleObject(hconn->hThread, 100);
     CloseHandle(hconn->hThread);
     lock_free(hconn);
     delete hconn;
@@ -359,10 +391,12 @@ int myMqtt::is_connected(void *conn)
 }
 
 
-int myMqtt::publish(void* conn, char *topic, char *payload, int qos)
+int myMqtt::pub(void* conn, mqtt_para_t* para, void *payload, int payloadlen)
 {
     int r=0;
+    char topic[200];
     mqtt_conn_t* hconn = (mqtt_conn_t*)conn;
+    plat_para_t* plat = &hconn->para.para->para.plat;
 
     if (!hconn) {
         return -1;
@@ -382,21 +416,26 @@ int myMqtt::publish(void* conn, char *topic, char *payload, int qos)
 #else
     MQTTClient_message msg = MQTTClient_message_initializer;
     MQTTClient_deliveryToken dt;
+    int QOS = 1;
 
+    //sprintf(topic, "/sys/%s/%s/thing/model/up_raw", plat->prdKey, plat->devKey);
+    sprintf(topic, "/%s/%s/user/set", plat->prdKey, plat->devKey);
     msg.payload = payload;
-    msg.payloadlen = strlen(payload);
+    msg.payloadlen = payloadlen;
     msg.retained = 0;
-    msg.qos = qos;
+    msg.qos = QOS;
     r = MQTTClient_publishMessage(hconn->mc, topic, &msg, &dt);
+    //LOGD("___ mqtt publish len: %d, result: %d\n", payloadlen, r);
 #endif
     
     return r;
 }
 
 
-int myMqtt::subscribe(void* conn, char* topic)
+int myMqtt::sub(void* conn, mqtt_para_t* para)
 {
     int r;
+    char* topic = NULL;
     mqtt_conn_t* hconn = (mqtt_conn_t*)conn;
 
     if (!hconn) {
@@ -418,21 +457,20 @@ int myMqtt::read(void* conn, void* buf, int buflen)
     int rlen=0;
     mqtt_conn_t* hconn = (mqtt_conn_t*)conn;
 
-    if (!hconn) {
+    if (!hconn || !buf || !buflen) {
         return -1;
     }
-
-    if (!MQTTClient_isConnected(hconn->mc)) {
-        LOGD("__mqtt_read, mqtt not connected!\n");
-        return -1;
-    }
+    //MQTTClient_receive(hconn->mc, "", );
 
     lock(hconn);
-    if (buflen >= hconn->dlen) {
-        rlen = hconn->dlen;
-        memcpy(buf, hconn->buffer, rlen);
-        hconn->dlen = 0;
+    if (hconn->dlen<=0) {
+        unlock(hconn);
+        return 0;
     }
+
+    rlen = (buflen > hconn->dlen) ? hconn->dlen : buflen;
+    memcpy(buf, hconn->buffer, rlen);
+    hconn->dlen -= rlen;
     unlock(hconn);
 
     return rlen;
@@ -451,21 +489,21 @@ int myMqtt::set_cb(void* conn)
 #ifdef USE_HV
 
 #else
-    MQTTClient_setTraceCallback(cb.trace);
+    //MQTTClient_setTraceCallback(cb.trace);
 
-    r = MQTTClient_setPublished(hconn->mc, NULL, cb.published);
+    r = MQTTClient_setPublished(hconn->mc, hconn, cb.published);
     if (r) {
         LOGE("MQTTClient_setPublished failed\n");
         return r;
     }
 
-    r = MQTTClient_setDisconnected(hconn->mc, NULL, cb.disconn);
+    r = MQTTClient_setDisconnected(hconn->mc, hconn, cb.disconn);
     if (r) {
         LOGE("MQTTClient_setDisconnected failed\n");
         return r;
     }
 
-    r = MQTTClient_setCallbacks(hconn->mc, NULL, cb.lostconn, cb.arrived, cb.complete);
+    r = MQTTClient_setCallbacks(hconn->mc, hconn, cb.lostconn, cb.arrived, cb.complete);
     if (r) {
         LOGE("MQTTClient_setCallbacks failed\n");
         return r;

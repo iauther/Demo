@@ -22,6 +22,7 @@ HWND log_get_hwnd(void);
 void log_enable(int flag);
 int log_is_enable(void);
 void log_clear(void);
+int log_save(const char* path);
 void log_set_level(LOG_LEVEL lv, level_t* ld);
 void log_print(LOG_LEVEL lv, const char* format, ...);
 

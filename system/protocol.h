@@ -37,16 +37,22 @@ enum {
 
 
 enum {
-    TYPE_CAP=0,       //channel capture data
+    TYPE_ACK=0,
+    
+    TYPE_CAP,         //channel capture data
     TYPE_CALI,        //calibration
-    TYPE_ACK,
     TYPE_STAT,
     TYPE_SETT,
     TYPE_PARA,
     TYPE_FILE,
     TYPE_TIME,
-    TYPE_HBEAT,
-    TYPE_ERROR,
+    
+    TYPE_DFLT,
+    TYPE_REBOOT,
+    TYPE_FACTORY,
+    
+    TYPE_HBEAT,       //heartbeat
+    TYPE_DATATO,
     
     TYPE_MAX
 };
@@ -62,6 +68,21 @@ enum {
     
     FILE_MAX
 };
+
+
+enum {
+    PROTO_TCP=0,
+    PROTO_UDP,
+    PROTO_MQTT,
+    PROTO_COAP,
+};
+
+enum {
+    DATATO_ALI=0,
+    DATATO_USR,
+};
+
+
 
 #ifdef _WIN32
 #pragma warning(disable : 4200)
@@ -108,22 +129,40 @@ typedef struct {
     U8   enable;
     U32  fdiv;              //freq divider
 }dac_para_t;
+
+enum {
+    PWR_NO_PWRDN=0,
+    PWR_PERIOD_PWRDN,
+};
+
 typedef struct {
-    U8   pwr_mode;          //0:no powerdown    1: period powerdown
-    U8   smp_mode;          //0: period sample  1: threshold trigger sample   2: continuous sample
-    U32  smp_period;        //unit: second
+    U8   pwr_mode;          //PWR_NO_PWRDN:no powerdown    PWR_PERIOD_PWRDN: period powerdown
+    U32  pwr_period;        //unit: second
 }smp_para_t;
 typedef struct {
     F32     a;
     F32     b;
 }coef_t;
+
+enum {
+    SMP_PERIOD_MODE=0,
+    SMP_TRIG_MODE,
+    SMP_CONT_MODE,
+};
+
 typedef struct {
     U8      ch;
+    U8      smpMode;        //SMP_PERIOD_MODE: period sample  SMP_TRIG_MODE: threshold trigger sample   SMP_CONT_MODE: continuous sample
     U32     smpFreq;        //hz
-    U32     smpTime;        //ms
+    U32     smpPoints;
+    U32     smpInterval;    //ms
+    U32     smpTimes;       //number of times
+    F32     ampThreshold;   //sample AMP threshold value, unit: mv
+    U32     messDuration;   //messure end duration, unit: ms
+    U32     trigDelay;      //trigger delay time,   unit: ms
     U8      ev[EV_NUM];
     U8      n_ev;
-    U8      upway;         //0: upload realtime   1: delay upload together
+    U8      upway;          //0: upload realtime   1: delay upload together
     U8      upwav;
     U8      savwav;
     U32     evCalcCnt;
@@ -140,6 +179,7 @@ typedef struct {
     ch_para_t   ch[CH_MAX];
 }usr_para_t;
 
+
 typedef struct {
     U32             tp;
     U64             time;
@@ -147,11 +187,22 @@ typedef struct {
 }ev_data_t;
 
 typedef struct {
+    U32             tp;
+    F32             data;
+}ev_point_t;
+
+typedef struct {
+    U64             time;
+    U32             cnt;
+    ev_point_t      ev[0];
+}ev_data2_t;
+
+typedef struct {
     U32             ch;
     U64             time;
     U32             wavlen;
     U32             evlen;
-    F32             data[0];
+    F32             data[0];        //wavdata+evdata
 }ch_data_t;
 
 typedef struct {
@@ -172,9 +223,15 @@ typedef struct {
 }powerdown_t;
 
 typedef struct {
-    U8              xx;
+    U8              datato;       //DATATO_ALI or DATATO_USR
     
 }sett_t;
+
+typedef struct {
+    U8          proto;
+    net_para_t  *para;
+    rx_cb_t     callback;
+}conn_para_t;
 
 typedef struct {
     U8              mode;
@@ -194,6 +251,7 @@ typedef struct {
 
 typedef struct {
     U32             magic;          //PKT_MAGIC
+    U32             devID;
     U8              type;
     U8              flag;
     U8              askAck;         //1: need ack     0: no need ack
@@ -249,7 +307,14 @@ typedef struct {
 }md5_t;
 
 typedef struct {
+    U32             devID;
+    //U32           type;
+}dev_info_t;
+
+
+typedef struct {
     fw_info_t       fwInfo;
+    dev_info_t      devInfo;
     sett_t          sett;
 }para_t;
 
@@ -284,9 +349,7 @@ typedef struct {
     gbl_var_t       var;
 }all_para_t;
 
-
 #pragma pack ()
-
 
 #define PKT_HDR_LENGTH      sizeof(pkt_hdr_t)
 

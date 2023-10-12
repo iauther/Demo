@@ -24,9 +24,8 @@ ch_para_t* paras_get_ch_para(U8 ch);
 int paras_get_datetime(date_time_t* dt);
 int paras_get_smp_cnt(U8 ch);
 int paras_save(void);
+int paras_factory(void);
 
-extern const char* all_para_ini;
-extern const char* all_para_json;
 extern const char* filesPath[];
 extern const all_para_t DFLT_PARA;
 extern const date_time_t DFLT_TIME;

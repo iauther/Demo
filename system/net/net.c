@@ -1,7 +1,10 @@
 #include "net.h"
+
+#ifndef _WIN32
 #include "list.h"
 #include "task.h"
-#include "mqtt.h"
+#endif
+
 
 typedef struct {
     
@@ -11,6 +14,12 @@ typedef struct {
     
     handle_t    lconn;      //connect list
     int         inited;
+
+#ifdef _WIN32
+    mySock      mSock;
+    myMqtt      mMqtt;
+    mySerial    mSerial;
+#endif
 }net_handle_t;
 
 static net_handle_t netHandle;
@@ -19,15 +28,14 @@ static net_handle_t netHandle;
 
 int net_init(net_cfg_t *cfg)
 {
-    handle_t hio;
+    handle_t hio=NULL;
     net_handle_t *nh=&netHandle;
 
+#ifndef _WIN32
     nh->cfg = *cfg;
-
-#if 0
-    hio = netio_init(&nh->cfg.ioc);
+    //hio = netio_init(NULL);
     if(!hio) {
-        return -1;
+        //return -1;
     }
 #endif
     
@@ -46,7 +54,7 @@ int net_deinit(void)
         return -1;
     }
 
-    netio_deinit(nh->hio);
+    //netio_deinit(nh->hio);
     //lconn_free();
     nh->inited = 0;
     
@@ -68,10 +76,9 @@ handle_t net_conn(conn_para_t *para)
     if(!ch) {
         return NULL;
     }
-    ch->proto = para->proto;
-    ch->callback = para->callback;
+    ch->para = *para;
     
-    switch(ch->proto) {
+    switch(ch->para.proto) {
         case PROTO_TCP:
         break;
         
@@ -80,16 +87,19 @@ handle_t net_conn(conn_para_t *para)
         
         case PROTO_MQTT:
         {
+#ifdef _WIN32
+            ch->h = netHandle.mMqtt.conn(para, ch);
+#else
             r = mqtt_init(MQTT_ALI);
             if(r) {
-                free(ch);
-                return NULL;
+                free(ch); return NULL;
             }
-            
             ch->h = mqtt_conn(para, ch);
-            if(ch->h) {
-                mqtt_set_userdata(ch->h, ch);
+#endif
+            if(!ch->h) {
+                free(ch); return NULL;
             }
+
         }
         break;
         
@@ -112,7 +122,7 @@ int net_disconn(handle_t hconn)
         return -1;
     }
     
-    switch(ch->proto) {
+    switch(ch->para.proto) {
         case PROTO_TCP:
         break;
         
@@ -121,7 +131,11 @@ int net_disconn(handle_t hconn)
         
         case PROTO_MQTT:
         {
+#ifdef _WIN32
+            r = netHandle.mMqtt.disconn(ch->h);
+#else
             r = mqtt_disconn(ch->h);
+#endif
         }
         break;
         
@@ -137,13 +151,14 @@ int net_disconn(handle_t hconn)
 
 int net_read(handle_t hconn, void *para, void *data, int len)
 {
+    int r;
     conn_handle_t *ch=(conn_handle_t*)hconn;
     
     if(!ch || !data || !len) {
         return -1;
     }
     
-    switch(ch->proto) {
+    switch(ch->para.proto) {
         case PROTO_TCP:
         break;
         
@@ -152,7 +167,11 @@ int net_read(handle_t hconn, void *para, void *data, int len)
         
         case PROTO_MQTT:
         {
+#ifdef _WIN32
+            r = netHandle.mMqtt.read(ch->h, data, len);
+#else
             //mqtt_read(ch->h, );
+#endif
         }
         break;
         
@@ -162,7 +181,7 @@ int net_read(handle_t hconn, void *para, void *data, int len)
         break;
     }
     
-    return 0;
+    return r;
 }
 
 
@@ -175,7 +194,7 @@ int net_write(handle_t hconn, void *para, void *data, int len)
         return -1;
     }
     
-    switch(ch->proto) {
+    switch(ch->para.proto) {
         case PROTO_TCP:
         {
             
@@ -190,7 +209,14 @@ int net_write(handle_t hconn, void *para, void *data, int len)
         
         case PROTO_MQTT:
         {
-            r = mqtt_pub(ch->h, para, data, len);
+            mqtt_para_t mp;
+            
+            mp.datato = para?(*((U8*)para)):DATATO_USR;
+#ifdef _WIN32
+            r = netHandle.mMqtt.pub(ch->h, &mp, data, len);
+#else
+            r = mqtt_pub(ch->h, &mp, data, len);
+#endif
         }
         break;
         

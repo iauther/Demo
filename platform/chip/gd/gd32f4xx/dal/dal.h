@@ -25,7 +25,7 @@ int dal_set_vector(void);
 void dal_reboot(void);
 U32 dal_get_freq(void);
 int dal_get_info(mcu_info_t *info);
-    
+U32 dal_get_chipid(void);
 
 #endif
 

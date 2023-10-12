@@ -98,3 +98,7 @@ int dal_get_info(mcu_info_t *info)
 }
 
 
+U32 dal_get_chipid(void)
+{
+    return REG32(UNIQUE_ID_REG);
+}

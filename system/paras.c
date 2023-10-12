@@ -5,6 +5,7 @@
 #include "fs.h"
 #include "rtc.h"
 #include "log.h"
+#include "dal.h"
 #include "dal_rtc.h"
 #include "json.h"
 
@@ -20,28 +21,23 @@ static int paras_check()
 int paras_load(void)
 {
     int r=0;
-    char *js;
-    int jlen;
-    fw_info_t fwinfo;
+    int flen;
     handle_t h=NULL;
-    int exist=0;
+    fw_info_t *fw=&allPara.sys.para.fwInfo;
     
     allPara = DFLT_PARA;
     dal_rtc_get(&allPara.sys.stat.dt);
-return 0;
     
-    jlen = fs_lengthx(FILE_PARA);
-    if(jlen>0) {
-        js = malloc(jlen);
-        if(!js) return -1;
-        fs_readx(FILE_PARA, &allPara, jlen);
-        free(js);
+    flen = fs_lengthx(FILE_PARA);
+    if(flen==sizeof(allPara)) {
+        r = fs_readx(FILE_PARA, &allPara, flen);
     }
     else {
         paras_save();
     }
     
-    get_date_string((char*)DFLT_PARA.sys.para.fwInfo.bldtime, allPara.sys.para.fwInfo.bldtime);
+    allPara.sys.para.devInfo.devID = dal_get_chipid();
+    get_datetime_str(fw->bldtime, sizeof(fw->bldtime));
     
     return r;
 }
@@ -107,14 +103,17 @@ int paras_set_cali_sig(U8 ch, cali_sig_t *sig)
     }
     
     cali = &allPara.var.cali[ch];
-    if(cali->cnt>1) {
-        cali->cnt = 0;
-    }
-    
     cali->sig = *sig;
-    cali->rms[cali->cnt].in = sig->rms;
-    cali->cnt++;
-
+    if(sig->tms>1) {
+        if(cali->cnt>1) {
+            cali->cnt = 0;
+        }
+        cali->rms[cali->cnt].in = sig->rms;
+        cali->cnt++;
+    }
+    else {
+        cali->rms[0].in = sig->rms;
+    }
     
     return 0;
 }
@@ -170,7 +169,7 @@ int paras_get_smp_cnt(U8 ch)
     }
     pch = &allPara.usr.ch[ch];
     
-    return pch->smpFreq*pch->smpTime/1000;
+    return pch->smpPoints;
 }
 
 
@@ -194,12 +193,11 @@ int paras_save(void)
 }
 
 
-int paras_reset(void)
+int paras_factory(void)
 {
     allPara = DFLT_PARA;
     
     return paras_save();
 }
-
 
 

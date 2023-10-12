@@ -3,6 +3,9 @@
 
 #include "types.h"
 
+#define CB_MAX  3
+
+
 enum {
     UART_0=0,
     UART_1,
@@ -15,6 +18,9 @@ enum {
 
     UART_MAX
 };
+
+
+
 
 typedef struct {
     rx_cb_t             callback;
@@ -38,7 +44,7 @@ int dal_uart_read(handle_t h, U8 *data, int len);
 int dal_uart_write(handle_t h, U8 *data, int len);
 int dal_uart_rw(handle_t h, U8 *data, int len, U8 rw);
 
-int dal_uart_set_callback(handle_t h, rx_cb_t cb);
+int dal_uart_set_callback(handle_t h, int id, rx_cb_t cb);
 #endif
 
 

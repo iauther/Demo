@@ -454,11 +454,6 @@
               <FilePath>.\user\task\task_comm_send.c</FilePath>
             </File>
             <File>
-              <FileName>task_mqtt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\user\task\task_mqtt.c</FilePath>
-            </File>
-            <File>
               <FileName>task_nvm.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\task\task_nvm.c</FilePath>

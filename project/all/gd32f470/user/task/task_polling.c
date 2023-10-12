@@ -12,6 +12,7 @@
 #include "dal_adc.h"
 #include "dal_delay.h"
 #include "aiot_at_api.h"
+#include "hw_at_impl.h"
 
 
 #define POLL_TIME       1000
@@ -160,29 +161,20 @@ static U32 get_run_time(void)
 }
 static void poweroff_polling(void)
 {
+    smp_para_t *smp=paras_get_smp();
     
-    U8 mode=allPara.usr.smp.pwr_mode;
-    
-    switch(mode) {
+    if(smp->pwr_mode==0) {
+        //是否正在写文件
         
-        case 0:
-        {
-            
-        }
-        break;
+        //缓存数据是否保存完毕
         
-        case 1:
-        {
-            
-        }
-        break;
-            
-        case 2:
-        {
-            
-        }
-        break;
+        //上传记录文件是否写入
+        
+        //4g模组是否关机
+        
+        //以上都完成时才可以关机
     }
+    
 }
 static void stat_polling(void)
 {
@@ -208,26 +200,53 @@ static void polling_tmr_callback(void *arg)
     task_post(TASK_POLLING, NULL, EVT_TIMER, 0, NULL, 0);
 }
 
-
+#define CONN_MAX  5
+#define REST_MAX  5
 static int conn_flag=0;
 static osThreadId_t connThdId=NULL;
 static void task_conn_fn(void *arg)
 {
-    power_set_dev(POWER_DEV_ECXXX, POWER_MODE_ON);
-    conn_flag = api_comm_connect();
-    if(!conn_flag) {
-        power_set_dev(POWER_DEV_ECXXX, POWER_MODE_OFF);
-    }
+    static int conn_cnt=0;
+    static int rest_cnt=0;
     
+    while(1) {
+        conn_flag = api_comm_connect();
+        if(conn_flag) {
+            conn_cnt = 0;
+            LOGD("___ api_comm_connect ok!\n");
+            break;
+        }
+        
+        conn_cnt++;
+        LOGD("___ ad module conn times: %d\n", conn_cnt);
+        
+        if(conn_cnt>0 && (conn_cnt%CONN_MAX==0)) {
+            at_hal_reset();
+            rest_cnt++;
+            LOGD("___ ad module reset: %d\n", rest_cnt);
+            
+            if(rest_cnt>0 && (rest_cnt%REST_MAX==0)) {
+                LOGE("___ ad module reset reach % times, please check the module and repair it\n", rest_cnt);
+            }
+        }
+    }
+    LOGD("___ quit task_conn_fn ...\n");
+		
     connThdId = NULL;
+    osThreadExit();
 }
 static void start_conn_task()
 {
     smp_para_t *smp=paras_get_smp();
     
     //周期模式采样时，采样完成再启动连接，避免4g对信号造成干扰
-    if(smp->smp_mode==0 && api_cap_stoped() && !connThdId) {
-        task_simp_new(task_conn_fn, 1024, NULL, &connThdId);
+    //if (smp->smp_mode==0 && api_cap_stoped() && !connThdId) {
+    if(!conn_flag && !connThdId) {
+        start_task_simp(task_conn_fn, 2048, NULL, &connThdId);
+    }
+    
+    if(conn_flag) {
+        api_comm_send_para();
     }
 }
 
@@ -237,12 +256,16 @@ void task_polling_fn(void *arg)
     int i,r;
     U8  err;
     evt_t e;
-    osTimerId_t tmrId;
+    handle_t htmr;
     task_handle_t *h=(task_handle_t*)arg;
     
     LOGD("_____ task_polling running\n");
 
-    task_tmr_start(TASK_POLLING, polling_tmr_callback, NULL, POLL_TIME, TIME_INFINITE);
+    htmr = task_timer_init(polling_tmr_callback, NULL, POLL_TIME, -1);
+    if(htmr) {
+        task_timer_start(htmr);
+    }
+    
     while(1) {
         r = task_recv(TASK_POLLING, &e, sizeof(e));
         if(r==0) {
@@ -254,11 +277,9 @@ void task_polling_fn(void *arg)
                     
                     stat_polling();
                     poweroff_polling();
-                    //upgrade_polling();
+                    //upgrade_polling();                   
                     
-                    api_cap_period_start(CH_0);
-                    
-                    //start_conn_task();
+                    start_conn_task();
                 }
                 break;
                 

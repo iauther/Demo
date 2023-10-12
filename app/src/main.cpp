@@ -11,7 +11,7 @@
 //#define USE_CMYRAME
 
 #define DEBUG_ON
-#define USE_SERIAL
+//#define USE_SERIAL
 
 #define BUF_LEN				80000
 #define MY_TIMER			(WM_USER+0x01)
@@ -28,7 +28,7 @@
 #ifdef USE_SERIAL
 U8 chkID = CHK_SUM;
 #else
-U8 chkID = CHK_NONE
+U8 chkID = CHK_NONE;
 #endif
 
 typedef struct {
@@ -64,7 +64,7 @@ typedef struct {
 
 static UINT_PTR	tmrID;
 static my_handle_t myHandle;
-
+all_para_t allPara;
 
 static U8 get_checksum(U8* data, U16 len)
 {
@@ -81,47 +81,8 @@ static void post_event(DWORD thdID, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 
 
-static int pkt_proc(U8 *data, int len, int buflen)
-{
-	int err;
-	F32* p32;
-	pkt_hdr_t* hdr = (pkt_hdr_t*)data;
 
-	p32 = (F32*)hdr->data;
-
-#ifdef DEBUG_ON
-	LOGD("hdr->magic:   0x%08x\n", hdr->magic);
-	LOGD("hdr->type:    0x%02x\n", hdr->type);
-	LOGD("hdr->flag:    %d\n",     hdr->flag);
-	LOGD("hdr->dataLen: %d\n",     hdr->dataLen);
-#endif
-
-	switch (hdr->type) {
-		case TYPE_CAP:
-		{
-#ifdef DEBUG_ON
-			ch_data_t* cd = (ch_data_t*)hdr->data;
-			LOGD("cd->ch:          %d\n", cd->ch);
-			LOGD("cd->data[0]: 0x%04x\n", cd->data[0]);
-			LOGD("cd->data[1]: 0x%04x\n", cd->data[1]);
-			LOGD("cd->data[2]: 0x%04x\n", cd->data[2]);
-			LOGD("\n");
-#endif
-			//myHandle.mFile.rec_file(cd->ch, cd->data, cd->dlen - sizeof(ch_data_t));
-		}
-		break;
-
-		case TYPE_CALI:
-		{
-			
-		}
-		break;
-	}
-
-	return 0;
-}
-
-#if 0
+#if 1
 static int io_read(void *buf, int buflen)
 {
 	return myHandle.myWin.port_read(buf, buflen);
@@ -130,22 +91,27 @@ static int io_write(U8 type, U8 nack, void* data, int datalen)
 {
 	return myHandle.myWin.port_write(type, nack, data, datalen);
 }
+static int io_data_proc(void* data, int datalen)
+{
+	return myHandle.myWin.data_proc(data, datalen, chkID);
+}
+int rbuf_clr(void)
+{
+	return rbuf_reset(myHandle.com.hrb);
+}
 
 
 static int quit = 0;
 static DWORD dataRecvThread(LPVOID lpParam)
 {
 	int rlen, find, wlen;
-	handle_t hrb = myHandle.com.hrb;
 	BYTE* rxBuf = myHandle.com.rx;
 
-
-	rbuf_reset(hrb);
 	memset(rxBuf, 0, BUF_LEN);
 	while (1) {
 		rlen = io_read((char*)rxBuf, BUF_LEN);
 		if (rlen > 0) {
-			wlen = rbuf_write(hrb, rxBuf, rlen);
+			wlen = rbuf_write(myHandle.com.hrb, rxBuf, rlen);
 		}
 
 		if (quit) {
@@ -161,15 +127,13 @@ static DWORD dataProcThread(LPVOID lpParam)
 	int i, rlen, plen;
 	int err, find;
 	pkt_hdr_t* hdr;
-	handle_t hrb = NULL;
 	BYTE* rbBuf = myHandle.com.rb;
 	BYTE* tmpBuf = myHandle.com.tmp;
 	BYTE* pktBuf = myHandle.com.pkt;
 
-	hrb = rbuf_init(rbBuf, BUF_LEN);
-	myHandle.com.hrb = hrb;
+	myHandle.com.hrb = rbuf_init(rbBuf, BUF_LEN);
 	while (1) {
-		rlen = rbuf_read(hrb, tmpBuf, BUF_LEN, 0);
+		rlen = rbuf_read(myHandle.com.hrb, tmpBuf, BUF_LEN, 0);
 		if (rlen > PKT_HDR_LENGTH) {
 			find = plen = 0;
 			for (i = 0; i < rlen; i++) {
@@ -186,7 +150,7 @@ static DWORD dataProcThread(LPVOID lpParam)
 
 						if (plen <= BUF_LEN) {
 							memcpy(pktBuf, hdr, (plen));
-							rbuf_read_shift(hrb, plen);
+							rbuf_read_shift(myHandle.com.hrb, plen);
 							find = 1;
 							break;
 						}
@@ -195,7 +159,7 @@ static DWORD dataProcThread(LPVOID lpParam)
 			}
 
 			if (find) {
-				pkt_proc(pktBuf, plen, plen);
+				io_data_proc(pktBuf, plen);
 			}
 			//print(_T("___\n"));
 		}
@@ -245,8 +209,8 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lp
 	CRect rc = CRect(POINT{ 400, 100 }, POINT{ 1400, 900 });
 	myHandle.myWin.Create(NULL, rc, _T("test"), WS_VISIBLE | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME);
 
-	//CreateThread(NULL, NULL, dataRecvThread, NULL, 0, NULL);
-	//CreateThread(NULL, NULL, dataProcThread, NULL, 0, NULL);
+	CreateThread(NULL, NULL, dataProcThread, NULL, 0, NULL);
+	CreateThread(NULL, NULL, dataRecvThread, NULL, 0, NULL);
 
 	int nRet = Run(lpstrCmdLine, nCmdShow);
 

@@ -2,19 +2,20 @@
 #define __NET_Hx__
 
 #include "types.h"
-#include "netio.h"
+
+#ifdef _WIN32
+#include "mySock.h"
+#include "mySerial.h"
+#include "myMqtt.h"
+#else
+#include "mqtt.h"
+#endif
+//#include "netio.h"
 #include "protocol.h"
 
 enum {
     ROLE_CLIENT=0,
     ROLE_SERVER,
-};
-
-enum {
-    PROTO_TCP=0,
-    PROTO_UDP,
-    PROTO_MQTT,
-    PROTO_COAP,
 };
 
 
@@ -31,20 +32,15 @@ typedef struct {
 }net_gate_t;
 
 typedef struct {
-    netio_cfg_t ioc;
+    //netio_cfg_t ioc;
     net_gate_t  gate;
 }net_cfg_t;
 
-typedef struct {
-    U8          proto;
-    net_para_t  para;
-    rx_cb_t     callback;
-}conn_para_t;
+
 
 typedef struct {
     handle_t     h;
-    U8           proto;
-    rx_cb_t      callback;
+    conn_para_t  para;
 }conn_handle_t;
 
 

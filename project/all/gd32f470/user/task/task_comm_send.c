@@ -14,19 +14,6 @@
 
 
 #ifdef OS_KERNEL
-static int comm_iterator_fn(handle_t l, node_t *data, node_t *node, void *arg, int *act)
-{
-    handle_t hconn=(handle_t)(*(U32*)node->buf);
-    
-    comm_send_data(tasksHandle.hconn, "", TYPE_CAP, 0, data->buf, data->dlen);
-    *act = ACT_NONE;
-    
-    return 0;
-}
-static int comm_broadcast(handle_t list, node_t *data)
-{
-    return list_iterator(list, data, comm_iterator_fn, NULL);
-}
 
 static void tmr_trig_callback(void *arg)
 {
@@ -45,7 +32,7 @@ static int data_save_bin(ch_data_t *pch)
     int dayMin=(24*60);
     int flen,wlen,maxCnt,maxLen;
     
-    maxCnt = dayMin/allPara.usr.smp.smp_period;
+    //maxCnt = dayMin/allPara.usr.smp.smp_period;
     maxLen = FILE_MAX_LEN;//allPara.usr.chn[ch].samplePoints*4*maxCnt;
     
     if(!xHandle) {
@@ -97,7 +84,7 @@ static int data_save_csv(ch_data_t *pch)
     int flen,wlen,maxCnt,maxLen;
     fs_space_t sp;
     
-    maxCnt = dayMin/allPara.usr.smp.smp_period;
+    //maxCnt = dayMin/allPara.usr.smp.smp_period;
     maxLen = paras_get_smp_cnt(pch->ch)*4*maxCnt;
     
     r = fs_get_space(SDMMC_MNT_PT, &sp);
@@ -178,7 +165,6 @@ typedef struct {
 
 
 
-extern int mqtt_pub_raw(void *data, int len);
 extern int mqtt_is_connected(void);
 
 //check the unupload file and send it out
@@ -250,118 +236,74 @@ static int file_upload_chk(U8 ch, my_flag_t *mf)
 
 //////////////////////////////////////////////////////////////////////////
 static my_flag_t myFlag;
-static int upload_by_mqtt(void)
+static int data_upload(U8 to)
 {
-    int i,r,tlen=0;
-    int size=0;
-    node_t node;
+    char tmp[40];
+    int r,i,j,size=0,grps;
+    list_node_t *lnode=NULL;
     handle_t list=taskBuffer.send;
     
-    if(!mqtt_is_connected()) {
-        return -1;
-    }
-    
-    if(list_get(list, &node, 0)==0) {
+    if(list_take(list, &lnode, 0)==0) {
+        
+        int data_len=lnode->data.dlen;
+        char *data_ptr=(char*)lnode->data.buf;
+        const char* ev_str[EV_NUM] = { "rms","amp","asl","ene","ave","min","max" };
+        
+        ch_data_t *p_ch=(ch_data_t*)lnode->data.buf;
+        ch_para_t *para=paras_get_ch_para(p_ch->ch);
+        ev_data_t *ev=(ev_data_t*)((U8*)(p_ch->data)+p_ch->wavlen);
 
-        r = mqtt_pub_raw(node.buf, node.dlen);
-        //data_save_csv(pch);
-        
-        if(r==0) list_remove(list, 0);
-        
-        size = list_size(list);
-    }
-    
-    return size;
-}
-static int upload_by_self(void)
-{
-    int r,size=0;
-    node_t node;
-    handle_t list=taskBuffer.send;
-    
-    if(list_get(list, &node, 0)==0) {
-        ch_data_t *pch=(ch_data_t*)node.buf;
-        
-        r = comm_send_data(tasksHandle.hconn, "", TYPE_CAP, 0, node.buf, node.dlen);
-        if(r==0) list_remove(taskBuffer.send, 0);
-        
-        size = list_size(list);
-    }
-    
-    return size;
-}
-static int upload_by_debug(void)
-{
-    int i,j,size=0,grps;
-    node_t node;
-    handle_t list=taskBuffer.send;
-    
-    if(list_take(list, &node, 0)==0) {
-        ch_data_t *p_ch=(ch_data_t*)node.buf;
-        const char *ev_str[EV_NUM]={"rms","asl","ene","ave","min","max"};
-
-        ch_para_t *para=&allPara.usr.ch[p_ch->ch];
-        ev_data_t *ev=(ev_data_t*)((U8*)p_ch->data+p_ch->wavlen);
-        
-        grps = 1;//pdata->evlen/(para->n_ev*sizeof(ev_data_t));
-        for(i=0; i<grps; i++) {
-            for(j=0; j<para->n_ev; j++) {
-                LOGD("%s: %f\n", ev_str[para->ev[j]], ev[j].data);
-            }
-            LOGD("\n");
+        if(para->savwav) {      //如果需要保存原始波形，则分发数据到nvm任务进行数据保存
+            //
         }
-        list_back(list, &node);
         
-        size = list_size(list);
+        if(!para->upwav) {      //不上传wav数据时，将wav数据剥掉
+            p_ch->wavlen = 0;
+            memcpy(p_ch->data, ev, p_ch->evlen);
+            
+            data_len = sizeof(ch_para_t)+p_ch->evlen;
+        }
+				
+        r = comm_send_data(tasksHandle.hconn, &to, TYPE_CAP, 0, data_ptr, data_len);
+        if(r==0) {              //发送成功，需要置位发送成功记录标志
+            //set send data ok flag
+        }
+        
+        list_back(list, lnode);
     }
     
-    return size;
+    return r;
 }
 
 
 
-//0: mqtt  1: self   2: debug
-enum {
-    MQTT=0,
-    SELF,
-    DEBUG,
-};
-static void upload_data(int upway)
+static void send_tmr_callback(void *arg)
 {
-    int r=-1,state=paras_get_state();
-    
-    switch(upway) {
-        case MQTT:
-        r = upload_by_mqtt();
-        break;
-        
-        case SELF:
-        r = upload_by_self();
-        break;
-        
-        case DEBUG:
-        r = upload_by_debug();
-        break;
-    }
+    task_post(TASK_COMM_SEND, NULL, EVT_TIMER, 0, NULL, 0);
 }
-
 
 
 void task_comm_send_fn(void *arg)
 {
     int r;
     evt_t e;
-
+    handle_t htmr;
     myFlag.date = allPara.sys.stat.dt.date;
+    htmr = task_timer_init(send_tmr_callback, NULL, 1000, -1);
+    if(htmr) {
+        task_timer_start(htmr);
+    }
     
     while(1) {
         r = task_recv(TASK_COMM_SEND, &e, sizeof(e));
         if(r==0) {
             switch(e.evt) {
-                
                 case EVT_DATA:
+                case EVT_TIMER:
                 {
-                    upload_data(DEBUG);
+                    U8 to=allPara.sys.para.sett.datato;
+                    
+                    data_upload(to);
                 }
                 break;
             }

@@ -1,4 +1,5 @@
 #include "protocol.h"
+#include "net.h"
 #include "cfg.h"
 
 #define STR1(x)             #x
@@ -32,6 +33,7 @@
 #endif
       
 
+
 const all_para_t DFLT_PARA={
     
     .sys = {
@@ -48,7 +50,7 @@ const all_para_t DFLT_PARA={
             },
             
             .sett = {
-                //.mode = 0,
+                .datato = DATATO_ALI,
             }
         }
     },
@@ -82,8 +84,14 @@ const all_para_t DFLT_PARA={
         .ch = {
             {
                 .ch         = 0,
+                .smpMode    = SMP_PERIOD_MODE,
                 .smpFreq    = 1000000,
-                .smpTime    = 20,
+                .smpPoints  = 10000,
+                .smpInterval  = 0,
+                .smpTimes     = 1,
+                .ampThreshold = 2.2f,
+                .messDuration = 5000,
+                .trigDelay    = 30000,
                 .ev         = {0,1,2,3},
                 .n_ev       = 4,
                 .evCalcCnt  = 1000,
@@ -92,25 +100,31 @@ const all_para_t DFLT_PARA={
                 .savwav     = 1,
                 
                 .coef={
-                    .a  = 200.0F,
-                    .b  = 0.0F,
+                    .a  = 200.0f,
+                    .b  = 0.0f,
                 }
             },
             
             {
                 .ch         = 1,
-                .smpFreq    = 10000,
-                .smpTime    = 20,
+                .smpMode    = SMP_PERIOD_MODE,
+                .smpFreq    = 100000,
+                .smpPoints  = 1000,
+                .smpInterval = 0,
+                .smpTimes    = 1,
+                .ampThreshold = 2.2f,
+                .messDuration = 5000,
+                .trigDelay    = 30000,
                 .ev         = {0,1,2,3},
                 .n_ev       = 4,
-                .evCalcCnt  = 100,
+                .evCalcCnt  = 1000,
                 .upway      = 0,
                 .upwav      = 0,
                 .savwav     = 1,
                 
                 .coef={
-                    .a  = 1.0F,
-                    .b  = 0.0F,
+                    .a  = 1.0f,
+                    .b  = 0.0f,
                 }
             }
         },
@@ -122,9 +136,8 @@ const all_para_t DFLT_PARA={
         },
         
         .smp = {
-            .pwr_mode   = 0,
-            .smp_mode   = 0,
-            .smp_period = 2,
+            .pwr_mode   = PWR_NO_PWRDN,
+            .pwr_period = 60,
         },
         
         .dac = {
@@ -156,16 +169,20 @@ const date_time_t DFLT_TIME={
     }
 };
 
-
+#if 0
 const char *all_para_json="{\
     \"netPara\":\
-         {\
-            \"host\":           "STR(HOST)",        \
-            \"port\":           "STR(PORT)",        \
-            \"productKey\":     "STR(PRD_KEY)",     \
-            \"productSecret\":  "STR(PRD_SECRET)",  \
-            \"deviceKey\":      "STR(DEV_KEY)",     \
-            \"deviceSecret\":   "STR(DEV_SECRET)"   \
+        {\
+             \"mode\":           1,                     \
+             \"plat\":                                  \
+             {\
+                \"host\":           "STR(HOST)",        \
+                \"port\":           "STR(PORT)",        \
+                \"productKey\":     "STR(PRD_KEY)",     \
+                \"productSecret\":  "STR(PRD_SECRET)",  \
+                \"deviceKey\":      "STR(DEV_KEY)",     \
+                \"deviceSecret\":   "STR(DEV_SECRET)"   \
+             }\
          },\
     \"mbPara\":\
          {\
@@ -180,14 +197,19 @@ const char *all_para_json="{\
     \"smpPara\":\
          {\
              \"pwr_mode\":         0,          \
-             \"smp_mode\":         \"10m\"     \
-             \"smp_period\":       \"3h\"      \
+             \"pwr_period\":       \"3h\"      \
          },\
     \"chPara\":[\
          {\
             \"ch\":             0,             \
-            \"smpFreq\":        1000000,       \
-            \"smpTime\":        20,            \
+            \"smpMode\":        0,             \
+            \"smpFreq\":        1000,          \
+            \"smpTime\":        5,             \
+            \"smpInterval\":    0,             \
+            \"smpTimes\":       1,             \
+            \"ampThreshold\":   2.2,           \
+            \"messDuration\":   5000,          \
+            \"trigDelay\":      300,           \
             \"ev\":             [0,1,2,3],     \
             \"evCalcCnt\":      10000,         \
             \"upway\":          0,             \
@@ -195,8 +217,14 @@ const char *all_para_json="{\
         },\
         {\
             \"ch\":             1,             \
-            \"smpFreq\":        1000000,       \
-            \"smpTime\":        20,            \
+            \"smpMode\":        0,             \
+            \"smpFreq\":        100,           \
+            \"smpTime\":        5,             \
+            \"smpInterval\":    100,           \
+            \"smpTimes\":       1,             \
+            \"ampThreshold\":   2.2,           \
+            \"messDuration\":   5000,          \
+            \"trigDelay\":      300,           \
             \"ev\":             [1],           \
             \"evCalcCnt\":      1000,          \
             \"upway\":          0,             \
@@ -220,6 +248,7 @@ const char *all_para_ini="\
 \
 \
 ";
+#endif
 
 
 const char *filesPath[FILE_MAX]={

@@ -16,6 +16,7 @@ public:
     int  is_enable(void);
     HWND get_hwnd(void);
     void clear(void);
+    int save(const char* path);
     void print(LOG_LEVEL lv, TCHAR* txt);
     void set_level(LOG_LEVEL lv, level_t * ld);
     
@@ -65,6 +66,25 @@ void myLog::init(HWND hwnd, CRect rc, CFont font)
     inited = 1;
 }
 
+int myLog::save(const char *path)
+{
+    FILE* fp = fopen(path, "wt");
+    if (!fp) {
+        LOGE("___ fopen %s failed\n", path);
+        return -1;
+    }
+
+    int len = dbg.GetWindowTextLength();
+    char* buf = new char[len];
+    if (buf) {
+        dbg.GetWindowText(buf, len);
+        fwrite(buf, 1, len, fp);
+        delete[] buf;
+    }
+    fclose(fp);
+
+    return 0;
+}
 
 void myLog::print(LOG_LEVEL lv, TCHAR *txt)
 {
@@ -201,7 +221,10 @@ void log_print(LOG_LEVEL lv, const char* format, ...)
     mLog.print(lv, buff);
 }
 
-
+int log_save(const char* path)
+{
+    return mLog.save(path);
+}
 
 
 
