@@ -1,4 +1,5 @@
 #include "dsp.h"
+#include "log.h"
 #include <math.h>
 
 static F32 ev_ave_calc(F32 *data, U32 cnt)
@@ -7,7 +8,7 @@ static F32 ev_ave_calc(F32 *data, U32 cnt)
     F32 v=0.0F;
     
     for(i=0; i<cnt; i++) {
-        v += data[i];
+        v += fabs(data[i]);
     }
     
     return (v/cnt);
@@ -33,22 +34,18 @@ static F32 ev_asl_calc(F32 *data, U32 cnt)
         v += fabs(data[i]);
     }
     v /= cnt;
-    v *= 1000000;
     
-    return (F32)(log10(v)*20);
+    return (F32)((log10(v)+3)*20);      //dB
 }
 
-static F32 ev_ene_calc(F32 *data, U32 cnt, U32 freq)
+static F32 ev_ene_calc(F32 *data, U32 cnt)
 {
     U32 i;
-    F32 s=0.0F;
-    F32 tm=(1.0F/freq);
+    F32 rms;
     
-    for(i=0; i<cnt-1; i++) {
-        s += data[i]*tm;
-    }
+    rms = ev_rms_calc(data, cnt);
     
-    return s;
+    return ((rms*rms)/50)*1000000;                //pW
 }
 
 
@@ -90,7 +87,7 @@ static F32 ev_amp_calc(F32 *data, U32 cnt)
         }
     }
     
-    return max;
+    return (F32)((log10(max)+3) * 20);      //unit: dB
 }
 
 
@@ -107,7 +104,7 @@ int dsp_ev_calc(U8 tp, F32 *data, U32 cnt, U32 freq, F32 *result)
         case EV_AVE: v = ev_ave_calc(data, cnt); break;
         case EV_RMS: v = ev_rms_calc(data, cnt); break;
         case EV_ASL: v = ev_asl_calc(data, cnt); break;
-        case EV_ENE: v = ev_ene_calc(data, cnt, freq); break;
+        case EV_ENE: v = ev_ene_calc(data, cnt); break;
         case EV_MIN: v = ev_min_calc(data, cnt); break;
         case EV_MAX: v = ev_max_calc(data, cnt); break;
         case EV_AMP: v = ev_amp_calc(data, cnt); break;
@@ -149,4 +146,19 @@ int dsp_fl_calc(U8 tp, F32 *data, U32 cnt)
     
     return 0;
 }
+
+
+void dsp_test(F32 *data, int cnt)
+{
+    int i;
+    F32 ev[EV_NUM];
+    const char* str[EV_NUM] = { "rms","amp","asl","ene","ave","min","max" };
+    
+    for(i=0; i<EV_NUM; i++) {
+        dsp_ev_calc(i, data, cnt, 400000, &ev[i]);
+        
+        LOGD("___[%s]: %.3f\n", str[i], ev[i]);
+    }
+}
+
 

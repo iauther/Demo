@@ -23,16 +23,26 @@ enum {
     UPG_FLAG_MAX=0x0f,
 };
 
+enum {
+    PORT_UART=0,
+    PORT_NET,
+    PORT_USB,
+
+    PORT_MAX
+};
+
+enum {
+    MODE_NORM=0,
+    MODE_CALI,
+    MODE_TEST,
+
+    MODE_MAX
+};
 
 enum {
     STAT_STOP=0,
-    STAT_CALI,              //calibration
-    STAT_CAP,
-    STAT_TEST,
-    STAT_UPGRADE,
+    STAT_RUN,
     
-    STAT_POWEROFF=0x10,
-    STAT_MAX
 };
 
 
@@ -40,8 +50,9 @@ enum {
     TYPE_ACK=0,
     
     TYPE_CAP,         //channel capture data
+    TYPE_DAC,
     TYPE_CALI,        //calibration
-    TYPE_STAT,
+    TYPE_MODE,
     TYPE_SETT,
     TYPE_PARA,
     TYPE_FILE,
@@ -52,7 +63,7 @@ enum {
     TYPE_FACTORY,
     
     TYPE_HBEAT,       //heartbeat
-    TYPE_DATATO,
+    TYPE_DATO,
     
     TYPE_MAX
 };
@@ -78,8 +89,8 @@ enum {
 };
 
 enum {
-    DATATO_ALI=0,
-    DATATO_USR,
+    DATO_ALI=0,
+    DATO_USR,
 };
 
 
@@ -135,10 +146,7 @@ enum {
     PWR_PERIOD_PWRDN,
 };
 
-typedef struct {
-    U8   pwr_mode;          //PWR_NO_PWRDN:no powerdown    PWR_PERIOD_PWRDN: period powerdown
-    U32  pwr_period;        //unit: second
-}smp_para_t;
+
 typedef struct {
     F32     a;
     F32     b;
@@ -151,11 +159,10 @@ enum {
 };
 
 typedef struct {
-    U8      ch;
     U8      smpMode;        //SMP_PERIOD_MODE: period sample  SMP_TRIG_MODE: threshold trigger sample   SMP_CONT_MODE: continuous sample
     U32     smpFreq;        //hz
     U32     smpPoints;
-    U32     smpInterval;    //ms
+    U32     smpInterval;    //sample interval time, unit: us
     U32     smpTimes;       //number of times
     F32     ampThreshold;   //sample AMP threshold value, unit: mv
     U32     messDuration;   //messure end duration, unit: ms
@@ -166,36 +173,50 @@ typedef struct {
     U8      upwav;
     U8      savwav;
     U32     evCalcCnt;
-    
-    coef_t  coef;
 }ch_para_t;
+typedef struct {
+    U8              ch;
+    U8              enable;
+    
+    ch_para_t       para[MODE_MAX];
+    coef_t          coef;
+}ch_paras_t;
+typedef struct {
+    U8              mode;               //dev mode
+    U8              port;               //refer to PORT_UART define
+    U8              dato;               //DATO_ALI or DATO_USR
+    
+    U8              pwrmode;           //PWR_NO_PWRDN:no powerdown    PWR_PERIOD_PWRDN: period powerdown
+    U32             worktime;          //unit: second
+    ch_paras_t      ch[CH_MAX];
+}smp_para_t;
+
 typedef struct {
     net_para_t  net;
     dac_para_t  dac;
-    smp_para_t  smp;
     dbg_para_t  dbg;
     mbus_para_t mbus;
     card_para_t card;
-    ch_para_t   ch[CH_MAX];
+    smp_para_t  smp;
 }usr_para_t;
 
-
-typedef struct {
-    U32             tp;
-    U64             time;
-    F32             data;
-}ev_data_t;
-
 typedef struct {
     U32             tp;
     F32             data;
-}ev_point_t;
+}ev_val_t;
 
 typedef struct {
     U64             time;
     U32             cnt;
-    ev_point_t      ev[0];
-}ev_data2_t;
+    ev_val_t        val[0];
+}ev_grp_t;
+
+typedef struct {
+    U32             grps;
+#ifndef _WIN32
+    ev_grp_t        grp[0];
+#endif
+}ev_data_t;
 
 typedef struct {
     U32             ch;
@@ -208,8 +229,8 @@ typedef struct {
 typedef struct {
     U8              batt;
     S8              temp;
-    F32             sig_s;      //strength
-    F32             sig_q;      //quality
+    F32             sig_s;          //strength
+    F32             sig_q;          //quality
     U64             time;
 }stat_data_t;
 
@@ -223,8 +244,7 @@ typedef struct {
 }powerdown_t;
 
 typedef struct {
-    U8              datato;       //DATATO_ALI or DATATO_USR
-    
+    U8              xx;           //
 }sett_t;
 
 typedef struct {
@@ -234,8 +254,8 @@ typedef struct {
 }conn_para_t;
 
 typedef struct {
-    U8              mode;
-    U8              state;
+    S8              stat[CH_MAX];
+    U8              finished[CH_MAX];
     date_time_t     dt;
 }state_t;
 
@@ -311,16 +331,10 @@ typedef struct {
     //U32           type;
 }dev_info_t;
 
-
 typedef struct {
     fw_info_t       fwInfo;
     dev_info_t      devInfo;
     sett_t          sett;
-}para_t;
-
-typedef struct {
-    state_t         stat;
-    para_t          para;
 }sys_para_t;
 
 typedef struct {
@@ -340,13 +354,16 @@ typedef struct {
     cali_sig_t      sig;
 }cali_t;
 typedef struct {
+    U8              psrc;       //poweron trig source, 0: manual poweron  1: rtc poweron
+    dac_para_t      dac;
     cali_t          cali[CH_MAX];
+    state_t         state;
 }gbl_var_t;
 
 typedef struct {
-    sys_para_t      sys;
-    usr_para_t      usr;
     gbl_var_t       var;
+    usr_para_t      usr;
+    sys_para_t      sys;
 }all_para_t;
 
 #pragma pack ()

@@ -13,6 +13,7 @@ enum {
     EVT_LOG,
     EVT_COMM,
     EVT_DATA,
+    EVT_FINISH,
     
     EVT_TIMER,
     EVT_SAVE,

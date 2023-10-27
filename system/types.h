@@ -81,13 +81,19 @@ typedef int (*rx_cb_t)(handle_t h, void* addr, U32 evt, void* data, int len);
 #define MIN3(a,b,c) MIN(MIN(a,b),c)
 
 
+#define KHZ         (1000)
+#define MHZ         (1000*KHZ)
+#define KB          (1024)
+#define MB          (1024*1024)
+
+
 #define offset_of(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 
 typedef struct {
     U16             year;
-    U8              mon;
-    U8              day;
-    U8              week;
+    U8              mon;            //国标: 1~12代表1~12月，gd32同
+    U8              day;            //国标: 1~31
+    U8              week;           //国标: 0~6代表周一~周天，gd32则是1~7
 }date_s_t;
 
 typedef struct {
@@ -109,6 +115,7 @@ typedef struct {
 }buf_t;
     
 typedef struct {
+    U32             tp;
     void            *buf;
     U32             blen;
     U32             dlen;

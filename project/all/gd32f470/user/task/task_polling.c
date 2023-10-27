@@ -5,11 +5,12 @@
 #include "dal.h"
 #include "date.h"
 #include "power.h"
-#include "dal_rtc.h"
+#include "rtc.h"
 #include "dal_sd.h"
 #include "upgrade.h"
 #include "paras.h"
 #include "dal_adc.h"
+#include "dal_wdg.h"
 #include "dal_delay.h"
 #include "aiot_at_api.h"
 #include "hw_at_impl.h"
@@ -34,6 +35,18 @@ static U32 tmrCount=0;
 static handle_t fList=NULL;
 extern at_sig_stat_t sig_stat;
 
+static int cap_is_finished(void)
+{
+    U8 ch;
+    
+    for(ch=0; ch<CH_MAX; ch++) {
+        if(!paras_is_finished(ch)) {
+            return 0;
+        }
+    }
+    
+    return 1;
+}
 
 
 static int upg_file_is_exist(void)
@@ -65,6 +78,44 @@ static int upg_file_is_exist(void)
     
     return upg_file_exist;
 }
+
+static int conn_flag=0;
+static osThreadId_t connThdId=NULL;
+static void task_conn_fn(void *arg)
+{
+#define CONN_MAX  5
+#define REST_MAX  5
+    static int conn_cnt=0;
+    static int rest_cnt=0;
+    U8 port=paras_get_port();
+    
+    while(1) {
+        conn_flag = api_comm_connect(port);
+        if(conn_flag) {
+            conn_cnt = 0;
+            LOGD("___ api_comm_connect ok!\n");
+            break;
+        }
+        
+        conn_cnt++;
+        LOGD("___ ad module conn times: %d\n", conn_cnt);
+        
+        if(conn_cnt>0 && (conn_cnt%CONN_MAX==0)) {
+            at_hal_reset();
+            rest_cnt++;
+            LOGD("___ ad module reset: %d\n", rest_cnt);
+            
+            if(rest_cnt>0 && (rest_cnt%REST_MAX==0)) {
+                LOGE("___ ad module reset reach % times, please check the module and repair it\n", rest_cnt);
+            }
+        }
+    }
+    LOGD("___ quit task_conn_fn ...\n");
+		
+    connThdId = NULL;
+    osThreadExit();
+}
+
 
 static void upgrade_polling(U8 loop)
 {
@@ -146,33 +197,50 @@ fail:
     fs_close(fl);
 }
 
-static U32 get_run_time(void)
+
+static void print_time(char *s, date_time_t *dt)
 {
-    U32 t1,t2;
-    date_time_t dt1,dt2;
-    
-    paras_get_datetime(&dt1);
-    dal_rtc_get(&dt2);
-    
-    get_timestamp(&dt1, &t1);
-    get_timestamp(&dt2, &t2);
-    
-    return (t2-t1);
+    LOGD("%s %4d.%02d.%02d-%02d-%02d:%02d:%02d\n", s, dt->date.year,dt->date.mon,dt->date.day,
+                                                   dt->date.week,dt->time.hour,dt->time.min,dt->time.sec);
 }
-static void poweroff_polling(void)
+static void pwroff_polling(void)
 {
+    int finish=0;
+    U32 runtime,countdown;
+    gbl_var_t  *var=&allPara.var;
     smp_para_t *smp=paras_get_smp();
     
-    if(smp->pwr_mode==0) {
-        //是否正在写文件
-        
+    if(paras_get_mode()==MODE_CALI) {
+        LOGW("___ in cali mode, power off disabled!\n");
+        return;
+    }
+    
+    if(smp->pwrmode==SMP_PERIOD_MODE) {
         //缓存数据是否保存完毕
-        
-        //上传记录文件是否写入
-        
-        //4g模组是否关机
+        finish = api_nvm_is_finished();
+        if(!finish) {
+            LOGW("___ capture is not finished， pwroff disable!\n");
+            return;
+        }
         
         //以上都完成时才可以关机
+        runtime = rtc2_get_runtime();
+        countdown = (smp->worktime>(runtime+3))?(smp->worktime- runtime):3;
+        LOGD("____ psrc: %d, finish: %d, runtime: %lu, worktime: %d, countdown: %d\n", var->psrc, finish, runtime, smp->worktime, countdown);
+        
+        if(var->psrc==1) {      //rtc poweron
+            if(((finish==2) || ((finish==1) && (runtime>=30))) && (countdown>=3)) {
+                at_hal_power(0);            //关4g模组
+                
+                countdown -= 2;     //减2为修正值
+                LOGD("____ rtc2_set_countdown, %d\n", countdown);
+                rtc2_set_countdown(countdown);
+                while(1);
+            }
+        }
+        else {                  //manual poweron
+            //delay powerdown??
+        }
     }
     
 }
@@ -183,73 +251,28 @@ static void stat_polling(void)
     //temperature
     //
 }
-
-
-
-
-
-
-
-
-
-
-
-
-static void polling_tmr_callback(void *arg)
-{
-    task_post(TASK_POLLING, NULL, EVT_TIMER, 0, NULL, 0);
-}
-
-#define CONN_MAX  5
-#define REST_MAX  5
-static int conn_flag=0;
-static osThreadId_t connThdId=NULL;
-static void task_conn_fn(void *arg)
-{
-    static int conn_cnt=0;
-    static int rest_cnt=0;
-    
-    while(1) {
-        conn_flag = api_comm_connect();
-        if(conn_flag) {
-            conn_cnt = 0;
-            LOGD("___ api_comm_connect ok!\n");
-            break;
-        }
-        
-        conn_cnt++;
-        LOGD("___ ad module conn times: %d\n", conn_cnt);
-        
-        if(conn_cnt>0 && (conn_cnt%CONN_MAX==0)) {
-            at_hal_reset();
-            rest_cnt++;
-            LOGD("___ ad module reset: %d\n", rest_cnt);
-            
-            if(rest_cnt>0 && (rest_cnt%REST_MAX==0)) {
-                LOGE("___ ad module reset reach % times, please check the module and repair it\n", rest_cnt);
-            }
-        }
-    }
-    LOGD("___ quit task_conn_fn ...\n");
-		
-    connThdId = NULL;
-    osThreadExit();
-}
-static void start_conn_task()
+static void conn_polling()
 {
     smp_para_t *smp=paras_get_smp();
     
+    if(!cap_is_finished() || (paras_get_mode()==MODE_CALI)) {
+        return;
+    }
+    
     //周期模式采样时，采样完成再启动连接，避免4g对信号造成干扰
-    //if (smp->smp_mode==0 && api_cap_stoped() && !connThdId) {
-    if(!conn_flag && !connThdId) {
+    if (!conn_flag  && !connThdId) {
         start_task_simp(task_conn_fn, 2048, NULL, &connThdId);
     }
     
     if(conn_flag) {
-        api_comm_send_para();
+        //api_comm_send_para();
     }
 }
-
+////////////////////////////////////////////////////////////////
+static void polling_tmr_callback(void *arg)
+{
+    task_post(TASK_POLLING, NULL, EVT_TIMER, 0, NULL, 0);
+}
 
 void task_polling_fn(void *arg)
 {
@@ -275,17 +298,14 @@ void task_polling_fn(void *arg)
                 {
                     tmrCount++;
                     
+                    dal_wdg_feed();     //喂狗
+                    
+                    pwroff_polling();
+                    
                     stat_polling();
-                    poweroff_polling();
                     //upgrade_polling();                   
                     
-                    start_conn_task();
-                }
-                break;
-                
-                case EVT_SAVE:
-                {
-                    paras_save();
+                    conn_polling();
                 }
                 break;
             }

@@ -1,4 +1,3 @@
-#include <time.h>
 #include "dal_rtc.h"
 #include "dal_delay.h"
 #include "gd32f4xx_rtc.h"
@@ -54,9 +53,9 @@ static void rtc_setup(void)
 
     /* RTC current time configuration */
     if(ERROR == rtc_init(&init)){
-        LOGE("RTC time configuration failed!\n");
+        LOGE("___ rtc_init failed!\n");
     }else{
-        LOGD("RTC time configuration success!\n");
+        LOGD("___ rtc_init success!\n");
         RTC_BKP0 = BKP_VALUE;
     }
 }
@@ -119,9 +118,9 @@ int dal_rtc_init(void)
     else{
         /* detect the reset source */
         if (RESET != rcu_flag_get(RCU_FLAG_PORRST)){
-            LOGE("power on reset occurred....\n");
+            LOGW("power on reset occurred....\n");
         }else if (RESET != rcu_flag_get(RCU_FLAG_EPRST)){
-            LOGE("external reset occurred....\n");
+            LOGW("external reset occurred....\n");
         }
     }
     
@@ -129,15 +128,25 @@ int dal_rtc_init(void)
 }
 
 
-static int dec2bsd(int dec)
+static U8 dec2bcd(U8 x)
 {
-    return (dec+(dec/10)*6);
+    return (x+(x/10)*6);
 }
-static int bcd2dec(int bcd)
+static U8 bcd2dec(U8 x)
 {
-    return (bcd-(bcd>>4)*6);
+    return (x-(x>>4)*6);
 }
-
+static void print_para(char* s, rtc_parameter_struct *para)
+{
+    LOGD("%s, para.year:   0x%02x\n",   s, para->year);
+    LOGD("%s, para.month:  %d\n",       s, para->month);
+    LOGD("%s, para.date:   0x%02x\n",   s, para->date);
+    LOGD("%s, para.week:   %d\n",       s, para->day_of_week);
+    LOGD("%s, para.hour:   %d\n",       s, para->hour);
+    LOGD("%s, para.minute: 0x%02x\n",   s, para->minute);
+    LOGD("%s, para.second: 0x%02x\n",   s, para->second);
+}
+#define YMD_BCD
 
 int dal_rtc_set(date_time_t *dt)
 {
@@ -145,19 +154,30 @@ int dal_rtc_set(date_time_t *dt)
 
     para.factor_asyn = prescaler_a;
     para.factor_syn  = prescaler_s;
-    para.year = dec2bsd(dt->date.year-2000);
-    para.day_of_week = dt->date.week+1;
+#ifdef YMD_BCD
+    para.year  = dec2bcd(dt->date.year-2000);
+    para.month = dec2bcd(dt->date.mon);
+    para.date  = dec2bcd(dt->date.day);
+#else
+    para.year  = dt->date.year-2000;
     para.month = dt->date.mon;
-    para.date = dec2bsd(dt->date.day);
+    para.date  = dt->date.day;
+#endif
+    para.day_of_week = dt->date.week+1;
+    
     para.display_format = RTC_24HOUR;
     para.am_pm = RTC_AM;
     
     para.hour   = dt->time.hour;
-    para.minute = dec2bsd(dt->time.min);
-    para.second = dec2bsd(dt->time.sec);
+    para.minute = dec2bcd(dt->time.min);
+    para.second = dec2bcd(dt->time.sec);
     
+    //print_para("rtc_init", &para);
+    
+    //rtc_deinit();
     if(ERROR == rtc_init(&para)){
-        LOGE("RTC time configuration failed!\n");
+        LOGE("rtc_init failed!\n");
+        return -1;
     }
     
     return 0;
@@ -180,78 +200,24 @@ int dal_rtc_get(date_time_t *dt)
     
     rtc_current_time_get(&para);
     
+#ifdef YMD_BCD
     dt->date.year = bcd2dec(para.year)+2000;
+    dt->date.mon  = bcd2dec(para.month);
+    dt->date.day  = bcd2dec(para.date);
+#else
+    dt->date.year = para.year+2000;
+    dt->date.mon  = para.month;
+    dt->date.day  = para.date;
+#endif
     dt->date.week = para.day_of_week-1;
-    dt->date.mon = para.month;
-    dt->date.day = bcd2dec(para.date);
     
     dt->time.hour = para.hour;
-    dt->time.min = bcd2dec(para.minute);
-    dt->time.sec = bcd2dec(para.second);
-    dt->time.ms  = get_ss();
+    dt->time.min  = bcd2dec(para.minute);
+    dt->time.sec  = bcd2dec(para.second);
+    dt->time.ms   = get_ss();
     
     return 0;
 }
-
-
-static U32 mk_time(date_time_t *dt)
-{
-    U32 days,secs;
-    U16 year=dt->date.year;
-	U16 mon=dt->date.mon;
-    U8 day=dt->date.day;
-    U8 hour=dt->time.hour;
-    U8 min=dt->time.min;
-    U8 sec=dt->time.sec;
- 
-	/* 1..12 -> 11,12,1..10 */
-	if (0 >= (int) (mon -= 2)) {
-		mon += 12;	/* Puts Feb last since it has leap day */
-		year -= 1;
-	}
-    
-    days = (year/4 - year/100 + year/400 + 367*mon/12 + day) + year*365 - 719499;
-    secs = ((days*24 + hour)*60 + min)*60 + sec - 8*3600;
-    
-	return secs;
-}
-static U32 mk_time2(date_time_t *dt)
-{
-    struct tm tt;
-    
-    tt.tm_year = dt->date.year-1900;
-    tt.tm_mon = dt->date.mon-1;
-    tt.tm_mday =dt->date.day;
-    tt.tm_hour = dt->time.hour;
-    tt.tm_min = dt->time.min;
-    tt.tm_sec = dt->time.sec;
-    tt.tm_isdst = 0;
-    
-    return mktime(&tt)-8*3600;
-}
-
-
-
-U64 dal_rtc_get_timestamp(void)
-{
-#if 0
-    static U32 s,ss;
-    static U64 ms=0;
-#else
-    U32 s,ss;
-    U64 ms=0;
-#endif
-    date_time_t dt;
-    
-    dal_rtc_get(&dt);
-    s = mk_time2(&dt);
-    ss = dt.time.ms;
-    
-    ms = ((U64)s*1000)+ss; 
-    
-    return ms;
-}
-
 
 
 

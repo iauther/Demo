@@ -12,10 +12,9 @@
 #define COM_UART                    UART_0
 #define COM_BAUDRATE                (115200)
 
-#define KHZ                         (1000)
-#define MHZ                         (1000*KHZ)
-#define KB                          (1024)
-#define MB                          (1024*1024)
+
+#define WDG_TIME                    3000        //看门狗喂狗时间设置为3000ms
+
 
 #if 1                               
     
@@ -31,6 +30,9 @@
     //#define SFLASH_MNT_PT            "/sf"
     #define SFLASH_MNT_PT            "/sd"
     #define SFLASH_FS_TYPE           FS_FATFS
+    
+    
+    #define SAV_DATA_PATH            SDMMC_MNT_PT"/data"
     
     #endif
     
@@ -52,8 +54,8 @@
     //#define PROD_V2                 //字符串方式，支持批量上传
     #define PROD_V3               //自定义格式，支持二进制上传
     
-    #define USE_LAB_1
-    //#define USE_LAB_2
+    //#define USE_LAB_1
+    #define USE_LAB_2
     
     #define DEMO_TEST
     

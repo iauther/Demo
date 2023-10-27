@@ -36,6 +36,7 @@ OF SUCH DAMAGE.
 */
 
 #include "gd32f4xx_it.h"
+#include "log.h"
 
 /*!
     \brief    this function handles NMI exception
@@ -56,6 +57,7 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
     /* if Hard Fault exception occurs, go to infinite loop */
+    LOGE("--- HardFault\n");
     while(1) {
     }
 }
@@ -69,6 +71,7 @@ void HardFault_Handler(void)
 void MemManage_Handler(void)
 {
     /* if Memory Manage exception occurs, go to infinite loop */
+    LOGE("--- MemoryFault\n");
     while(1) {
     }
 }
@@ -82,6 +85,7 @@ void MemManage_Handler(void)
 void BusFault_Handler(void)
 {
     /* if Bus Fault exception occurs, go to infinite loop */
+    LOGE("--- MemoryBusFault\n");
     while(1) {
     }
 }

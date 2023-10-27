@@ -75,7 +75,7 @@ int sd30xx_clr_irq(void);
 int sd30xx_read_id(U8 *buf, U8 len);
 int sd30xx_set_charge(U8 on);
 int sd30xx_get_volt(F32 *volt);
-int sd30xx_first_run(void);
+int sd30xx_first(void);
 
 int sd30xx_read(U8 reg, U8 *buf, U8 len);
 

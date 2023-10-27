@@ -339,7 +339,7 @@
               <MiscControls>--diag_suppress=111,177,550</MiscControls>
               <Define>GD32F470,OS_KERNEL=1</Define>
               <Undefine></Undefine>
-              <IncludePath>./user;../../../device;../../../system;../../../system/net;../../../system/net/protocols/mqtt;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/portfiles;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/data-model</IncludePath>
+              <IncludePath>./user;../../../device;../../../system;../../../system/net;../../../system/net/protocols/mqtt;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/portfiles;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/ota;../../../midware/mqtt/clink/components/data-model</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -817,6 +817,11 @@
               <FileName>dal_sdram.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\gd\gd32f4xx\dal\dal_sdram.c</FilePath>
+            </File>
+            <File>
+              <FileName>dal_wdg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\platform\chip\gd\gd32f4xx\dal\dal_wdg.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1342,6 +1347,16 @@
               <FileName>aiot_ntp_api.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\mqtt\clink\components\ntp\aiot_ntp_api.c</FilePath>
+            </File>
+            <File>
+              <FileName>ota_md5.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\components\ota\ota_md5.c</FilePath>
+            </File>
+            <File>
+              <FileName>aiot_ota_api.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\components\ota\aiot_ota_api.c</FilePath>
             </File>
           </Files>
         </Group>

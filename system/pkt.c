@@ -15,7 +15,7 @@ U32 get_devID(void)
 #include "paras.h"
 static U32 get_devID(void)
 {
-    return allPara.sys.para.devInfo.devID;
+    return allPara.sys.devInfo.devID;
 }
 #endif
 

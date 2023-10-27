@@ -6,6 +6,7 @@
 #include "log.h"
 #include "net.h"
 
+
 #ifdef _WIN32
 static all_para_t* p_all_para = NULL;
 #else
@@ -13,10 +14,11 @@ static all_para_t* p_all_para = NULL;
 #include "dal_uart.h"
 #include "dal_eth.h"
 #include "dal.h"
+#include "dac.h"
 static all_para_t* p_all_para = &allPara;
 #endif
 
-U8 para_send_flag=0;
+
 static comm_handle_t* port_handle[PORT_MAX]={NULL};
 static comm_handle_t *get_handle(handle_t h)
 {
@@ -71,8 +73,7 @@ static handle_t port_open(comm_handle_t *h, void *para)
         case PORT_UART:
         {
 #ifdef _WIN32
-            int idx = *(int*)para;
-            h->mSerial.open(idx);
+            h->mSerial.open((char *)para);
 #else
             
             h->h = log_get_handle();
@@ -320,8 +321,7 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
 {
     int r;
     int err=0;
-    node_t nd;
-    U8 param=DATATO_USR;
+    U8 param=DATO_USR;
     pkt_hdr_t *hdr=(pkt_hdr_t*)data;
     comm_handle_t *ch=NULL;
     
@@ -377,7 +377,7 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
                 p_all_para->usr = pa->usr;
                 
                 //need save the para
-                task_trig(TASK_POLLING, EVT_SAVE);
+                task_trig(TASK_NVM, EVT_SAVE);
             }
             
             //send para back to update
@@ -391,10 +391,24 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
         {
             ack_t* ack = (ack_t*)hdr->data;
             if(ack->type==TYPE_PARA) {
-                para_send_flag = 1;
+                //para_send_flag = 1;
             }
         }
-        break;        
+        break;
+        
+        case TYPE_DAC:
+        {
+#ifndef _WIN32
+            extern dac_param_t dac_param;
+            dac_para_t* dac = (dac_para_t*)hdr->data;
+            
+            dac_param.enable = dac->enable;
+            dac_param.fdiv   = dac->fdiv;
+            dac_set(&dac_param);
+#endif
+        }
+        break;
+        
         
         case TYPE_CAP:
         {
@@ -402,11 +416,10 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
             capture_t *cap=(capture_t*)hdr->data;
             if(cap->enable) {
                 api_cap_start(cap->ch);
-                paras_set_state(STAT_CAP);
+                
             }
             else {
                 api_cap_stop(cap->ch);
-                paras_set_state(STAT_STOP);
             }
 #endif
         }
@@ -419,20 +432,30 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
 #ifndef _WIN32
             paras_set_cali_sig(sig->ch, sig);
             api_cap_start(sig->ch);
-            paras_set_state(STAT_CALI);
 #endif
         }
         break;
         
-        case TYPE_DATATO:
+        case TYPE_DATO:
         {
-            U8 *dt=&p_all_para->sys.para.sett.datato;
-            *dt = ((*dt)==DATATO_ALI)?DATATO_USR:DATATO_ALI;
+            U8 *dato=&p_all_para->usr.smp.dato;
+            *dato = ((*dato)==DATO_ALI)?DATO_USR:DATO_ALI;
         }
         break;
         
-        case TYPE_STAT:
+        case TYPE_MODE:
         {
+#ifndef _WIN32
+            U8 mode=*((U8*)hdr->data);
+            U8 cur_mode=paras_get_mode();
+            if(mode!=cur_mode) {
+                paras_set_mode(mode);
+                paras_save();
+                
+                LOGD("___ switch mode to %d, paras saved, reboot now...\n", mode);
+                dal_reboot();       //重启使生效
+            }
+#endif
             err=0;
         }
         break;

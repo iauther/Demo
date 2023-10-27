@@ -27,7 +27,7 @@ typedef struct {
     MQTT_CLI_ID   cliID;
     U8            forMat;    //0:×Ö·û   1£º¶þ½øÖÆ
     U16           msgID;
-}mqtt_para_t;
+}mqtt_para2_t;
 
 
 typedef struct {
@@ -52,7 +52,7 @@ typedef struct {
     int         rxLen;
     
     tcp_para2_t  tcpPara;
-    mqtt_para_t mqttPara;
+    mqtt_para2_t mqttPara;
     
     ecxxx_flag_t flag;
 }ecxxx_handle_t;
@@ -545,7 +545,7 @@ int ecxxx_ntp(handle_t h, char *server, U16 port)
     
     r = get_datetime((char*)eh->rxBuf, &dt);
     if(r==0) {
-        rtcx_write_time(&dt);
+        rtc2_set_time(&dt);
     }
     
     return 0;
@@ -613,7 +613,7 @@ int ecxxx_conn(handle_t h, void *para)
     conn_para_t *conn=(conn_para_t*)para;
     ecxxx_handle_t* eh=(ecxxx_handle_t*)h;
     
-    sprintf(tmp, "AT+QIOPEN=%d,%d,\"TCP\",\"%s\",%d,0,2\r\n", eh->tcpPara.contID, eh->tcpPara.connID, conn->para.para.tcp.ip, conn->para.para.tcp.port);
+    sprintf(tmp, "AT+QIOPEN=%d,%d,\"TCP\",\"%s\",%d,0,2\r\n", eh->tcpPara.contID, eh->tcpPara.connID, conn->para->para.tcp.ip, conn->para->para.tcp.port);
     for(i=0; i<5; i++) {
         r = ec_write_waitfor(eh, tmp, strlen(tmp), 5000, "CONNECT", "ERROR");
         if(r==0) {

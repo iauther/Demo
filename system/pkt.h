@@ -16,15 +16,6 @@ enum {
 };
 
 enum {
-    PORT_USB=0,
-    PORT_NET,
-    PORT_UART,
-    PORT_MQTT,
-
-    PORT_MAX
-};
-
-enum {
     CHK_NONE=0,
     CHK_SUM,
     CHK_CRC8,

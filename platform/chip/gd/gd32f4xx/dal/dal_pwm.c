@@ -1,6 +1,7 @@
 #include "dal_pwm.h"
 #include "log.h"
 #include "cfg.h"
+#include "dal_delay.h"
 #include "gd32f4xx_timer.h"
 #include "gd32f4xx_gpio.h"
 
@@ -343,7 +344,7 @@ int dal_pwm_init(U32 freq)
     dma_config();
     timer_config(&para);
     
-    //dal_pwm_enable();
+    //dal_pwm_enable(1);
     
     return 0;
 }
@@ -370,8 +371,12 @@ int dal_pwm_set(U32 freq)
 
 int dal_pwm_enable(U8 on)
 {
-    if(on) timer_enable(TIMER2);
-    else   timer_disable(TIMER2);
+    if(on) {
+        timer_enable(TIMER2);
+    }
+    else {
+        timer_disable(TIMER2);
+    }
     
     return 0;
 }

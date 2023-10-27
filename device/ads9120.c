@@ -216,7 +216,6 @@ static inline void ads_spi_init(void)
             cfg.callback = ads_callback;
         }
         adsHandle.hspi = dal_spi_init(&cfg);
-        dal_spi_enable(1);
     }
 }
 static inline void ads_spi_deinit(void)
@@ -708,8 +707,14 @@ int ads9120_power(U8 on)
 {
     handle_t hpwr=adsHandle.hpin[PIN_PWR];
     
-    if(adsHandle.inited) {
-        dal_gpio_set_hl(hpwr, on);
+    if(!hpwr || dal_gpio_get_hl(hpwr)==on) {
+        return -1;
+    }
+    
+    dal_gpio_set_hl(hpwr, on);
+    if(on) {
+        ads_hw_reset();
+        
     }
         
     return 0;

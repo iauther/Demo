@@ -47,7 +47,7 @@ static int rs485_recv_callback(handle_t h, void *addr, U32 evt, void *data, int 
 }
 static int net_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
 {
-    int r = list_append(tasksHandle.rcv, data, len);
+    int r = list_append(tasksHandle.rcv, 0, data, len);
     if(r==0) {
         task_trig(TASK_COMM_RECV, EVT_COMM);
     }
@@ -67,7 +67,7 @@ static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int le
         task_post(TASK_COMM_RECV, NULL, EVT_LOG, 0, &cmd, sizeof(cmd));
     }
     else {
-        r = list_append(tasksHandle.rcv, data, len);
+        r = list_append(tasksHandle.rcv, 0, data, len);
         if(r==0) {
             task_trig(TASK_COMM_RECV, EVT_COMM);
         }
@@ -81,9 +81,11 @@ static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int le
 static int hw_init(void)
 {
     int r=0;
+    U8 port;
     
     mem_init();
     log_init(log_recv_callback);
+    rtc2_init();
     
     fs_init();
     json_init();
@@ -113,48 +115,76 @@ static void start_task(int taskid, osPriority_t prio, int stkSize, osThreadFunc_
 static void start_tasks(void)
 {
     start_task(TASK_DATA_CAP,   osPriorityNormal, 2048,  task_data_cap_fn,   5, NULL, 1);
-    start_task_simp(task_data_proc_fn, 2048, NULL, NULL);
-    
     start_task(TASK_POLLING,    osPriorityNormal, 2048,  task_polling_fn,    5, NULL, 1);
-	  start_task(TASK_COMM_SEND,  osPriorityNormal, 2048,  task_comm_send_fn,  5, NULL, 1);
-	
-    //start_task_simp(task_nvm_fn,  1024, NULL, NULL);
+    start_task(TASK_NVM,        osPriorityNormal, 2048,  task_nvm_fn,        5, NULL, 1);
+    
+    start_task_simp(task_data_proc_fn, 2048, NULL, NULL);
+    //start_task_simp(task_comm_send_fn, 2048, NULL, NULL);
+    
 }
 
 
-int api_comm_connect(void)
+
+int api_comm_connect(U8 port)
 {
     int r=0;
-    net_cfg_t cfg;
-    conn_para_t cp;
     
-    if(!tasksHandle.hcomm) {
-        tasksHandle.hcomm = comm_init(PORT_NET, &cfg);
-    }
-    
-    if(tasksHandle.hcomm && !tasksHandle.hconn) {
-        cp.para = &allPara.usr.net;
-        cp.callback = net_recv_callback;
-        cp.proto = PROTO_MQTT;
-        tasksHandle.hconn = comm_open(tasksHandle.hcomm, &cp);
-        if(tasksHandle.hconn) {
-            LOGD("___ comm_open ok!\n");
+    if(port==PORT_NET) {
+        net_cfg_t cfg;
+        conn_para_t cp;
+        
+        if(!tasksHandle.hcomm) {
+            tasksHandle.hcomm = comm_init(port, &cfg);
+        }
+        
+        if(tasksHandle.hcomm && !tasksHandle.hconn) {
+            cp.para = &allPara.usr.net;
+            cp.callback = net_recv_callback;
+            cp.proto = PROTO_MQTT;
+            tasksHandle.hconn = comm_open(tasksHandle.hcomm, &cp);
+            if(tasksHandle.hconn) {
+                LOGD("___ comm_open ok!\n");
+            }
+        }
+        else {
+            r = 1;
         }
     }
     else {
-        r = 1;
+        if(!tasksHandle.hcomm) {
+            tasksHandle.hcomm = comm_init(port, NULL);
+        }
+        
+        if(tasksHandle.hcomm && !tasksHandle.hconn) {
+            tasksHandle.hconn = comm_open(tasksHandle.hcomm, NULL);
+            if(tasksHandle.hconn) {
+                LOGD("___ comm_open ok!\n");
+            }
+        }
+        else {
+            r = 1;
+        }
     }
     
     return r;
 }
 
+int api_comm_is_connected(void)
+{
+    if(tasksHandle.hcomm && tasksHandle.hconn) {
+        return 1;
+    }
+    
+    return 0;
+}
+
+
 int api_comm_send_para(void)
 {
     int r;
-    U8 to=DATATO_USR;
-    extern U8 para_send_flag;
+    U8 to=DATO_USR;
     
-    if(!tasksHandle.hcomm || !tasksHandle.hconn || para_send_flag) {
+    if(!tasksHandle.hcomm || !tasksHandle.hconn) {
         return -1;
     }
     
@@ -164,8 +194,6 @@ int api_comm_send_para(void)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-
-
 
 static void user_cmd_proc(cmd_t *cmd)
 {
@@ -192,7 +220,6 @@ static void user_cmd_proc(cmd_t *cmd)
             
             paras_set_cali_sig(sig.ch, &sig);
             api_cap_start(sig.ch);
-            paras_set_state(STAT_CALI);
         }
         break;
         
@@ -222,8 +249,8 @@ static void user_cmd_proc(cmd_t *cmd)
             sscanf(cmd->str, "%d", &countdown);
             
             LOGD("___ powerdown now, restart %d seconds later!\n", countdown);
-            r = rtcx_set_countdown(countdown);
-            LOGD("___ rtcx_set_countdown result: %d\n", r);
+            r = rtc2_set_countdown(countdown);
+            LOGD("___ rtc2_set_countdown result: %d\n", r);
         }
         break;
     }
@@ -252,9 +279,9 @@ void task_comm_recv_fn(void *arg)
                     list_node_t *lnode=NULL;
                     handle_t list=tasksHandle.rcv;
                     
-                    if(list_take(list, &lnode, 0)==0) {
+                    if(list_take_node(list, &lnode, 0)==0) {
                         err = comm_recv_proc(tasksHandle.hconn, NULL, lnode->data.buf, lnode->data.dlen);
-                        list_back(list, lnode);
+                        list_back_node(list, lnode);
                     }
                 }
                 break;

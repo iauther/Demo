@@ -21,6 +21,7 @@ enum {
     TASK_DATA_CAP,
     TASK_DATA_PROC,
     TASK_POLLING,
+    TASK_NVM,
     
     TASK_MAX
 };
@@ -61,6 +62,7 @@ typedef struct {
 typedef struct {
     buf_t           cap;            //采集数据用临时内存
     buf_t           prc;            //转换数据用临时内存
+    buf_t           ev;             //特征值计算结果内存
     
     int             rlen;           //recved len
     int             slen;           //skiped len
@@ -74,6 +76,8 @@ typedef struct {
 
 typedef struct {
     ch_var_t        var[CH_MAX];
+    
+    handle_t        file;            //文件存储列表
     handle_t        send;            //发送数据列表
 }task_buf_t;
 
@@ -109,10 +113,20 @@ void task_nvm_fn(void *arg);
 
 int api_cap_start(U8 ch);
 int api_cap_stop(U8 ch);
+
+int api_cap_start_all(void);
+int api_cap_stop_all(void);
+
 int api_cap_power(U8 ch, U8 on);
-int api_cap_stoped(void);
-int api_comm_connect(void);
+
+int api_comm_connect(U8 port);
 int api_comm_send_para(void);
+int api_comm_is_connected(void);
+
+int api_comm_send_ack(U8 type, U8 err);
+int api_comm_send_data(U8 type, U8 nAck, void *data, int len);
+int api_nvm_send(void *data, int len);
+int api_nvm_is_finished(void);
 
 void task_init(void);
 int task_new(task_attr_t *atrr);
@@ -126,6 +140,7 @@ int task_recv(int taskID, evt_t *evt, int evtlen);
 int task_send(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len, U32 timeout);
 int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len);
 int task_trig(int taskID, U8 evt);
+int task_trig2(int taskID, U8 evt, U8 data);
 int task_msg_clear(int taskID);
 
 handle_t task_timer_init(osTimerFunc_t fn, void *arg, int ms, int times);

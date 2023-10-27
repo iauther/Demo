@@ -80,7 +80,7 @@ int log_print(LOG_LEVEL lv, char *fmt, ...)
     dal_uart_write(logHandle.hlog, (U8*)logHandle.buffer, len);
 
 #ifndef BOOTLOADER 
-    list_append(logHandle.lv[lv].list, logHandle.buffer, len);
+    list_append(logHandle.lv[lv].list, 0, logHandle.buffer, len);
 #endif
 
     return 0;

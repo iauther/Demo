@@ -239,6 +239,10 @@ int task_trig(int taskID, U8 evt)
     return task_post(taskID, NULL, evt, 0, NULL, 0);
 }
 
+int task_trig2(int taskID, U8 evt, U8 data)
+{
+    return task_post(taskID, NULL, evt, 0, &data, 1);
+}
 
 int task_msg_clear(int taskID)
 {

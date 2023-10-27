@@ -365,8 +365,12 @@ int dal_spi_set_hw_cs(handle_t h, U8 hl)
 
 int dal_spi_enable(U8 on)
 {
-    if(on) spi_enable(SPI5);
-    else   spi_disable(SPI5);
+    if(on) {
+        spi_enable(SPI5);
+    }
+    else {
+        spi_disable(SPI5);
+    }
     
     return 0;
 }

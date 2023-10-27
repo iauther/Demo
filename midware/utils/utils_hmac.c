@@ -27,7 +27,7 @@ void utils_hmac_md5(char *msg, int msg_len, char *digest, char *key, int key_len
         return;
     }
 
-    iot_md5_context context;
+    utils_md5_t context;
     uint8_t k_ipad[KEY_IOPAD_SIZE];    /* inner padding - key XORd with ipad  */
     uint8_t k_opad[KEY_IOPAD_SIZE];    /* outer padding - key XORd with opad */
     uint8_t out[MD5_DIGEST_SIZE];
@@ -46,18 +46,18 @@ void utils_hmac_md5(char *msg, int msg_len, char *digest, char *key, int key_len
     }
 
     /* perform inner MD5 */
-    utils_md5_init(&context);                                      /* init context for 1st pass */
-    utils_md5_starts(&context);                                    /* setup context for 1st pass */
-    utils_md5_update(&context, k_ipad, KEY_IOPAD_SIZE);            /* start with inner pad */
-    utils_md5_update(&context, (uint8_t *) msg, msg_len);    /* then text of datagram */
-    utils_md5_finish(&context, out);                               /* finish up 1st pass */
+    utils_md5_init2(&context);                                      /* init context for 1st pass */
+    utils_md5_start2(&context);                                    /* setup context for 1st pass */
+    utils_md5_update2(&context, k_ipad, KEY_IOPAD_SIZE);            /* start with inner pad */
+    utils_md5_update2(&context, (uint8_t *) msg, msg_len);    /* then text of datagram */
+    utils_md5_finish2(&context, out);                               /* finish up 1st pass */
 
     /* perform outer MD5 */
-    utils_md5_init(&context);                              /* init context for 2nd pass */
-    utils_md5_starts(&context);                            /* setup context for 2nd pass */
-    utils_md5_update(&context, k_opad, KEY_IOPAD_SIZE);    /* start with outer pad */
-    utils_md5_update(&context, out, MD5_DIGEST_SIZE);      /* then results of 1st hash */
-    utils_md5_finish(&context, out);                       /* finish up 2nd pass */
+    utils_md5_init2(&context);                              /* init context for 2nd pass */
+    utils_md5_start2(&context);                            /* setup context for 2nd pass */
+    utils_md5_update2(&context, k_opad, KEY_IOPAD_SIZE);    /* start with outer pad */
+    utils_md5_update2(&context, out, MD5_DIGEST_SIZE);      /* then results of 1st hash */
+    utils_md5_finish2(&context, out);                       /* finish up 2nd pass */
 
     for (i = 0; i < MD5_DIGEST_SIZE; ++i) {
         digest[i * 2] = utils_bin2hex(out[i] >> 4);

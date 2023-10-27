@@ -96,11 +96,11 @@ static int node_to_free(list_t *l, list_node_t *node)
 }
 
 
-static list_node_t *node_new(list_t *l, void *data, int len)
+static list_node_t *node_new(list_t *l, node_t *n)
 {
     list_node_t *node=NULL;
     
-    node = node_from_free(l, len);
+    node = node_from_free(l, n->dlen);
     if(!node) {
         node = eMalloc(sizeof(list_node_t));
         if (!node) return NULL;
@@ -108,16 +108,17 @@ static list_node_t *node_new(list_t *l, void *data, int len)
         node->prev = NULL;
         node->next = NULL;
         
-        node->data.buf = eMalloc(len);
+        node->data.buf = eMalloc(n->dlen);
         if(!node->data.buf) {
             xFree(node);
             return NULL;
         }
-        node->data.blen = len;
+        node->data.blen = n->dlen;
     }
     
-    memcpy(node->data.buf, data, len);
-    node->data.dlen = len;
+    memcpy(node->data.buf, n->buf, n->dlen);
+    node->data.dlen = n->dlen;
+    node->data.tp = n->tp;
 
     return node;
 }
@@ -213,7 +214,18 @@ static list_node_t *node_get(list_t *l, int index)
     
     return NULL;
 }
-
+static int node_swap(list_node_t *n1, list_node_t *n2)
+{
+    if(!n1 || !n2) {
+        return -1;;
+    }
+    
+    node_t x=n1->data;
+    n1->data = n2->data;
+    n2->data = x;
+    
+    return 0;
+}
 
 ///////////////////////////////////////////////////////////
 handle_t list_init(list_cfg_t *cfg)
@@ -333,7 +345,7 @@ int list_set(handle_t l, node_t *node, int index)
 }
 
 
-int list_take(handle_t l, list_node_t **lnode, int index)
+int list_take_node(handle_t l, list_node_t **lnode, int index)
 {
     list_node_t *ln=NULL;
     list_t *hl=(list_t*)l;
@@ -343,7 +355,7 @@ int list_take(handle_t l, list_node_t **lnode, int index)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_take lock failed\n");
+        LOGE("___ list_take_node lock failed\n");
         return -1;
     }
     
@@ -366,7 +378,7 @@ int list_take(handle_t l, list_node_t **lnode, int index)
 }
 
 
-int list_back(handle_t l, list_node_t *lnode)
+int list_back_node(handle_t l, list_node_t *lnode)
 {
     list_t *hl=(list_t*)l;
     
@@ -375,7 +387,7 @@ int list_back(handle_t l, list_node_t *lnode)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_back lock failed\n");
+        LOGE("___ list_back_node lock failed\n");
         return -1;
     }
     
@@ -386,7 +398,7 @@ int list_back(handle_t l, list_node_t *lnode)
 }
 
 
-int list_discard(handle_t l, list_node_t *lnode)
+int list_discard_node(handle_t l, list_node_t *lnode)
 {
     list_t *hl=(list_t*)l;
     
@@ -395,7 +407,7 @@ int list_discard(handle_t l, list_node_t *lnode)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_discard lock failed\n");
+        LOGE("___ list_discard_node lock failed\n");
         return -1;
     }
     node_free(l, lnode);
@@ -443,7 +455,7 @@ int list_addto(handle_t l, node_t *node, int index)
         }
     }
     
-    tmp = node_new(hl, node->buf, node->dlen);
+    tmp = node_new(hl, node);
     if(!tmp) {
         LOGE("list_addto, malloc %d error, l: 0x%08x, used.size: %d, free.size: %d\n", node->dlen, (U32)hl, hl->used.size, hl->free.size);
         lock_off(hl->lock);
@@ -493,21 +505,98 @@ int list_addto(handle_t l, node_t *node, int index)
 }
 
 
-int list_append(handle_t l, void *data, U32 len)
+int list_add_node(handle_t l, list_node_t *lnode, int index)
 {
-    node_t node={data, len, len};
+    int idx=0;
+    list_t *hl=(list_t*)l;
+    list_node_t *xd,*tmp=lnode;
+    dlist_t *dl=NULL;
+    
+    if(!hl || !lnode) {
+        return -1;
+    }
+    
+    if(lock_on(hl->lock)) {
+        LOGE("___ list_addto lock failed\n");
+        return -1;
+    }
+    
+    dl = &hl->used;
+    if (index>dl->size) {
+        LOGE("list_addto, invalid index, size: %d, index: %d\n", dl->size, index);
+        lock_off(hl->lock);
+        return -1;
+    }
+    
+    if (hl->cfg.max>0 && dl->size>=hl->cfg.max) {
+        
+        if(hl->cfg.mode==MODE_FILO) {
+            //LOGW("___ list is full, FILO mode, new data is discard\n");
+            lock_off(hl->lock);
+            return 0;
+        }
+        else {
+            xd = node_get(hl, 0);
+            node_remove(hl, xd, 1);
+            //LOGW("___ list is full, size: %d, FIFO mode, old data is discard\n", dl->size);
+        }
+    }
+    
+    if(dl->size==0) {
+        tmp->prev = NULL;
+        tmp->next = NULL;
+        
+        dl->head = tmp;
+        dl->tail = tmp;
+    }
+    else {
+    
+        if(index==0) {                                  //head
+            tmp->prev = NULL;
+            tmp->next = dl->head;
+            
+            xd->prev = tmp;
+            dl->head = tmp;
+        }
+        else if((index==(dl->size)) || (index==-1)) {   //tail
+            
+            tmp->prev = dl->tail;
+            tmp->next = NULL;
+            
+            dl->tail->next = tmp;
+            dl->tail = tmp;
+        }
+        else {
+            
+            xd = node_get(l, index);
+            
+            tmp->prev = xd->prev;
+            tmp->next = xd;
+            
+            xd->prev->next = tmp;
+            xd->prev = tmp;
+        }
+    }
+    dl->size++;
+        
+    lock_off(hl->lock);
+    
+    return 0;
+}
+
+
+int list_append(handle_t l, U32 tp, void *data, U32 len)
+{
+    node_t node={tp, data, len, len};
     
     return list_addto(l, &node, -1);
 }
 
 
-int list_infront(handle_t l, void *data, U32 len)
+int list_append_node(handle_t l, list_node_t *lnode)
 {
-    node_t node={data, len, len};
-    
-    return list_addto(l, &node, 0);
+    return list_add_node(l, lnode, -1);
 }
-
 
 
 int list_remove(handle_t l, int index)
@@ -564,6 +653,51 @@ int list_delete(handle_t l, int index)
     lock_off(hl->lock);
     
     return r;
+}
+
+
+int list_sort(handle_t l, U8 order)
+{
+    int size=0;
+    list_t *hl=(list_t*)l;
+    
+    if (!hl || order>=SORT_MAX) {
+        return -1;
+    }
+    
+    if(lock_on(hl->lock)) {
+        LOGE("___ list_size lock failed\n");
+        return -1;
+    }
+    
+    if(hl->used.size<=2) {
+        lock_off(hl->lock);
+        return -1;
+    }
+    
+    {
+        int len,cmp;
+        dlist_t *dl=&hl->used;
+        list_node_t *p2,*p1=dl->head;
+        
+        while(p1) {
+            p2 = p1->next;
+            while(p2) {
+                len = MIN(p1->data.dlen, p2->data.dlen);
+                cmp = memcmp(p1->data.buf, p2->data.buf, len);
+                if(((cmp>0) && (order==SORT_ASCEND)) || ((cmp<0) && (order==SORT_DESCEND))) {
+                    node_swap(p1, p2);
+                }
+                
+                p2 = p2->next;
+            }
+            p1 = p1->next;
+        }  
+    }
+    
+    lock_off(hl->lock);
+    
+    return 0;
 }
 
 

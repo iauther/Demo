@@ -16,7 +16,7 @@ static pwr_handle_t pwrHandle;
 
 int power_init(void)
 {
-    rtcx_init();
+    rtc2_init();
     //dal_pmu_init();
     
     return 0;
@@ -153,7 +153,7 @@ int power_off(U32 wakeup_ms)
     int r,i;
     
     for(i=0; i<10; i++) {
-        r = rtcx_set_countdown(wakeup_ms);
+        r = rtc2_set_countdown(wakeup_ms);
         if(r==0) {
             return 0;
         }

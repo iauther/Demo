@@ -27,6 +27,7 @@ const timer_info_t timerInfo[TIMER_MAX]={
 typedef struct {
     dal_timer_cfg_t    cfg;
     const timer_info_t *info;
+    int                times;
 }timer_handle_t;
 
 static timer_handle_t* timerHandle[TIMER_MAX]={NULL};
@@ -58,6 +59,7 @@ handle_t dal_timer_init(dal_timer_cfg_t *cfg)
     }
     h->cfg = *cfg;
     h->info = &timerInfo[h->cfg.timer];
+    h->times = 0;
     timerHandle[h->cfg.timer] = h;
     
     rcu_apb1_clock_config(RCU_APB1_CKAHB_DIV1);
@@ -81,7 +83,7 @@ handle_t dal_timer_init(dal_timer_cfg_t *cfg)
     timer_interrupt_flag_clear(h->info->timer, TIMER_INT_FLAG_UP);
     timer_interrupt_enable(h->info->timer, TIMER_INT_UP);
 
-    timer_enable(h->info->timer);
+    //timer_enable(h->info->timer);
     nvic_irq_enable(h->info->IRQn, 2, 0);
     
     return h;
@@ -104,25 +106,20 @@ int dal_timer_deinit(handle_t h)
 }
 
 
-int dal_timer_set(handle_t h, dal_timer_cfg_t *cfg)
+int dal_timer_en(handle_t h, U8 on)
 {
     timer_handle_t *th=(timer_handle_t*)h;
     
-    return 0;
-}
-
-
-int dal_timer_start(handle_t h)
-{
-    timer_handle_t *th=(timer_handle_t*)h;
+    if(!th) {
+        return -1;
+    }
     
-    return 0;
-}
-
-
-int dal_timer_stop(handle_t h)
-{
-    timer_handle_t *th=(timer_handle_t*)h;
+    if(on) {
+        timer_enable(th->info->timer);
+    }
+    else {
+        timer_disable(th->info->timer);
+    }
     
     return 0;
 }
@@ -136,8 +133,9 @@ static void timerX_handler(U8 timer)
     if(timer_interrupt_flag_get(h->info->timer, TIMER_INT_FLAG_UP)) {
         timer_interrupt_flag_clear(h->info->timer, TIMER_INT_FLAG_UP);
         
-		if(h->cfg.callback) {
+		if(((h->cfg.times<0) || ((h->cfg.times>0) && (h->times<h->cfg.times-1))) && h->cfg.callback) {
             h->cfg.callback(h, h->cfg.arg);
+            h->times++;
         }
     }
 }

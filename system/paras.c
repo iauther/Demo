@@ -10,7 +10,6 @@
 #include "json.h"
 
 all_para_t allPara;
-static int prev_state=-1;
 ////////////////////////////////////////////////////////////
 static int paras_check()
 {
@@ -20,14 +19,14 @@ static int paras_check()
 
 int paras_load(void)
 {
-    int r=0;
+    int i,r=0;
     int flen;
     handle_t h=NULL;
-    fw_info_t *fw=&allPara.sys.para.fwInfo;
+    fw_info_t *fw=&allPara.sys.fwInfo;
     
     allPara = DFLT_PARA;
-    dal_rtc_get(&allPara.sys.stat.dt);
     
+#if 0
     flen = fs_lengthx(FILE_PARA);
     if(flen==sizeof(allPara)) {
         r = fs_readx(FILE_PARA, &allPara, flen);
@@ -35,9 +34,17 @@ int paras_load(void)
     else {
         paras_save();
     }
+#endif
     
-    allPara.sys.para.devInfo.devID = dal_get_chipid();
+    dal_rtc_get(&allPara.var.state.dt);
+    allPara.sys.devInfo.devID = dal_get_chipid();
     get_datetime_str(fw->bldtime, sizeof(fw->bldtime));
+    
+    allPara.var.psrc = rtc2_get_psrc();
+    for(i=0; i<CH_MAX; i++) {
+        allPara.var.state.stat[i] = STAT_STOP;
+        allPara.var.state.finished[i] = 0;
+    }
     
     return r;
 }
@@ -62,34 +69,50 @@ smp_para_t* paras_get_smp(void)
 
 
 
-void paras_set_state(int state)
+int paras_set_state(U8 ch, U8 stat)
 {
-    prev_state = allPara.sys.stat.state;
-    allPara.sys.stat.state = state;
-}
-
-
-int paras_get_state(void)
-{
-    return allPara.sys.stat.state;
-}
-
-
-int paras_state_restore(void)
-{
-    if(prev_state==-1) {
+    if(stat == allPara.var.state.stat[ch]) {
         return -1;
     }
     
-    allPara.sys.stat.state = prev_state;
+    allPara.var.state.stat[ch] = stat;
+    return 0;
+}
+
+
+int paras_get_state(U8 ch)
+{
+    return allPara.var.state.stat[ch];
+}
+
+
+int paras_set_finished(U8 ch, U8 f)
+{
+    allPara.var.state.finished[ch] = f;
+    return 0;
+}
+
+
+int paras_is_finished(U8 ch)
+{
+    if(!allPara.usr.smp.ch[ch].enable || (allPara.usr.smp.ch[ch].enable && allPara.var.state.finished[ch])) {
+        return 1;
+    }
     
     return 0;
 }
 
 
-int paras_get_prev_state(void)
+int paras_set_mode(U8 mode)
 {
-    return prev_state;
+    allPara.usr.smp.mode = mode;
+    return 0;
+}
+
+
+U8 paras_get_mode(void)
+{
+    return allPara.usr.smp.mode;
 }
 
 
@@ -108,11 +131,9 @@ int paras_set_cali_sig(U8 ch, cali_sig_t *sig)
         if(cali->cnt>1) {
             cali->cnt = 0;
         }
+        
         cali->rms[cali->cnt].in = sig->rms;
         cali->cnt++;
-    }
-    else {
-        cali->rms[0].in = sig->rms;
     }
     
     return 0;
@@ -135,7 +156,7 @@ int paras_set_coef(U8 ch, coef_t *coef)
         return -1;
     }
     
-    allPara.usr.ch[ch].coef = *coef;
+    allPara.usr.smp.ch[ch].coef = *coef;
     return 0;
 }
 
@@ -145,33 +166,37 @@ ch_para_t* paras_get_ch_para(U8 ch)
     if(ch>=CH_MAX) {
         return NULL;
     }
-    return &allPara.usr.ch[ch];
+    U8 mode=allPara.usr.smp.mode;
+    ch_paras_t *p=&allPara.usr.smp.ch[ch];
+    
+    return &p->para[mode];
 }
 
 
-int paras_get_datetime(date_time_t *dt)
+ch_paras_t* paras_get_ch_paras(U8 ch)
 {
-    if(!dt) {
-        return -1;
+    if(ch>=CH_MAX) {
+        return NULL;
     }
-    
-    *dt = allPara.sys.stat.dt;
-    
-    return 0;
+    return &allPara.usr.smp.ch[ch];
 }
 
 int paras_get_smp_cnt(U8 ch)
 {
-    ch_para_t *pch=NULL;
+    ch_para_t *pch=paras_get_ch_para(ch);
     
-    if(ch>=CH_MAX) {
+    if(!pch) {
         return -1;
     }
-    pch = &allPara.usr.ch[ch];
     
     return pch->smpPoints;
 }
 
+
+U8 paras_get_port(void)
+{
+    return allPara.usr.smp.port;
+}
 
 
 int paras_save(void)

@@ -211,7 +211,7 @@ int net_write(handle_t hconn, void *para, void *data, int len)
         {
             mqtt_para_t mp;
             
-            mp.datato = para?(*((U8*)para)):DATATO_USR;
+            mp.dato = para?(*((U8*)para)):DATO_USR;
 #ifdef _WIN32
             r = netHandle.mMqtt.pub(ch->h, &mp, data, len);
 #else

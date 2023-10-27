@@ -157,6 +157,27 @@ static void MessageQueueRemove (os_message_queue_t *mq, const os_message_t *msg)
 }
 
 
+static os_message_t* MessageQueueGetIndex (os_message_queue_t *mq, int index) {
+    int idx=0;
+    os_message_t *msg=mq->msg_first;
+    
+    if(index<0 || index>=mq->msg_count) {
+        return NULL;
+    }
+    
+    while(msg<=mq->msg_last) {
+        if(idx==index) {
+            return msg;
+        }
+        
+        msg = msg->next;
+        idx++;
+    }
+    
+    return NULL;
+}
+
+
 //  ==== Post ISR processing ====
 
 /// Message Queue post ISR processing.

@@ -4,6 +4,8 @@
 #include "protocol.h"
 #include "cfg.h"
 #include "log.h"
+#include "list.h"
+
 
 //https://toutiao.io/posts/w4mrk4/preview
 
@@ -75,12 +77,14 @@ static void mk_p_dir(fx_handle_t *h, char *path)
         if(p) {
             x = p+1;
             *p = 0;
-            hdir = h->drv->opendir(tmp);
-            if(!hdir) {
-                h->drv->mkdir(tmp);
-            }
-            else {
-                h->drv->closedir(hdir);
+            if(strlen(tmp)) {
+                hdir = h->drv->opendir(tmp);
+                if(!hdir) {
+                    h->drv->mkdir(tmp);
+                }
+                else {
+                    h->drv->closedir(hdir);
+                }
             }
             *p = '/';
         }
@@ -218,27 +222,13 @@ static int fx_size(file_handle_t *h)
 
 static int fx_read(file_handle_t *h, void *buf, int buflen)
 {
-    int r=0,sz;
-    
-    if(!buf || !buflen) {
-        sz = h->h->drv->size(h->fp);
-        return sz;
-    }
-    else {
-        r = h->h->drv->read(h->fp, buf, buflen);
-    }
-
-    return r;
+    return h->h->drv->read(h->fp, buf, buflen);
 }
 
 
 int fx_write(file_handle_t *h, void *buf, int buflen, int sync)
 {
     int r=0,wl;
-    
-    if(!h || !buf || !buflen) {
-        return -1;
-    }
     
     wl = h->h->drv->write(h->fp, buf, buflen);
     if(wl>0 && sync>0) {
@@ -300,7 +290,7 @@ static int fx_get_space(fx_handle_t *h, char *path, fs_space_t *sp)
 }
 
 
-static int fx_scan(fx_handle_t *h, char *path)
+static int fx_scan(fx_handle_t *h, char *path, handle_t l)
 {
     int r;
     handle_t hd;
@@ -311,7 +301,6 @@ static int fx_scan(fx_handle_t *h, char *path)
         LOGE("___ fx_scan malloc failed\n");
         return -1;
     }
-    
         
     hd = h->drv->opendir(path);
     if(!hd) {
@@ -322,9 +311,22 @@ static int fx_scan(fx_handle_t *h, char *path)
     while(1) {
         r = h->drv->readdir(hd, info);
         if(r==0) {
-            LOGD("___dir:%d, flen:%d fname:%s\n", info->isdir, info->size, info->fname);
-            if(info->isdir) {
-                fx_scan(h, info->fname);
+            int len=strlen(path)+strlen(info->fname)+2;
+            char *tmp=malloc(len);
+            
+            if(tmp) {
+                
+                sprintf(tmp, "%s/%s", path, info->fname);
+                if(info->isdir) {
+                    LOGD("___dir, %s\n", tmp);
+                    fx_scan(h, tmp, l);
+                }
+                else {
+                    LOGD("___file, %s/%s, %d\n", path, info->fname, info->size);
+                    list_append(l, 1, tmp, len);
+                }
+            
+                free(tmp);
             }
         }
         else {
@@ -521,6 +523,21 @@ int fs_size(handle_t file)
     return fx_size(h);
 }
 
+
+int fs_load(char *path, void *buf, int buflen)
+{
+    int len=-1;
+    handle_t h=fs_open(path, FS_MODE_RW);
+    
+    if(h) {
+        len = fs_read(h, buf, buflen);
+        fs_close(h);
+    }
+    
+    return len;
+}
+
+
 int fs_read(handle_t file, void *buf, int buflen)
 {
     file_handle_t *h=(file_handle_t*)file;
@@ -589,7 +606,7 @@ int fs_remove(char *path)
     return fx_remove(h, path);
 }
 
-int fs_scan(char *path)
+int fs_scan(char *path, handle_t l)
 {
     handle_t h=find_hnd(path);
     
@@ -598,7 +615,7 @@ int fs_scan(char *path)
         return NULL;
     }
     
-    return fx_scan(h, path);
+    return fx_scan(h, path, l);
 }
 
 
@@ -724,7 +741,7 @@ int fs_test(void)
         return -1;
     }
     
-    fs_scan(mntDIR);
+    fs_scan(mntDIR, NULL);
     
     sprintf(tt, "11223344556677889900aabbccdd");
     fs_write(hfile, tt, strlen(tt), 0);

@@ -44,22 +44,22 @@ static void utils_md5_zeroize(void *v, size_t n)
     }
 #endif
 
-void utils_md5_init(iot_md5_context *ctx)
+void utils_md5_init2(utils_md5_t *ctx)
 {
-    memset(ctx, 0, sizeof(iot_md5_context));
+    memset(ctx, 0, sizeof(utils_md5_t));
 }
 
-void utils_md5_free(iot_md5_context *ctx)
+void utils_md5_free2(utils_md5_t *ctx)
 {
     if (ctx == NULL) {
         return;
     }
 
-    utils_md5_zeroize(ctx, sizeof(iot_md5_context));
+    utils_md5_zeroize(ctx, sizeof(utils_md5_t));
 }
 
-void utils_md5_clone(iot_md5_context *dst,
-                     const iot_md5_context *src)
+void utils_md5_clone2(utils_md5_t *dst,
+                     const utils_md5_t *src)
 {
     *dst = *src;
 }
@@ -67,7 +67,7 @@ void utils_md5_clone(iot_md5_context *dst,
 /*
  * MD5 context setup
  */
-void utils_md5_starts(iot_md5_context *ctx)
+void utils_md5_start2(utils_md5_t *ctx)
 {
     ctx->total[0] = 0;
     ctx->total[1] = 0;
@@ -78,7 +78,7 @@ void utils_md5_starts(iot_md5_context *ctx)
     ctx->state[3] = 0x10325476;
 }
 
-void utils_md5_process(iot_md5_context *ctx, uint8_t data[64])
+void utils_md5_process2(utils_md5_t *ctx, uint8_t data[64])
 {
     uint32_t X[16], A, B, C, D;
 
@@ -204,7 +204,7 @@ void utils_md5_process(iot_md5_context *ctx, uint8_t data[64])
 /*
  * MD5 process buffer
  */
-void utils_md5_update(iot_md5_context *ctx, uint8_t *input, size_t ilen)
+void utils_md5_update2(utils_md5_t *ctx, uint8_t *input, size_t ilen)
 {
     size_t fill;
     uint32_t left;
@@ -225,14 +225,14 @@ void utils_md5_update(iot_md5_context *ctx, uint8_t *input, size_t ilen)
 
     if (left && ilen >= fill) {
         memcpy((void *)(ctx->buffer + left), input, fill);
-        utils_md5_process(ctx, ctx->buffer);
+        utils_md5_process2(ctx, ctx->buffer);
         input += fill;
         ilen  -= fill;
         left = 0;
     }
 
     while (ilen >= 64) {
-        utils_md5_process(ctx, input);
+        utils_md5_process2(ctx, input);
         input += 64;
         ilen  -= 64;
     }
@@ -252,7 +252,7 @@ static const uint8_t iot_md5_padding[64] = {
 /*
  * MD5 final digest
  */
-void utils_md5_finish(iot_md5_context *ctx, uint8_t output[16])
+void utils_md5_finish2(utils_md5_t *ctx, uint8_t output[16])
 {
     uint32_t last, padn;
     uint32_t high, low;
@@ -268,8 +268,8 @@ void utils_md5_finish(iot_md5_context *ctx, uint8_t output[16])
     last = ctx->total[0] & 0x3F;
     padn = (last < 56) ? (56 - last) : (120 - last);
 
-    utils_md5_update(ctx, (uint8_t*)iot_md5_padding, padn);
-    utils_md5_update(ctx, msglen, 8);
+    utils_md5_update2(ctx, (uint8_t*)iot_md5_padding, padn);
+    utils_md5_update2(ctx, msglen, 8);
 
     IOT_MD5_PUT_UINT32_LE(ctx->state[0], output,  0);
     IOT_MD5_PUT_UINT32_LE(ctx->state[1], output,  4);
@@ -283,13 +283,13 @@ void utils_md5_finish(iot_md5_context *ctx, uint8_t output[16])
  */
 void utils_md5(uint8_t *input, size_t ilen, uint8_t output[16])
 {
-    iot_md5_context ctx;
+    utils_md5_t ctx;
 
-    utils_md5_init(&ctx);
-    utils_md5_starts(&ctx);
-    utils_md5_update(&ctx, input, ilen);
-    utils_md5_finish(&ctx, output);
-    utils_md5_free(&ctx);
+    utils_md5_init2(&ctx);
+    utils_md5_start2(&ctx);
+    utils_md5_update2(&ctx, input, ilen);
+    utils_md5_finish2(&ctx, output);
+    utils_md5_free2(&ctx);
 }
 
 char utils_bin2hex(uint8_t hb)

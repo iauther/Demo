@@ -10,21 +10,16 @@
  * @brief 申请内存
  */
 static void* __malloc(uint32_t size) {
-    static int m_len=0;
     void *p;
     
-    //m_len+=size;
     p = malloc(size);
-    //printf("___m: %x, %d\n", (uint32_t)p, m_len);
     
     return p;
 }
 /**
  * @brief 释放内存
  */
-void __free(void *ptr) {
-    //printf("___f: %x\n", (uint32_t)ptr);
-    
+void __free(void *ptr) {    
     free(ptr);
 }
 /**

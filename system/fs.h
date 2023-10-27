@@ -79,13 +79,14 @@ handle_t fs_open(char *path, FS_MODE mode);
 handle_t fs_openx(U8 id, FS_MODE mode);
 int fs_close(handle_t file);
 int fs_size(handle_t file);
+int fs_load(char *path, void *buf, int buflen);
 int fs_read(handle_t file, void *buf, int buflen);
 int fs_write(handle_t file, void *buf, int buflen, int sync);
 int fs_append(handle_t file, void *buf, int buflen, int sync);
 int fs_remove(char *path);
 int fs_sync(handle_t file);
 int fs_seek(handle_t file, int offset);
-int fs_scan(char *path);
+int fs_scan(char *path, handle_t l);
 int fs_length(char *path);
 int fs_exist(char *path);
 

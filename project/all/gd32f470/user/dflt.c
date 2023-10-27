@@ -4,7 +4,8 @@
 
 #define STR1(x)             #x
 #define STR(x)              STR1(x)
-    
+
+
 #define HOST                "iot-06z00cq4vq4hkzx.mqtt.iothub.aliyuncs.com"
 #define PORT                1883
 
@@ -37,22 +38,12 @@
 const all_para_t DFLT_PARA={
     
     .sys = {
-        .stat={
-            .mode=0,
-            .state=STAT_STOP,
+        .fwInfo={
+            .magic=FW_MAGIC,
+            .version=VERSION,
+            .bldtime=__DATE__,
         },
         
-        .para={
-            .fwInfo={
-                .magic=FW_MAGIC,
-                .version=VERSION,
-                .bldtime=__DATE__,
-            },
-            
-            .sett = {
-                .datato = DATATO_ALI,
-            }
-        }
     },
     
     .usr = {
@@ -81,54 +72,6 @@ const all_para_t DFLT_PARA={
             .apn  = "CMNET",
         },
         
-        .ch = {
-            {
-                .ch         = 0,
-                .smpMode    = SMP_PERIOD_MODE,
-                .smpFreq    = 1000000,
-                .smpPoints  = 10000,
-                .smpInterval  = 0,
-                .smpTimes     = 1,
-                .ampThreshold = 2.2f,
-                .messDuration = 5000,
-                .trigDelay    = 30000,
-                .ev         = {0,1,2,3},
-                .n_ev       = 4,
-                .evCalcCnt  = 1000,
-                .upway      = 0,
-                .upwav      = 0,
-                .savwav     = 1,
-                
-                .coef={
-                    .a  = 200.0f,
-                    .b  = 0.0f,
-                }
-            },
-            
-            {
-                .ch         = 1,
-                .smpMode    = SMP_PERIOD_MODE,
-                .smpFreq    = 100000,
-                .smpPoints  = 1000,
-                .smpInterval = 0,
-                .smpTimes    = 1,
-                .ampThreshold = 2.2f,
-                .messDuration = 5000,
-                .trigDelay    = 30000,
-                .ev         = {0,1,2,3},
-                .n_ev       = 4,
-                .evCalcCnt  = 1000,
-                .upway      = 0,
-                .upwav      = 0,
-                .savwav     = 1,
-                
-                .coef={
-                    .a  = 1.0f,
-                    .b  = 0.0f,
-                }
-            }
-        },
-        
         .dbg = {
             .to     = 0,
             .level  = 1,
@@ -136,8 +79,127 @@ const all_para_t DFLT_PARA={
         },
         
         .smp = {
-            .pwr_mode   = PWR_NO_PWRDN,
-            .pwr_period = 60,
+            //.mode       = MODE_CALI,
+            .mode       = MODE_TEST,
+            .port       = PORT_NET,
+            .dato       = DATO_ALI,
+            .pwrmode    = PWR_NO_PWRDN,
+            .worktime   = 60*10,
+            
+            .ch = {
+                {   //CH_0
+                    .ch         = 0,
+                    .enable     = 1,
+                
+                    {
+                        {   //normal
+                            .smpMode      = SMP_PERIOD_MODE,
+                            .smpFreq      = 1000000,
+                            .smpPoints    = 10000,
+                            .smpInterval  = 0,
+                            .smpTimes     = 1,
+                            .ampThreshold = 2.2f,
+                            .messDuration = 5000,
+                            .trigDelay    = 30000,
+                            .ev           = {0,1,2,3},
+                            .n_ev         = 4,
+                            .evCalcCnt    = 10000,
+                            .upway        = 0,
+                            .upwav        = 0,
+                            .savwav       = 1,
+                        },
+                        
+                        {   //cali
+                            .smpMode      = SMP_PERIOD_MODE,
+                            .smpFreq      = 1000000,
+                            .smpPoints    = 10000,
+                        },                
+                                          
+                        {   //test        
+                            .smpMode      = SMP_PERIOD_MODE,
+                            .smpFreq      = 100000,
+                            .smpPoints    = 10000,
+                            .smpInterval  = 0,
+                            .smpTimes     = 1,
+                            .ampThreshold = 2.2f,
+                            .messDuration = 5000,
+                            .trigDelay    = 30000,
+                            .ev           = {0,1,2,3},
+                            .n_ev         = 4,
+                            .evCalcCnt    = 10000,
+                            .upway        = 0,
+                            .upwav        = 0,
+                            .savwav       = 1,
+                        },
+                    },
+                    
+                    .coef={
+#ifdef USE_LAB_1
+                        .a = 187.914246f,
+                        .b = -18.265991f,
+#elif defined USE_LAB_2
+                        .a  = 190.326859f,
+                        .b  = -11.934570f,
+#else                        
+                        .a  = 1.0f,
+                        .b  = 0.0f,
+#endif
+                    }
+                    
+                },
+                
+                {      //CH_1
+                    .ch         = 1,
+                    .enable     = 0,
+                    
+                    {
+                        {   //normal
+                            .smpMode      = SMP_PERIOD_MODE,
+                            .smpFreq      = 100000,
+                            .smpPoints    = 1000,
+                            .smpInterval  = 0,
+                            .smpTimes     = 1,
+                            .ampThreshold = 2.2f,
+                            .messDuration = 5000,
+                            .trigDelay    = 30000,
+                            .ev           = {0,1,2,3},
+                            .n_ev         = 4,
+                            .evCalcCnt    = 1000,
+                            .upway        = 0,
+                            .upwav        = 0,
+                            .savwav       = 1,
+                        },
+                    
+                        {   //cali
+                            .smpMode      = SMP_PERIOD_MODE,
+                            .smpFreq      = 100000,
+                            .smpPoints    = 1000,
+                        },
+                        
+                        {   //test
+                            .smpMode      = SMP_PERIOD_MODE,
+                            .smpFreq      = 100000,
+                            .smpPoints    = 1000,
+                            .smpInterval  = 0,
+                            .smpTimes     = 1,
+                            .ampThreshold = 2.2f,
+                            .messDuration = 5000,
+                            .trigDelay    = 30000,
+                            .ev           = {0,1,2,3},
+                            .n_ev         = 4,
+                            .evCalcCnt    = 1000,
+                            .upway        = 0,
+                            .upwav        = 0,
+                            .savwav       = 1,
+                        },
+                    },
+                    
+                    .coef={
+                        .a  = 1.0f,
+                        .b  = 0.0f,
+                    }
+                }
+            },
         },
         
         .dac = {
@@ -150,6 +212,11 @@ const all_para_t DFLT_PARA={
         .cali={
             {.cnt=0},
             {.cnt=0},
+        },
+            
+        .state={
+            .stat={STAT_STOP, STAT_STOP},
+            .finished={0, 0},
         }
     }
 };
@@ -157,13 +224,14 @@ const all_para_t DFLT_PARA={
 
 const date_time_t DFLT_TIME={
     .date = {
-        .year  = 2023,
-        .mon   = 8,
-        .day   = 11,
+        .year  = 2000,
+        .mon   = 1,
+        .day   = 1,
+        .week  = 6,
     },
     
     .time = {
-        .hour = 8,
+        .hour = 0,
         .min  = 0,
         .sec  = 0,
     }

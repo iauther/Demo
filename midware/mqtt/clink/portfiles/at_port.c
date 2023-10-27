@@ -14,6 +14,7 @@
 #include "aiot_state_api.h"
 #include "aiot_sysdep_api.h"
 #include "os_net_al.h"
+#include "log.h"
 
 
 aiot_os_al_t  *os_api = NULL;
@@ -54,7 +55,7 @@ void *core_sysdep_malloc(uint32_t size, char *name)
     
     res = os_api->malloc(size);
     if(res == NULL) {
-        printf("sysdep malloc failed \n");
+        LOGE("sysdep malloc failed \n");
     }
     return res;
 }
@@ -121,7 +122,7 @@ static int32_t core_sysdep_network_setopt(void *handle, core_sysdep_network_opti
     case CORE_SYSDEP_NETWORK_HOST: {
         network_handle->host = os_api->malloc(strlen(data) + 1);
         if (network_handle->host == NULL) {
-            printf("host malloc failed\n");
+            LOGE("host malloc failed\n");
             return STATE_PORT_MALLOC_FAILED;
         }
         memset(network_handle->host, 0, strlen(data) + 1);
@@ -174,7 +175,7 @@ static int32_t core_sysdep_network_establish(void *handle)
         return STATE_PORT_UDP_SERVER_NOT_IMPLEMENT;
     }
 
-    printf("unknown nwk type or tcp host absent\n");
+    LOGE("unknown nwk type or tcp host absent\n");
     return STATE_PORT_NETWORK_UNKNOWN_SOCKET_TYPE;
 }
 

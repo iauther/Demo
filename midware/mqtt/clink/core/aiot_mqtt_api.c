@@ -1373,8 +1373,7 @@ static void _core_mqtt_call_user_handler(core_mqtt_handle_t *mqtt_handle, core_m
 
     /* debug */
     topic_len = (uint32_t)msg.topic_len;
-    core_log2(mqtt_handle->sysdep, STATE_MQTT_LOG_TOPIC, "pub: %.*s\r\n", &topic_len,
-              msg.topic);
+    //core_log2(mqtt_handle->sysdep, STATE_MQTT_LOG_TOPIC, "pub: %.*s\r\n", &topic_len, msg.topic);
     //core_log_hexdump(STATE_MQTT_LOG_HEXDUMP, '<', msg.payload, msg.payload_len);
 
     memset(&packet, 0, sizeof(aiot_mqtt_recv_t));
@@ -2241,7 +2240,7 @@ int32_t aiot_mqtt_pub(void *handle, char *topic, uint8_t *payload, uint32_t payl
         return res;
     }
 
-    core_log1(mqtt_handle->sysdep, STATE_MQTT_LOG_TOPIC, "pub: %s\r\n", topic);
+    //core_log1(mqtt_handle->sysdep, STATE_MQTT_LOG_TOPIC, "pub: %s\r\n", topic);
     //core_log_hexdump(STATE_MQTT_LOG_HEXDUMP, '>', payload, payload_len);
 
     /* append rid */

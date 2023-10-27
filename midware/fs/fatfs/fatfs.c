@@ -2,7 +2,7 @@
 #include "fs.h"
 #include "cfg.h"
 #include "log.h"
-
+#include "diskio.h"
 
 #ifdef USE_FATFS
 
@@ -158,6 +158,9 @@ static int fatfs_close(handle_t h)
     }
     
     r = f_close(&hf->fp);
+    if(r) {
+        LOGE("___ f_close failed, %d\n", r);
+    }
     free(hf);
     
     return r;
@@ -175,11 +178,12 @@ static int fatfs_read(handle_t h, void *buf, int len)
     }
     
     r = f_read(&hf->fp, buf, len, &rlen);
-    if(r==FR_OK) {
-        r = rlen;
+    if(r) {
+        LOGE("___ f_read failed, %d\n", r);
+        return -1;
     }
     
-    return r;
+    return rlen;
 }
 
 
@@ -193,11 +197,12 @@ static int fatfs_write(handle_t h, void *buf, int len)
     }
     
     r = f_write(&hf->fp, buf, len, &wlen);
-    if(r==FR_OK) {
-        r = wlen;
+    if(r) {
+        LOGE("___ f_write failed, %d\n", r);
+        return -1;
     }
     
-    return r;
+    return wlen;
 }
 
 
@@ -275,12 +280,15 @@ static int fatfs_length(char *path)
     }
     
     snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
+    LOGD("____ f_stat %s\n", tmp);
+    
     r = f_stat(tmp, &fno);
-    if(r==FR_OK) {
-        return fno.fsize;
+    if(r) {
+        LOGE("____ f_stat failed, %d\n", r);
+        return -1;
     }
     
-    return -1;
+    return fno.fsize;
 }
 
 
@@ -292,17 +300,17 @@ static int fatfs_exist(char *path)
     fatfs_info_t *info;
  
     if(!path) {
-        return -1;
+        return 0;
     }
     
     info = get_info(path);
     if(!info) {
         LOGE("___ %s not mount!\n", path);
-        return -1;
+        return 0;
     }
     
     snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
-    r = f_stat(path, &fno);
+    r = f_stat(tmp, &fno);
     if(r==FR_OK) {
         return 1;
     }
@@ -385,7 +393,7 @@ static handle_t fatfs_opendir(char *path)
     
     info = get_info(path);
     if(!info) {
-        LOGE("___ fatfs_opendir, %s not mount!\n", path);
+        LOGE("___ get_info %s failed\n", path);
         free(h); return NULL;
     }
     
@@ -434,7 +442,7 @@ static int fatfs_readdir(handle_t h, fs_info_t *info)
     }
     
     if (inf.fname[0] == 0) {
-        LOGE("fatfs_readdir finished\n");
+        //LOGE("fatfs_readdir finished\n");
         return -1;
     }
     
@@ -483,8 +491,12 @@ static int fatfs_get_space(char *path, fs_space_t *sp)
         return -1;
     }
     
-    sp->total = (fs->n_fatent-2) * fs->csize;
-    sp->free  = f_clust*fs->csize;
+    U32 t_sectors,sector_size;
+    disk_ioctl(fs->pdrv, GET_SECTOR_COUNT, &t_sectors);
+    disk_ioctl(fs->pdrv, GET_SECTOR_SIZE, &sector_size);
+    
+    sp->total = (fs->n_fatent-2)*fs->csize*KB;
+    sp->free  = f_clust*fs->csize*KB;
     
     return 0;
 }

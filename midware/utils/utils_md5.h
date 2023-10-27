@@ -15,7 +15,7 @@ typedef struct {
     uint32_t total[2];          /*!< number of bytes processed  */
     uint32_t state[4];          /*!< intermediate digest state  */
     unsigned char buffer[64];   /*!< data block being processed */
-} iot_md5_context;
+} utils_md5_t;
 
 
 #ifdef __cplusplus
@@ -28,14 +28,14 @@ extern "C" {
  *
  * \param ctx      MD5 context to be initialized
  */
-void utils_md5_init(iot_md5_context *ctx);
+void utils_md5_init2(utils_md5_t *ctx);
 
 /**
  * \brief          Clear MD5 context
  *
  * \param ctx      MD5 context to be cleared
  */
-void utils_md5_free(iot_md5_context *ctx);
+void utils_md5_free2(utils_md5_t *ctx);
 
 /**
  * \brief          Clone (the state of) an MD5 context
@@ -43,15 +43,15 @@ void utils_md5_free(iot_md5_context *ctx);
  * \param dst      The destination context
  * \param src      The context to be cloned
  */
-void utils_md5_clone(iot_md5_context *dst,
-                     const iot_md5_context *src);
+void utils_md5_clone2(utils_md5_t *dst,
+                     const utils_md5_t *src);
 
 /**
  * \brief          MD5 context setup
  *
  * \param ctx      context to be initialized
  */
-void utils_md5_starts(iot_md5_context *ctx);
+void utils_md5_start2(utils_md5_t *ctx);
 
 /**
  * \brief          MD5 process buffer
@@ -60,7 +60,7 @@ void utils_md5_starts(iot_md5_context *ctx);
  * \param input    buffer holding the  data
  * \param ilen     length of the input data
  */
-void utils_md5_update(iot_md5_context *ctx, uint8_t *input, size_t ilen);
+void utils_md5_update2(utils_md5_t *ctx, uint8_t *input, size_t ilen);
 
 /**
  * \brief          MD5 final digest
@@ -68,10 +68,10 @@ void utils_md5_update(iot_md5_context *ctx, uint8_t *input, size_t ilen);
  * \param ctx      MD5 context
  * \param output   MD5 checksum result
  */
-void utils_md5_finish(iot_md5_context *ctx, uint8_t output[16]);
+void utils_md5_finish2(utils_md5_t *ctx, uint8_t output[16]);
 
 /* Internal use */
-void utils_md5_process(iot_md5_context *ctx, uint8_t data[64]);
+void utils_md5_process2(utils_md5_t *ctx, uint8_t data[64]);
 
 /**
  * \brief          Output = MD5( input buffer )

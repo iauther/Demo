@@ -51,7 +51,7 @@ void* mem_malloc(STRATEGY stg, int len, U8 zero)
     void*  p1;
     void** p2;
     
-    if(!xParam.start || !xParam.len) {
+    if(!xParam.start || !xParam.len || len<=0) {
         return NULL;
     }
     

@@ -56,7 +56,7 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
         .cmd = "AT\r\n",
         .rsp = "OK",
     },
-
+#endif
     {   /* 关闭回显 */
         .cmd = "ATE0\r\n",
         .rsp = "OK",
@@ -74,7 +74,7 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
         .cmd = "AT+CGMR\r\n",
         .rsp = "OK",
     },
-#endif
+
     {   /* 检查SIM卡 */
         .cmd = "AT+CPIN?\r\n",
         .rsp = "OK",
@@ -287,7 +287,7 @@ static int32_t core_at_commands_send_sync(const core_at_cmd_item_t *cmd_list, ui
         core_log_hexdump(-1, 1, (unsigned char *)cmd_list[i].cmd, cmd_list[i].cmd_len);
         */
         
-        //printf("send cmd %s, len: %d\n", cmd_list[i].cmd, cmd_list[i].cmd_len);
+        //LOGD("send cmd %s, len: %d\n", cmd_list[i].cmd, cmd_list[i].cmd_len);
         
         at_handle.cmd_content = &cmd_list[i];
         res = core_at_uart_tx((uint8_t *)cmd_list[i].cmd, cmd_list[i].cmd_len, at_handle.tx_timeout);
@@ -296,14 +296,14 @@ static int32_t core_at_commands_send_sync(const core_at_cmd_item_t *cmd_list, ui
             break;
         }
         
-        //printf("___ wait %s resp\n", cmd_list[i].cmd);
+        //LOGD("___ wait %s resp\n", cmd_list[i].cmd);
         res = core_at_wait_resp(at_handle.cmd_content);
         if (res < 0) {
             if (--retry_cnt > 0) {
                 i--;
                 continue;
             } else {
-                //printf("___ wait %s resp timeout\n", cmd_list[i].cmd);
+                LOGE("___ wait %s resp timeout\n", cmd_list[i].cmd);
                 break;
             }
         }
@@ -468,7 +468,7 @@ int32_t aiot_at_sig_stat()
         LOGE("___ module_init_cmd failed\n");
         return res;
     }
-    LOGD("___ module_init_cmd ok\n");
+    LOGD("___ aiot_at_sig_stat ok\n");
     
     return res;
 }
@@ -765,7 +765,8 @@ static int32_t core_at_hal_process(uint8_t *data, uint32_t size)
     if(at_handle.is_init != 1) {
         return res;
     }
-    // printf("[UART] size %d, DATA %s\r\n", size, data);
+    
+    //LOGD("[UART] size %d, DATA %s\r\n", size, data);
     /*判断是否接收数据没结束*/
     if(at_handle.reader.remain_len != 0) {
         int32_t write_size = 0;
@@ -776,7 +777,7 @@ static int32_t core_at_hal_process(uint8_t *data, uint32_t size)
         }
         res = core_ringbuf_write(&at_handle.fd[at_handle.reader.curr_link_id].data_rb, data, write_size);
         at_handle.reader.remain_len -= write_size;
-        // printf("[%d] remain_len %d, data_size %d\r\n", at_handle.reader.curr_link_id, at_handle.reader.remain_len, core_ringbuf_get_occupy(&at_handle.fd[at_handle.reader.curr_link_id].data_rb));
+        //LOGD("[%d] remain_len %d, data_size %d\r\n", at_handle.reader.curr_link_id, at_handle.reader.remain_len, core_ringbuf_get_occupy(&at_handle.fd[at_handle.reader.curr_link_id].data_rb));
         return write_size;
     }
 
@@ -793,7 +794,7 @@ static int32_t core_at_hal_process(uint8_t *data, uint32_t size)
     if(len > 0) {
         /*计算新的数据，被消费的长度*/
         len = len - (at_handle.rsp_buf_offset - size);
-        //printf("id %d, len %d, res %d\r\n", at_handle.reader.curr_link_id, at_handle.reader.data_len, len);
+        //LOGD("id %d, len %d, res %d\r\n", at_handle.reader.curr_link_id, at_handle.reader.data_len, len);
         memset(at_handle.rsp_buf, 0, at_handle.rsp_buf_offset);
         at_handle.rsp_buf_offset = 0;
 

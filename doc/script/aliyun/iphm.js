@@ -42,26 +42,24 @@ function isEmpty(obj)
 ////////////////////////////////////////////////////////////
 const PKT_MAGIC=0xDEADBEEF;
 const PKT_TYPE = {
-    
     TYPE_ACK:       0,
-    TYPE_ERROR:     1,
     
-    TYPE_CAP:       2,         //channel capture data
-    TYPE_CALI:      3,        //calibration
-    TYPE_STAT:      4,
-    TYPE_SETT:      5,
-    TYPE_PARA:      6,
-    TYPE_FILE:      7,
-    TYPE_TIME:      8,
+    TYPE_CAP:       1,        //channel capture data
+    TYPE_CALI:      2,        //calibration
+    TYPE_STAT:      3,
+    TYPE_SETT:      4,
+    TYPE_PARA:      5,
+    TYPE_FILE:      6,
+    TYPE_TIME:      7,
     
-    TYPE_DFLT:      9,
-    TYPE_REBOOT:    10,
-    TYPE_FACTORY:   11,
+    TYPE_DFLT:      8,
+    TYPE_REBOOT:    9,
+    TYPE_FACTORY:   10,
     
-    TYPE_HBEAT:     12,       //heartbeat
-    TYPE_DATATO:    13
+    TYPE_HBEAT:     11,       //heartbeat
+    TYPE_DATATO:    12,
     
-    TYPE_MAX:       14
+    TYPE_MAX:       13
 };
 const EV_TYPE = {
     EV_RMS:0,
@@ -157,40 +155,47 @@ function ch_data_parse(array,devid)
     var params = {};
     var properties = {};
     
-    var ev = [];
-    for(i=0; i<EV_TYPE.EV_NUM; i++) {
-        ev[i] = [];
-    }
-    
-    var n_ev = 4;
-    var ev_unit_len=16;
-    var grps = evlen/(n_ev*ev_unit_len);
-    
-    //console.log("ch: "+ch+" time: "+time+" wavlen: "+wavlen+" evlen: "+evlen+" grps: "+grps+" pos: "+pos);
-    
-    //parse ev_data_t data
-    for(i=0; i<grps; i++) {
-        for(j=0; j<n_ev; j++) {
-            var tp = dv.getUint32(pos, 1);
-            var tm = dv.getUint64(pos+4, 1);
-            var val = dv.getFloat32(pos+12, 1);
-            
-            //console.log("tp: "+tp+" val: "+val);
-            ev[tp].push({"value": val, "time": tm});
-            
-            pos += ev_unit_len;
+    //console.log("wavlen: "+wavlen+" evlen: "+evlen);
+    if(evlen>0) {
+        var ev = [];
+        for(i=0; i<EV_TYPE.EV_NUM; i++) {
+            ev[i] = [];
         }
-    }
-    
-    properties["ev_data:channelid"] = [{"value": ch, "time": time}];
-    
-    for(i=0; i<EV_TYPE.EV_NUM; i++) {
-        if(!isEmpty(ev[i])) {
-            properties["ev_data:"+EV_STR[i]] = ev[i];
+        
+        //parse ev_data_t
+        pos += wavlen;
+        var grps = dv.getUint32(pos, 1);
+        pos += 4;
+        
+        //parse ev_data_t data
+        //console.log("ch: "+ch+" time: "+time+" grps: "+grps+" pos: "+pos);
+        for(i=0; i<grps; i++) {
+            var tm = dv.getUint64(pos, 1);
+            var cnt = dv.getUint32(pos+8, 1);
+            pos += 12;
+            
+            //console.log("tm: "+tm+" cnt: "+cnt);
+            for(j=0; j<cnt; j++) {
+                var tp = dv.getUint32(pos, 1);
+                var val = dv.getFloat32(pos+4, 1);
+                
+                console.log("tp: "+tp+" val: "+val);
+                ev[tp].push({"value": val, "time": tm});
+                
+                pos += 8;
+            }
         }
+        
+        properties["ev_data:channelid"] = [{"value": ch, "time": time}];
+        
+        for(i=0; i<EV_TYPE.EV_NUM; i++) {
+            if(!isEmpty(ev[i])) {
+                properties["ev_data:"+EV_STR[i]] = ev[i];
+            }
+        }
+        
+        params["properties"] = properties;
     }
-    
-    params["properties"] = properties;
     
     jsObj["method"]  = method;
     jsObj["version"] = version;
@@ -209,8 +214,6 @@ function pkt_data_parse(array)
     
     var magic = dv.getUint32(pos, 1);
     
-    console.log("magic: "+magic);
-    
     pos += 4;
     if(magic!=PKT_MAGIC) {
         return dataObj;
@@ -221,6 +224,7 @@ function pkt_data_parse(array)
     
     var type = dv.getUint8(pos, 1);
     pos += 1;
+    
     if(type>=PKT_TYPE.TYPE_MAX) {
         return dataObj;
     }
@@ -236,7 +240,6 @@ function pkt_data_parse(array)
     
     //var subData = array.subarray(pos);
     var subData = array.slice(pos);
-    
     
     if(type==PKT_TYPE.TYPE_CAP) {
         dataObj = ch_data_parse(subData,devID);
@@ -259,7 +262,8 @@ function pkt_data_parse(array)
 
 /////////////////////////////////////////////////////
 
-function transformPayload(topic, rawData) {
+function transformPayload(topic, rawData)
+{
     var jsonObj = {};
     
     if (topic.endsWith('/user/update')) {
@@ -270,7 +274,6 @@ function transformPayload(topic, rawData) {
         var dataView = new DataView(uint8Array.buffer, 0);
     }
     
-    
     return jsonObj;
 }
 
@@ -280,11 +283,11 @@ function rawDataToProtocol(rawData)
     var debug=false;
 
     var u8Array = new Uint8Array(rawData.length);
-    
+
     for (var i = 0; i < rawData.length; i++) {
         u8Array[i] = rawData[i] & 0xff;
     }
-    
+ 
     if(debug) {
         obj["data"] = arrayToHex(u8Array);
         obj["length"] = rawData.length;
@@ -296,11 +299,12 @@ function rawDataToProtocol(rawData)
     else {
         obj = pkt_data_parse(u8Array);
     }
-    
+ 
     return obj;
 }
 
-function protocolToRawData(jsonObj) {
+function protocolToRawData(jsonObj)
+{
     var rawdata = [];
     return rawdata;
 }

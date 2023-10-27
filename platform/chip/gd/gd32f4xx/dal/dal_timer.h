@@ -29,9 +29,7 @@ typedef struct {
 
 handle_t dal_timer_init(dal_timer_cfg_t *cfg);
 int dal_timer_deinit(handle_t h);
-int dal_timer_set(handle_t h, dal_timer_cfg_t *cfg);
-int dal_timer_start(handle_t h);
-int dal_timer_stop(handle_t h);
+int dal_timer_en(handle_t h, U8 on);
 
 #endif
 

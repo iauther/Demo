@@ -14,7 +14,7 @@ enum {
 
 
 typedef struct {
-    U8    datato;     //ali or usr
+    U8    dato;     //ali or usr
 }mqtt_para_t;
 
 #ifndef _WIN32

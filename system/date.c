@@ -134,7 +134,7 @@ int get_date(char *date_s, date_s_t *date)
 }
 
 
-int get_time(char *time_s, time_s_t *time)
+int get_tm(char *time_s, time_s_t *time)
 {
     if(!time) {
         return -1;
@@ -228,25 +228,5 @@ int get_datetime(char *datetime, date_time_t *dt)
     return 0;
 }
 
-
-int get_timestamp(date_time_t *dt, U32 *tt)
-{
-    struct tm t;
-    
-    if(!dt || !tt) {
-        return -1;
-    }
-    
-    memset(&tt, 0, sizeof(tt));    
-    t.tm_year = dt->date.year - 1900;
-    t.tm_mon = dt->date.mon - 1;
-    t.tm_mday = dt->date.day;
-    t.tm_hour = dt->time.hour;
-    t.tm_min = dt->time.min;
-    t.tm_sec = dt->time.sec;
-    *tt = mktime(&t);
-    
-    return 0;
-}
 
 

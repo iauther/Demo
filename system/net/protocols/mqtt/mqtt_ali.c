@@ -4,6 +4,7 @@
 #include "rtc.h"
 #include "net.h"
 #include "paras.h"
+#include "aiot_ota_api.h"
 #include "aiot_dm_api.h"
 #include "aiot_ntp_api.h"
 #include "aiot_state_api.h"
@@ -26,6 +27,7 @@ typedef struct {
     handle_t    hmq;
     handle_t    hdm;
     handle_t    hntp;
+    handle_t    hota;
     
     void        *userdata;
 }mqtt_handle_t;
@@ -33,9 +35,7 @@ typedef struct {
 #ifdef OS_KERNEL
 
 static flags_t mqttFlag={0};
-static void *mqtt_handle=NULL;
-static void *dm_handle=NULL;
-static void *ntp_handle=NULL;
+static U32 ntp_time=0;
 
 static U8 proc_thread_running=0;
 static U8 recv_thread_running=0;
@@ -73,7 +73,6 @@ static void mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, voi
             LOGD("AIOT_MQTTEVT_CONNECT\n");
             mqttFlag.conn = 1;
             
-            //api_cap_start(STAT_CAP);
             /* TODO: 处理SDK建连成功, 不可以在这里调用耗时较长的阻塞函数 */
         }
         break;
@@ -91,7 +90,7 @@ static void mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, voi
             char *cause = (event->data.disconnect == AIOT_MQTTDISCONNEVT_NETWORK_DISCONNECT) ? ("network disconnect") :
                           ("heartbeat disconnect");
             LOGD("AIOT_MQTTEVT_DISCONNECT: %s\n", cause);
-            mqttFlag.conn = -1;
+            mqttFlag.conn = 0;
             /* TODO: 处理SDK被动断连, 不可以在这里调用耗时较长的阻塞函数 */
         }
         break;
@@ -229,6 +228,7 @@ static void ntp_recv_handler(void *handle, const aiot_ntp_recv_t *packet, void *
             {
                 date_time_t dt;
                 
+                mqttFlag.ntp = 1;
                 LOGD("___ ntp data recved!\n");
                 
                 dt.date.year = packet->data.local_time.year;
@@ -238,8 +238,17 @@ static void ntp_recv_handler(void *handle, const aiot_ntp_recv_t *packet, void *
                 dt.time.min = packet->data.local_time.min;
                 dt.time.sec = packet->data.local_time.sec;
                 
-                rtcx_write_time(&dt);
-                mqttFlag.ntp = 1;
+                LOGD("ntptime: %4d.%02d.%02d %02d:%02d:%02d\n", 
+                                                        packet->data.local_time.year,
+                                                        packet->data.local_time.mon,
+                                                        packet->data.local_time.day,
+                                                        packet->data.local_time.hour,
+                                                        packet->data.local_time.min,
+                                                        packet->data.local_time.sec);
+                
+                rtc2_set_time(&dt);
+                
+                ntp_time = rtc2_get_timestamp_s();
             }       
         }
         break;
@@ -247,6 +256,69 @@ static void ntp_recv_handler(void *handle, const aiot_ntp_recv_t *packet, void *
         default: {
 
         }
+    }
+}
+static void download_recv_handler(void *handle, const aiot_download_recv_t *packet, void *userdata)
+{
+    /* 目前只支持 packet->type 为 AIOT_DLRECV_HTTPBODY 的情况 */
+    if (!packet || AIOT_DLRECV_HTTPBODY != packet->type) {
+        return;
+    }
+    int32_t percent = packet->data.percent;
+    uint8_t *src_buffer = packet->data.buffer;
+    uint32_t src_buffer_len = packet->data.len;
+
+    /* 如果 percent 为负数, 说明发生了收包异常或者digest校验错误 */
+    if (percent < 0) {
+        /* 收包异常或者digest校验错误 */
+        printf("exception happend, percent is %d\r\n", percent);
+        return;
+    }
+}
+static void ota_recv_handler(void *ota_handle, aiot_ota_recv_t *ota_msg, void *userdata)
+{
+    if (NULL == ota_msg->task_desc || ota_msg->task_desc->protocol_type != AIOT_OTA_PROTOCOL_HTTPS) {
+        return;
+    }
+    
+    switch (ota_msg->type) {
+        case AIOT_OTARECV_FOTA:
+        {
+            
+        }
+        break;
+        
+        case AIOT_OTARECV_COTA:
+        {
+            uint32_t max_buffer_len = 2048;
+            void *dl_handle = aiot_download_init();
+            
+            if (dl_handle) {
+                /* 完成远程配置的接收前, 将mqtt的收包超时调整到100ms, 以减少两次远程配置的下载间隔*/
+                int32_t ret = aiot_download_recv(dl_handle);
+                U32 timeout_ms = 100;
+                
+                //aiot_download_report_progress(handle, percent);
+                if (STATE_DOWNLOAD_FINISHED == ret) {
+                    aiot_download_deinit(&dl_handle);
+                    /* 完成远程配置的接收后, 将mqtt的收包超时调整回到默认值5000ms */
+                    timeout_ms = 5000;
+                }
+                aiot_mqtt_setopt(dl_handle, AIOT_MQTTOPT_RECV_TIMEOUT_MS, (void *)&timeout_ms);
+            }
+            
+            if ((STATE_SUCCESS != aiot_download_setopt(dl_handle, AIOT_DLOPT_TASK_DESC, (void *)(ota_msg->task_desc))) ||
+                /* 设置下载内容到达时, SDK将调用的回调函数 */
+                (STATE_SUCCESS != aiot_download_setopt(dl_handle, AIOT_DLOPT_RECV_HANDLER, (void *)(download_recv_handler))) ||
+                /* 设置单次下载最大的buffer长度, 每当这个长度的内存读满了后会通知用户 */
+                (STATE_SUCCESS != aiot_download_setopt(dl_handle, AIOT_DLOPT_BODY_BUFFER_MAX_LEN, (void *)(&max_buffer_len))) ||
+                /* 发送http的GET请求给http服务器 */
+                (STATE_SUCCESS != aiot_download_send_request(dl_handle))) {
+                aiot_download_deinit(&dl_handle);
+                break;
+            }
+        }
+        break;
     }
 }
 
@@ -313,7 +385,20 @@ static int mqtt_ntp_init(mqtt_handle_t *h)
     
     return 0;
 }
+static void mqtt_ota_init(mqtt_handle_t *h)
+{
+    h->hota = aiot_ota_init();
+    if (h->hota==NULL) {
+        return;
+    }
 
+    /* 用以下语句, 把OTA会话和MQTT会话关联起来 */
+    aiot_ota_setopt(h->hota, AIOT_OTAOPT_MQTT_HANDLE, h->hmq);
+    /* 用以下语句, 设置OTA会话的数据接收回调, SDK收到OTA相关推送时, 会进入这个回调函数 */
+    aiot_ota_setopt(h->hota, AIOT_OTAOPT_RECV_HANDLER, ota_recv_handler);
+    
+    
+}
 
 static void start_thread(void *p)
 {
@@ -346,7 +431,6 @@ static void mqtt_proc_thread(void *arg)
     int r;
     U32 period,interval;
     mqtt_handle_t *h=(mqtt_handle_t*)arg;
-    U64 last_tm=rtcx_get_timestamp();
 
     while (proc_thread_running) {
         r = aiot_mqtt_process(h->hmq);
@@ -355,18 +439,18 @@ static void mqtt_proc_thread(void *arg)
         }
         
         if(mqttFlag.ntp) {
-            period = 3600000;
+            period = 3600;
         }
         else {
-            period = 2000;
+            period = 2;
         }
         
-        interval = rtcx_get_timestamp()-last_tm;
+        interval = rtc2_get_timestamp_s()-ntp_time;
         if(interval>=period) {
             r = aiot_ntp_send_request(h->hntp);
             
-            LOGD("___ ntp_request, %d\n", r);
-            last_tm = rtcx_get_timestamp();
+            LOGD("___ ntp_request: %d, ntpflag: %d, interval: %d, period: %d\n", r, mqttFlag.ntp, interval, period);
+            ntp_time = rtc2_get_timestamp_s();
         }
         
         osDelay(1);
@@ -385,6 +469,11 @@ static void mqtt_recv_thread(void *arg)
             if (res == STATE_USER_INPUT_EXEC_DISABLED) {
                 break;
             }
+            
+            if(res==STATE_SYS_DEPEND_NWK_CLOSED) {
+                
+            }
+            
             osDelay(1);
         }
     }
@@ -509,6 +598,9 @@ static int mqtt_ali_disconn(handle_t h)
     aiot_ntp_deinit(&mh->hntp);
 #endif
     
+    stop_thread();
+    
+    
     return 0;
 }
 
@@ -547,11 +639,11 @@ static int mqtt_ali_pub(handle_t hconn, mqtt_para_t *para, void *data, int len)
         return -1;
     }
     
-    if(!mqttFlag.conn || !mqttFlag.ntp) {
+    if(!mqttFlag.conn) {
         return -1;
     }
 
-    if(para->datato==DATATO_USR) {
+    if(para->dato==DATO_USR) {
         sprintf(tmp, "/%s/%s/user/set", plat->prdKey, plat->devKey);
         r = aiot_mqtt_pub(h->hmq, tmp, data, len, 1);
     }

@@ -2,12 +2,13 @@
 #include "gd32f4xx_gpio.h"
 #include "dal_gpio.h"
 #include "dal_si2c.h"
+#include "dal_delay.h"
 #include "log.h"
 #include "cfg.h"
 
 
 
-#define DELAYP_CNT              200
+#define DELAYP_CNT              (100)
 #define RTC_Address             0x64
 #define ID_Address              0x72        //ID号起始地址
 
@@ -61,68 +62,29 @@
 
 static handle_t sdHandle=NULL;
 
-#define USE_ORI
-#define IO_SWITCH
 
-
-#ifdef USE_ORI
 //PB2 -- SCL
 //PB1 -- SDA
-
-#ifdef IO_SWITCH
-#define SCL_H         set_scl(1)
-#define SCL_L         set_scl(0)
-#define SDA_H         set_sda(1)
-#define SDA_L         set_sda(0)
-#define SDA_READ      get_sda()
-
-static inline void set_scl(U8 x)
-{
-    gpio_mode_set(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_2);
-    gpio_output_options_set(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_50MHZ, 2);
-    
-    gpio_bit_write(GPIOB, GPIO_PIN_2, x?SET:RESET);
-}
-static inline void set_sda(U8 x)
-{
-    gpio_mode_set(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
-    gpio_output_options_set(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_50MHZ, 1);
-    
-    gpio_bit_write(GPIOB, GPIO_PIN_1, x?SET:RESET);
-}
-static inline U8 get_sda(void)
-{
-    FlagStatus st;
-    
-    gpio_mode_set(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
-    st = gpio_input_bit_get(GPIOB, GPIO_PIN_1);
-    
-    return (st==SET)?1:0;
-}
-#else
 #define SCL_H         gpio_bit_write(GPIOB, GPIO_PIN_2, SET)
 #define SCL_L         gpio_bit_write(GPIOB, GPIO_PIN_2, RESET)
 #define SDA_H         gpio_bit_write(GPIOB, GPIO_PIN_1, SET)
 #define SDA_L         gpio_bit_write(GPIOB, GPIO_PIN_1, RESET)
-#define SDA_READ      gpio_input_bit_get(GPIOB, GPIO_PIN_1);
-
-#endif
+#define SDA_READ      gpio_input_bit_get(GPIOB, GPIO_PIN_1)
 
 
-static void gpio_config(void)
+static void io_config(void)
 {
     U32 pin=GPIO_PIN_1|GPIO_PIN_2;
 
     rcu_periph_clock_enable(RCU_GPIOB);
-
-    gpio_mode_set(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, pin);
-    gpio_output_options_set(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_25MHZ, pin);
     
     gpio_bit_write(GPIOB, pin, SET);
+    gpio_mode_set(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, pin);
+    gpio_output_options_set(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_50MHZ, pin);
 }
 static void I2Cdelay(void)
 {
-   u32 cnt=DELAYP_CNT; //这里可以优化速度，通常延时3~10us，可以用示波器看波形来调试
+   U32 cnt=DELAYP_CNT;      //这里可以优化速度，通常延时3~10us，可以用示波器看波形来调试
    while(cnt--);
 }
 static u8 I2CStart(void)
@@ -131,7 +93,10 @@ static u8 I2CStart(void)
     I2Cdelay();
     SCL_H;
     I2Cdelay();
-    if(!SDA_READ) return FALSE; //SDA线为低电平则总线忙,退出
+    if(!SDA_READ) {
+        LOGE("___ i2c busying\n");
+        return FALSE; //SDA线为低电平则总线忙,退出
+    }
     SDA_L;
     I2Cdelay();
     SCL_L;
@@ -181,6 +146,7 @@ static u8 I2CWaitAck(void)
     I2Cdelay();
     if(SDA_READ) {
         SCL_L;
+        LOGE("___ wait ack failed\n");
         return FALSE;
     }
     SCL_L;
@@ -280,6 +246,7 @@ static int I2CWriteSerial(u8 addr, u8 reg, u8 *ps, u8 length)
     I2CSendByte(addr);
     if(!I2CWaitAck()) {
         I2CStop();
+        LOGE("___ I2CWriteSerial failed\n");
         return -1;
     }
 
@@ -301,6 +268,7 @@ static int I2CReadSerial(u8 addr, u8 reg, u8 *ps, u8 length)
     I2CSendByte(addr);
     if(!I2CWaitAck()) {
         I2CStop();
+        LOGE("___ I2CReadSerial failed\n");
         return -1;
     }
 
@@ -318,112 +286,14 @@ static int I2CReadSerial(u8 addr, u8 reg, u8 *ps, u8 length)
     I2CStop();
     return 0;
 }
-#else
-static void I2CSendByte(u8 SendByte) //数据从高位到低位
-{
-    
-}
-static u8 I2CReceiveByte(void)
-{
-    
-}
-
-static int WriteRTC_Enable(void)
-{
-    int r;
-    u8 buf[2];
-    
-    buf[0] = CTR2;
-    buf[1] = 0x80;
-    r = dal_si2c_write(sdHandle, RTC_Address, buf, 2, 1);   //置WRTC1=1
-    
-    buf[0] = CTR1;
-    buf[1] = 0x84;
-    r |= dal_si2c_write(sdHandle, RTC_Address, buf, 2, 1);   //置WRTC2,WRTC3=1
-
-    return r;
-}
-static int WriteRTC_Disable(void)
-{
-    int r;
-    u8 buf[3];
-    
-    buf[0] = CTR1;
-    buf[1] = 0x00;
-    buf[2] = 0x00;
-    r = dal_si2c_write(sdHandle, RTC_Address, buf, 3, 1);   //置WRTC1,WRTC2,WRTC3为0
-    
-    return r;
-}
-static int I2CWriteSerial(u8 addr, u8 reg, u8 *ps, u8 length)
-{
-    int r,i;
-    u8 buf[50];
-    
-    WriteRTC_Enable();
-
-    buf[0] = reg;
-    for(i=0; i<length; i++) {
-        buf[i+1] = ps[i];
-    }
-    r = dal_si2c_write(sdHandle, RTC_Address, buf, length, 1);
-
-    WriteRTC_Disable();
-    
-    return 0;
-}
-
-static int I2CReadSerial(u8 addr, u8 reg, u8 *ps, u8 length)
-{
-    int r,i;
-    u8 buf[50];
-    
-    r = dal_si2c_write(sdHandle, RTC_Address, buf, length, 1);
-    
-    
-    return r;
-}
-
-#endif
 
 
 ////////////////////////////////////////////////////
-#include "dal_delay.h"
 int sd30xx_init(void)
 {
     int r;
-    si2c_cfg_t sc={
-        .freq = 100*KHZ,
-        .pin = {
-            .scl = {GPIOB, GPIO_PIN_2},
-            .sda = {GPIOB, GPIO_PIN_1}
-        }
-    };
-    sd_time_t tm={0x01,0x19,0x17,0x05,0x17,0x06,0x16},tt;
-    static int t1=0,t2=0;
-    
-#ifdef USE_ORI
-    gpio_config();
-    
-    #if 0
-    while(1) {
-        tm.minute++;
-        r = sd30xx_write_time(&tm);
-        if(r==0) {
-            memset(&tt, 0, sizeof(tt));
-            sd30xx_read_time(&tt);
-            t1++;
-        }
-        else {
-            t2++;
-        }
-        
-        //dal_delay_ms(100);
-    }
-    #endif
-#else
-    sdHandle = dal_si2c_init(&sc);
-#endif
+    io_config();
+
     return 0;
 }
 
@@ -524,7 +394,7 @@ int sd30xx_set_countdown(sd_countdown_t *cd)
         
         tmp[0] |= 0x80;
         if(memcmp(buf,tmp,6)) {
-            //LOGE("set countdown failed\n");
+            LOGE("set countdown failed\n");
             return -1;
         }
     }
@@ -595,10 +465,12 @@ int sd30xx_clr_irq(void)
     r = I2CReadSerial(RTC_Address, CTR3, &buf, 1);
     LOGD("CTR1: 0x%02x\n", buf);
 #else
-    I2CReadSerial(RTC_Address, CTR1, &buf, 1);
-    LOGD("CTR1: 0x%02x\n", buf);
-    buf &= 0xcf;
-    r = I2CWriteSerial(RTC_Address, CTR1, &buf, 1);
+    r = I2CReadSerial(RTC_Address, CTR1, &buf, 1);
+    if(r==0) {
+        //LOGD("CTR1: 0x%02x\n", buf);
+        buf &= 0xcf;
+        r = I2CWriteSerial(RTC_Address, CTR2, &buf, 1);
+    }
 #endif
     
     return r;
@@ -651,7 +523,7 @@ int sd30xx_get_volt(F32 *volt)
 }
 
 
-int sd30xx_first_run(void)
+int sd30xx_first(void)
 {
     int r;
     u8 buf=0;

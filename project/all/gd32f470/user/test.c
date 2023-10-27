@@ -64,7 +64,7 @@ static void ads_data_callback(F32 *data, int cnt)
 
     if(adc_cap_points<ADC_CAP_POINTS)
     {
-        r = list_append(adc_cap_list, data, len);
+        r = list_append(adc_cap_list, 0, data, len);
         if(r==0) {
             adc_cap_points += cnt;
         }
