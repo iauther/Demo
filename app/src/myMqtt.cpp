@@ -131,11 +131,6 @@ static DWORD WINAPI mqttThread(LPVOID lpParam)
 
 #ifdef USE_HV
     mqtt_client_run(cli->mc);
-#else
-    while(conn && conn->quit==0) {
-        
-        Sleep(2);
-    }
 #endif
 
     LOGD("___mqtt run quit\n");
@@ -278,6 +273,8 @@ void* myMqtt::conn(conn_para_t* para, sign_data_t *sign, void *userdata)
     r = mqtt_client_connect(hconn->mc, host, port, 0);
     LOGD("____ mqtt conn %d\n", r);
 
+    hconn->hThread = CreateThread(NULL, NULL, mqttThread, (LPVOID)hconn, 0, &hconn->threadId);
+
 #else
     MQTTClient_connectOptions opts = MQTTClient_connectOptions_initializer;
     MQTTClient_willOptions wopts = MQTTClient_willOptions_initializer;
@@ -326,7 +323,6 @@ void* myMqtt::conn(conn_para_t* para, sign_data_t *sign, void *userdata)
     hconn->dlen = 0;
     hconn->packet_id = 0;
     hconn->userdata = userdata;
-    hconn->hThread = CreateThread(NULL, NULL, mqttThread, (LPVOID)hconn, 0, &hconn->threadId);
     
     return hconn;
 
@@ -354,6 +350,10 @@ int myMqtt::disconn(void* conn)
 #ifdef USE_HV
     mqtt_client_stop(hconn->mc);
     r = mqtt_client_disconnect(hconn->mc);
+
+    hconn->quit = 1;
+    WaitForSingleObject(hconn->hThread, 100);
+    CloseHandle(hconn->hThread);
 #else
     r = MQTTClient_disconnect(hconn->mc, 0);
     if (r!= MQTTCLIENT_SUCCESS) {
@@ -362,10 +362,6 @@ int myMqtt::disconn(void* conn)
 #endif
 
     MQTTClient_destroy(&hconn->mc);
-
-    hconn->quit = 1;
-    WaitForSingleObject(hconn->hThread, 100);
-    CloseHandle(hconn->hThread);
     lock_free(hconn);
     delete hconn;
 
@@ -391,7 +387,7 @@ int myMqtt::is_connected(void *conn)
 }
 
 
-int myMqtt::pub(void* conn, mqtt_para_t* para, void *payload, int payloadlen)
+int myMqtt::pub(void* conn, void* para, void *payload, int payloadlen)
 {
     int r=0;
     char topic[200];
@@ -422,7 +418,7 @@ int myMqtt::pub(void* conn, mqtt_para_t* para, void *payload, int payloadlen)
     sprintf(topic, "/%s/%s/user/set", plat->prdKey, plat->devKey);
     msg.payload = payload;
     msg.payloadlen = payloadlen;
-    msg.retained = 0;
+    msg.retained = 1;
     msg.qos = QOS;
     r = MQTTClient_publishMessage(hconn->mc, topic, &msg, &dt);
     //LOGD("___ mqtt publish len: %d, result: %d\n", payloadlen, r);
@@ -432,7 +428,7 @@ int myMqtt::pub(void* conn, mqtt_para_t* para, void *payload, int payloadlen)
 }
 
 
-int myMqtt::sub(void* conn, mqtt_para_t* para)
+int myMqtt::sub(void* conn, void* para)
 {
     int r;
     char* topic = NULL;

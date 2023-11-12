@@ -209,13 +209,10 @@ int net_write(handle_t hconn, void *para, void *data, int len)
         
         case PROTO_MQTT:
         {
-            mqtt_para_t mp;
-            
-            mp.dato = para?(*((U8*)para)):DATO_USR;
 #ifdef _WIN32
-            r = netHandle.mMqtt.pub(ch->h, &mp, data, len);
+            r = netHandle.mMqtt.pub(ch->h, para, data, len);
 #else
-            r = mqtt_pub(ch->h, &mp, data, len);
+            r = mqtt_pub(ch->h, para, data, len);
 #endif
         }
         break;

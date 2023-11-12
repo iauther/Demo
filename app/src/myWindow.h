@@ -9,9 +9,11 @@
 #include "myMqtt.h"
 #include "json.h"
 
+#define MY_MSG WM_USER+100 
+
 enum {
 
-	ID_MENU_HOME=0x100,
+	ID_MENU_HOME = 0x100,
 	ID_MENU_SETUP,
 	ID_MENU_UPGRADE,
 
@@ -19,8 +21,8 @@ enum {
 	ID_PORT_LIST,
 
 	ID_OPEN,
-    ID_CALI_1,
-	ID_CALI_2,
+	ID_CALI,
+	ID_DAC,
 	ID_START,
 
 	ID_CONFIG_R,
@@ -30,8 +32,10 @@ enum {
 	ID_REBOOT,
 
 	ID_LOG_SET,
-	ID_DATA_TO,
+	ID_DATO,
 	ID_DEFAULT,
+	ID_REFRESH,
+	ID_MODE,
 
 	ID_DBG_EN,
 	ID_DBG_CLR,
@@ -42,8 +46,8 @@ enum {
 	ID_PAGE_CALI,
 	ID_PAGE_LOG,
 	ID_PAGE_SETT,
-	
-	
+
+	ID_TIMER,
 };
 
 
@@ -66,7 +70,10 @@ static plat_para_t platPara = {
 	DEV_SECRET,
 };
 
-
+typedef struct {
+	int  e;		//evt
+	int  id;
+}my_msg_t;
 
 
 static const char* sub_topic[TOPIC_SUB_MAX] = {
@@ -84,6 +91,7 @@ static const char* pub_topic[TOPIC_PUB_MAX] = {
 
 static HANDLE ackEvent;
 extern all_para_t allPara;
+extern int my_post(int e, int id);
 
 class myPane : public CPaneContainer,
 	           public CMessageFilter,
@@ -122,20 +130,20 @@ public:
 	CSplitterWindow    vSplit;		        //主窗口，垂直分割
 	CHorSplitterWindow hSplit1,hSplit2;		//右窗口，水平分割
 	CPaneContainer     wavPane, infPane, cmdPane, dbgPane;
-	CButton btOpen, btCali, btStart;
-	CButton btEna, btSav, btClr,btTo;
-	CButton btCfgr, btCfgw, btUpg,btBoot;
-	CButton btCali1, btCali2, btDflt;
+	CButton btOpen,btStart;
+	CButton btEna,btSav,btClr;
+	CButton btCfgr,btCfgw,btUpg,btBoot;
+	CButton btCali,btDflt,btDac,btFresh;
 
-	handle_t hand[PORT_MAX] = {NULL};
+	int      iport=-1;
+	handle_t hand = NULL;
 	handle_t conn = NULL;
-	int  portID = PORT_NET;
 	mySerial mSerial;
 
 	int dev_opened=0;
 	int para_recved=0;
 	int dev_started=0;
-	int cali_cnt = 0;
+	int cali_idx = 0;
 
 	int log_started=0;
 	int log_enabled=0;
@@ -204,10 +212,9 @@ public:
 	void port_add(void)
 	{
 		const char* portName[PORT_MAX] = {
-			"usb",
-			"net",
 			"uart",
-			"mqtt"
+			"net",
+			"usb",
 		};
 		
 		port.SetFont(gFont);
@@ -216,7 +223,7 @@ public:
 		}
 
 		port_set_wh(80, 100);
-		port.SetCurSel(portID);
+		//port.SetCurSel(portID);
 		port.ShowDropDown(FALSE);
 	}
 
@@ -241,12 +248,6 @@ public:
 					}
 				}
 				break;
-
-			case PORT_MQTT:
-			{
-
-			}
-			break;
 
 			case PORT_NET:
 			{
@@ -361,15 +362,11 @@ public:
 		info.SetWindowText("");
 
 		sys_para_t* sys = &allPara.sys;
-		sprintf(tmp, "fw.version: %s\n", sys->para.fwInfo.version);				    info_print(tmp);
-		sprintf(tmp, "fw.bldtime: %s\n", sys->para.fwInfo.bldtime);				    info_print(tmp);
-		sprintf(tmp, "dev.devID: 0x%08x\n", sys->para.devInfo.devID);			    info_print(tmp);
-		sprintf(tmp, "dev.datato: %s\n", sys->para.sett.datato?"app":"ali");	    info_print(tmp);
+		sprintf(tmp, "fw.version: %s\n", sys->fwInfo.version);				    info_print(tmp);
+		sprintf(tmp, "fw.bldtime: %s\n", sys->fwInfo.bldtime);				    info_print(tmp);
+		sprintf(tmp, "dev.devID: 0x%08x\n", sys->devInfo.devID);			    info_print(tmp);
 																				    
 		//sprintf(tmp, "fw.length: %d\n", sys->para.fwInfo.length);				    info_print(tmp);
-		sprintf(tmp, "sys.mode: %d\n", sys->stat.mode);							    info_print(tmp);
-		sprintf(tmp, "sys.state: %d\n", sys->stat.state);						    info_print(tmp);
-																				    
 		usr_para_t* usr = &allPara.usr;											    
 		sprintf(tmp, "card.apn: %s\n", usr->card.apn);							    info_print(tmp);
 		sprintf(tmp, "card.type: %d\n", usr->card.type);						    info_print(tmp);
@@ -386,35 +383,65 @@ public:
 			sprintf(tmp, "net.prdKey: %s\n", usr->net.para.plat.prdKey);			info_print(tmp);
 			sprintf(tmp, "net.devSecret: %s\n", usr->net.para.plat.prdSecret);		info_print(tmp);
 		}
-		sprintf(tmp, "smp.pwr_mode: %d\n", usr->smp.pwr_mode);						info_print(tmp);
-		sprintf(tmp, "smp.pwr_period: %ds\n", usr->smp.pwr_period);					info_print(tmp);
+
+		sprintf(tmp, "smp.mode: %d\n", usr->smp.mode);								info_print(tmp);
+		sprintf(tmp, "smp.port: %d\n", usr->smp.port);								info_print(tmp);
+		sprintf(tmp, "smp.pwrmode: %d\n", usr->smp.pwrmode);						info_print(tmp);
+		sprintf(tmp, "smp.pwr_period: %ds\n", usr->smp.worktime);					info_print(tmp);
 		
+		U8  mode=usr->smp.mode;
+		
+		gbl_var_t* var = &allPara.var;
 		for (i = 0; i < CH_MAX; i++) {
-			sprintf(tmp, "ch[%d].upway: %d\n",		  i, usr->ch[i].upway);         info_print(tmp);
-			sprintf(tmp, "ch[%d].upwav: %d\n",		  i, usr->ch[i].upwav);         info_print(tmp);
-			sprintf(tmp, "ch[%d].smpFreq: %d\n",	  i, usr->ch[i].smpFreq);       info_print(tmp);
-			sprintf(tmp, "ch[%d].smpPoints: %d\n",	  i, usr->ch[i].smpPoints);     info_print(tmp);
-			sprintf(tmp, "ch[%d].smpInterval: %d\n",  i, usr->ch[i].smpInterval);   info_print(tmp);
-			sprintf(tmp, "ch[%d].smpTimes: %d\n",     i, usr->ch[i].smpTimes);      info_print(tmp);
-			sprintf(tmp, "ch[%d].ampThreshold: %f\n", i, usr->ch[i].ampThreshold);  info_print(tmp);
-			sprintf(tmp, "ch[%d].messDuration: %d\n", i, usr->ch[i].messDuration);  info_print(tmp);
-			sprintf(tmp, "ch[%d].trigDelay: %d\n",    i, usr->ch[i].trigDelay);     info_print(tmp);
+			ch_paras_t* pcs = &usr->smp.ch[i];
+			ch_para_t* pc = &pcs->para[mode];
 
+			sprintf(tmp, "smp.ch[%d].state: %d\n",        i, var->state.stat[i]);				info_print(tmp);
 
-			sprintf(tmp, "ch[%d].n_ev: %d\n",		i, usr->ch[i].n_ev);            info_print(tmp);
-			sprintf(tmp, "ch[%d].evCalcCnt: %d\n",	i, usr->ch[i].evCalcCnt);       info_print(tmp);
-			sprintf(tmp, "ch[%d].coef.a: %f\n",		i, usr->ch[i].coef.a);          info_print(tmp);
-			sprintf(tmp, "ch[%d].coef.b: %f\n",		i, usr->ch[i].coef.b);          info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].enable: %d\n",       i, pcs->enable);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpMode: %d\n",      i, pc->smpMode);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpFreq: %d\n",	  i, pc->smpFreq);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpPoints: %d\n",	  i, pc->smpPoints);     info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpInterval: %d\n",  i, pc->smpInterval);   info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpTimes: %d\n",     i, pc->smpTimes);      info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].ampThreshold: %f\n", i, pc->ampThreshold);  info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].messDuration: %d\n", i, pc->messDuration);  info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigDelay: %d\n",    i, pc->trigDelay);     info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].upway: %d\n",        i, pc->upway);         info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].upwav: %d\n",        i, pc->upwav);         info_print(tmp);
+
+			sprintf(tmp, "smp.ch[%d].n_ev: %d\n",		  i, pc->n_ev);          info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].evCalcCnt: %d\n",	  i, pc->evCalcCnt);     info_print(tmp);
+
+			sprintf(tmp, "smp.ch[%d].coef.a: %f\n",		  i, pcs->coef.a);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].coef.b: %f\n",		  i, pcs->coef.b);       info_print(tmp);
 		}
 
-		sprintf(tmp, "dac.enable: %d\n",	usr->dac.enable);		                info_print(tmp);
-		sprintf(tmp, "dac.fdiv: %d\n",		usr->dac.fdiv);		                    info_print(tmp);
-		sprintf(tmp, "mbus.addr: 0x%02x\n", usr->mbus.addr);	                    info_print(tmp);
-																                    
-		sprintf(tmp, "dbg.enable: %d\n",	usr->dbg.enable);	                    info_print(tmp);
-		sprintf(tmp, "dbg.level: %d\n",		usr->dbg.level);	                    info_print(tmp);
-		sprintf(tmp, "dbg.to: %d\n",		usr->dbg.to);		                    info_print(tmp);
+		sprintf(tmp, "dac.enable: %d\n",	usr->dac.enable);		             info_print(tmp);
+		sprintf(tmp, "dac.fdiv: %d\n",		usr->dac.fdiv);		                 info_print(tmp);
+		sprintf(tmp, "mbus.addr: 0x%02x\n", usr->mbus.addr);	                 info_print(tmp);
+																                 
+		sprintf(tmp, "dbg.enable: %d\n",	usr->dbg.enable);	                 info_print(tmp);
+		sprintf(tmp, "dbg.level: %d\n",		usr->dbg.level);	                 info_print(tmp);
+		sprintf(tmp, "dbg.to: %d\n",		usr->dbg.to);		                 info_print(tmp);
 	}
+
+	void btn_update(void)
+	{
+		gbl_var_t* var = &allPara.var;
+		usr_para_t* usr = &allPara.usr;
+
+		if (var->state.stat[0] == STAT_STOP) {
+			btStart.SetWindowText("stop");
+		}
+		else {
+			btStart.SetWindowText("start");
+		}
+
+		const char* mode_str[MODE_MAX] = { "norm","cali","test" };
+		LOGD("__ switch mode to %s\n", mode_str[usr->smp.mode]);
+	}
+
 
 	void cmd_pane_init(void)
 	{
@@ -500,13 +527,18 @@ public:
 		rc.top = rc.bottom + BTN_HGAP;
 		rc.right = rc.left + BTN_WIDTH;
 		rc.bottom = rc.top + BTN_HEIGHT;
-		btCali1.Create(hwnd, rc, "cali-1", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_1, NULL);
-		btCali1.SetFont(gFont);
+		btCali.Create(hwnd, rc, "cali", WS_CHILD | WS_VISIBLE, NULL, ID_CALI, NULL);
+		btCali.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
-		btCali2.Create(hwnd, rc, "cali-2", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_2, NULL);
-		btCali2.SetFont(gFont);
+		btFresh.Create(hwnd, rc, "refresh", WS_CHILD | WS_VISIBLE, NULL, ID_REFRESH, NULL);
+		btFresh.SetFont(gFont);
+
+		rc.left = rc.right + BTN_WGAP;
+		rc.right = rc.left + BTN_WIDTH;
+		btDac.Create(hwnd, rc, "dac", WS_CHILD | WS_VISIBLE, NULL, ID_DAC, NULL);
+		btDac.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
@@ -536,10 +568,6 @@ public:
 		btSav.Create(hwnd, rc, "dbg save", WS_CHILD | WS_VISIBLE, NULL, ID_DBG_SAV, NULL);
 		btSav.SetFont(gFont);
 
-		rc.left = rc.right + BTN_WGAP;
-		rc.right = rc.left + BTN_WIDTH;
-		btTo.Create(hwnd, rc, "to ali", WS_CHILD | WS_VISIBLE, NULL, ID_DATA_TO, NULL);
-		btTo.SetFont(gFont);
 
 #ifdef USE_TAB
 		hwnd = pageCali;
@@ -549,15 +577,8 @@ public:
 		rc.top = 20;
 		rc.right = rc.left + BTN_WIDTH;
 		rc.bottom = rc.top + BTN_HEIGHT;
-		btCali1.Create(hwnd, rc, "cali 1", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_1, NULL);
-		btCali1.SetFont(gFont);
-
-		rc.left = 20;
-		rc.top = rc.bottom + BTN_HGAP;
-		rc.right = rc.left + BTN_WIDTH;
-		rc.bottom = rc.top + BTN_HEIGHT;
-		btCali2.Create(hwnd, rc, "cali 2", WS_CHILD | WS_VISIBLE, NULL, ID_CALI_2, NULL);
-		btCali2.SetFont(gFont);
+		btCali.Create(hwnd, rc, "cali", WS_CHILD | WS_VISIBLE, NULL, ID_CALI, NULL);
+		btCali.SetFont(gFont);
 
 #define PORT_WIDTH   80
 #define PORT_HEIGHT  30
@@ -602,6 +623,8 @@ public:
 		json_init();
 		port_init();
 	}
+
+	
 
 	void add_button(HWND hwnd)
 	{
@@ -694,13 +717,10 @@ public:
 			return -1;
 		}
 
-		portID = port;
 		return 0;
 	}
 
 	net_para_t netPara;
-	int  prevPortID = portID;
-
 	int get_string(char *src, int src_len, const char *head, const char s_tok, int s_tok_index, const char e_tok, int e_tok_index, char *str, int str_len)
 	{
 		int ok=0,sl;
@@ -714,7 +734,7 @@ public:
 			return -1;
 		}
 
-		p += strlen(head);
+		p += strlen(head);		//p指向head后的第一个字符
 		while (p<e) {
 			if (*p == s_tok) {
 				s_idx++;
@@ -744,7 +764,7 @@ public:
 			return -1;
 		}
 
-		if (str_len < sl) {
+		if (str_len<sl || sl <= 0) {
 			LOGE("___ str buf len %d is too small, need %d\n", str_len, sl);
 			return -1;
 		}
@@ -777,43 +797,90 @@ public:
 		return r;
 	}
 
+	int load_port(int *port, char *para)
+	{
+		int   r = 0, flen;
+		char* fbuf, * p;
+		char tmp[10];
+		const char* path = "app.ini";
+
+		r = load_file(path, &fbuf, &flen);
+		if (r) {
+			LOGE("___ load_file %s failed\n", path);
+			return -1;
+		}
+
+		r = get_string(fbuf, flen, "PORT:", '[', 0, ',', 0, tmp, sizeof(tmp));
+		if (r==0) {
+			if (port) {
+				*port = atoi(tmp);
+			}
+		}
+
+		r = get_string(fbuf, flen, "PORT:", ',', 0, ']', 0, tmp, sizeof(tmp));
+		if (r == 0) {
+			if (para) {
+				strcpy(para, tmp);
+			}
+		}
+
+		delete[] fbuf;
+
+		return r;
+	}
+
+	char portPara[20];
 	int port_init()
 	{
-		handle_t h = comm_init(portID, NULL);
-		if (!h) {
+		comm_init_para_t comm_p;
+
+		int r = load_port(&iport, portPara);
+		if (r) {
+			return -1;
+		}
+
+		comm_p.rlen = 0;
+		comm_p.tlen = 80000;
+		comm_p.para = NULL;
+		hand = comm_init(iport, &comm_p);
+		if (!hand) {
 			LOGE("___ comm_init failed!\n");
 			return -1;
 		}
-		hand[portID] = h;
 
 		return 0;
 	}
 
 	int port_deinit()
 	{
-		comm_deinit(hand[portID]);
-		hand[portID] = NULL;
+		comm_deinit(hand);
+		hand = NULL;
 	}
 
 	int port_open()
 	{
-		conn_para_t para;
+		if (iport ==PORT_NET) {
+			conn_para_t para;
 
-		netPara.mode = 1;
-		netPara.para.plat = platPara;
-		load_net_para(&netPara);
+			netPara.mode = 1;
+			netPara.para.plat = platPara;
+			load_net_para(&netPara);
 
-		para.callback = NULL;
-		para.proto = PROTO_MQTT;
-		para.para = &netPara;
-		conn = comm_open(hand[portID], &para);
+			para.callback = NULL;
+			para.proto = PROTO_MQTT;
+			para.para = &netPara;
+
+			conn = comm_open(hand, &para);
+		}
+		else if(iport == PORT_UART) {
+			char* para = portPara; 
+			conn = comm_open(hand, para);
+		}
 		if (!conn) {
 			LOGE("___ comm_open failed!\n");
 			return -1;
 		}
 		LOGD("___ comm_open ok!\n");
-
-		prevPortID = portID;
 
 		return 0;
 	}
@@ -864,6 +931,289 @@ public:
 		return port_pure_write(tmp, len);
 	}
 
+	int my_proc(my_msg_t *m)
+	{
+		int r,flen;
+		char* fbuf, * p, * p1;
+		const char* path = "app.ini";
+
+		if (!dev_opened) {
+			if ((m->id != ID_OPEN) && (m->id != ID_DBG_EN) && (m->id != ID_DBG_CLR) && (m->id != ID_DBG_SAV)) {
+				LOGE("___ dev not opened!\n");
+				return -1;
+			}
+		}
+		else {
+			if (!para_recved && m->id == ID_CONFIG_R) {
+				LOGE("___ cfg not recved!\n");
+				return -1;
+			}
+		}
+
+		switch (m->id) {
+		case ID_OPEN:
+		{
+			int r;
+
+			if (dev_opened == 0) {
+				r = port_open();
+				if (r == 0) {
+					dev_opened = 1;
+					start_timer();
+					btOpen.SetWindowText("close");
+				}
+			}
+			else {
+				stop_timer();
+
+				r = port_close();
+				if (r == 0) {
+					dev_opened = 0;
+					para_recved = 0;
+
+					info_clear();
+					cali_idx = 0;
+
+					btOpen.SetWindowText("open");
+				}
+			}
+		}
+		break;
+
+		case ID_CALI:
+		{
+			cali_sig_t sig;
+			char tmp[100];
+
+			r = load_file(path, &fbuf, &flen);
+			if (r) {
+				LOGE("___ load file %s failed\n", path);
+				return -1;
+			}
+
+			r = get_string(fbuf, flen, "CALI:", '[', cali_idx, ']', cali_idx, tmp, sizeof(tmp));
+			if (r) {
+				//MessageBox();
+				delete[] fbuf;
+				return -1;
+			}
+
+			r = sscanf(tmp, "%hhu,%u,%f,%hhu,%f,%hhu,%hhu]", &sig.ch, &sig.freq, &sig.bias, &sig.lv, &sig.volt, &sig.max, &sig.seq);
+			if (r != 7) {
+				LOGE("___ cali param number: %d is wrong!\n", r);
+				delete[] fbuf;
+				return -1;
+			}
+
+			r = port_write(TYPE_CALI, 0, &sig, sizeof(sig));
+			if (r == 0) {
+				LOGD("___ cali %d, ch: %hhu, lv: %hhu, max: %hhu, seq: %hhu, volt: %.1fmv, freq: %ukhz, bias: %.1fmv\n", cali_idx + 1, sig.ch, sig.lv, sig.max, sig.seq, sig.volt, sig.freq/1000, sig.bias);
+				cali_idx++;
+				if (sig.seq == sig.max) {
+					cali_idx = 0;
+				}
+			}
+
+			delete[] fbuf;
+		}
+		break;
+
+		case ID_DAC:
+		{
+			char tmp[100];
+			dac_para_t dac = { 0, 1};
+
+			r = load_file(path, &fbuf, &flen);
+			if (r) {
+				LOGE("___ load file %s failed\n", path);
+				return -1;
+			}
+
+			r = get_string(fbuf, flen, "DAC:", '[', 0, ']', 0, tmp, sizeof(tmp));
+			if (r) {
+				//MessageBox();
+				LOGE("___ DAC param is wrong, can't find \"DAC:\"\n");
+				return -1;
+			}
+
+			r = port_write(TYPE_CAP, 0, &dac, sizeof(dac));
+		}
+		break;
+
+		case ID_START:
+		{
+			capture_t cap = { 0, !dev_started };
+
+			r = port_write(TYPE_CAP, 0, &cap, sizeof(cap));
+			if (r == 0) {
+				dev_started = dev_started ? 0 : 1;
+
+				btStart.SetWindowText(dev_started ? "stop" : "start");
+			}
+		}
+		break;
+
+		case ID_CONFIG_R:		//读取设备配置文件
+		{
+			LPCTSTR lpcstrFilter = _T("json Files (*.json)\0*.json\0");
+			CFileDialog dlg(TRUE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
+			if (dlg.DoModal() == IDOK)
+			{
+				int rlen, jslen = sizeof(usr_para_t) * 100;
+				char* js = new char[jslen];
+				if (js) {
+					rlen = json_from(js, jslen, &allPara.usr);
+					if (rlen > 0) {
+						FILE* fp = fopen(dlg.m_ofn.lpstrFile, "wt");
+						if (fp) {
+							fwrite(js, 1, rlen, fp);
+							fclose(fp);
+						}
+					}
+				}
+			}
+		}
+		break;
+
+
+		case ID_CONFIG_W:		//下发配置文件到设备
+		{
+			LPCTSTR lpcstrFilter = _T("json Files (*.json)\0*.json\0");
+			CFileDialog dlg(TRUE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
+			if (dlg.DoModal() == IDOK)
+			{
+				FILE* fp = fopen(dlg.m_ofn.lpstrFile, "rt");
+				if (fp) {	//start send upg file
+					struct stat st;
+					int r = stat(dlg.m_ofn.lpstrFile, &st);
+					char* fbuf = new char[st.st_size];
+					if (fbuf) {
+						usr_para_t usr;
+						int rlen = fread(fbuf, 1, st.st_size, fp);
+
+						r = json_to(fbuf, &usr);
+						if (r == 0) {
+							all_para_t all = allPara;
+
+							all.usr = usr;
+							r = port_write(TYPE_PARA, 1, &all, sizeof(all));
+						}
+						delete[] fbuf;
+					}
+					fclose(fp);
+				}
+			}
+		}
+		break;
+
+		case ID_DEFAULT:
+		{
+			r = port_write(TYPE_DFLT, 0, NULL, 0);
+		}
+		break;
+
+		case ID_UPGRADE:
+		{
+			LPCTSTR lpcstrFilter = _T("upg Files (*.upg)\0*.upg\0");
+			CFileDialog dlg(TRUE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
+			if (dlg.DoModal() == IDOK)
+			{
+				FILE* fp = fopen(dlg.m_ofn.lpstrFile, "r");
+				if (fp) {	//start send upg file
+					struct stat st;
+					int r = stat(dlg.m_ofn.lpstrFile, &st);
+					char* fbuf = new char[st.st_size];
+					if (fbuf) {
+						int rlen = fread(fbuf, 1, st.st_size, fp);
+
+						//send file
+
+
+						delete[] fbuf;
+					}
+					fclose(fp);
+				}
+			}
+		}
+		break;
+
+		case ID_REBOOT:
+		{
+			r = port_write(TYPE_REBOOT, 0, NULL, 0);
+		}
+		break;
+
+		case ID_REFRESH:
+		{
+			r = port_write(TYPE_PARA, 0, NULL, 0);
+		}
+		break;
+
+		case ID_MODE:
+		{
+			U8 mode = allPara.usr.smp.mode;
+
+			mode = (mode + 1) % MODE_MAX;
+			r = port_write(TYPE_MODE, 0, &mode, sizeof(mode));
+			if (r==0) {
+				const char* mode_str[MODE_MAX] = {"norm","cali","test"};
+				LOGD("__ switch mode to %s\n", mode_str[mode]);
+			}
+		}
+		break;
+
+		case ID_DBG_EN:
+		{
+			if (log_is_enable()) {
+				log_enable(0);
+			}
+			else {
+				log_enable(1);
+			}
+		}
+		break;
+
+		case ID_DBG_CLR:
+		{
+			log_clear();
+		}
+		break;
+
+		case ID_DBG_SAV:
+		{
+			const char* path = "log.txt";
+
+			int r = log_save(path);
+			if (r == 0) {
+				LOGD("___ %s save ok!\n", path);
+			}
+		}
+		break;
+
+		case ID_DATO:
+		{
+			static int data_to = 0;
+			r = port_write(TYPE_DATO, 0, NULL, 0);
+		}
+		break;
+
+		case ID_TIMER:
+		{
+			if (dev_opened && !para_recved) {
+				r = port_write(TYPE_PARA, 0, NULL, 0);
+			}
+		}
+		break;
+
+		}
+
+		return 0;
+	}
+
+
+	
+	
+
 	int data_proc(void* data, int len, U8 chk)
 	{
 		int r;
@@ -905,18 +1255,24 @@ public:
 				if (para_recved) {
 					int i, j;
 					all_para_t* pa = &allPara;
-					ch_data_t* pc = (ch_data_t*)hdr->data;
-					ch_para_t* pr = &pa->usr.ch[pc->ch];
-					ev_data_t* ev = (ev_data_t*)((U8*)(pc->data) + pc->wavlen);
+					U8 mode = allPara.usr.smp.mode;
+					ch_data_t* pd = (ch_data_t*)hdr->data;
+					ev_data_t* ev = (ev_data_t*)((U8*)(pd->data) + pd->wavlen);
 					const char* ev_str[EV_NUM] = { "rms","amp","asl","ene","ave","min","max" };
 
-					int grps = pc->evlen / (pr->n_ev * sizeof(ev_data_t));
-					for (i = 0; i < grps; i++) {
-						for (j = 0; j < pr->n_ev; j++) {
-							LOGD("%s[%d]: %0.5f\n", ev_str[pr->ev[j]], i, ev[j].data);
+#if 1
+					if (pd->evlen>0) {
+						ev_grp_t* grp = (ev_grp_t*)((U8*)ev+sizeof(ev_data_t));
+						for (i = 0; i < ev->grps; i++) {
+							ev_val_t* val = grp[i].val;
+							for (j = 0; j < grp[i].cnt; j++) {
+								LOGD("%s[%d]: %0.5f\n", ev_str[val->tp], i, val[j].data);
+							}
+							LOGD("\n");
 						}
+						LOGD("\n");
 					}
-					LOGD("\n");
+#endif
 				}
 			}
 			break;
@@ -932,7 +1288,11 @@ public:
 
 			case TYPE_STAT:
 			{
-				err = 0;
+				stat_data_t* stat = (stat_data_t*)hdr->data;
+				LOGD("stat.rssi: %ddB\n"  , stat->rssi);
+				LOGD("stat.ber:  %d\n",		stat->ber);
+				LOGD("stat.temp: %fn",		stat->temp);
+				LOGD("stat.vbat: %fv\n",	stat->vbat);
 			}
 			break;
 
@@ -1008,291 +1368,7 @@ public:
 
 	LRESULT OnBtnClicked(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
 	{
-		int r;
-		const char* path = "app.ini";
-		CButton btn = hWndCtl;
-
-		if (!dev_opened) {
-			if ((wID != ID_OPEN) && (wID != ID_DBG_EN) && (wID != ID_DBG_CLR) && (wID != ID_DBG_SAV)) {
-				LOGE("___ dev not opened!\n");
-				return -1;
-			}
-		}
-		else {
-			if (!para_recved && wID==ID_CONFIG_R) {
-				LOGE("___ cfg not recved!\n");
-				return -1;
-			}
-		}
-
-		switch (wID) {
-		case ID_OPEN:
-		{
-			int r;
-
-			if (dev_opened == 0) {
-				r = port_open();
-				if (r==0) {
-					dev_opened = 1;
-					start_timer();
-					btOpen.SetWindowText("close");
-				}
-			}
-			else {
-				stop_timer();
-
-				r = port_close();
-				if (r == 0) {
-					dev_opened = 0;
-					para_recved = 0;
-
-					info_clear();
-					cali_cnt = 0;
-
-					btOpen.SetWindowText("open");
-				}
-			}
-		}
-		break;
-
-		case ID_CALI_1:
-		{
-			cali_sig_t sig;
-			char* fbuf;
-			char tmp[100];
-			int r,flen;
-			
-			r = load_file(path, &fbuf, &flen);
-			if (r) {
-				LOGE("___ load file %s failed\n", path);
-				return -1;
-			}
-
-			sig.tms = 1;
-
-			r = get_string(fbuf, flen, "CALI1:", '[', 0, ']', 0, tmp, sizeof(tmp));
-			if (r) {
-				//MessageBox();
-				LOGE("___ CALI1 param is wrong, can't find \"CALI1:\"\n");
-				return -1;
-			}
-
-			r = sscanf(tmp, "%hd,%f,%d,%f", &sig.ch, &sig.rms, &sig.freq, &sig.bias);
-			if (r!=4) {
-				LOGE("___ CALI1 param number is wrong!\n");
-				return -1;
-			}
-			r = port_write(TYPE_CALI, 0, &sig, sizeof(sig));
-
-			LOGD("___ CALI-1 ch: %d, rms: %0.5f, freq: %d, bias: %0.5f\n", sig.ch, sig.rms, sig.freq, sig.bias);
-
-			delete[] fbuf;
-		}
-		break;
-
-		case ID_CALI_2:
-		{
-			cali_sig_t sig;
-			char* fbuf,*p,*p1;
-			char tmp[100];
-			int r, flen;
-
-			r = load_file(path, &fbuf, &flen);
-			if (r) {
-				LOGE("___ load file %s failed\n", path);
-				return -1;
-			}
-
-			if (cali_cnt%2==0) {
-				sig.tms = 2;
-				
-				r = get_string(fbuf, flen, "CALI2:", '[', 0, ']', 0, tmp, sizeof(tmp));
-				if (r) {
-					//MessageBox();
-					return -1;
-				}
-
-				r = sscanf(tmp, "%hd,%f,%d,%f]", &sig.ch, &sig.rms, &sig.freq, &sig.bias);
-				if (r != 4) {
-					LOGE("___ CALI2 param number: %d is wrong!\n", r);
-					return -1;
-				}
-
-				r = port_write(TYPE_CALI, 0, &sig, sizeof(sig));
-
-				LOGD("___ CALI-2 first, ch: %d, rms: %0.5f, freq: %d, bias: %0.5f\n", sig.ch, sig.rms, sig.freq, sig.bias);
-			}
-			else {
-
-				r = get_string(fbuf, flen, "CALI2:", '[', 1, ']', 1, tmp, sizeof(tmp));
-				if (r) {
-					//MessageBox();
-					return -1;
-				}
-
-				r = sscanf(tmp, "%hd,%f,%d,%f", &sig.ch, &sig.rms, &sig.freq, &sig.bias);
-				if (r != 4) {
-					LOGE("___ CALI2 param number: %d is wrong!\n", r);
-					return -1;
-				}
-
-				r = port_write(TYPE_CALI, 0, &sig, sizeof(sig));
-
-				LOGD("___ CALI-2 second, ch: %d, rms: %0.5f, freq: %d, bias: %0.5f\n", sig.ch, sig.rms, sig.freq, sig.bias);
-			}
-
-			cali_cnt++;
-			delete[] fbuf;
-		}
-		break;
-
-		case ID_START:
-		{
-			capture_t cap = {0, !dev_started};
-
-			r = port_write(TYPE_CAP, 0, &cap, sizeof(cap));
-			if (r==0) {
-				dev_started = dev_started?0:1;
-
-				btStart.SetWindowText(dev_started?"stop":"start");
-			}
-		}
-		break;
-
-		case ID_CONFIG_R:		//读取设备配置文件
-		{
-			LPCTSTR lpcstrFilter = _T("json Files (*.json)\0*.json\0");
-			CFileDialog dlg(TRUE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
-			if (dlg.DoModal() == IDOK)
-			{
-				int rlen,jslen = sizeof(usr_para_t)*100;
-				char* js = new char[jslen];
-				if (js) {
-					rlen = json_from(js, jslen, &allPara.usr);
-					if (rlen>0) {
-						FILE* fp = fopen(dlg.m_ofn.lpstrFile, "wt");
-						if (fp) {
-							fwrite(js, 1, rlen, fp);
-							fclose(fp);
-						}
-					}
-				}
-			}
-		}
-		break;
-
-
-		case ID_CONFIG_W:		//下发配置文件到设备
-		{
-			LPCTSTR lpcstrFilter = _T("json Files (*.json)\0*.json\0");
-			CFileDialog dlg(TRUE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
-			if (dlg.DoModal() == IDOK)
-			{
-				FILE* fp = fopen(dlg.m_ofn.lpstrFile, "rt");
-				if (fp) {	//start send upg file
-					struct stat st;
-					int r = stat(dlg.m_ofn.lpstrFile, &st);
-					char* fbuf = new char[st.st_size];
-					if (fbuf) {
-						usr_para_t usr;
-						int rlen = fread(fbuf, 1, st.st_size, fp);
-						
-						r = json_to(fbuf, &usr);
-						if (r == 0) {
-							all_para_t all = allPara;
-
-							all.usr = usr;
-							r = port_write(TYPE_PARA, 1, &all, sizeof(all));
-						}
-						delete[] fbuf;
-					}
-					fclose(fp);
-				}
-			}
-		}
-		break;
-
-		case ID_DEFAULT:
-		{
-			r = port_write(TYPE_DFLT, 0, NULL, 0);
-		}
-		break;
-
-		case ID_UPGRADE:
-		{
-			LPCTSTR lpcstrFilter = _T("upg Files (*.upg)\0*.upg\0");
-			CFileDialog dlg(TRUE, NULL, _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, lpcstrFilter);
-			if (dlg.DoModal() == IDOK)
-			{
-				FILE* fp = fopen(dlg.m_ofn.lpstrFile, "r");
-				if (fp) {	//start send upg file
-					struct stat st;
-					int r = stat(dlg.m_ofn.lpstrFile, &st);
-					char* fbuf = new char[st.st_size];
-					if (fbuf) {
-						int rlen = fread(fbuf, 1, st.st_size, fp);
-
-						//send file
-
-
-						delete [] fbuf;
-					}
-					fclose(fp);
-				}
-			}
-		}
-		break;
-
-		case ID_REBOOT:
-		{
-			r = port_write(TYPE_REBOOT, 0, NULL, 0);
-		}
-		break;
-
-
-		case ID_DBG_EN:
-		{
-			if (log_is_enable()) {
-				log_enable(0);
-			}
-			else {
-				log_enable(1);
-			}
-		}
-		break;
-
-		case ID_DBG_CLR:
-		{
-			log_clear();
-		}
-		break;
-
-		case ID_DBG_SAV:
-		{
-			const char* path = "log.txt";
-
-			int r = log_save(path);
-			if (r==0) {
-				LOGD("___ %s save ok!\n", path);
-			}
-		}
-		break;
-
-		case ID_DATA_TO:
-		{
-			static int data_to = 0;
-			r = port_write(TYPE_DATATO, 0, NULL, 0);
-			if (r==0) {
-				data_to = data_to ? 0 : 1;
-				btTo.SetWindowText(data_to?"to app":"to ali");
-			}
-		}
-		break;
-
-		}
-
-		
-		
+		my_post(MY_MSG, wID);
 
 		return 0;
 	}
@@ -1358,6 +1434,11 @@ public:
 	}
 
 
+	void my_test()
+	{
+		extern float wavData[];
+		//dsp_test(wavData, 20000);
+	}
 
 
 	LRESULT OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
@@ -1365,6 +1446,7 @@ public:
 		gbl_init();
 		split_init();
 		pane_init();
+
 		LOGD("___ all init ok!\n");
 		
 		return 0;
@@ -1373,17 +1455,13 @@ public:
 	int t_cnt = 0;
 	LRESULT OnTimer(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled)
 	{
-		int r;
-
-		if (dev_opened && !para_recved) {
-			r = port_write(TYPE_PARA, 0, NULL, 0);
-		}
-
+		my_post(MY_MSG, ID_TIMER);
 		return 0;
 	}
 
 	LRESULT OnClose(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled)
 	{
+		extern void my_quit(void);
 
 		DestroyWindow();
 		PostQuitMessage(0);

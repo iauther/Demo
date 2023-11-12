@@ -64,8 +64,8 @@ public:
 
     int disconn(void* conn);
     int is_connected(void* conn);
-    int pub(void* conn, mqtt_para_t *para, void* payload, int payloadlen);
-    int sub(void* conn, mqtt_para_t* para);
+    int pub(void* conn, void*para, void* payload, int payloadlen);
+    int sub(void* conn, void* para);
     int read(void* conn, void* buf, int buflen);
 
 private:

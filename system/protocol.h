@@ -35,6 +35,7 @@ enum {
     MODE_NORM=0,
     MODE_CALI,
     MODE_TEST,
+    MODE_DEBUG,
 
     MODE_MAX
 };
@@ -42,6 +43,11 @@ enum {
 enum {
     STAT_STOP=0,
     STAT_RUN,
+};
+
+enum {
+    LEVEL_RMS=0,
+    LEVEL_VPP,
     
 };
 
@@ -49,9 +55,10 @@ enum {
 enum {
     TYPE_ACK=0,
     
-    TYPE_CAP,         //channel capture data
-    TYPE_DAC,
+    TYPE_CAP,         //capture data
     TYPE_CALI,        //calibration
+    TYPE_STAT,
+    TYPE_DAC,
     TYPE_MODE,
     TYPE_SETT,
     TYPE_PARA,
@@ -68,8 +75,6 @@ enum {
     TYPE_MAX
 };
 
-
-
 enum {
     FILE_PARA=0,
     
@@ -79,7 +84,6 @@ enum {
     
     FILE_MAX
 };
-
 
 enum {
     PROTO_TCP=0,
@@ -92,6 +96,13 @@ enum {
     DATO_ALI=0,
     DATO_USR,
 };
+
+enum {
+    DATA_LT=0,
+    DATA_WAV,
+    DATA_SETT,
+};
+
 
 
 
@@ -184,7 +195,6 @@ typedef struct {
 typedef struct {
     U8              mode;               //dev mode
     U8              port;               //refer to PORT_UART define
-    U8              dato;               //DATO_ALI or DATO_USR
     
     U8              pwrmode;           //PWR_NO_PWRDN:no powerdown    PWR_PERIOD_PWRDN: period powerdown
     U32             worktime;          //unit: second
@@ -221,16 +231,17 @@ typedef struct {
 typedef struct {
     U32             ch;
     U64             time;
+    U32             smpFreq;
     U32             wavlen;
     U32             evlen;
     F32             data[0];        //wavdata+evdata
 }ch_data_t;
 
 typedef struct {
-    U8              batt;
-    S8              temp;
-    F32             sig_s;          //strength
-    F32             sig_q;          //quality
+    S32             rssi;          //dB,
+    S32             ber;           //0~7,-1
+    F32             vbat;          //batt volt
+    F32             temp;
     U64             time;
 }stat_data_t;
 
@@ -338,19 +349,23 @@ typedef struct {
 }sys_para_t;
 
 typedef struct {
-    U16             tms;        //times
-    U16             ch;
-    F32             rms;        //mv
+    U8              max;        //1~10
+    U8              seq;        //1~10
+    U8              lv;         //0:rms, 1:vpp, unit:mv
+    U8              ch;         //0~CH_MAX-1
+    F32             volt;       //mv
     U32             freq;
-    F32             bias;
+    F32             bias;       //mv
 }cali_sig_t;
+
+#define CALI_MAX    5
 typedef struct {
-    F32         in;
-    F32         out;
+    F32             in;
+    F32             out;
 }cali_rms_t;
 typedef struct {
     U32             cnt;
-    cali_rms_t      rms[2];
+    cali_rms_t      rms[CALI_MAX];
     cali_sig_t      sig;
 }cali_t;
 typedef struct {

@@ -48,8 +48,8 @@ typedef int (*list_callback_t)(handle_t l, node_t *node, node_t *xd, void *arg, 
 
 handle_t list_init(list_cfg_t *cfg);
 int list_free(handle_t l);
-int list_get(handle_t l, node_t *node, int index);
-int list_set(handle_t l, node_t *node, int index);
+int list_get_node(handle_t l, list_node_t **lnode, int index);
+int list_set_node(handle_t l, list_node_t  *lnode, int index);
 
 int list_take_node(handle_t l, list_node_t **lnode, int index);
 int list_back_node(handle_t l, list_node_t *lnode);

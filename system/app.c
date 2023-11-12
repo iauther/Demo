@@ -14,7 +14,6 @@ int app_start(void)
 {
     //dal_set_vector();
     dal_init();
-    dal_wdg_init(WDG_TIME);
     
     upgrade_check(NULL);
     

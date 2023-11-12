@@ -44,6 +44,7 @@ void task_comm_send_fn(void *arg)
     sbuf.buf  = eMalloc(sbuf.blen);
     sbuf.dlen = 0;
     
+/*
     while(1) {    
         if(list_take_node(taskBuffer.send, &lnode, 0)==0) {
             
@@ -64,13 +65,12 @@ void task_comm_send_fn(void *arg)
             //comm_pure_send(tasksHandle.hconn, &to, lnode->data.buf, lnode->data.dlen);
             
             list_back_node(taskBuffer.send, lnode);
-        }
-        
-        
-        
+        }      
         
         osDelay(1);
     }
+*/
+    
 }
 #endif
 

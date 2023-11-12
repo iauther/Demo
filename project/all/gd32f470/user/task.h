@@ -86,13 +86,12 @@ typedef struct {
     handle_t        hconn;
     
     handle_t        hMem;
-    handle_t        netList;            //网络连接列表
+    handle_t        netList;         //网络连接列表
     
     U8              chs;
     U8              chBits;
     
-    handle_t        rb;                 //rbuf
-    handle_t        rcv;               //recv list
+    handle_t        rb;              //rbuf
 }tasks_handle_t;
 
 ///////////////////////////////////////////////////
@@ -120,6 +119,7 @@ int api_cap_stop_all(void);
 int api_cap_power(U8 ch, U8 on);
 
 int api_comm_connect(U8 port);
+int api_comm_disconnect(void);
 int api_comm_send_para(void);
 int api_comm_is_connected(void);
 
@@ -127,6 +127,7 @@ int api_comm_send_ack(U8 type, U8 err);
 int api_comm_send_data(U8 type, U8 nAck, void *data, int len);
 int api_nvm_send(void *data, int len);
 int api_nvm_is_finished(void);
+int api_nvm_save_file(void);
 
 void task_init(void);
 int task_new(task_attr_t *atrr);
@@ -148,8 +149,9 @@ int task_timer_start(handle_t h);
 int task_timer_stop(handle_t h);
 int task_timer_free(handle_t h);
 
-
 int task_yield(void);
+U32 task_stack_remain(void);
+
 #endif
 
 void test_main(void);

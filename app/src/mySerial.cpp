@@ -45,6 +45,22 @@ int mySerial::open(int id)
     return  r?0:-1;
 }
 
+int mySerial::open(char *port)
+{
+    mSerial.init((const char*)port,
+        itas109::BaudRate115200,                    // baudrate
+        itas109::ParityNone,                        // parity
+        itas109::DataBits8,                         // data bit
+        itas109::StopOne,                   // stop bit
+        itas109::FlowNone,                // flow
+        4096                            // read buffer size
+    );
+    mSerial.setReadIntervalTimeout(1);
+    bool r = mSerial.open();
+
+    return  r ? 0 : -1;
+}
+
 int mySerial::list(sp_info_t**info)
 {
     std::vector<itas109::SerialPortInfo>  vInfo;

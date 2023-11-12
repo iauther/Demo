@@ -7,26 +7,23 @@
 
 
 #define LOG_BUF_LEN  2000
-
-typedef struct {
-    lv_cfg_t  cfg;
-    handle_t  list;
-}lv_data_t;
+#define LOG_NODE_MAX 2000
 
 typedef struct {
     handle_t  hlog;
     int       enable;
-    lv_data_t lv[LV_MAX];
     
+    handle_t  list;
+    log_cfg_t cfg;
     char      buffer[LOG_BUF_LEN];
 }log_handle_t;
 
 
 const char* log_string[LV_MAX]={
-    "---info---",
-    "---debug---",
-    "---warn---",
-    "---error---",
+    "info",
+    "debug",
+    "warn",
+    "error",
 };
 
 
@@ -34,8 +31,8 @@ static log_handle_t logHandle={
     .hlog=NULL,
     .enable=1,
     
-    .lv={
-        {1,500,NULL},{1,500,NULL},{1,500,NULL},{1,500,NULL}
+    .cfg={
+        .en={1,1,1,1}
     },
 };
 
@@ -46,7 +43,7 @@ int log_set(LOG_LEVEL lv, int en)
     int i;
     
     for(i=0; i<LV_MAX; i++) {
-        logHandle.lv[i].cfg.en = en;
+        logHandle.cfg.en[i] = en;
     }
     
     return 0;
@@ -65,7 +62,7 @@ int log_print(LOG_LEVEL lv, char *fmt, ...)
     va_list args;
     date_time_t dt;
 
-    if(!logHandle.enable || !logHandle.lv[lv].cfg.en) {
+    if(!logHandle.enable || !logHandle.cfg.en[lv]) {
         return -1;
     }    
     
@@ -79,8 +76,8 @@ int log_print(LOG_LEVEL lv, char *fmt, ...)
     len = strlen(logHandle.buffer);
     dal_uart_write(logHandle.hlog, (U8*)logHandle.buffer, len);
 
-#ifndef BOOTLOADER 
-    list_append(logHandle.lv[lv].list, 0, logHandle.buffer, len);
+#ifdef OS_KERNEL
+    list_append(logHandle.list, lv, logHandle.buffer, len);
 #endif
 
     return 0;
@@ -111,11 +108,11 @@ int log_init(rx_cb_t callback)
         return -1;
     }
     
-#ifndef BOOTLOADER 
+#ifdef OS_KERNEL 
     for(i=0; i<LV_MAX; i++) {
-        lc.max = logHandle.lv[i].cfg.max;
+        lc.max  = LOG_NODE_MAX;
         lc.mode = MODE_FIFO;
-        logHandle.lv[i].list = list_init(&lc);
+        logHandle.list = list_init(&lc);
     }
 #endif
     
@@ -142,39 +139,51 @@ handle_t log_get_handle(void)
 }
 
 
-int log_save(LOG_LEVEL lv)
+int log_save(void)
 {
     int r;
-    node_t node;
     date_time_t dt;
     char tmp[100];
     handle_t hfile;
-    handle_t list=logHandle.lv[lv].list;
+    list_node_t *lnode;
+    handle_t list=logHandle.list;
+    char *tok1="\n\n+++++++ log start +++++++\n";
+    char *tok2="+++++++ log end   +++++++\n\n";
 
-#ifndef BOOTLOADER    
+#ifdef OS_KERNEL   
     if(list_size(list)==0) {
         return -1;
     }
     
     dal_rtc_get(&dt);
     sprintf(tmp, "%s/%04d/%02d/%02d/log.txt", SDMMC_MNT_PT, dt.date.year, dt.date.mon, dt.date.day);
+    if(fs_exist(tmp)) {
+        hfile = fs_open(tmp, FS_MODE_RW);
+        if(hfile) {
+            fs_seek(hfile, fs_length(tmp));
+        }
+    }
+    else {
+        hfile = fs_open(tmp, FS_MODE_CREATE);
+    }
     
-    fs_remove(tmp);
-    hfile = fs_open(tmp, FS_MODE_CREATE);
     if(!hfile) {
-        LOGE("___ %s create failed\n");
+        LOGE("___ %s open failed\n", tmp);
         return -1;
     }
     
+    fs_write(hfile, tok1, strlen(tok1), 0);
     while(1) {
-        r = list_get(list, &node, 0);
+        r = list_get_node(list, &lnode, 0);
         if(r) {
             break;
         }
-        fs_write(hfile, node.buf, node.dlen, 0);
+        fs_write(hfile, lnode->data.buf, lnode->data.dlen, 0);
         
         list_remove(list, 0);
     }
+    fs_write(hfile, tok2, strlen(tok2), 0);
+    
     fs_close(hfile);
 #endif
     
@@ -182,25 +191,14 @@ int log_save(LOG_LEVEL lv)
 }
 
 
-int log_save_all(void)
-{
-    int i;
-    
-    for(i=0; i<LV_MAX; i++) {
-        log_save((LOG_LEVEL)i);
-    }
-    
-    return 0;
-}
-
 
 int log_deinit(void)
 {
     int i;
     
-#ifndef BOOTLOADER 
+#ifdef OS_KERNEL 
     for(i=0; i<LV_MAX; i++) {
-        list_free(logHandle.lv[i].list);
+        list_free(logHandle.list);
     }
 #endif
     

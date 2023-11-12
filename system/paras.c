@@ -11,11 +11,6 @@
 
 all_para_t allPara;
 ////////////////////////////////////////////////////////////
-static int paras_check()
-{
-    
-    return 0;
-}
 
 int paras_load(void)
 {
@@ -26,7 +21,7 @@ int paras_load(void)
     
     allPara = DFLT_PARA;
     
-#if 0
+#ifndef DEV_MODE_DEBUG
     flen = fs_lengthx(FILE_PARA);
     if(flen==sizeof(allPara)) {
         r = fs_readx(FILE_PARA, &allPara, flen);
@@ -125,16 +120,16 @@ int paras_set_cali_sig(U8 ch, cali_sig_t *sig)
         return -1;
     }
     
-    cali = &allPara.var.cali[ch];
-    cali->sig = *sig;
-    if(sig->tms>1) {
-        if(cali->cnt>1) {
-            cali->cnt = 0;
-        }
-        
-        cali->rms[cali->cnt].in = sig->rms;
-        cali->cnt++;
+    if(((sig->max<1)||(sig->max>CALI_MAX)) || ((sig->seq<1)||(sig->seq>CALI_MAX)) || 
+        (sig->lv>LEVEL_VPP) || (sig->ch>=CH_MAX) || (sig->seq>sig->max)) {
+        LOGE("___ cali sig para wrong, quit calibration\n");
+        return -1;
     }
+    
+    cali = &allPara.var.cali[ch];
+    cali->cnt = 0;
+    cali->sig = *sig;
+    cali->rms[sig->seq-1].in = (sig->lv==LEVEL_RMS)?sig->volt:sig->volt/(2*sqrt(2));
     
     return 0;
 }
@@ -181,7 +176,7 @@ ch_paras_t* paras_get_ch_paras(U8 ch)
     return &allPara.usr.smp.ch[ch];
 }
 
-int paras_get_smp_cnt(U8 ch)
+int paras_get_smp_points(U8 ch)
 {
     ch_para_t *pch=paras_get_ch_para(ch);
     
@@ -211,6 +206,8 @@ int paras_save(void)
     p->sys = allPara.sys;
     p->usr = allPara.usr;
     p->var = DFLT_PARA.var;
+    
+    //p->usr.smp.mode = MODE_NORM;        //其它模式不保存
     r = fs_savex(FILE_PARA, p, sizeof(all_para_t));
     free(p);
     
@@ -224,5 +221,33 @@ int paras_factory(void)
     
     return paras_save();
 }
+
+
+int paras_check(all_para_t *all)
+{
+    int i;
+    
+    if(!all) {
+        return -1;
+    }
+    
+    if(all->usr.card.apn>=0) {
+        
+    }
+    
+    //if(all->usr.card.auth>=0)
+   
+    
+    ch_paras_t *ch=all->usr.smp.ch;
+    
+    for(i=0; i<CH_MAX; i++) {
+        if(ch[i].ch!=i) {
+            
+        }
+    }
+     
+    return 0;
+}
+
 
 

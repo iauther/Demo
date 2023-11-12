@@ -6,8 +6,11 @@
 extern mqtt_fn_t mqtt_ali_fn;
 extern mqtt_fn_t mqtt_self_fn;
 mqtt_fn_t *mqtt_fns[MQTT_MAX]={
+#ifdef OS_KERNEL
     &mqtt_ali_fn,
     &mqtt_self_fn,
+#endif
+    
 };
 static U8  mqtt_init_flag=0;
 static U8  mqtt_conn_flag=0;
@@ -68,7 +71,7 @@ int mqtt_disconn(handle_t hconn)
 }
 
 
-int mqtt_pub(handle_t hconn, mqtt_para_t *para, void *data, int len)
+int mqtt_pub(handle_t hconn, void *para, void *data, int len)
 {
     if(!p_mqtt_fn) {
         return -1;
@@ -78,13 +81,23 @@ int mqtt_pub(handle_t hconn, mqtt_para_t *para, void *data, int len)
 }
 
 
-int mqtt_sub(handle_t hconn, mqtt_para_t *para)
+int mqtt_sub(handle_t hconn, void *para)
+{
+    if(!p_mqtt_fn) {
+        return -1;
+    }
+    
+    return p_mqtt_fn->sub(hconn, para);
+}
+
+
+int mqtt_req_cfg(handle_t hconn)
 {
     if(!p_mqtt_fn) {
         return NULL;
     }
     
-    return p_mqtt_fn->sub(hconn, para);
+    return p_mqtt_fn->req_cfg(hconn);
 }
 
 

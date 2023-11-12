@@ -15,13 +15,9 @@ typedef enum {
     LV_MAX
 }LOG_LEVEL;
 
-typedef struct {
-    int     en;
-    int     max;
-}lv_cfg_t;
 
 typedef struct {
-    lv_cfg_t   lv[LV_MAX];
+    U8      en[LV_MAX];
 }log_cfg_t;
 
 extern log_cfg_t log_cfg;
@@ -33,8 +29,7 @@ int log_enable(int en);
 int log_set(LOG_LEVEL lv, int en);
 int log_set_callback(rx_cb_t cb);
 int log_print(LOG_LEVEL lv, char *fmt, ...);
-int log_save(LOG_LEVEL lv);
-int log_save_all(void);
+int log_save(void);
 int log_set_handle(handle_t h);
 handle_t log_get_handle(void);
 

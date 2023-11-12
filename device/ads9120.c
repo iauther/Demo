@@ -246,7 +246,7 @@ static inline void ads_to_acq(void)
     dal_gpio_set_hl(adsHandle.hpin[PIN_COV], 0);
     dal_gpio_set_hl(adsHandle.hpin[PIN_SCK], 0);
     
-    dal_delay_ms(2);                //1.25ms 
+    dal_delay_ms(2);                //min 1.25ms
 }
 static inline void ads_hw_reset(void)
 {
@@ -713,8 +713,8 @@ int ads9120_power(U8 on)
     
     dal_gpio_set_hl(hpwr, on);
     if(on) {
+        dal_delay_ms(50);       //上电时，延时待电源稳定后再复位
         ads_hw_reset();
-        
     }
         
     return 0;

@@ -289,12 +289,13 @@ int list_free(handle_t l)
 }
 
 
-int list_get(handle_t l, node_t *node, int index)
+int list_get_node(handle_t l, list_node_t **lnode, int index)
 {
-    list_node_t *nd;
+    int r=-1;
+    list_node_t *ln=NULL;
     list_t *hl=(list_t*)l;
     
-    if(!hl || !node || index<0) {
+    if(!hl || !lnode || index<0) {
         return -1;
     }
     
@@ -303,25 +304,29 @@ int list_get(handle_t l, node_t *node, int index)
         return -1;
     }
     
-    if (index>=hl->used.size) {
+    if (hl->used.size<=0 || index>=hl->used.size) {
         lock_off(hl->lock);
         return -1;
     }
     
-    nd = node_get(hl, index);
-    *node = nd->data;
-    lock_off(hl->lock);    
+    ln = node_get(hl, index);
+    if(ln && lnode) {
+        (*lnode) = ln;
+        r = 0;
+    }
+    lock_off(hl->lock);
     
-    return 0;
+    return r;
 }
 
 
-int list_set(handle_t l, node_t *node, int index)
+int list_set_node(handle_t l, list_node_t *lnode, int index)
 {
-    list_node_t *nd;
+    int r=-1;
+    list_node_t *ln=NULL;
     list_t *hl=(list_t*)l;
     
-    if(!hl || !node || index<0) {
+    if(!hl || !lnode || index<0) {
         return -1;
     }
     
@@ -330,18 +335,19 @@ int list_set(handle_t l, node_t *node, int index)
         return -1;
     }
     
-    if (index>=hl->used.size) {
+    if (hl->used.size<=0 || index>=hl->used.size) {
         lock_off(hl->lock);
         return -1;
     }
     
-    nd = node_get(hl, index);
-    if(nd) {
-        node_set(hl, nd, node);
+    ln = node_get(hl, index);
+    if(ln) {
+        node_set(hl, ln, &lnode->data);
+        r = 0;
     }
     lock_off(hl->lock);
     
-    return nd?0:-1;
+    return r;
 }
 
 

@@ -80,6 +80,7 @@ static void mk_p_dir(fx_handle_t *h, char *path)
             if(strlen(tmp)) {
                 hdir = h->drv->opendir(tmp);
                 if(!hdir) {
+                    LOGD("___ mkdir %s\n", tmp);
                     h->drv->mkdir(tmp);
                 }
                 else {

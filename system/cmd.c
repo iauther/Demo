@@ -5,8 +5,11 @@
 const char *cmdStr[CMD_NUM]={
     "ECXX:",
     "CALI:",
+    "CAP:",
     "DAC:",
     "PWER:",
+    "DFLT:",
+    "BOOT:",
     "USER:",
     
 };

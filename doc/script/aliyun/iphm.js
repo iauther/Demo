@@ -1,4 +1,15 @@
 
+function toFloatSpecial(x, n)
+{
+    var y = x.toFixed(2);
+    var fnum = parseFloat(y);
+	var fstr = fnum.toString();
+	var dloc = fstr.indexOf('.');
+	if (dloc < 0) {
+        fnum += 1/Math.pow(10,n);
+	}
+	return fnum;
+}
 
 function arrayToHex(array)
 {
@@ -9,6 +20,23 @@ function arrayToHex(array)
         return accu += a
     }, "")
 }
+
+function destName(dest)
+{
+    if(dst==="lab") {
+        //get device name
+        return "lab_"+deviceName().substring(3);
+    }
+    else if(dst==="pc"){
+        //get client name
+        return "PC_"+deviceName().substring(4);
+    }
+    
+    return "";
+}
+
+
+
 DataView.prototype.getUint64 = function(byteOffset, littleEndian)
 {
     const left =  this.getUint32(byteOffset, littleEndian);
@@ -41,25 +69,34 @@ function isEmpty(obj)
 
 ////////////////////////////////////////////////////////////
 const PKT_MAGIC=0xDEADBEEF;
+
+const DEV_TYPE = {
+    DTYPE_NA:       0,    
+    DTYPE_XAEDAU100:       1,        //设备类型    
+    DTYPE_MAX:       2
+};
+
 const PKT_TYPE = {
     TYPE_ACK:       0,
     
     TYPE_CAP:       1,        //channel capture data
     TYPE_CALI:      2,        //calibration
     TYPE_STAT:      3,
-    TYPE_SETT:      4,
-    TYPE_PARA:      5,
-    TYPE_FILE:      6,
-    TYPE_TIME:      7,
+    TYPE_DAC:       4,
+    TYPE_MODE:      5,
+    TYPE_SETT:      6,
+    TYPE_PARA:      7,
+    TYPE_FILE:      8,
+    TYPE_TIME:      9,
     
-    TYPE_DFLT:      8,
-    TYPE_REBOOT:    9,
-    TYPE_FACTORY:   10,
+    TYPE_DFLT:      10,
+    TYPE_REBOOT:    11,
+    TYPE_FACTORY:   12,
     
-    TYPE_HBEAT:     11,       //heartbeat
-    TYPE_DATATO:    12,
+    TYPE_HBEAT:     13,       //heartbeat
+    TYPE_DATO:      14,
     
-    TYPE_MAX:       13
+    TYPE_MAX:       15
 };
 const EV_TYPE = {
     EV_RMS:0,
@@ -83,7 +120,7 @@ const EV_STR=[
     "max",
 ];
 
-function stat_data_parse(array,devid)
+function stat_data_parse(array,devid, msgType, devType)
 {
     var statObj = {};
     var pos=0;
@@ -91,30 +128,35 @@ function stat_data_parse(array,devid)
     var method  = "thing.event.property.batch.post";
     var version = "1.0"
     
-    var dataView = new DataView(array.buffer, 0);    
+    var dv = new DataView(array.buffer, 0);    
     
     var id = ""+devid;
     
-    var batt = dataview.getInt8(pos, 1);
-    pos += 1;
-    
-    var temp  = dataview.getInt16(pos, 1);
-    pos += 1;
-    
-    var sig_s = dataview.getFloat32(pos, 1);
+    var rssi = dv.getInt32(pos, 1);
     pos += 4;
     
-    var sig_q = dataview.getInt16(pos, 1);
+    var ber = dv.getInt32(pos, 1);
     pos += 4;
     
-    var time = dataview.getUint64(pos, 1);
+    
+    var vbat = dv.getFloat32(pos, 1);
+    pos += 4;
+    
+    var temp  = dv.getFloat32(pos, 1);
+    pos += 4;
+    
+    var time = dv.getUint64(pos, 1);
     
     var params = {};
+    var properties = {};
     
-    properties["stat_data:battery"]         = batt;
-    properties["stat_data:temperature"]     = temp;
-    properties["stat_data:signal_strength"] = sig_s;
-    properties["stat_data:signal_quality"]  = sig_q;
+    properties["stat_data:rssi"]    = [{"value": rssi, "time": time}];
+    properties["stat_data:ber"]     = [{"value": ber,  "time": time}];
+    properties["stat_data:vbat"]    = [{"value": toFloatSpecial(vbat,2), "time": time}];
+    properties["stat_data:temp"]    = [{"value": toFloatSpecial(temp,2), "time": time}];
+	properties["dev_id"] = [{"value": devid, "time": time}];
+	properties["msg_type"] = [{"value": msgType, "time": time}];
+	properties["dev_type"] = [{"value": devType, "time": time}];
     
     params["properties"] = properties;
     
@@ -126,7 +168,7 @@ function stat_data_parse(array,devid)
     return statObj;
 }
 
-function ch_data_parse(array,devid)
+function ch_data_parse(array,devid, msgType, devType)
 {
     var i,j;
     var jsObj = {};
@@ -134,6 +176,7 @@ function ch_data_parse(array,devid)
     var tmpObj = {};
     
     var method  = "thing.event.property.batch.post";
+    var method2 = "user.update";
     var version = "1.0"
     
     var id = ""+devid;
@@ -146,6 +189,9 @@ function ch_data_parse(array,devid)
     var time = dv.getUint64(pos, 1);
     pos += 8;
     
+    var smpFreq = dv.getUint32(pos, 1);
+    pos += 4;
+    
     var wavlen = dv.getUint32(pos, 1);
     pos += 4;
     
@@ -154,8 +200,7 @@ function ch_data_parse(array,devid)
     
     var params = {};
     var properties = {};
-    
-    //console.log("wavlen: "+wavlen+" evlen: "+evlen);
+       
     if(evlen>0) {
         var ev = [];
         for(i=0; i<EV_TYPE.EV_NUM; i++) {
@@ -167,26 +212,30 @@ function ch_data_parse(array,devid)
         var grps = dv.getUint32(pos, 1);
         pos += 4;
         
+        //console.log("ch: "+ch+" time: "+time+" wavlen: "+wavlen+" evlen: "+evlen+" grps: "+grps+" pos: "+pos);
+        
         //parse ev_data_t data
-        //console.log("ch: "+ch+" time: "+time+" grps: "+grps+" pos: "+pos);
         for(i=0; i<grps; i++) {
             var tm = dv.getUint64(pos, 1);
             var cnt = dv.getUint32(pos+8, 1);
             pos += 12;
             
-            //console.log("tm: "+tm+" cnt: "+cnt);
             for(j=0; j<cnt; j++) {
                 var tp = dv.getUint32(pos, 1);
                 var val = dv.getFloat32(pos+4, 1);
                 
-                console.log("tp: "+tp+" val: "+val);
-                ev[tp].push({"value": val, "time": tm});
+                //console.log("tp: "+tp+" val: "+val);
+                ev[tp].push({"value": toFloatSpecial(val, 2), "time": tm});
                 
                 pos += 8;
             }
         }
         
         properties["ev_data:channelid"] = [{"value": ch, "time": time}];
+		properties["dev_id"] = [{"value": devid, "time": time}];
+		properties["msg_type"] = [{"value": msgType, "time": time}];
+		properties["dev_type"] = [{"value": devType, "time": time}];
+		properties["smp_freq"] = [{"value": smpFreq, "time": time}];
         
         for(i=0; i<EV_TYPE.EV_NUM; i++) {
             if(!isEmpty(ev[i])) {
@@ -209,6 +258,7 @@ function pkt_data_parse(array)
     var pos=0;
     var pktObj={};
     var dataObj={};
+	var devType = DEV_TYPE.DTYPE_XAEDAU100
     
     var dv = new DataView(array.buffer, 0);
     
@@ -222,10 +272,9 @@ function pkt_data_parse(array)
     var devID = dv.getUint32(pos, 1);
     pos += 4;
     
-    var type = dv.getUint8(pos, 1);
+    var msgType = dv.getUint8(pos, 1);
     pos += 1;
-    
-    if(type>=PKT_TYPE.TYPE_MAX) {
+    if(msgType>=PKT_TYPE.TYPE_MAX) {
         return dataObj;
     }
     
@@ -240,38 +289,48 @@ function pkt_data_parse(array)
     
     //var subData = array.subarray(pos);
     var subData = array.slice(pos);
-    
-    if(type==PKT_TYPE.TYPE_CAP) {
-        dataObj = ch_data_parse(subData,devID);
+	
+    if(msgType==PKT_TYPE.TYPE_CAP) {
+        dataObj = ch_data_parse(subData,devID, msgType, devType);
     }
-    else if(type==PKT_TYPE.TYPE_STAT) {
-        dataObj = stat_data_parse(subData,devID);
+    else if(msgType==PKT_TYPE.TYPE_STAT) {
+		dataObj = stat_data_parse(subData,devID, msgType, devType);
     }
     
     pktObj["magic"]   = magic;
     pktObj["devID"]   = devID;
-    pktObj["type"]    = type;
+    pktObj["type"]    = msgType;
     pktObj["flag"]    = flag;
     pktObj["askAck"]  = askAck;
     pktObj["datalen"] = dataLen;
-    pktObj["data"]    = dataObj;
+    //pktObj["data"]    = dataObj;
     
-    return dataObj; //pktObj;
+    return dataObj;
+    //return pktObj;
 }
 
 
 /////////////////////////////////////////////////////
+function rawToArray(raw)
+{
+    var u8Array = new Uint8Array(raw.length);
+
+    for (var i = 0; i < raw.length; i++) {
+        u8Array[i] = raw[i] & 0xff;
+    }
+    
+    return u8Array;
+}
+
+
 
 function transformPayload(topic, rawData)
 {
     var jsonObj = {};
     
-    if (topic.endsWith('/user/update')) {
-        var uint8Array = new Uint8Array(rawData.length);
-        for (var i = 0; i < rawData.length; i++) {
-            uint8Array[i] = rawData[i] & 0xff;
-        }
-        var dataView = new DataView(uint8Array.buffer, 0);
+    var u8Array = rawToArray(rawData);
+    if (topic.includes("user/set")) {
+        jsonObj = pkt_data_parse(u8Array);
     }
     
     return jsonObj;
@@ -279,28 +338,12 @@ function transformPayload(topic, rawData)
 
 function rawDataToProtocol(rawData)
 {
-    var obj={};
-    var debug=false;
+    var jsonObj={};
 
-    var u8Array = new Uint8Array(rawData.length);
-
-    for (var i = 0; i < rawData.length; i++) {
-        u8Array[i] = rawData[i] & 0xff;
-    }
+    var u8Array = rawToArray(rawData);
+    jsonObj = pkt_data_parse(u8Array);
  
-    if(debug) {
-        obj["data"] = arrayToHex(u8Array);
-        obj["length"] = rawData.length;
-        
-        obj["id"]  = id; 
-        obj["sig"] = signal;
-        obj["cnt"] = cnt;
-    }
-    else {
-        obj = pkt_data_parse(u8Array);
-    }
- 
-    return obj;
+    return jsonObj;
 }
 
 function protocolToRawData(jsonObj)

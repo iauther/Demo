@@ -355,6 +355,21 @@ int task_yield(void)
 }
 
 
+#include "rtx/rtx_os.h"
+U32 task_stack_remain(void)
+{
+    U32 remain;
+    osRtxThread_t *thd;
+    
+    thd = (osRtxThread_t*)osThreadGetId();
+    remain = (U32)(&thd)-(U32)thd->stack_mem;
+    
+    LOGD("___ cur task stack size: %d, remain: %d\n", thd->stack_size, remain);
+    
+    return remain;
+}
+
+
 #endif
 
 

@@ -341,6 +341,7 @@ static int fatfs_remove(char *path)
 
 static int fatfs_mkdir(char *path)
 {
+    int r;
     char tmp[100];
     fatfs_info_t *info=NULL;
     
@@ -355,7 +356,12 @@ static int fatfs_mkdir(char *path)
     }
     
     snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
-    return f_mkdir(tmp);
+    r =  f_mkdir(tmp);
+    if(r) {
+        LOGE("____ f_mkdir %s failed, %d\n", tmp, r);
+    }
+    
+    return r;
 }
 
 
@@ -400,7 +406,7 @@ static handle_t fatfs_opendir(char *path)
     snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
     r = f_opendir((DIR*)h, tmp);
     if(r) {
-        LOGE("___f_opendir %s failed, %d\n", tmp, r);
+        //LOGE("___f_opendir %s failed, %d\n", tmp, r);
         free(h); return NULL;
     }
     

@@ -14,10 +14,15 @@
 
 //#define USE_FILE
 
+typedef struct {
+    int         cap;
+    int         send;
+}times_t;
+
 
 typedef struct {
     int         busying;
-    int         times[CH_MAX];
+    times_t     times[CH_MAX];
     handle_t    dlist;
 }nvm_handle_t;
 
@@ -25,11 +30,11 @@ typedef struct {
 static nvm_handle_t nvmHandle;
 static void file_scan(void);
 static void file_add(char *path);
-static int file_upload(U8 to);
+static int file_upload(void);
 #define FREE_SIZE   (5*MB)
 
 
-static int data_save(ch_data_t *pch)
+static int data_to_file(ch_data_t *pch)
 {
     int r;
     char path[100];
@@ -38,8 +43,6 @@ static int data_save(ch_data_t *pch)
     int flen,tlen;
     ch_para_t *para=paras_get_ch_para(pch->ch);
     fs_space_t sp;
-
-#ifdef USE_FILE
     
     nvmHandle.busying = 1;
     
@@ -97,15 +100,23 @@ static int data_save(ch_data_t *pch)
     list_append(nvmHandle.dlist, 1, path, strlen(path)+1);
     
     nvmHandle.busying = 0;
-#else
-    tlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
-    list_append(nvmHandle.dlist, 0, pch, tlen);
-#endif
-    
-    nvmHandle.times[pch->ch]++;    
     
     return 0;
 }
+static int data_to_list(ch_data_t *pch)
+{
+    int r;
+    int tlen;
+
+    tlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
+    r = list_append(nvmHandle.dlist, 0, pch, tlen);
+    
+    nvmHandle.times[pch->ch].cap++;
+    
+    return r;
+}
+
+
 
 
 static int data_save_csv(ch_data_t *pch)
@@ -174,7 +185,7 @@ static int data_save_csv(ch_data_t *pch)
 }
 
 /////////////////////////////////////////////////////
-static int data_upload(node_t *node, U8 to)
+static int data_upload(node_t *node)
 {
     handle_t h;
     char *pbuf=NULL;
@@ -182,6 +193,7 @@ static int data_upload(node_t *node, U8 to)
     ch_data_t *pch=NULL;
     ch_para_t *para=NULL;
     int is_file=node->tp;
+    mqtt_pub_para_t pub_para={DATA_LT};
     
     if(is_file) {       //node is file path
         int flen;
@@ -189,28 +201,20 @@ static int data_upload(node_t *node, U8 to)
         flen = fs_length(path);
         LOGD("____file_upload %s, flen: %d\n", path, flen);
         if(flen<=0) {
-            nvmHandle.busying = 2;
-            if(flen==0) {
-                fs_remove(path); r = -1;
-            }
-            else {
-                r = -2;
-            }
-            nvmHandle.busying = 0;
-            
+            r = (flen==0)?0:-1;
             return r;
         }
         
         h = fs_open(path, FS_MODE_RW);
         if(!h) {
             LOGE("___ %s open failed\n", path);
-            return -1;
+            return -1;                  //打开文件失败
         }
         
         pbuf=eMalloc(flen);
         if(!pbuf) {
             LOGE("___ eMalloc fbuf failed\n");
-            return -1;
+            return -1;                  //分配内存失败
         }
         fs_read(h, pbuf, flen);
         
@@ -218,8 +222,8 @@ static int data_upload(node_t *node, U8 to)
         pch  = (ch_data_t*)(pbuf+sizeof(ch_para_t));
     }
     else {
-        para = paras_get_ch_para(pch->ch);
         pch  = (ch_data_t*)node->buf;
+        para=paras_get_ch_para(pch->ch);
     }
     
     if(pch->wavlen && !para->upwav) {
@@ -228,49 +232,54 @@ static int data_upload(node_t *node, U8 to)
     }
     dlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
     
-    LOGD("____comm_send_data len: %d, wavlen: %d\n", dlen, pch->wavlen);
-    r = comm_send_data(tasksHandle.hconn, &to, TYPE_CAP, 0, pch, dlen);
+    if(pch->wavlen>0) {
+        pub_para.tp = DATA_WAV;
+    }
+    
+    r = comm_send_data(tasksHandle.hconn, &pub_para, TYPE_CAP, 0, pch, dlen);
     if(r==0) {
         date_time_t dt;
         rtc2_ts_to_dt(&dt, pch->time/1000);
-        rtc2_print_time("data packet timestamp:", &dt);
         
-        if(is_file) {
-            nvmHandle.busying = 2;
-            fs_remove(node->buf);
-            nvmHandle.busying = 0;
+        LOGD("____comm_send_data len: %d, wavlen: %d\n", dlen, pch->wavlen);
+        rtc2_print_time("timestamp:", &dt);
+        
+        if(!is_file) {
+            nvmHandle.times[pch->ch].send++;
         }
     }
     else {
-        r = -2;
-        LOGE("___ task_nvm, comm_send_data failed\n");
+        LOGE("___ task_nvm, comm_send_data failed, %d\n", r);
+        r = -1;         //发送文件失败
     }
     
     if(is_file) xFree(pbuf);
     
     return r;
 }
-static int file_upload(U8 to)
+static int file_upload(void)
 {
     int r=0;
     list_node_t *lnode;
     
     if(!api_comm_is_connected()) {
-        LOGD("____comm not connected, upload quit\n");
+        //LOGD("____comm not connected, upload quit\n");
         return -1;
     }
     
     //LOGD("__1__ flist size: %d\n", list_size(nvmHandle.flist));
-    if(list_take_node(nvmHandle.dlist, &lnode, 0)==0) {
+    if(list_get_node(nvmHandle.dlist, &lnode, 0)==0) {
+        node_t *nd=&lnode->data;
         
-        r = data_upload(&lnode->data, to);
-        if(r>=-1) {
-            //LOGD("___ list node remove\n");
-            list_back_node(nvmHandle.dlist, lnode);
-        }
-        else {
-            //LOGD("___ list node readd\n");
-            list_add_node(nvmHandle.dlist, lnode, 0);
+        r = data_upload(nd);
+        if(r==0) {
+            if(nd->tp) {    //如果是文件且发送成功，需删除该文件
+                nvmHandle.busying = 2;
+                fs_remove(nd->buf);
+                nvmHandle.busying = 0;
+            }
+            
+            list_remove(nvmHandle.dlist, 0);
         }
         //LOGD("__2__ flist size: %d\n", list_size(nvmHandle.flist));
     }
@@ -343,30 +352,68 @@ int api_nvm_send(void *data, int len)
     return r;
 }
 
-//返回1表示采集结束，返回2表示链表内容全部发出去
+//返回1表示采集结束，返回本次采集的数据全部发出去
 int api_nvm_is_finished(void)
 {
     U8 ch;
-    int finished=1;
+    int finished;
+    int cap_finished=1;
+    int send_finished=1;
+    ch_para_t *pc=NULL;
+    ch_paras_t *pcs=NULL;
     
     for(ch=0; ch<CH_MAX; ch++) {
-        ch_para_t *pc = paras_get_ch_para(ch);
-        ch_paras_t *pcs = paras_get_ch_paras(ch);
+        pc = paras_get_ch_para(ch);
+        pcs = paras_get_ch_paras(ch);
         
         if(pcs->enable) {
-            if(nvmHandle.busying || (nvmHandle.times[ch]<pc->smpTimes)) {
-                LOGD("______ is_finished, ch[%d], busying: %d, times: %d, smpTimes: %d\n", ch, nvmHandle.busying, nvmHandle.times[ch], pc->smpTimes);
-                finished = 0;
+            if(nvmHandle.busying || (nvmHandle.times[ch].cap<pc->smpTimes)) {
+                LOGD("______ is_finished, ch[%d], busying: %d, times: %d, smpTimes: %d\n", ch, nvmHandle.busying, nvmHandle.times[ch].send, pc->smpTimes);
+                cap_finished = 0;
                 break;
             }
         }
     }
     
-    if(finished==1 && list_size(nvmHandle.dlist)==0) {
-        finished = 2;
+    for(ch=0; ch<CH_MAX; ch++) {
+        pc = paras_get_ch_para(ch);
+        pcs = paras_get_ch_paras(ch);
+        
+        if(pcs->enable) {
+            if(nvmHandle.times[ch].send<pc->smpTimes) {
+                send_finished = 0;
+            }
+        }
+    }
+    
+    if(cap_finished) {
+        if(send_finished) {
+            finished = 2;
+        }
+        else {
+            finished = 1;
+        }
     }
     
     return finished;
+}
+int api_nvm_save_file(void)
+{
+    int r=0;
+    list_node_t *lnode;
+    
+    if(list_get_node(nvmHandle.dlist, &lnode, 0)==0) {
+        node_t *nd=&lnode->data;
+        
+        if(nd->tp==0) {
+            data_to_file((ch_data_t*)nd->buf);
+        }
+            
+        list_remove(nvmHandle.dlist, 0);
+        //LOGD("__2__ flist size: %d\n", list_size(nvmHandle.flist));
+    }
+    
+    return 0;
 }
 
 
@@ -409,17 +456,8 @@ void task_nvm_fn(void *arg)
                         ch_data_t *p_ch=(ch_data_t*)lnode->data.buf;
 
                         data_print(lnode->data.buf, lnode->data.dlen);
-#if 1
-                        r = data_save(p_ch);
-                        //fs_scan(SAV_DATA_PATH, NULL);
-#endif
                         
-                        if(r==0) {
-                            list_back_node(taskBuffer.file, lnode);
-                        }
-                        else {
-                            list_add_node(taskBuffer.file, lnode, 0);
-                        }
+                        r = data_to_list(p_ch);
                     }
                 }
                 break;
@@ -427,8 +465,7 @@ void task_nvm_fn(void *arg)
                 case EVT_TIMER:
                 {
                     //读取上传记录文件，上传成功则删除文件
-                    U8 to=allPara.usr.smp.dato;
-                    file_upload(to);
+                    file_upload();
                 }
                 break;
                 

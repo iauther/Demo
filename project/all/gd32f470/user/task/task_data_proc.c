@@ -115,6 +115,7 @@ static int data_proc_fn(handle_t l, U8 ch, F32 *data, int len)
         //填充暂存数据头部ch_data_t
         p_ch->ch = ch;
         p_ch->time = p_raw->time;
+        p_ch->smpFreq = para->smpFreq;
         p_ch->wavlen = real_len;
         memcpy(p_ch->data, real_data, p_ch->wavlen);      //拷贝wav数据
         
@@ -161,6 +162,7 @@ static int data_proc_fn(handle_t l, U8 ch, F32 *data, int len)
         else { //空数据，需要填充头部
             p_ch->ch = ch;
             p_ch->time = p_raw->time;
+            p_ch->smpFreq = para->smpFreq;
             p_ch->wavlen = 0;
             
             memcpy((U8*)p_ch->data, real_data, real_len);

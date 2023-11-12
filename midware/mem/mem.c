@@ -1,10 +1,12 @@
 #include "mem.h"
 #include "log.h"
 #include "lock.h"
+#include <stdlib.h>
+#ifndef _WIN32
 #include "tiny.h"
 #include "rtx_mem.h"
 #include "dal_sdram.h"
-#include <stdlib.h>
+#endif
 
 typedef struct {
     U8      *start;
@@ -14,20 +16,29 @@ typedef struct {
 }mem_para_t;
 
 
+//#define USE_TINY
+
+
+
+#ifdef _WIN32
+static mem_para_t xParam={(U8*)0x2000000,2000000, NULL};
+#else
 #define OUT_RANGE(x,a,b) (((U32)(x)<(a)) || ((U32)(x)>(b)))
 
 extern U32 __heap_base,__heap_limit;
 #define I_OUT_RANGE(x) OUT_RANGE(x,__heap_base,__heap_limit)
 #define E_OUT_RANGE(x) OUT_RANGE(x,SDRAM_ADDR,SDRAM_ADDR+SDRAM_LEN)
 
-//#define USE_TINY
-
-
 static mem_para_t xParam={(U8*)SDRAM_ADDR,SDRAM_LEN, NULL};
+#endif
+
+
 
 int mem_init(void)
 {
     int r;
+
+#ifndef _WIN32
     
 #ifdef USE_TINY
     tiny_init(xParam.start, xParam.len);
@@ -37,6 +48,8 @@ int mem_init(void)
         LOGE("___ mem_init failed\n");
         return -1;
     }
+#endif
+    
 #endif
     
     xParam.lock = lock_init();
@@ -56,30 +69,37 @@ void* mem_malloc(STRATEGY stg, int len, U8 zero)
     }
     
     lock_on(xParam.lock);
+#ifdef _WIN32
+    p1 = malloc(len);
+    if(!p1) {
+        LOGE("___ malloc %d failed, 0x%08x\n", len, p1);
+    }
+#else
     if(stg==SRAM_FIRST) {
         p1 = malloc(len);
         if(!p1) {
             LOGE("___ malloc %d failed, 0x%08x, call tiny_malloc or rtx_mem_alloc\n", len, p1);
             
-#ifdef USE_TINY
+    #ifdef USE_TINY
             p1 = tiny_malloc(len);
-#else
+    #else
             p1 = rtx_mem_alloc(xParam.start, len);
-#endif
+    #endif
         }
     }
     else {
-#ifdef USE_TINY
+    #ifdef USE_TINY
         p1 = tiny_malloc(len);
-#else
+    #else
         p1 = rtx_mem_alloc(xParam.start, len);
-#endif
+    #endif
         if (!p1) {
             LOGE("___ tiny_malloc or rtx_mem_alloc %d, failed, 0x%08x\n, call malloc.\n", len, p1);
             
             p1 = malloc(len);
         }
     }
+#endif
     
     if(((U32)p1)%4) {
         LOGE("___ p1: 0x%08x not align 4 byte!!!\n", (U32)p1);
@@ -107,16 +127,21 @@ int mem_free(void *ptr)
     
     lock_on(xParam.lock);
     
-    if((U32)p1>=(U32)xParam.start) {
-#ifdef USE_TINY
-        tiny_free(p1);
+#ifdef _WIN32
+    free(ptr);
 #else
+    if((U32)p1>=(U32)xParam.start) {
+    #ifdef USE_TINY
+        tiny_free(p1);
+    #else
         r = rtx_mem_free(xParam.start, p1);
-#endif
+    #endif
     }
     else {
         free(p1);
     }
+#endif
+    
     lock_off(xParam.lock);
     
     return r;

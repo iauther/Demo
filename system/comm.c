@@ -5,6 +5,7 @@
 #include "upgrade.h"
 #include "log.h"
 #include "net.h"
+#include "mem.h"
 
 
 #ifdef _WIN32
@@ -232,12 +233,12 @@ static int send_data(handle_t h, void *para, U8 type, U8 nAck, void *data, int d
         return -1;
     }
     
-    len = pkt_pack_data(type, nAck, data, dlen, ch->txBuf, sizeof(ch->txBuf), ch->chkID);
+    len = pkt_pack_data(type, nAck, data, dlen, ch->tx.buf, ch->tx.blen, ch->chkID);
     if(len<=0) {
         return len;
     }
     
-    return port_write(ch, h, para, ch->txBuf, len);
+    return port_write(ch, h, para, ch->tx.buf, len);
 }
 static int send_ack(handle_t h, void *para, U8 type, U8 err)
 {
@@ -249,27 +250,43 @@ static int send_ack(handle_t h, void *para, U8 type, U8 err)
         return -1;
     }
     
-    len = pkt_pack_ack(type, err, ch->txBuf, sizeof(ch->txBuf), ch->chkID);
+    len = pkt_pack_ack(type, err, ch->tx.buf, ch->tx.blen, ch->chkID);
     if(len<=0) {
         return -1;
     }
     
-    return port_write(ch, h, para, ch->txBuf, len);
+    return port_write(ch, h, para, ch->tx.buf, len);
 }
 
 //////////////////////////////////////////////////////////////
 
-handle_t comm_init(U8 port, void *para)
+handle_t comm_init(U8 port, comm_init_para_t *cp)
 {
     int r;
-    comm_handle_t *h=(comm_handle_t*)malloc(sizeof(comm_handle_t));
+    comm_handle_t *h=NULL;
+    
+    if(!cp) {
+        return NULL;
+    }
+    
+    h = (comm_handle_t*)calloc(1, sizeof(comm_handle_t));
     if(!h) {
         return NULL;
     }
     
     h->port = port;
+    if(cp->rlen>0) {
+        h->rx.blen = cp->rlen;
+        h->rx.buf = (U8*)eMalloc(h->rx.blen);
+        h->rx.dlen = 0;
+    }
+    if(cp->tlen>0) {
+        h->tx.blen = cp->tlen;
+        h->tx.buf = (U8*)eMalloc(h->tx.blen);
+        h->tx.dlen = 0;
+    }
     
-    r = port_init(h, para);
+    r = port_init(h, cp->para);
     if(r) {
         free(h);
         return NULL;
@@ -321,9 +338,9 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
 {
     int r;
     int err=0;
-    U8 param=DATO_USR;
     pkt_hdr_t *hdr=(pkt_hdr_t*)data;
     comm_handle_t *ch=NULL;
+    mqtt_pub_para_t pub_para={DATA_SETT};
     
     ch = get_handle(h);
     if(!ch) {
@@ -369,19 +386,19 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
         case TYPE_PARA:
         {
 #ifndef _WIN32
-            
-            
             if(hdr->dataLen>=sizeof(all_para_t) && memcmp(p_all_para, hdr->data, sizeof(all_para_t))) {
                 all_para_t *pa = (all_para_t*)hdr->data;
                 
                 p_all_para->usr = pa->usr;
                 
+#ifdef OS_KERNEL
                 //need save the para
                 task_trig(TASK_NVM, EVT_SAVE);
+#endif
             }
             
             //send para back to update
-            err = send_data(h, &param, TYPE_PARA, 1, p_all_para, sizeof(all_para_t));
+            err = send_data(h, &pub_para, TYPE_PARA, 1, p_all_para, sizeof(all_para_t));
 #endif
         }
         break;
@@ -414,6 +431,7 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
         {
 #ifndef _WIN32
             capture_t *cap=(capture_t*)hdr->data;
+     #ifdef OS_KERNEL
             if(cap->enable) {
                 api_cap_start(cap->ch);
                 
@@ -421,6 +439,7 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
             else {
                 api_cap_stop(cap->ch);
             }
+     #endif
 #endif
         }
         break;
@@ -431,15 +450,18 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
             cali_sig_t *sig= (cali_sig_t*)hdr->data;
 #ifndef _WIN32
             paras_set_cali_sig(sig->ch, sig);
+            
+       #ifdef OS_KERNEL
             api_cap_start(sig->ch);
+       #endif
 #endif
         }
         break;
         
         case TYPE_DATO:
         {
-            U8 *dato=&p_all_para->usr.smp.dato;
-            *dato = ((*dato)==DATO_ALI)?DATO_USR:DATO_ALI;
+            //U8 *dato=&p_all_para->usr.smp.dato;
+            //*dato = ((*dato)==DATO_ALI)?DATO_USR:DATO_ALI;
         }
         break;
         
@@ -474,7 +496,7 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
     }
     
     if (hdr->askAck || err) {
-        send_ack(h, &param, hdr->type, err);
+        send_ack(h, &pub_para, hdr->type, err);
     }
     } 
     

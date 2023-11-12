@@ -18,6 +18,7 @@ public:
 
 
     int open(int id);
+    int open(char* port);
     int close(void);
     int is_opened(void);
     

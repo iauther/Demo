@@ -4,14 +4,20 @@
 #include "types.h"
 #include "net.h"
 
-#define COMM_BUF_LEN   1000
+
+typedef struct {
+    U32         rlen;
+    int         tlen;
+    
+    void        *para;
+}comm_init_para_t;
 
 typedef struct {
     U8          port;
     handle_t    h;
     
-    U8          rxBuf[COMM_BUF_LEN];
-    U8          txBuf[COMM_BUF_LEN];
+    buf_t       rx;
+    buf_t       tx;
     
     int         chkID;
     
@@ -26,7 +32,7 @@ typedef struct {
 extern "C" {
 #endif
 
-handle_t comm_init(U8 port, void *para);
+handle_t comm_init(U8 port, comm_init_para_t *cp);
 int comm_deinit(handle_t h);
 
 handle_t comm_open(handle_t h, void *para);

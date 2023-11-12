@@ -13,7 +13,7 @@
 #define COM_BAUDRATE                (115200)
 
 
-#define WDG_TIME                    3000        //看门狗喂狗时间设置为3000ms
+#define WDG_TIME                    4000        //看门狗喂狗时间设置为4 seconds
 
 
 #if 1                               
@@ -52,12 +52,24 @@
     #define SPI_MODE                 0  
     
     //#define PROD_V2                 //字符串方式，支持批量上传
-    #define PROD_V3               //自定义格式，支持二进制上传
+    #define PROD_V3                 //自定义格式，支持二进制上传
     
     //#define USE_LAB_1
     #define USE_LAB_2
+    //#define USE_LAB_3
+    //#define USE_LAB_4
     
-    #define DEMO_TEST
+    
+    //#define DEV_MODE_NORM
+    //#define DEV_MODE_CALI
+    #define DEV_MODE_TEST
+    //#define DEV_MODE_DEBUG
+    
+    
+    #define AUTO_CAP
+    #ifndef DEV_MODE_DEBUG
+        #define USE_WDG                 //使能看门狗
+    #endif
     
 #endif
 

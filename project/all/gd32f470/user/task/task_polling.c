@@ -6,6 +6,9 @@
 #include "date.h"
 #include "power.h"
 #include "rtc.h"
+#include "comm.h"
+#include "protocol.h"
+#include "pt1000.h"
 #include "dal_sd.h"
 #include "upgrade.h"
 #include "paras.h"
@@ -30,10 +33,6 @@ typedef struct {
     
 }file_node_t;
 
-
-static U32 tmrCount=0;
-static handle_t fList=NULL;
-extern at_sig_stat_t sig_stat;
 
 static int cap_is_finished(void)
 {
@@ -205,13 +204,13 @@ static void print_time(char *s, date_time_t *dt)
 }
 static void pwroff_polling(void)
 {
-    int finish=0;
+    int r,finish=0;
     U32 runtime,countdown;
     gbl_var_t  *var=&allPara.var;
     smp_para_t *smp=paras_get_smp();
     
     if(paras_get_mode()==MODE_CALI) {
-        LOGW("___ in cali mode, power off disabled!\n");
+        //LOGW("___ in cali mode, power off disabled!\n");
         return;
     }
     
@@ -224,32 +223,76 @@ static void pwroff_polling(void)
         }
         
         //以上都完成时才可以关机
-        runtime = rtc2_get_runtime();
-        countdown = (smp->worktime>(runtime+3))?(smp->worktime- runtime):3;
-        LOGD("____ psrc: %d, finish: %d, runtime: %lu, worktime: %d, countdown: %d\n", var->psrc, finish, runtime, smp->worktime, countdown);
-        
-        if(var->psrc==1) {      //rtc poweron
-            if(((finish==2) || ((finish==1) && (runtime>=30))) && (countdown>=3)) {
-                at_hal_power(0);            //关4g模组
-                
-                countdown -= 2;     //减2为修正值
-                LOGD("____ rtc2_set_countdown, %d\n", countdown);
-                rtc2_set_countdown(countdown);
-                while(1);
+        r = rtc2_get_runtime(&runtime);
+        if(r==0) {      //获取运行时间成功才可以进行下面流程
+            countdown = (smp->worktime>(runtime+3))?(smp->worktime- runtime):3;
+            
+            LOGD("____ psrc: %d, finish: %d, runtime: %lu, worktime: %d, countdown: %d\n", var->psrc, finish, runtime, smp->worktime, countdown);
+            if(var->psrc==1) {      //rtc poweron
+                if(((finish==2) || ((finish==1) && (runtime>=30))) && (countdown>=3)) {
+                    
+                    api_comm_disconnect();      //断开连接
+                    at_hal_power(0);            //关4g模组
+                    
+                    countdown -= 2;     //减2为修正值
+                    LOGD("____ rtc2_set_countdown, %d\n", countdown);
+                    r = rtc2_set_countdown(countdown);
+                    if(r==0) {
+                        while(1);
+                    }
+                }
             }
-        }
-        else {                  //manual poweron
-            //delay powerdown??
+            else {                  //manual poweron
+                //delay powerdown??
+            }
         }
     }
     
 }
+static F32 get_temp(dal_adc_data_t *adc)
+{
+    int r;
+    F32 temp;
+    
+    pt1000_temp(adc->t_pt, &temp);
+    
+    return temp;
+}
+
 static void stat_polling(void)
 {
-    //signal strength
-    //battery level
-    //temperature
-    //
+    int r;
+    F32 temp;
+    stat_data_t stat;
+    sig_stat_t sig;
+    dal_adc_data_t da;
+    static U8 send_flag=0;
+    mqtt_pub_para_t pub_para={DATA_LT};
+    
+    if(!api_comm_is_connected() || send_flag==1) {
+        return;
+    }
+    
+    r = at_hal_stat(&sig);                  //信号强度和质量
+    if(r) {
+        LOGE("___ get sig stat failed\n");
+        return;
+    }
+    
+    dal_adc_read(&da);
+    
+    stat.rssi = sig.rssi;
+    stat.ber  = sig.ber;
+    //stat.temp = get_temp(&da);
+    stat.temp = da.t_in;
+    stat.vbat = da.vbat;
+    stat.time = rtc2_get_timestamp_ms();
+    LOGD("___ pt: %.1fv, temp: %.1f, vbat: %.1f\n", da.t_pt, stat.temp, stat.vbat);
+    
+    r = comm_send_data(tasksHandle.hconn, &pub_para, TYPE_STAT, 0, &stat, sizeof(stat));
+    if(r==0) {
+        send_flag = 1;
+    }
 }
 static void conn_polling()
 {
@@ -269,6 +312,15 @@ static void conn_polling()
     }
 }
 ////////////////////////////////////////////////////////////////
+static void task_wdg_fn(void *arg)
+{
+    dal_wdg_init(WDG_TIME);
+    
+    while(1) {
+        dal_wdg_feed();     //喂狗
+        osDelay(2000);
+    }
+}
 static void polling_tmr_callback(void *arg)
 {
     task_post(TASK_POLLING, NULL, EVT_TIMER, 0, NULL, 0);
@@ -284,6 +336,8 @@ void task_polling_fn(void *arg)
     
     LOGD("_____ task_polling running\n");
 
+    start_task_simp(task_wdg_fn, 256, NULL, NULL);
+    
     htmr = task_timer_init(polling_tmr_callback, NULL, POLL_TIME, -1);
     if(htmr) {
         task_timer_start(htmr);
@@ -296,14 +350,10 @@ void task_polling_fn(void *arg)
                 
                 case EVT_TIMER:
                 {
-                    tmrCount++;
-                    
-                    dal_wdg_feed();     //喂狗
-                    
                     pwroff_polling();
                     
                     stat_polling();
-                    //upgrade_polling();                   
+                    //upgrade_polling();
                     
                     conn_polling();
                 }

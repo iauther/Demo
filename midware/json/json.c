@@ -12,19 +12,6 @@ int json_init(void)
     return 0;
 }
 
-int str_cut(char* src, const char* tok)
-{
-    char* p = strstr(src, tok);
-    if (!p) {
-        return - 1;
-    }
-
-    int tlen = strlen(src);
-    int len = strlen(tok);
-    memmove(p, p+len, (src+tlen)-(p+len)+1);
-
-    return 0;
-}
 int get_hms(char* src, int *h, int *m, int *s)
 {
     char t;
@@ -150,20 +137,24 @@ int json_from(char *js, int js_len, usr_para_t *usr)
     l1 = cJSON_CreateObject();
     if(l1) {
         int h, m, s;
-        char tmp[100];
+        char tmp[100],ht[20],mt[20],st[20];
         U8  mode=usr->smp.mode;
         
         cJSON_AddNumberToObject(l1, "mode",    usr->smp.mode);
         cJSON_AddNumberToObject(l1, "port",    usr->smp.port);
-        cJSON_AddNumberToObject(l1, "dato",    usr->smp.dato);
         cJSON_AddNumberToObject(l1, "pwrmode", usr->smp.pwrmode);
 
         h = usr->smp.worktime / 3600;
         m = usr->smp.worktime / 60;
         s = usr->smp.worktime % 60;
 
+        ht[0] = mt[0] = st[0] = 0;
         snprintf(tmp, sizeof(tmp), "%dh%dm%ds", h,m,s);
-        str_cut(tmp, "0h"); str_cut(tmp, "0m"); str_cut(tmp, "0s");
+        if (h>0) sprintf(ht, "%dh", h);
+        if (m>0) sprintf(mt, "%dm", m);
+        if (s>0) sprintf(st, "%ds", s);
+        sprintf(tmp, "%s%s%s", ht,mt,st);
+
         cJSON_AddStringToObject(l1, "worktime", tmp);
         
         
@@ -418,14 +409,7 @@ int json_to(char *js, usr_para_t *usr)
         if(l2) {
             RANGE_CHECK(l2->valueint, 0, PORT_MAX-1, "smp.port is wrong, range: 0~%d\n", PORT_MAX-1)
             usr->smp.port = l2->valueint;
-        }
-        
-        l2 = cJSON_GetObjectItem(l1, "dato");
-        if(l2) {
-            RANGE_CHECK(l2->valueint, 0, 1, "smp.mode is wrong, range: 0,1\n")
-            usr->smp.dato = l2->valueint;
-        }
-        
+        }        
         
         l2 = cJSON_GetObjectItem(l1, "pwrmode");
         if(l2) {

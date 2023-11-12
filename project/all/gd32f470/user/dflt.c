@@ -23,17 +23,32 @@
 #elif defined PROD_V3
     #define PRD_KEY         "izenKGgdF0A"
     #define PRD_SECRET      "gnAqaOm9UE4JTpJc"
-
+    
     #ifdef USE_LAB_1
     #define DEV_KEY         "lab_1"
     #define DEV_SECRET      "a53fff307f9da16b629868f5232adec7"
-    #else
+    #define COEF_A          185.495178f  
+    #define COEF_B          0.0f
+    
+    #elif defined USE_LAB_2
     #define DEV_KEY         "lab_2"
     #define DEV_SECRET      "4506649b902d8f747f73d3e6872fbb23"
+    #define COEF_A          187.564941
+    #define COEF_B          0.0f
+    
+    #elif defined USE_LAB_3
+    #define DEV_KEY         "lab_3"
+    #define DEV_SECRET      "d48f983e2bf44e617b4e68d59d81ec8a"
+    #define COEF_A          185.810608f
+    #define COEF_B          0.0f
+    #elif defined USE_LAB_4
+    #define DEV_KEY         "lab_4"
+    #define DEV_SECRET      "2b1bc1aa666fc0763d4eaac87cb9214b"
+    #define COEF_A          1.0f
+    #define COEF_B          0.0f
     #endif
 #endif
       
-
 
 const all_para_t DFLT_PARA={
     
@@ -79,12 +94,22 @@ const all_para_t DFLT_PARA={
         },
         
         .smp = {
-            //.mode       = MODE_CALI,
-            .mode       = MODE_TEST,
             .port       = PORT_NET,
-            .dato       = DATO_ALI,
             .pwrmode    = PWR_NO_PWRDN,
+            
+            #ifdef DEV_MODE_DEBUG
+            .mode       = MODE_DEBUG,
+            .worktime   = 60*1,
+            #elif defined DEV_MODE_TEST
+            .mode       = MODE_TEST,
             .worktime   = 60*10,
+            #elif defined DEV_MODE_CALI
+            .mode       = MODE_CALI,
+            .worktime   = 60*10,
+            #else
+            .mode       = MODE_NORM,
+            .worktime   = 60*60*4,
+            #endif
             
             .ch = {
                 {   //CH_0
@@ -105,7 +130,7 @@ const all_para_t DFLT_PARA={
                             .n_ev         = 4,
                             .evCalcCnt    = 10000,
                             .upway        = 0,
-                            .upwav        = 0,
+                            .upwav        = 1,
                             .savwav       = 1,
                         },
                         
@@ -117,10 +142,27 @@ const all_para_t DFLT_PARA={
                                           
                         {   //test        
                             .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 100000,
-                            .smpPoints    = 10000,
+                            .smpFreq      = 1000000,
+                            .smpPoints    = 1000,
                             .smpInterval  = 0,
                             .smpTimes     = 1,
+                            .ampThreshold = 2.2f,
+                            .messDuration = 5000,
+                            .trigDelay    = 30000,
+                            .ev           = {0,1,2,3},
+                            .n_ev         = 4,
+                            .evCalcCnt    = 1000,
+                            .upway        = 0,
+                            .upwav        = 1,
+                            .savwav       = 1,
+                        },
+                        
+                        {   //debug        
+                            .smpMode      = SMP_PERIOD_MODE,
+                            .smpFreq      = 1000000,
+                            .smpPoints    = 10000,
+                            .smpInterval  = 1000000,        //unit: us
+                            .smpTimes     = 1000,
                             .ampThreshold = 2.2f,
                             .messDuration = 5000,
                             .trigDelay    = 30000,
@@ -134,18 +176,9 @@ const all_para_t DFLT_PARA={
                     },
                     
                     .coef={
-#ifdef USE_LAB_1
-                        .a = 187.914246f,
-                        .b = -18.265991f,
-#elif defined USE_LAB_2
-                        .a  = 190.326859f,
-                        .b  = -11.934570f,
-#else                        
-                        .a  = 1.0f,
-                        .b  = 0.0f,
-#endif
+                        .a = COEF_A,
+                        .b = COEF_B,
                     }
-                    
                 },
                 
                 {      //CH_1
@@ -182,6 +215,23 @@ const all_para_t DFLT_PARA={
                             .smpPoints    = 1000,
                             .smpInterval  = 0,
                             .smpTimes     = 1,
+                            .ampThreshold = 2.2f,
+                            .messDuration = 5000,
+                            .trigDelay    = 30000,
+                            .ev           = {0,1,2,3},
+                            .n_ev         = 4,
+                            .evCalcCnt    = 1000,
+                            .upway        = 0,
+                            .upwav        = 0,
+                            .savwav       = 1,
+                        },
+                        
+                        {   //debug
+                            .smpMode      = SMP_PERIOD_MODE,
+                            .smpFreq      = 100000,
+                            .smpPoints    = 1000,
+                            .smpInterval  = 1000000,
+                            .smpTimes     = 1000,
                             .ampThreshold = 2.2f,
                             .messDuration = 5000,
                             .trigDelay    = 30000,

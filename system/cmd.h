@@ -11,8 +11,11 @@
 enum {
     CMD_ECXX=0,
     CMD_CALI,
+    CMD_CAP,
     CMD_DAC,
     CMD_PWR,
+    CMD_DFLT,
+    CMD_BOOT,
     CMD_USER,
     
     CMD_NUM

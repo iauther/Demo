@@ -11,10 +11,16 @@
 #include "aiot_sysdep_api.h"
 #include "aiot_mqtt_api.h"
 #include "mqtt.h"
+#include "cfg.h"
 #include "hw_at_impl.h"
 
 
 #define USE_NTP
+
+//#define MQTT_SSL
+//#define DOWN_SSL
+
+
 
 typedef struct {
     U8  hw;
@@ -28,6 +34,7 @@ typedef struct {
     handle_t    hdm;
     handle_t    hntp;
     handle_t    hota;
+    handle_t    hdl;
     
     void        *userdata;
 }mqtt_handle_t;
@@ -37,6 +44,7 @@ typedef struct {
 static flags_t mqttFlag={0};
 static U32 ntp_time=0;
 
+extern const char* ali_ca_cert;
 static U8 proc_thread_running=0;
 static U8 recv_thread_running=0;
 static osThreadId_t proc_thread_id=NULL;
@@ -45,8 +53,8 @@ static void mqtt_proc_thread(void *args);
 static void mqtt_recv_thread(void *args);
 static int mqtt_dm_init(mqtt_handle_t *h);
 static int mqtt_ntp_init(mqtt_handle_t *h);
-static int mqtt_ali_sub(handle_t hconn, mqtt_para_t *para);
-
+static int mqtt_ali_sub(handle_t hconn, void *para);
+static int mqtt_ali_req_cfg(handle_t hconn);
 
 static int32_t ali_state_logcb(int32_t code, char *message)
 {
@@ -238,6 +246,7 @@ static void ntp_recv_handler(void *handle, const aiot_ntp_recv_t *packet, void *
                 dt.time.min = packet->data.local_time.min;
                 dt.time.sec = packet->data.local_time.sec;
                 
+                
                 LOGD("ntptime: %4d.%02d.%02d %02d:%02d:%02d\n", 
                                                         packet->data.local_time.year,
                                                         packet->data.local_time.mon,
@@ -258,6 +267,7 @@ static void ntp_recv_handler(void *handle, const aiot_ntp_recv_t *packet, void *
         }
     }
 }
+
 static void download_recv_handler(void *handle, const aiot_download_recv_t *packet, void *userdata)
 {
     /* 目前只支持 packet->type 为 AIOT_DLRECV_HTTPBODY 的情况 */
@@ -271,51 +281,103 @@ static void download_recv_handler(void *handle, const aiot_download_recv_t *pack
     /* 如果 percent 为负数, 说明发生了收包异常或者digest校验错误 */
     if (percent < 0) {
         /* 收包异常或者digest校验错误 */
-        printf("exception happend, percent is %d\r\n", percent);
+        LOGE("exception happend, percent is %d\r\n", percent);
         return;
     }
+    
+    //aiot_download_report_progress(handle, percent);       //向云端报告升级进度
+    //aiot_ota_report_version(ota_handle, new_version);     //新固件报告版本，云端据此判断升级成功
+    
+    if (percent == 100) {
+        
+        //upgrade_info();
+        
+    }
+    
 }
+static void download_thread(void *arg)
+{
+    int32_t r=0,req_flag=-1;
+    uint32_t start=0,end=0;
+    uint32_t timeout_ms = 100;
+    mqtt_handle_t *h=(mqtt_handle_t*)arg;
+    
+    aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_RECV_TIMEOUT_MS, (void *)&timeout_ms);
+    while (1) {
+        
+        r= aiot_download_send_request(h->hdl);
+        
+        /* 从网络收取服务器回应的固件内容 */
+        r = aiot_download_recv(h->hdl);
+
+        /* 固件全部下载完时, aiot_download_recv() 的返回值会等于 STATE_DOWNLOAD_FINISHED, 否则是当次获取的字节数 */
+        if (r==STATE_DOWNLOAD_FINISHED) {
+            LOGD("download completed\r\n");
+            break;
+        }
+    }
+    timeout_ms = 5000;
+    aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_RECV_TIMEOUT_MS, (void *)&timeout_ms);
+
+    /* 下载所有固件内容完成, 销毁下载会话, 线程自行退出 */
+    aiot_download_deinit(&h->hdl);
+    h->hdl = NULL;
+    
+    LOGD("download thread exit\r\n");
+}
+
+
 static void ota_recv_handler(void *ota_handle, aiot_ota_recv_t *ota_msg, void *userdata)
 {
+    int r;
+    mqtt_handle_t *h=(mqtt_handle_t*)userdata;
+    
     if (NULL == ota_msg->task_desc || ota_msg->task_desc->protocol_type != AIOT_OTA_PROTOCOL_HTTPS) {
         return;
     }
     
     switch (ota_msg->type) {
-        case AIOT_OTARECV_FOTA:
+        case AIOT_OTARECV_FOTA:     //firmware data
         {
             
         }
         break;
         
-        case AIOT_OTARECV_COTA:
+        case AIOT_OTARECV_COTA:     //config data
         {
+            uint16_t port;
             uint32_t max_buffer_len = 2048;
-            void *dl_handle = aiot_download_init();
+            aiot_sysdep_network_cred_t cred;
             
-            if (dl_handle) {
-                /* 完成远程配置的接收前, 将mqtt的收包超时调整到100ms, 以减少两次远程配置的下载间隔*/
-                int32_t ret = aiot_download_recv(dl_handle);
-                U32 timeout_ms = 100;
+            memset(&cred, 0, sizeof(aiot_sysdep_network_cred_t));
+#ifdef DOWN_SSL
+            port = 443;
+            cred.option = AIOT_SYSDEP_NETWORK_CRED_SVRCERT_CA;
+            cred.max_tls_fragment = 16384;
+            cred.x509_server_cert = ali_ca_cert;                 /* 用来验证MQTT服务端的RSA根证书 */
+            cred.x509_server_cert_len = strlen(ali_ca_cert);     /* 用来验证MQTT服务端的RSA根证书长度 */ 
+#else
+            port = 80;
+            cred.option = AIOT_SYSDEP_NETWORK_CRED_NONE;
+#endif
+            
+            h->hdl = aiot_download_init();
+            if(h->hdl) {
+                aiot_download_setopt(h->hdl, AIOT_DLOPT_NETWORK_CRED, (void *)(&cred));
+                aiot_download_setopt(h->hdl, AIOT_DLOPT_NETWORK_PORT, (void *)(&port));
                 
-                //aiot_download_report_progress(handle, percent);
-                if (STATE_DOWNLOAD_FINISHED == ret) {
-                    aiot_download_deinit(&dl_handle);
-                    /* 完成远程配置的接收后, 将mqtt的收包超时调整回到默认值5000ms */
-                    timeout_ms = 5000;
+                r = aiot_download_setopt(h->hdl, AIOT_DLOPT_TASK_DESC, (void *)(ota_msg->task_desc));
+                if(r!=STATE_SUCCESS) LOGE("_____ aiot_download_setopt 1 failed\n");
+                
+                r = aiot_download_setopt(h->hdl, AIOT_DLOPT_RECV_HANDLER, (void *)(download_recv_handler));
+                if(r!=STATE_SUCCESS) LOGE("_____ aiot_download_setopt 2 failed\n");
+                
+                r = aiot_download_setopt(h->hdl, AIOT_DLOPT_BODY_BUFFER_MAX_LEN, (void *)(&max_buffer_len));
+                if(r!=STATE_SUCCESS) LOGE("_____ aiot_download_setopt 3 failed\n");
+                
+                if(r==STATE_SUCCESS) {
+                    start_task_simp(download_thread, 1024*4, h, NULL);
                 }
-                aiot_mqtt_setopt(dl_handle, AIOT_MQTTOPT_RECV_TIMEOUT_MS, (void *)&timeout_ms);
-            }
-            
-            if ((STATE_SUCCESS != aiot_download_setopt(dl_handle, AIOT_DLOPT_TASK_DESC, (void *)(ota_msg->task_desc))) ||
-                /* 设置下载内容到达时, SDK将调用的回调函数 */
-                (STATE_SUCCESS != aiot_download_setopt(dl_handle, AIOT_DLOPT_RECV_HANDLER, (void *)(download_recv_handler))) ||
-                /* 设置单次下载最大的buffer长度, 每当这个长度的内存读满了后会通知用户 */
-                (STATE_SUCCESS != aiot_download_setopt(dl_handle, AIOT_DLOPT_BODY_BUFFER_MAX_LEN, (void *)(&max_buffer_len))) ||
-                /* 发送http的GET请求给http服务器 */
-                (STATE_SUCCESS != aiot_download_send_request(dl_handle))) {
-                aiot_download_deinit(&dl_handle);
-                break;
             }
         }
         break;
@@ -392,11 +454,9 @@ static void mqtt_ota_init(mqtt_handle_t *h)
         return;
     }
 
-    /* 用以下语句, 把OTA会话和MQTT会话关联起来 */
     aiot_ota_setopt(h->hota, AIOT_OTAOPT_MQTT_HANDLE, h->hmq);
-    /* 用以下语句, 设置OTA会话的数据接收回调, SDK收到OTA相关推送时, 会进入这个回调函数 */
     aiot_ota_setopt(h->hota, AIOT_OTAOPT_RECV_HANDLER, ota_recv_handler);
-    
+    aiot_ota_setopt(h->hota, AIOT_OTAOPT_USERDATA, h);
     
 }
 
@@ -491,7 +551,7 @@ static int mqtt_ali_init(void)
     aiot_sysdep_set_portfile(&g_aiot_sysdep_portfile);
     aiot_state_set_logcb(ali_state_logcb);
     
-    r = at_hal_init();
+    r = at_hal_boot();
     
     return r;
 }
@@ -540,7 +600,15 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
     h->hmq = aiot_mqtt_init();
     if(h->hmq) {
         memset(&cred, 0, sizeof(aiot_sysdep_network_cred_t));
+#ifdef MQTT_SSL
+        cred.option = AIOT_SYSDEP_NETWORK_CRED_SVRCERT_CA;
+#else
         cred.option = AIOT_SYSDEP_NETWORK_CRED_NONE;
+#endif
+        cred.max_tls_fragment = 16384;
+        cred.sni_enabled = 1;
+        cred.x509_server_cert = ali_ca_cert;                 /* 用来验证MQTT服务端的RSA根证书 */
+        cred.x509_server_cert_len = strlen(ali_ca_cert);     /* 用来验证MQTT服务端的RSA根证书长度 */ 
         
         aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_HOST, (void *)plat->host);
         aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_PORT, (void *)&plat->port);
@@ -554,6 +622,7 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
         
         mqtt_dm_init(h);
         mqtt_ntp_init(h);
+        mqtt_ota_init(h);
         
         r = aiot_mqtt_connect(h->hmq);
         if(r) {
@@ -566,8 +635,10 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
         }
         
         set_userdata(h);
+        aiot_ota_report_version(h->hota, VERSION);
         
         mqtt_ali_sub(h, NULL);
+        //mqtt_ali_req_cfg(h);
         
         start_thread(h);
     }
@@ -605,8 +676,7 @@ static int mqtt_ali_disconn(handle_t h)
 }
 
 
-mqtt_handle_t *g_handle;
-static int mqtt_ali_sub(handle_t hconn, mqtt_para_t *para)
+static int mqtt_ali_sub(handle_t hconn, void *para)
 {
     int r;
     char tmp[100];
@@ -617,7 +687,6 @@ static int mqtt_ali_sub(handle_t hconn, mqtt_para_t *para)
     if(!h) {
         return -1;
     }
-    g_handle = h;
 
     sprintf(tmp, "/%s/%s/user/get", plat->prdKey, plat->devKey);
     r = aiot_mqtt_sub(h->hmq, tmp, NULL, 1, h->userdata);
@@ -626,7 +695,7 @@ static int mqtt_ali_sub(handle_t hconn, mqtt_para_t *para)
 }
 
 
-static int mqtt_ali_pub(handle_t hconn, mqtt_para_t *para, void *data, int len)
+static int mqtt_ali_pub(handle_t hconn, void *para, void *data, int len)
 {
     char tmp[100];
     int r,tlen=0;
@@ -634,6 +703,7 @@ static int mqtt_ali_pub(handle_t hconn, mqtt_para_t *para, void *data, int len)
     mqtt_handle_t *h=(mqtt_handle_t*)hconn;
     conn_handle_t *conn=(conn_handle_t*)h->userdata;
     plat_para_t *plat=&conn->para.para->para.plat;
+    mqtt_pub_para_t *pp=(mqtt_pub_para_t*)para;
 
     if(!h || !para || !data || !len) {
         return -1;
@@ -643,11 +713,7 @@ static int mqtt_ali_pub(handle_t hconn, mqtt_para_t *para, void *data, int len)
         return -1;
     }
 
-    if(para->dato==DATO_USR) {
-        sprintf(tmp, "/%s/%s/user/set", plat->prdKey, plat->devKey);
-        r = aiot_mqtt_pub(h->hmq, tmp, data, len, 1);
-    }
-    else {
+    if(pp->tp==DATA_LT) {
         memset(&msg, 0, sizeof(aiot_dm_msg_t));
         msg.type = AIOT_DMMSG_RAW_DATA;
         msg.data.raw_data.data = (U8*)data;
@@ -655,8 +721,35 @@ static int mqtt_ali_pub(handle_t hconn, mqtt_para_t *para, void *data, int len)
 
         r = aiot_dm_send(h->hdm, &msg);
     }
+    else {
+        if(pp->tp==DATA_WAV) {
+            sprintf(tmp, "/%s/%s/user/wav", plat->prdKey, plat->devKey);
+        }
+        else {
+            sprintf(tmp, "/%s/%s/user/set", plat->prdKey, plat->devKey);
+        }
+        r = aiot_mqtt_pub(h->hmq, tmp, data, len, 1);
+    }
     
     return (r<0)?-1:0;
+}
+
+
+static int mqtt_ali_req_cfg(handle_t hconn)
+{
+    int r=0;
+    char tmp[100];
+    char payload[100];
+    char *request = "{\"id\":%d,\"params\":{\"configScope\":\"product\",\"getType\":\"file\"},\"method\":\"thing.config.get\"}";
+    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
+    conn_handle_t *conn=(conn_handle_t*)h->userdata;
+    plat_para_t *plat=&conn->para.para->para.plat;
+    
+    sprintf(tmp, "/sys/%s/%s/thing/config/get", plat->prdKey, plat->devKey);
+    sprintf(payload, request, allPara.sys.devInfo.devID);
+    r = aiot_mqtt_pub(h->hmq, tmp, (U8*)payload, strlen(payload), 0);
+    
+    return r;
 }
 
 
@@ -674,6 +767,7 @@ mqtt_fn_t mqtt_ali_fn={
     mqtt_ali_disconn,
     mqtt_ali_sub,
     mqtt_ali_pub,
+    mqtt_ali_req_cfg,
     mqtt_ali_ntp_synced,
 };
 

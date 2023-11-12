@@ -33,7 +33,6 @@
 #include "task.h"
 
 #include "dal.h"
-#include "user.h"
 
 #endif
 

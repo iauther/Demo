@@ -101,22 +101,20 @@ int rbuf_clr(void)
 }
 
 
-static int quit = 0;
+static int quit_flag = 0;
 static DWORD dataRecvThread(LPVOID lpParam)
 {
 	int rlen, find, wlen;
 	BYTE* rxBuf = myHandle.com.rx;
 
 	memset(rxBuf, 0, BUF_LEN);
-	while (1) {
+	while (!quit_flag) {
 		rlen = io_read((char*)rxBuf, BUF_LEN);
-		if (rlen > 0) {
-			wlen = rbuf_write(myHandle.com.hrb, rxBuf, rlen);
+		if (rlen <= 0) {
+			continue;
 		}
 
-		if (quit) {
-			break;
-		}
+		wlen = rbuf_write(myHandle.com.hrb, rxBuf, rlen);
 	}
 
 	return 0;
@@ -132,9 +130,9 @@ static DWORD dataProcThread(LPVOID lpParam)
 	BYTE* pktBuf = myHandle.com.pkt;
 
 	myHandle.com.hrb = rbuf_init(rbBuf, BUF_LEN);
-	while (1) {
+	while (!quit_flag) {
 		rlen = rbuf_read(myHandle.com.hrb, tmpBuf, BUF_LEN, 0);
-		if (rlen > PKT_HDR_LENGTH) {
+		if (rlen >= PKT_HDR_LENGTH) {
 			find = plen = 0;
 			for (i = 0; i < rlen; i++) {
 				hdr = (pkt_hdr_t*)(tmpBuf + i);
@@ -163,11 +161,46 @@ static DWORD dataProcThread(LPVOID lpParam)
 			}
 			//print(_T("___\n"));
 		}
-
 	}
 
 	return 0;
 }
+static DWORD sendThreadId;
+int my_post(int e, int id)
+{
+	my_msg_t* m = new my_msg_t();
+	if (!m) {
+		LOGE("___ new my_msg_t() error\n");
+		return -1;
+	}
+	m->e = e;
+	m->id = id;
+	return PostThreadMessage(sendThreadId, MY_MSG, (WPARAM)m, NULL);
+}
+static DWORD dataSendThread(LPVOID lpParam)
+{
+	MSG msg;
+	while (!quit_flag) {
+
+		if (GetMessage(&msg, 0, 0, 0)) {
+			if (!quit_flag && msg.message == MY_MSG) {
+				my_msg_t* m = (my_msg_t*)msg.wParam;
+				myHandle.myWin.my_proc(m);
+				delete m;
+			}
+		}
+	}
+
+	return 0;
+}
+void my_quit(void)
+{
+	quit_flag = 1;
+	my_post(MY_MSG, 0x800);
+}
+
+
+
 #endif
 
 #define WIN_WIDTH		1200
@@ -192,6 +225,8 @@ int Run(LPTSTR /*lpstrCmdLine*/ = NULL, int nCmdShow = SW_SHOWDEFAULT)
 int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lpstrCmdLine, int nCmdShow)
 {
 	CMessageLoop theLoop;
+#define THREAD_NUM  3
+	HANDLE hThread[THREAD_NUM];
 
 	HRESULT hRes = ::OleInitialize(NULL);
 	ATLASSERT(SUCCEEDED(hRes));
@@ -203,18 +238,26 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lp
 	hRes = appModule.Init(NULL, hInstance);
 	ATLASSERT(SUCCEEDED(hRes));
 
-	
+
 	appModule.AddMessageLoop(&theLoop);
 
 	CRect rc = CRect(POINT{ 400, 100 }, POINT{ 1400, 900 });
 	myHandle.myWin.Create(NULL, rc, _T("test"), WS_VISIBLE | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME);
 
-	CreateThread(NULL, NULL, dataProcThread, NULL, 0, NULL);
-	CreateThread(NULL, NULL, dataRecvThread, NULL, 0, NULL);
+	hThread[0] = CreateThread(NULL, NULL, dataProcThread, NULL, 0, NULL);
+	hThread[1] = CreateThread(NULL, NULL, dataRecvThread, NULL, 0, NULL);
+	hThread[2] = CreateThread(NULL, NULL, dataSendThread, NULL, 0, &sendThreadId);
 
 	int nRet = Run(lpstrCmdLine, nCmdShow);
 
+	my_quit();
 	appModule.RemoveMessageLoop();
+	
+	my_quit();
+	WaitForMultipleObjects(THREAD_NUM, hThread, TRUE, INFINITE);
+	for (int i = 0; i < THREAD_NUM; i++) {
+		CloseHandle(hThread[i]);
+	}
 
 	appModule.Term();
 	::OleUninitialize();

@@ -106,17 +106,17 @@ handle_t dal_gpio_init(dal_gpio_cfg_t *cfg)
         break;
         
         case MODE_OUT_PP:
-        gpio_mode_set(h->cfg.gpio.grp, GPIO_MODE_OUTPUT, pull[h->cfg.pull], h->cfg.gpio.pin);
-        gpio_output_options_set(h->cfg.gpio.grp, GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ, h->cfg.gpio.pin);
         hl = cfg->hl?SET:RESET;
         gpio_bit_write(h->cfg.gpio.grp, h->cfg.gpio.pin, hl);
+        gpio_output_options_set(h->cfg.gpio.grp, GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ, h->cfg.gpio.pin);
+        gpio_mode_set(h->cfg.gpio.grp, GPIO_MODE_OUTPUT, pull[h->cfg.pull], h->cfg.gpio.pin);
         break;
         
         case MODE_OUT_OD:
-        gpio_mode_set(h->cfg.gpio.grp, GPIO_MODE_OUTPUT, pull[h->cfg.pull], h->cfg.gpio.pin);
-        gpio_output_options_set(h->cfg.gpio.grp, GPIO_OTYPE_OD, GPIO_OSPEED_50MHZ, h->cfg.gpio.pin);
         hl = cfg->hl?SET:RESET;
         gpio_bit_write(h->cfg.gpio.grp, h->cfg.gpio.pin, hl);
+        gpio_output_options_set(h->cfg.gpio.grp, GPIO_OTYPE_OD, GPIO_OSPEED_50MHZ, h->cfg.gpio.pin);
+        gpio_mode_set(h->cfg.gpio.grp, GPIO_MODE_OUTPUT, pull[h->cfg.pull], h->cfg.gpio.pin);
         break;
     }
     

@@ -125,20 +125,7 @@ static void timer0_config(void)
     
     tmr_dma_init(DMA1, DMA_CH0, DMA_SUBPERI6, DMA1_Channel0_IRQn, tmpData, TMP_CNT);
 }
-void DMA1_Channel0_IRQHandler(void)
-{
-#if 0  
-    if(dma_interrupt_flag_get(DMA0, DMA_CH4, DMA_INT_FLAG_FTF)){
-        dma_interrupt_flag_clear(DMA0, DMA_CH4, DMA_INT_FLAG_FTF);
-    
-        dma_channel_disable(DMA0, DMA_CH5);
-        dma_memory_address_config(DMA0, DMA_CH4, DMA_MEMORY_0, (U32)tmpData);
-        dma_transfer_number_config(DMA0, DMA_CH4, TMP_CNT);
-        
-        dma_channel_enable(DMA0, DMA_CH4);
-    }
-#endif
-}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 #define DMA_INT_FLAGS    DMA_CHXCTL_HTFIE|DMA_CHXCTL_FTFIE

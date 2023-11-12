@@ -72,16 +72,6 @@ static handle_t sdHandle=NULL;
 #define SDA_READ      gpio_input_bit_get(GPIOB, GPIO_PIN_1)
 
 
-static void io_config(void)
-{
-    U32 pin=GPIO_PIN_1|GPIO_PIN_2;
-
-    rcu_periph_clock_enable(RCU_GPIOB);
-    
-    gpio_bit_write(GPIOB, pin, SET);
-    gpio_mode_set(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, pin);
-    gpio_output_options_set(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_50MHZ, pin);
-}
 static void I2Cdelay(void)
 {
    U32 cnt=DELAYP_CNT;      //这里可以优化速度，通常延时3~10us，可以用示波器看波形来调试
@@ -94,7 +84,6 @@ static u8 I2CStart(void)
     SCL_H;
     I2Cdelay();
     if(!SDA_READ) {
-        LOGE("___ i2c busying\n");
         return FALSE; //SDA线为低电平则总线忙,退出
     }
     SDA_L;
@@ -136,7 +125,7 @@ static void I2CNoAck(void)
     SCL_L;
     I2Cdelay();
 }
-static u8 I2CWaitAck(void)
+static u8 I2CWaitAck(u8 fail_stop)
 {
     SCL_L;
     I2Cdelay();
@@ -146,10 +135,11 @@ static u8 I2CWaitAck(void)
     I2Cdelay();
     if(SDA_READ) {
         SCL_L;
-        LOGE("___ wait ack failed\n");
+        I2CStop();
         return FALSE;
     }
     SCL_L;
+    
     return TRUE;
 }
 static void I2CSendByte(u8 SendByte) //数据从高位到低位
@@ -189,104 +179,176 @@ static u8 I2CReceiveByte(void)
     return ReceiveByte;
 }
 
-static u8 WriteRTC_Enable(void)
+static u8 Write_Enable(void)
 {
-    if(FALSE == I2CStart()) {
+    if(!I2CStart()) {
+        LOGE("___ Write_Enable failed 111\n");
         return FALSE;
     }
 
     I2CSendByte(RTC_Address);
-    if(I2CWaitAck()== FALSE) {
-        I2CStop();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Enable failed 222\n");
         return FALSE;
     }
 
     I2CSendByte(CTR2);
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Enable failed 333\n");
+        return FALSE;
+    }
+    
     I2CSendByte(0x80);//置WRTC1=1
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Enable failed 444\n");
+        return FALSE;
+    }
     I2CStop();
 
-    I2CStart();
+    if(!I2CStart()) {
+        LOGE("___ Write_Enable failed 555\n");
+        return FALSE;
+    }
+    
     I2CSendByte(RTC_Address);
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Enable failed 666\n");
+        return FALSE;
+    }
+    
     I2CSendByte(CTR1);
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Enable failed 777\n");
+        return FALSE;
+    }
+    
     I2CSendByte(0x84);//置WRTC2,WRTC3=1
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Enable failed 888\n");
+        return FALSE;
+    }
+    
     I2CStop();
     return TRUE;
 }
-static u8 WriteRTC_Disable(void)
+static u8 Write_Disable(void)
 {
-    if(FALSE == I2CStart()) {
+    if(!I2CStart()) {
+        LOGE("___ Write_Disable failed 111\n");
         return FALSE;
     }
 
     I2CSendByte(RTC_Address);
-    if(!I2CWaitAck()) {
-        I2CStop();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Disable failed 222\n");
         return FALSE;
     }
 
     I2CSendByte(CTR1);//设置写地址0FH
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Disable failed 333\n");
+        return FALSE;
+    }
+    
     I2CSendByte(0x0) ;//置WRTC2,WRTC3=0
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Disable failed 444\n");
+        return FALSE;
+    }
+    
     I2CSendByte(0x0) ;//置WRTC1=0(10H地址)
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ Write_Disable failed 555\n");
+        return FALSE;
+    }
+    
     I2CStop();
     return TRUE;
 }
-static int I2CWriteSerial(u8 addr, u8 reg, u8 *ps, u8 length)
+static u8 I2CWriteSerial(u8 addr, u8 reg, u8 *ps, u8 length)
 {
-    WriteRTC_Enable();
+    if(!Write_Enable()) {
+        return FALSE;
+    }
 
-    I2CStart();
+    if(!I2CStart()) {
+        LOGE("___ I2CWriteSerial failed 111\n");
+        return FALSE;
+    }
+    
     I2CSendByte(addr);
-    if(!I2CWaitAck()) {
-        I2CStop();
-        LOGE("___ I2CWriteSerial failed\n");
-        return -1;
+    if(!I2CWaitAck(1)) {
+        LOGE("___ I2CWriteSerial failed 222\n");
+        return FALSE;
     }
 
     I2CSendByte(reg);
-    I2CWaitAck();
+    
+    if(!I2CWaitAck(1)) {
+        LOGE("___ I2CWriteSerial failed 333\n");
+        return FALSE;
+    }
+    
     for(;(length--)>0;) {
         I2CSendByte(*(ps++));
         I2CAck();
     }
     I2CStop();
 
-    WriteRTC_Disable();
-    return 0;
+    return Write_Disable();
 }
 
-static int I2CReadSerial(u8 addr, u8 reg, u8 *ps, u8 length)
+static u8 I2CReadSerial(u8 addr, u8 reg, u8 *ps, u8 length)
 {
-    I2CStart();
+    if(!I2CStart()) {
+        LOGE("___ I2CReadSerial failed 111\n");
+        return FALSE;
+    }
+    
     I2CSendByte(addr);
-    if(!I2CWaitAck()) {
-        I2CStop();
-        LOGE("___ I2CReadSerial failed\n");
-        return -1;
+    if(!I2CWaitAck(1)) {
+        LOGE("___ I2CReadSerial failed 222\n");
+        return FALSE;
     }
 
     I2CSendByte(reg);
-    I2CWaitAck();
+    
+    if(!I2CWaitAck(1)) {
+        LOGE("___ I2CReadSerial failed 333\n");
+        return FALSE;
+    }
+    
     I2CStart();
     I2CSendByte(addr+1);
-    I2CWaitAck();
+    
+    if(!I2CWaitAck(1)) {
+        LOGE("___ I2CReadSerial failed 444\n");
+        return FALSE;
+    }
+    
     for(;--length>0;ps++) {
         *ps = I2CReceiveByte();
         I2CAck();
     }
     *ps = I2CReceiveByte();
+    
     I2CNoAck();
     I2CStop();
-    return 0;
+    
+    return TRUE;
 }
+static void io_config(void)
+{
+    U32 pin=GPIO_PIN_1|GPIO_PIN_2;
 
+    rcu_periph_clock_enable(RCU_GPIOB);
+    
+    gpio_bit_write(GPIOB, pin, SET);
+    gpio_mode_set(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, pin);
+    gpio_output_options_set(GPIOB, GPIO_OTYPE_OD, GPIO_OSPEED_2MHZ, pin); 
+    
+    //I2CStop();
+}
 
 ////////////////////////////////////////////////////
 int sd30xx_init(void)
@@ -300,52 +362,114 @@ int sd30xx_init(void)
 
 int sd30xx_write_time(sd_time_t *tm)
 {
-    WriteRTC_Enable();
+    u8 r;
+    
+    if(!Write_Enable()) {
+        LOGE("___ sd30xx_write_time failed 111\n");
+        return -1;
+    }
 
-    I2CStart();
+    if(!I2CStart()) {
+        LOGE("___ sd30xx_write_time failed 222\n");
+        return -1;
+    }
+    
     I2CSendByte(RTC_Address);
-    if(!I2CWaitAck()) {
-        I2CStop();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed 333\n");
         return -1;
     }
 
     I2CSendByte(0);                 //设置写起始地址
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed 444\n");
+        return -1;
+    }
+    
     I2CSendByte(tm->second);        //second
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed 555\n");
+        return -1;
+    }
+    
     I2CSendByte(tm->minute);        //minute
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed 666\n");
+        return -1;
+    }
+    
     I2CSendByte(tm->hour|0x80);     //hour ,同时设置小时寄存器最高位（0：为12小时制，1：为24小时制）
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed 777\n");
+        return -1;
+    }
+    
     I2CSendByte(tm->week);          //week
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed 888\n");
+        return -1;
+    }
+    
     I2CSendByte(tm->day);           //day
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed 999\n");
+        return -1;
+    }
+    
     I2CSendByte(tm->month);         //month
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed aaa\n");
+        return -1;
+    }
+    
     I2CSendByte(tm->year);          //year
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_write_time failed bbb\n");
+        return -1;
+    }
     I2CStop();
 
-    WriteRTC_Disable();
+    if(!Write_Disable()) {
+        LOGE("___ sd30xx_write_time failed ccc\n");
+        return -1;
+    }
+    
     return  0;
 }
 
 
 int sd30xx_read_time(sd_time_t *tm)
 {
-    I2CStart();
+    u8 r;
+    
+    if(!I2CStart()) {
+        LOGE("___ sd30xx_read_time failed 111\n");
+        return -1;
+    }
+    
     I2CSendByte(RTC_Address);
-    if(!I2CWaitAck()) {
-        I2CStop();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_read_time failed 222\n");
         return -1;
     }
 
     I2CSendByte(0);
-    I2CWaitAck();
-    I2CStart();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_read_time failed 333\n");
+        return -1;
+    }
+    
+    if(!I2CStart()) {
+        LOGE("___ sd30xx_read_time failed 444\n");
+        return -1;
+    }
+    
     I2CSendByte(RTC_Address+1);
-    I2CWaitAck();
+    if(!I2CWaitAck(1)) {
+        LOGE("___ sd30xx_read_time failed 555\n");
+        return -1;
+    }
+    
     tm->second=I2CReceiveByte();
     I2CAck();
     tm->minute=I2CReceiveByte();
@@ -359,6 +483,7 @@ int sd30xx_read_time(sd_time_t *tm)
     tm->month=I2CReceiveByte();
     I2CAck();
     tm->year=I2CReceiveByte();
+    
     I2CNoAck();
     I2CStop();
 
@@ -368,9 +493,9 @@ int sd30xx_read_time(sd_time_t *tm)
 
 int sd30xx_set_countdown(sd_countdown_t *cd)
 {
-    int i,r,t;
+    u8 i;
     u8 buf[6];
-    u8 tmp[6];
+    u8 tmp[6]={0};
     u8 tem=0xF0;
     
     buf[0] = (cd->im<<6)|0xB4;                          //10H
@@ -379,24 +504,31 @@ int sd30xx_set_countdown(sd_countdown_t *cd)
     buf[3] = cd->val & 0x0000FF;                        //13H
     buf[4] = (cd->val & 0x00FF00) >> 8;                 //14H
     buf[5] = (cd->val & 0xFF0000) >> 16;                //15H
-    r = I2CWriteSerial(RTC_Address, CTR2, &tem, 1);
-    r |= I2CWriteSerial(RTC_Address, CTR2, buf, 6);
+    if(!I2CWriteSerial(RTC_Address, CTR2, &tem, 1)) {
+        LOGE("___ sd30xx_set_countdown failed 111\n");
+        return -1;
+    }
     
-    t = I2CReadSerial(RTC_Address, CTR2, tmp, 6);
-    if(t==0) {
+    if(!I2CWriteSerial(RTC_Address, CTR2, buf, 6)) {
+        LOGE("___ sd30xx_set_countdown failed 222\n");
+        return -1;
+    }
+    
+    if(!I2CReadSerial(RTC_Address, CTR2, tmp, 6)) {
+        LOGE("___ sd30xx_set_countdown failed 333\n");
+        return -1;
+    }
+    
+    tmp[0] |= 0x80;
+    if(memcmp(buf, tmp, 6)) {
         
-        #if 0
         LOGD("\n");
         for(i=0; i<6; i++) {
-            LOGD("[%d]: 0x%02x, 0x%02x\n", i, buf[i], tmp[i]);
+            LOGD("rtc reg[%d]: write:0x%02x, read:0x%02x\n", i, buf[i], tmp[i]);
         }
-        #endif
+        LOGD("\n");
         
-        tmp[0] |= 0x80;
-        if(memcmp(buf,tmp,6)) {
-            LOGE("set countdown failed\n");
-            return -1;
-        }
+        return -1;
     }
     
     return 0;
@@ -405,7 +537,6 @@ int sd30xx_set_countdown(sd_countdown_t *cd)
 
 int sd30xx_set_alarm(u8 en, sd_time_t *tm)
 {
-    int r;
     u8 buf[10];
 
     buf[0] = tm->second;
@@ -418,28 +549,31 @@ int sd30xx_set_alarm(u8 en, sd_time_t *tm)
     buf[7] = en;
     buf[8] = 0xFF;
     buf[9] = 0x92;
-    r = I2CWriteSerial(RTC_Address, Alarm_SC, buf, 10);
+    if(!I2CWriteSerial(RTC_Address, Alarm_SC, buf, 10)) {
+        LOGE("___ sd30xx_set_alarm failed\n");
+        return -1;
+    }
 
-    return r;
+    return 0;
 }
 
 
 int sd30xx_set_freq(SD_FREQ freq)
 {
-    int r;
     u8 buf[2];
 
     buf[0] = 0xA1;
     buf[1] = freq;
-    r = I2CWriteSerial(RTC_Address, CTR2, buf, 2);
-
-    return r;
+    if(!I2CWriteSerial(RTC_Address, CTR2, buf, 2)) {
+        LOGE("___ sd30xx_set_freq failed\n");
+        return -1;
+    }
+    return 0;
 }
 
 
 int sd30xx_set_irq(SD_IRQ irq, u8 on)
 {
-    int r;
     u8 buf;
     u8 flag[3]={INTFE,INTAE,INTDE};
 
@@ -450,69 +584,78 @@ int sd30xx_set_irq(SD_IRQ irq, u8 on)
         buf = 0x80 | (~flag[irq]);
     }
     
-    r = I2CWriteSerial(RTC_Address, CTR2, &buf, 1);
+    if(!I2CWriteSerial(RTC_Address, CTR2, &buf, 1)) {
+        LOGE("___ sd30xx_set_irq failed\n");
+        return -1;
+    }
 
-    return r;
+    return 0;
 }
 
 
 int sd30xx_clr_irq(void)
 {
     u8 buf;
-    int r;
 
 #ifdef USE_ARST
     r = I2CReadSerial(RTC_Address, CTR3, &buf, 1);
     LOGD("CTR1: 0x%02x\n", buf);
 #else
-    r = I2CReadSerial(RTC_Address, CTR1, &buf, 1);
-    if(r==0) {
-        //LOGD("CTR1: 0x%02x\n", buf);
-        buf &= 0xcf;
-        r = I2CWriteSerial(RTC_Address, CTR2, &buf, 1);
+    if(!I2CReadSerial(RTC_Address, CTR1, &buf, 1)) {
+        LOGE("___ sd30xx_clr_irq failed 111\n");
+        return -1;
+    }
+    
+    //LOGD("CTR1: 0x%02x\n", buf);
+    buf &= 0xcf;
+    if(!I2CWriteSerial(RTC_Address, CTR2, &buf, 1)) {
+        LOGE("___ sd30xx_clr_irq failed 222\n");
+        return -1;
     }
 #endif
     
-    return r;
+    return 0;
 }
 
 
 int sd30xx_read_id(U8 *buf, U8 len)
 {
-    int r;
-    
     if(!buf || len<8) {
         return -1;
     }
     
-    r = I2CReadSerial(RTC_Address, ID_Address, buf, 8);
+    if(!I2CReadSerial(RTC_Address, ID_Address, buf, 8)) {
+        LOGE("___ sd30xx_read_id failed\n");
+        return -1;
+    }
 
-    return r;
+    return 0;
 }
 
 
 
 int sd30xx_set_charge(U8 on)
 {
-    int r;
     u8 buf;
 
     buf = (on?Chg_enable:Chg_disable);
-    r = I2CWriteSerial(RTC_Address, Chg_MG, &buf, 1);
+    if(!I2CWriteSerial(RTC_Address, Chg_MG, &buf, 1)) {
+        LOGE("___ sd30xx_set_charge failed\n");
+        return -1;
+    }
 
-    return r;
+    return 0;
 }
 
 
 int sd30xx_get_volt(F32 *volt)
 {
-    int r;
     u8 buf[2];
     u16 vbat;
     f32 tmp;
 
-    r = I2CReadSerial(RTC_Address, Bat_H8, buf, 2);
-    if(r) {
+    if(!I2CReadSerial(RTC_Address, Bat_H8, buf, 2)) {
+        LOGE("___ sd30xx_get_volt failed\n");
         return -1;
     }
 
@@ -525,24 +668,27 @@ int sd30xx_get_volt(F32 *volt)
 
 int sd30xx_first(void)
 {
-    int r;
     u8 buf=0;
+    u8 first=0;
 
-    r = I2CReadSerial(RTC_Address, CTR1, &buf, 1);
-    if(r) {
+    if(!I2CReadSerial(RTC_Address, CTR1, &buf, 1)) {
         return -1;
     }
     
     if(buf&0x01) {
-        return 1;
+        return first=1;
     }
     
-    return 0;
+    return first;
 }
 
 
 int sd30xx_read(U8 reg, U8 *buf, U8 len)
 {
-    return I2CReadSerial(RTC_Address, reg, buf, len);
+    if(I2CReadSerial(RTC_Address, reg, buf, len)) {
+        return 0;
+    }
+    
+    return -1;
 }
 

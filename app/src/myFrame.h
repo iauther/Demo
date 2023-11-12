@@ -103,7 +103,7 @@ public:
 	CButton btCali1, btCali2;
 
 	handle_t hand[PORT_MAX] = {NULL};
-	int  portID = PORT_MQTT;
+	int  portID = 0;
 	mySerial mSerial;
 
 	int dev_opened=0;

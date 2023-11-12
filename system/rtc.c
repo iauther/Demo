@@ -50,6 +50,7 @@ static int is_first(void)
         if(first>=0) {
             break;
         }
+        LOGW("___ sd30xx_first failed %d\n", i);
     }
     
     return first;
@@ -220,17 +221,19 @@ static int rtc_ext_get(date_time_t *dt)
 static int rtc_ext_set(date_time_t *dt)
 {
     int i,r;
-    sd_time_t tm1,tm2;
-    date_time_t tmp;
+    U8  week;
+    
+    sd_time_t tm1={0},tm2={0};
     
     if(!dt) {
         return -1;
     }
     
+    week = get_week(dt->date.year, dt->date.mon, dt->date.day);
     tm1.year   = dec2bcd(dt->date.year-2000);
     tm1.month  = dec2bcd(dt->date.mon);
     tm1.day    = dec2bcd(dt->date.day);
-    tm1.week   = dec2bcd(dt->date.week);
+    tm1.week   = dec2bcd(week);
     tm1.hour   = dec2bcd(dt->time.hour);
     tm1.minute = dec2bcd(dt->time.min);
     tm1.second = dec2bcd(dt->time.sec);
@@ -239,11 +242,19 @@ static int rtc_ext_set(date_time_t *dt)
     for(i=0; i<RETRY_TIMES; i++) {
         r = sd30xx_write_time(&tm1);
         if(r==0) {
-            sd30xx_read_time(&tm2);
-            print_stime("rtc_ext_get:", &tm2);
-            break;
+            r = sd30xx_read_time(&tm2);
+            if(r==0) {
+                if(memcmp(&tm1, &tm2, sizeof(sd_time_t))==0) {
+                    break;
+                }
+                else {
+                    print_stime("rtc_ext_set:", &tm1);
+                    print_stime("rtc_ext_get:", &tm2);
+                }
+            }
+            LOGW("___ sd30xx_read_time failed %d\n", i);
         }
-        LOGW("___ rtc_ext_set failed times: %d\n", i+1);
+        LOGW("___ rtc_ext_set failed %d\n", i);
     }
     
     if(r) {
@@ -251,10 +262,28 @@ static int rtc_ext_set(date_time_t *dt)
         return -1;
     }
     
-    rtc_int_set(dt);
+    rtc_int_set(dt);        //同步一下内部rtc时间
+    
     s_synced = 1;
     
     return r;
+}
+static int power_off(void)
+{
+    int i,r;
+    
+    rtc_ext_power(0);
+    
+    for(i=0; i<RETRY_TIMES; i++) {
+        r = sd30xx_clr_irq();
+        if(r==0) {
+            return 0;
+        }
+        
+        LOGW("___ power_off failed %d\n", i);
+    }
+    
+    return -1;
 }
 ////////////////////////////////////////////
 
@@ -345,7 +374,7 @@ int rtc2_set_alarm(date_time_t *dt)
     tm.year   = dt->date.year;
     tm.month  = dt->date.mon;
     tm.day    = dt->date.day;
-    tm.week   = dt->date.week;
+    tm.week   = get_week(dt->date.year, dt->date.mon, dt->date.day);
     tm.hour   = dt->time.hour;
     tm.minute = dt->time.min;
     tm.second = dt->time.sec;
@@ -369,29 +398,41 @@ int rtc2_set_countdown(U32 sec)
     date_time_t dt={0};
     sd_countdown_t cd;
     
+    if(sec>3600*24) {
+        LOGW("___ rtc2_set_countdown, sec is too large, %d\n", sec);
+        return -1;
+    }
+    
     cd.im  = 0;             //设置为周期性中断
     cd.clk = S_1s;          //倒计时中断源选择1s
     cd.val = sec;           //倒计时初值设置为sec
     
     lock_on(s_lock);
     
-    rtc_ext_get(&dt);
-    print_time("++++", &dt);
+    r = rtc_ext_get(&dt);
+    if(r==0) {  //关机前打印一下rtc时间
+       print_time("++++", &dt);
+    }
     
     for(i=0; i<RETRY_TIMES; i++) {
         r = sd30xx_set_countdown(&cd);
         if(r==0) {
-            rtc_ext_power(0);
-            r = sd30xx_clr_irq();
+            log_save();
+            r = power_off();
             if(r==0) {
                 break;
             }
         }
+        LOGW("____ sd30xx_set_countdown %d failed\n", i);
+        dal_delay_ms(1);
     }
     lock_off(s_lock);
     
     return r;
 }
+
+
+
 
 
 U32 rtc2_get_timestamp_s(void)
@@ -467,15 +508,21 @@ U8 rtc2_get_psrc(void)
 }
 
 
-U32 rtc2_get_runtime(void)
+int rtc2_get_runtime(U32 *runtime)
 {
+    int r;
     U32 ts,t1,t2;
     date_time_t dt1,dt2;
     
     lock_on(s_lock);
     rtc_int_get(&dt1);
-    rtc_ext_get(&dt2);
+    r = rtc_ext_get(&dt2);
     lock_off(s_lock);
+    
+    if(r) {
+        LOGE("___ rtc2_get_runtime failed\n");
+        return -1;
+    }
     
     //print_time("int_time:", &dt1);
     //print_time("ext_time:", &dt2);
@@ -484,31 +531,13 @@ U32 rtc2_get_runtime(void)
     t1 = ts-s_tstamp;
     t2 = ts-s_tstamp+s_runtime;
     //LOGD("____ts: %lu, s_ts: %lu, t1: %lu, s_runtime: %lu, t2: %lu\n", ts, s_tstamp, t1, t2);
-    
-    return t2;
-}
-
-
-int rtc2_print_reg(U8 reg_start, int reg_cnt)
-{
-    int r;
-    U8 i,tmp[100];
-    
-    lock_on(s_lock);
-    r = sd30xx_read(reg_start, tmp, reg_cnt);
-    lock_off(s_lock);
-    
-#if 1
-    if(r==0) {
-        LOGD("\n");
-        for(i=0; i<reg_cnt; i++) {
-            LOGD("reg[0x%02x]: 0x%02x\n", reg_start+i, tmp[i]);
-        }
+    if(runtime) {
+        *runtime = t2;
     }
-#endif
     
     return 0;
 }
+
 
 
 void rtc2_print_time(char *s, date_time_t *dt)
@@ -568,4 +597,22 @@ int rtc2_ts_to_dt(date_time_t *dt, U32 ts)
 }
 
 
+int rtc2_dump(U8 reg, U8 *data, U8 cnt)
+{
+    int r,i;
+    
+    if(!data || !cnt) {
+        LOGE("___ wrong para\n");
+        return -1;
+    }
+    
+    memset(data, 0, cnt);
+    sd30xx_init();
+    r = sd30xx_read(reg, data, cnt);
+    if(r) {
+        return r;
+    }
+    
+    return 0;
+}
 
