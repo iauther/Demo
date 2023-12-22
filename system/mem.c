@@ -39,7 +39,7 @@ int mem_init(void)
     int r;
 
 #ifndef _WIN32
-    
+    dal_sdram_init();
 #ifdef USE_TINY
     tiny_init(xParam.start, xParam.len);
 #else
@@ -53,6 +53,20 @@ int mem_init(void)
 #endif
     
     xParam.lock = lock_init();
+    
+    return 0;
+}
+
+
+int mem_deinit(void)
+{
+    int r;
+
+#ifndef _WIN32
+    dal_sdram_deinit();
+#endif
+    
+     lock_free(xParam.lock);
     
     return 0;
 }

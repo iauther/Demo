@@ -10,6 +10,8 @@ typedef enum {
 
 
 int mem_init(void);
+int mem_deinit(void);
+
 void* mem_malloc(STRATEGY stg, int len, U8 zero);
 int mem_free(void *ptr);
 int mem_test(void);

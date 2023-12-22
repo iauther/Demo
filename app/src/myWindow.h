@@ -387,34 +387,33 @@ public:
 		sprintf(tmp, "smp.mode: %d\n", usr->smp.mode);								info_print(tmp);
 		sprintf(tmp, "smp.port: %d\n", usr->smp.port);								info_print(tmp);
 		sprintf(tmp, "smp.pwrmode: %d\n", usr->smp.pwrmode);						info_print(tmp);
-		sprintf(tmp, "smp.pwr_period: %ds\n", usr->smp.worktime);					info_print(tmp);
+		sprintf(tmp, "smp.pwr_period: %ds\n", usr->smp.workInterval);				info_print(tmp);
 		
 		U8  mode=usr->smp.mode;
 		
 		gbl_var_t* var = &allPara.var;
 		for (i = 0; i < CH_MAX; i++) {
-			ch_paras_t* pcs = &usr->smp.ch[i];
-			ch_para_t* pc = &pcs->para[mode];
+			ch_para_t* pch = &usr->smp.ch[i];
 
 			sprintf(tmp, "smp.ch[%d].state: %d\n",        i, var->state.stat[i]);				info_print(tmp);
 
-			sprintf(tmp, "smp.ch[%d].enable: %d\n",       i, pcs->enable);       info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpMode: %d\n",      i, pc->smpMode);       info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpFreq: %d\n",	  i, pc->smpFreq);       info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpPoints: %d\n",	  i, pc->smpPoints);     info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpInterval: %d\n",  i, pc->smpInterval);   info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpTimes: %d\n",     i, pc->smpTimes);      info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].ampThreshold: %f\n", i, pc->ampThreshold);  info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].messDuration: %d\n", i, pc->messDuration);  info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].trigDelay: %d\n",    i, pc->trigDelay);     info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].upway: %d\n",        i, pc->upway);         info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].upwav: %d\n",        i, pc->upwav);         info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].enable: %d\n",       i, pch->enable);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpMode: %d\n",      i, pch->smpMode);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpFreq: %d\n",	  i, pch->smpFreq);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpPoints: %d\n",	  i, pch->smpPoints);     info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpInterval: %d\n",  i, pch->smpInterval);   info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpTimes: %d\n",     i, pch->smpTimes);      info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].ampThreshold: %f\n", i, pch->ampThreshold);  info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].messDuration: %d\n", i, pch->messDuration);  info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigDelay: %d\n",    i, pch->trigDelay);     info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].upway: %d\n",        i, pch->upway);         info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].upwav: %d\n",        i, pch->upwav);         info_print(tmp);
 
-			sprintf(tmp, "smp.ch[%d].n_ev: %d\n",		  i, pc->n_ev);          info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].evCalcCnt: %d\n",	  i, pc->evCalcCnt);     info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].n_ev: %d\n",		  i, pch->n_ev);          info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].evCalcCnt: %d\n",	  i, pch->evCalcCnt);     info_print(tmp);
 
-			sprintf(tmp, "smp.ch[%d].coef.a: %f\n",		  i, pcs->coef.a);       info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].coef.b: %f\n",		  i, pcs->coef.b);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].coef.a: %f\n",		  i, pch->coef.a);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].coef.b: %f\n",		  i, pch->coef.b);       info_print(tmp);
 		}
 
 		sprintf(tmp, "dac.enable: %d\n",	usr->dac.enable);		             info_print(tmp);

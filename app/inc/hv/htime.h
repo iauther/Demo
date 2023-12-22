@@ -21,7 +21,7 @@ typedef struct datetime_s {
     int min;
     int sec;
     int ms;
-} datetime_t;
+} datetime2_t;
 
 #ifdef _MSC_VER
 /* @see winsock2.h
@@ -66,12 +66,12 @@ HV_INLINE unsigned long long gettimeofday_us() {
 }
 HV_EXPORT unsigned long long gethrtime_us();
 
-HV_EXPORT datetime_t datetime_now();
-HV_EXPORT datetime_t datetime_localtime(time_t seconds);
-HV_EXPORT time_t     datetime_mktime(datetime_t* dt);
+HV_EXPORT datetime2_t datetime_now();
+HV_EXPORT datetime2_t datetime_localtime(time_t seconds);
+HV_EXPORT time_t     datetime_mktime(datetime2_t* dt);
 
-HV_EXPORT datetime_t* datetime_past(datetime_t* dt, int days DEFAULT(1));
-HV_EXPORT datetime_t* datetime_future(datetime_t* dt, int days DEFAULT(1));
+HV_EXPORT datetime2_t* datetime_past(datetime2_t* dt, int days DEFAULT(1));
+HV_EXPORT datetime2_t* datetime_future(datetime2_t* dt, int days DEFAULT(1));
 
 #define TIME_FMT            "%02d:%02d:%02d"
 #define TIME_FMT_BUFLEN     12
@@ -80,8 +80,8 @@ HV_EXPORT char* duration_fmt(int sec, char* buf);
 #define DATETIME_FMT        "%04d-%02d-%02d %02d:%02d:%02d"
 #define DATETIME_FMT_ISO    "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ"
 #define DATETIME_FMT_BUFLEN 30
-HV_EXPORT char* datetime_fmt(datetime_t* dt, char* buf);
-HV_EXPORT char* datetime_fmt_iso(datetime_t* dt, char* buf);
+HV_EXPORT char* datetime_fmt(datetime2_t* dt, char* buf);
+HV_EXPORT char* datetime_fmt_iso(datetime2_t* dt, char* buf);
 
 #define GMTIME_FMT          "%.3s, %02d %.3s %04d %02d:%02d:%02d GMT"
 #define GMTIME_FMT_BUFLEN   30
@@ -95,7 +95,7 @@ HV_EXPORT const char* month_itoa(int month);
 HV_EXPORT int weekday_atoi(const char* weekday);
 HV_EXPORT const char* weekday_itoa(int weekday);
 
-HV_EXPORT datetime_t hv_compile_datetime();
+HV_EXPORT datetime2_t hv_compile_datetime();
 
 /*
  * minute   hour    day     week    month       action

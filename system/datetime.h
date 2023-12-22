@@ -1,5 +1,5 @@
-#ifndef __DATE_Hx__
-#define __DATE_Hx__
+#ifndef __DATETIME_Hx__
+#define __DATETIME_Hx__
 
 #include "types.h"
 
@@ -14,7 +14,10 @@ int get_time_str(void *str, int len);
 int get_datetime_str(void *str, int len);
     
 int date_is_valid(date_s_t *date);
-int get_datetime(char *datetime, date_time_t *dt);
+int get_datetime(char *datetime, datetime_t *dt);
+
+int tm_to_ts(datetime_t *dt, U64 *ts_ms);
+int ts_to_tm(U64 ts_ms, datetime_t *dt);
 
 #endif
 

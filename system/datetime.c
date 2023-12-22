@@ -1,7 +1,8 @@
-#include "date.h"
 #include <time.h>
 #include <ctype.h>
 #include <string.h>
+#include "datetime.h"
+
 
 //__date__: "Jul 27 2012"
 //__TIME__: "21:06:19"
@@ -196,7 +197,7 @@ int date_is_valid(date_s_t *date)
 }
 
 //YYYY/MM/DD,hh:mm:ss+zz
-int get_datetime(char *datetime, date_time_t *dt)
+int get_datetime(char *datetime, datetime_t *dt)
 {
     char *p;
     char tmp[100];
@@ -227,6 +228,121 @@ int get_datetime(char *datetime, date_time_t *dt)
     
     return 0;
 }
+
+
+//////////////////////////////////////
+static U32 get_ts(datetime_t *dt)
+{
+    U32 ts;
+    struct tm tt;
+    
+    tt.tm_year = dt->date.year-1900;
+    tt.tm_mon = dt->date.mon-1;
+    tt.tm_mday =dt->date.day;
+    tt.tm_hour = dt->time.hour;
+    tt.tm_min = dt->time.min;
+    tt.tm_sec = dt->time.sec;
+    tt.tm_isdst = 0;
+    ts = mktime(&tt)-8*3600;
+    
+    return ts;
+}
+static U32 get_s2(datetime_t *dt)
+{
+    U32 days,secs;
+    U16 year=dt->date.year;
+	U16 mon=dt->date.mon;
+    U8 day=dt->date.day;
+    U8 hour=dt->time.hour;
+    U8 min=dt->time.min;
+    U8 sec=dt->time.sec;
+ 
+	/* 1..12 -> 11,12,1..10 */
+	if (0 >= (int) (mon -= 2)) {
+		mon += 12;	/* Puts Feb last since it has leap day */
+		year -= 1;
+	}
+    
+    days = (year/4 - year/100 + year/400 + 367*mon/12 + day) + year*365 - 719499;
+    secs = ((days*24 + hour)*60 + min)*60 + sec - 8*3600;
+    
+	return secs;
+}
+
+
+int tm_to_ts(datetime_t *dt, U64 *ts_ms)
+{
+    U32 ts;
+    
+    if(!dt || !ts_ms) {
+        return -1;
+    }
+    
+    dt->date.week = get_week(dt->date.year, dt->date.mon, dt->date.day);
+    ts = get_ts(dt);
+    *ts_ms = (U64)ts*1000+dt->time.ms;
+    
+    return 0;
+}
+
+
+int ts_to_tm(U64 ts_ms, datetime_t *dt)
+{
+    U32 days=0,rem=0;
+    U16 year,month;
+    U32 ts=ts_ms/1000;
+    static const U16 days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    
+    if(!dt || !ts_ms) {
+        return -1;
+    }
+    
+    /* 北京时间补偿 */
+    ts += 8*60*60;
+ 
+    // 计算天数
+    days = (U32)(ts / 86400);
+    rem = (U32)(ts % 86400);
+    
+    for (year=1970 ;; year++) {
+        U16 leap = ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+        U16 ydays = leap ? 366 : 365;
+        if (days < ydays) {
+            break;
+        }
+        days -= ydays;
+    }
+    dt->date.year  =  year;
+ 
+ 
+    for (month = 0; month < 12; month++) {
+        U16 mdays = days_in_month[month];
+        if (month == 1 && (((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0))) {
+            mdays = 29;
+        }
+        if (days < mdays)
+        {
+            break;
+        }
+        days -= mdays;
+    }
+    dt->date.mon = month+1;
+    dt->date.day = days + 1;
+    
+    dt->date.week = get_week(dt->date.year, dt->date.mon, dt->date.day);
+ 
+    dt->time.hour = rem / 3600;
+    rem %= 3600;
+    dt->time.min = rem / 60;
+    dt->time.sec = rem % 60;
+    dt->time.ms  = ts_ms%1000;
+    
+    return 0;
+}
+
+
+
+
 
 
 

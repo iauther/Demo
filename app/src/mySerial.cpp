@@ -39,6 +39,7 @@ int mySerial::open(int id)
         itas109::FlowNone,                // flow
         4096                            // read buffer size
     );
+    mSerial.setOperateMode(itas109::SynchronousOperate);
     mSerial.setReadIntervalTimeout(1);
     bool r = mSerial.open();
 
