@@ -73,7 +73,7 @@ static int mqtt_self_set_userdata(void *handle, void *userdata)
 }
 
 
-static int mqtt_self_req_cfg(handle_t hconn)
+static int mqtt_self_req(handle_t hconn)
 {
     int r;
     
@@ -97,7 +97,7 @@ mqtt_fn_t mqtt_self_fn={
     mqtt_self_disconn,
     mqtt_self_sub,
     mqtt_self_pub,
-    mqtt_self_req_cfg,
+    mqtt_self_req,
     mqtt_self_ntp_synced,
 };
 

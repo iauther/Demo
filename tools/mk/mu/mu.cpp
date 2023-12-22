@@ -1,6 +1,6 @@
 ﻿#include "myFile.h"
 #include "protocol.h"
-#include "date.h"
+#include "datetime.h"
 #include "md5.h"
 
 
@@ -33,13 +33,13 @@ int main(char argc, char *argv[])
 	data_t dat;
 	md5_t md5;
 	char newPath[1000];
-	upg_hdr_t hdr;
+	fw_hdr_t fwHdr;
 	char* path = argv[1];
 	//char* goal = argv[1];
 	TCHAR* xPath;
 	myFile mf;
-	upg_ctl_t* upg=&hdr.upgCtl;
-	fw_info_t* info=&hdr.fwInfo;
+	upg_info_t* upg=&fwHdr.hdr.upg;
+	fw_info_t* info=&fwHdr.hdr.fw;
 
 	//TCHAR curPath[500];
 	//GetCurrentDirectory(500, curPath);
@@ -76,13 +76,13 @@ int main(char argc, char *argv[])
 	upg->force = 0;
 	upg->erase = 0;
 	info->magic = FW_MAGIC;
-	info->length = sizeof(hdr) + dat.dlen;
+	info->length = sizeof(fwHdr) + dat.dlen;
 	mf.get_version(cfgPath, info->version, sizeof(info->version));
 	mf.get_time(xPath, (char*)info->bldtime, sizeof(info->bldtime));
 	print_fw_info("$$$", info);
 
-	md5_calc(&hdr, sizeof(hdr), dat.data, dat.dlen, (char*)md5.digit);
-	fwrite(&hdr, 1, sizeof(hdr), fp);
+	md5_calc(&fwHdr, sizeof(fwHdr), dat.data, dat.dlen, (char*)md5.digit);
+	fwrite(&fwHdr, 1, sizeof(fwHdr), fp);
 	fwrite(dat.data, 1, dat.dlen, fp);
 	fwrite(&md5, 1, sizeof(md5), fp);
 	print_md5("md5: ", &md5);

@@ -59,7 +59,7 @@
 #define __SYSTEM_CLOCK_240M_PLL_25M_HXTAL         (uint32_t)(240000000)
 #endif
 
-#define __SYSTEM_CLOCK_240M_PLL_IRC16M          (uint32_t)(240000000)
+//#define __SYSTEM_CLOCK_240M_PLL_IRC16M          (uint32_t)(240000000)
 //#define __SYSTEM_CLOCK_240M_PLL_8M_HXTAL        (uint32_t)(240000000)
 //#define __SYSTEM_CLOCK_240M_PLL_25M_HXTAL       (uint32_t)(240000000)
 
@@ -135,7 +135,7 @@ static void system_clock_config(void);
     \retval     none
 */
 void SystemInit (void)
-{
+{    
     /* FPU settings */
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
     SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
@@ -157,7 +157,7 @@ void SystemInit (void)
     
     /* Reset CFG0 register */
     RCU_CFG0 = 0x00000000U;
-
+    
     /* wait until IRC16M is selected as system clock */
     while(0 != (RCU_CFG0 & RCU_SCSS_IRC16M)){
     }

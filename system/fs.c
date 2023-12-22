@@ -146,7 +146,7 @@ static int fx_mount(fx_handle_t *h, char *path)
     
     r = h->drv->mount(h->dev, path);
     if(r<0) {
-        LOGD("fs mount failed 1, format now...\n");
+        LOGD("fs mount %s failed %d, format now...\n", path, r);
         r = h->drv->format(h->dev, path);
         if(r<0) {
             LOGE("fs format failed\n");
@@ -155,7 +155,7 @@ static int fx_mount(fx_handle_t *h, char *path)
         
         r = h->drv->mount(h->dev, path);
         if(r<0) {
-            LOGE("fs mount failed 2, exit!\n");
+            LOGE("fs mount %s failed %d, exit!\n", path, r);
             return -1;
         }
     }
@@ -469,7 +469,6 @@ int fs_init(void)
     
     r = do_mnount(DEV_SDMMC,  SDMMC_FS_TYPE,  SDMMC_MNT_PT);
     //r = do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
-    //fs_test();
     
     return r;
 }
@@ -486,7 +485,7 @@ handle_t fs_open(char *path, FS_MODE mode)
     
     h = find_hnd(path);
     if(!h) {
-        LOGE("___ %s not mounted!\n", path);
+        LOGE("___ media not mounted!\n");
         return NULL;
     }
     
@@ -721,17 +720,35 @@ int fs_get_space(char *path, fs_space_t *sp)
 }
 
 
-#include "dal_rtc.h"
+#include "rtc.h"
+void malloc_test(char *s)
+{
+    char *p=malloc(10);
+    if(!p) {
+        LOGE("____ malloc %s failed\n", s);
+        return;
+    }
+    LOGE("____ malloc %s ok\n", s);
+    
+    free(p);
+}
 int fs_test(void)
 {
     int r;
     handle_t hfile=NULL;
-    date_time_t dt;
+    datetime_t dt;
     char tt[60];
     char tmp[100];
     char *mntDIR=SFLASH_MNT_PT; //SDMMC_MNT_PT
     
-    r = dal_rtc_get(&dt);
+    
+    fs_init();
+    malloc_test("111");
+    do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
+    malloc_test("222");
+    
+    
+    r = rtc2_get_time(&dt);
 
     sprintf(tt, "%04d/%02d/%02d/%02d", dt.date.year, dt.date.mon, dt.date.day, 0);
     sprintf(tmp, "%s/%s.csv", mntDIR, tt);

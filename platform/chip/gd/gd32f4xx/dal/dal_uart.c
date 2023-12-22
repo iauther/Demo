@@ -41,33 +41,22 @@ typedef struct {
 }uart_info_t;
 
    
-const static uart_info_t uartInfo[UART_MAX]={
+const uart_info_t uartInfo[UART_MAX]={
     
-    {USART0, RCU_USART0, {RCU_GPIOA, GPIOA, GPIO_PIN_10, GPIO_AF_7}, {RCU_GPIOA, GPIOA, GPIO_PIN_9,  GPIO_AF_7}, USART0_IRQn, {DMA0, RCU_DMA0, DMA_CH0, DMA_SUBPERI0, DMA0_Channel0_IRQn}, {DMA0, RCU_DMA0, DMA_CH7, DMA_SUBPERI7, DMA0_Channel7_IRQn}},
-    {USART1, RCU_USART1, {RCU_GPIOA, GPIOA, GPIO_PIN_3,  GPIO_AF_7}, {RCU_GPIOA, GPIOA, GPIO_PIN_2,  GPIO_AF_7}, USART1_IRQn, {DMA0, RCU_DMA0, DMA_CH1, DMA_SUBPERI1, DMA0_Channel1_IRQn}, {DMA0, RCU_DMA0, DMA_CH6, DMA_SUBPERI6, DMA0_Channel6_IRQn}},
-    {USART2, RCU_USART2, {RCU_GPIOB, GPIOB, GPIO_PIN_11, GPIO_AF_7}, {RCU_GPIOB, GPIOB, GPIO_PIN_10, GPIO_AF_7}, USART2_IRQn, {DMA0, RCU_DMA0, DMA_CH2, DMA_SUBPERI2, DMA0_Channel2_IRQn}, {DMA0, RCU_DMA0, DMA_CH5, DMA_SUBPERI5, DMA0_Channel5_IRQn}},
-    {UART3,  RCU_UART3,  {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, UART3_IRQn,  {DMA0, RCU_DMA0, DMA_CH3, DMA_SUBPERI3, DMA0_Channel3_IRQn}, {DMA0, RCU_DMA0, DMA_CH4, DMA_SUBPERI4, DMA0_Channel4_IRQn}},
-    {UART4,  RCU_UART4,  {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, UART4_IRQn,  {DMA0, RCU_DMA0, DMA_CH4, DMA_SUBPERI4, DMA0_Channel4_IRQn}, {DMA0, RCU_DMA0, DMA_CH3, DMA_SUBPERI3, DMA0_Channel3_IRQn}},
-    {USART5, RCU_USART5, {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, USART5_IRQn, {DMA0, RCU_DMA0, DMA_CH5, DMA_SUBPERI5, DMA0_Channel5_IRQn}, {DMA0, RCU_DMA0, DMA_CH2, DMA_SUBPERI2, DMA0_Channel2_IRQn}},
-    {UART6,  RCU_UART6,  {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, UART6_IRQn,  {DMA0, RCU_DMA0, DMA_CH6, DMA_SUBPERI6, DMA0_Channel6_IRQn}, {DMA0, RCU_DMA0, DMA_CH1, DMA_SUBPERI1, DMA0_Channel1_IRQn}},
-    {UART7,  RCU_UART7,  {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, UART7_IRQn,  {DMA0, RCU_DMA0, DMA_CH7, DMA_SUBPERI7, DMA0_Channel7_IRQn}, {DMA0, RCU_DMA0, DMA_CH0, DMA_SUBPERI0, DMA0_Channel0_IRQn}},
+    {USART0, RCU_USART0, {RCU_GPIOA, GPIOA, GPIO_PIN_10, GPIO_AF_7}, {RCU_GPIOA, GPIOA, GPIO_PIN_9,  GPIO_AF_7}, USART0_IRQn, {DMA1, RCU_DMA1, DMA_CH2, DMA_SUBPERI4, DMA0_Channel2_IRQn}, {DMA1, RCU_DMA1, DMA_CH7, DMA_SUBPERI4, DMA0_Channel7_IRQn}},
+    {USART1, RCU_USART1, {RCU_GPIOA, GPIOA, GPIO_PIN_3,  GPIO_AF_7}, {RCU_GPIOA, GPIOA, GPIO_PIN_2,  GPIO_AF_7}, USART1_IRQn, {DMA0, RCU_DMA0, DMA_CH5, DMA_SUBPERI4, DMA0_Channel5_IRQn}, {DMA0, RCU_DMA0, DMA_CH6, DMA_SUBPERI4, DMA0_Channel6_IRQn}},
+    {USART2, RCU_USART2, {RCU_GPIOB, GPIOB, GPIO_PIN_11, GPIO_AF_7}, {RCU_GPIOB, GPIOB, GPIO_PIN_10, GPIO_AF_7}, USART2_IRQn, {DMA0, RCU_DMA0, DMA_CH1, DMA_SUBPERI4, DMA0_Channel1_IRQn}, {DMA0, RCU_DMA0, DMA_CH3, DMA_SUBPERI4, DMA0_Channel3_IRQn}},
+    {UART3,  RCU_UART3,  {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, UART3_IRQn,  {DMA0, RCU_DMA0, DMA_CH2, DMA_SUBPERI4, DMA0_Channel2_IRQn}, {DMA0, RCU_DMA0, DMA_CH4, DMA_SUBPERI4, DMA0_Channel4_IRQn}},
+    {UART4,  RCU_UART4,  {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, UART4_IRQn,  {DMA0, RCU_DMA0, DMA_CH0, DMA_SUBPERI4, DMA0_Channel0_IRQn}, {DMA0, RCU_DMA0, DMA_CH7, DMA_SUBPERI4, DMA0_Channel7_IRQn}},
+    //{USART5, RCU_USART5, {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, USART5_IRQn, {DMA1, RCU_DMA1, DMA_CH1, DMA_SUBPERI5, DMA0_Channel1_IRQn}, {DMA1, RCU_DMA1, DMA_CH6, DMA_SUBPERI5, DMA0_Channel6_IRQn}},
+    {USART5, RCU_USART5, {RCU_GPIOC, GPIOC, GPIO_PIN_7,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_6,  GPIO_AF_8}, USART5_IRQn, {DMA1, RCU_DMA1, DMA_CH1, DMA_SUBPERI5, DMA0_Channel1_IRQn}, {DMA1, RCU_DMA1, DMA_CH6, DMA_SUBPERI5, DMA0_Channel6_IRQn}},
+    {UART6,  RCU_UART6,  {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, UART6_IRQn,  {DMA0, RCU_DMA0, DMA_CH3, DMA_SUBPERI5, DMA0_Channel3_IRQn}, {DMA0, RCU_DMA0, DMA_CH1, DMA_SUBPERI5, DMA0_Channel1_IRQn}},
+    {UART7,  RCU_UART7,  {RCU_GPIOB, GPIOB, GPIO_PIN_0,  GPIO_AF_8}, {RCU_GPIOC, GPIOC, GPIO_PIN_0,  GPIO_AF_8}, UART7_IRQn,  {DMA0, RCU_DMA0, DMA_CH6, DMA_SUBPERI5, DMA0_Channel6_IRQn}, {DMA0, RCU_DMA0, DMA_CH0, DMA_SUBPERI5, DMA0_Channel0_IRQn}},
 };
     
-#define URT_BUF_LEN      1000
-typedef struct {
-    U8             buf[URT_BUF_LEN];
-    int            dlen;
-}urt_buf_t;
-
 
 typedef struct {
-    
     dal_uart_cfg_t cfg;
-    handle_t       lock;
-    
-    urt_buf_t      dr;
-    urt_buf_t      dt;
-    
     rx_cb_t        callback[CB_MAX+1];
 }dal_uart_handle_t;
 
@@ -83,9 +72,9 @@ static void uart_dma_init(dal_uart_handle_t *h)
     rcu_periph_clock_enable(dma->rcu);
     dma_deinit(dma->dma, dma->chn);
     init.direction = DMA_PERIPH_TO_MEMORY;
-    init.memory0_addr = (U32)h->dr.buf;
+    init.memory0_addr = (U32)h->cfg.rx.buf;
     init.memory_inc = DMA_MEMORY_INCREASE_ENABLE;
-    init.number = URT_BUF_LEN;
+    init.number = h->cfg.rx.blen;
     init.periph_addr = (U32)(&USART_DATA(info->urt));
     init.periph_inc = DMA_PERIPH_INCREASE_DISABLE;
     init.periph_memory_width = DMA_PERIPH_WIDTH_8BIT;
@@ -95,13 +84,14 @@ static void uart_dma_init(dal_uart_handle_t *h)
     dma_circulation_disable(dma->dma, dma->chn);
     dma_channel_enable(dma->dma, dma->chn);
 
+#if 0
     dma = &info->dmaTx;
     rcu_periph_clock_enable(dma->rcu);
     dma_deinit(dma->dma, dma->chn);
     init.direction = DMA_MEMORY_TO_PERIPH;
-    init.memory0_addr = (U32)h->dt.buf;
+    init.memory0_addr = (U32)h->tx.buf;
     init.memory_inc = DMA_MEMORY_INCREASE_ENABLE;
-    init.number = URT_BUF_LEN;
+    init.number = h->tx.blen;
     init.periph_addr = (U32)(&USART_DATA(info->urt));
     init.periph_inc = DMA_PERIPH_INCREASE_DISABLE;
     init.periph_memory_width = DMA_PERIPH_WIDTH_8BIT;
@@ -110,12 +100,13 @@ static void uart_dma_init(dal_uart_handle_t *h)
     dma_channel_subperipheral_select(dma->dma, dma->chn, dma->sub);
     dma_circulation_disable(dma->dma, dma->chn);
     dma_channel_enable(dma->dma, dma->chn);
+#endif
 }
 
 static void uart_dma_send(dal_uart_handle_t *h, U8 *data, int len)
 {
     uart_info_t *info=(uart_info_t*)&uartInfo[h->cfg.port];
-    dma_info_t *dma=&info->dmaTx;;
+    dma_info_t *dma=&info->dmaTx;
     
     usart_flag_clear(info->urt, USART_FLAG_TC);
 
@@ -127,11 +118,11 @@ static void uart_dma_send(dal_uart_handle_t *h, U8 *data, int len)
 	while (usart_flag_get(info->urt, USART_FLAG_TC)!=RESET);
 }
 
-static void uart_dma_stop(dal_uart_handle_t *h)
+static void uart_dma_deinit(dal_uart_handle_t *h)
 {
     uart_info_t *info=(uart_info_t*)&uartInfo[h->cfg.port];
-    
-    usart_disable(info->urt);
+    dma_channel_disable(info->dmaRx.dma, info->dmaRx.chn);
+    dma_channel_disable(info->dmaTx.dma, info->dmaTx.chn);
 }
 static void uart_dma_rx_proc(dal_uart_handle_t *h)
 {
@@ -143,15 +134,15 @@ static void uart_dma_rx_proc(dal_uart_handle_t *h)
         usart_interrupt_flag_clear(info->urt, USART_INT_FLAG_IDLE);
         USART_STAT0(info->urt);  USART_DATA(info->urt);
         dma_channel_disable(dma->dma, dma->chn);
-        recv_len = URT_BUF_LEN - dma_transfer_number_get(dma->dma, dma->chn);
-        if(recv_len>0 && recv_len<URT_BUF_LEN) {
+        recv_len = h->cfg.rx.blen - dma_transfer_number_get(dma->dma, dma->chn);
+        if(recv_len>0 && recv_len<=h->cfg.rx.blen && h->cfg.rx.buf) {
             
-            dma_memory_address_config(dma->dma, dma->chn, DMA_MEMORY_0, (U32)h->dr.buf);
-            dma_transfer_number_config(dma->dma, dma->chn, URT_BUF_LEN);
+            dma_memory_address_config(dma->dma, dma->chn, DMA_MEMORY_0, (U32)h->cfg.rx.buf);
+            dma_transfer_number_config(dma->dma, dma->chn, h->cfg.rx.blen);
             if(recv_len) {
                 for(i=CB_MAX; i>=0; i--) {
                     if(h->callback[i]) {
-                        h->callback[i](NULL,NULL,0,h->dr.buf, recv_len);
+                        h->callback[i](NULL,NULL,0,h->cfg.rx.buf, recv_len);
                     }
                 }
             }
@@ -172,21 +163,26 @@ static void uart_it_rx_proc(dal_uart_handle_t *h)
         (RESET != usart_flag_get(info->urt, USART_FLAG_RBNE))) {
         usart_interrupt_flag_clear(info->urt, USART_INT_FLAG_RBNE);           //清中断标志
         
-        if(h->dr.dlen<URT_BUF_LEN) {
-            h->dr.buf[h->dr.dlen++] = usart_data_receive(info->urt);
+        if(h->cfg.rx.buf && h->cfg.rx.dlen<=h->cfg.rx.blen) {
+            h->cfg.rx.buf[h->cfg.rx.dlen] = usart_data_receive(info->urt);
         }
+        h->cfg.rx.dlen++;
     }
     else if (RESET != usart_interrupt_flag_get(info->urt, USART_INT_FLAG_IDLE)) {
         usart_interrupt_flag_clear(info->urt, USART_INT_FLAG_IDLE);
         usart_data_receive(info->urt);                                        // 清除接收完成标志位
         
-        if(h->dr.dlen>0) {
+        if(h->cfg.rx.buf && h->cfg.rx.dlen>0) {
+            if(h->cfg.rx.dlen>h->cfg.rx.blen) {
+                h->cfg.rx.dlen = h->cfg.rx.blen;
+            }
+            
             for(i=CB_MAX; i>0; i--) {
                 if(h->callback[i]) {
-                    h->callback[i](NULL,NULL,0,h->dr.buf, h->dr.dlen);
+                    h->callback[i](NULL, NULL,0, h->cfg.rx.buf, h->cfg.rx.dlen);
                 }
             }
-            h->dr.dlen = 0;
+            h->cfg.rx.dlen = 0;
         }
     }
 }
@@ -207,15 +203,14 @@ handle_t dal_uart_init(dal_uart_cfg_t *cfg)
         return uartHandle[cfg->port];
     }
     
-    h = calloc(1, sizeof(dal_uart_handle_t));
+    h = malloc(sizeof(dal_uart_handle_t));
     if(!h) {
         return NULL;
     }
     h->cfg = *cfg;
-    h->callback[CB_MAX] = cfg->para.callback;
+    h->callback[CB_MAX] = cfg->callback;
     
     info = (uart_info_t*)&uartInfo[h->cfg.port];
-    h->lock = lock_init();
     
     /* 开启时钟 */
     rcu_periph_clock_enable(info->rx.rcu); 
@@ -230,8 +225,8 @@ handle_t dal_uart_init(dal_uart_cfg_t *cfg)
     gpio_mode_set(info->rx.grp,GPIO_MODE_AF,GPIO_PUPD_PULLUP,info->rx.pin);
     gpio_mode_set(info->tx.grp, GPIO_MODE_AF,GPIO_PUPD_PULLUP,info->tx.pin);
 
-    gpio_output_options_set(info->rx.grp,GPIO_OTYPE_PP,GPIO_OSPEED_50MHZ,info->rx.pin);
-    gpio_output_options_set(info->tx.grp,GPIO_OTYPE_PP, GPIO_OSPEED_50MHZ, info->tx.pin);
+    gpio_output_options_set(info->rx.grp,GPIO_OTYPE_PP,GPIO_OSPEED_25MHZ,info->rx.pin);
+    gpio_output_options_set(info->tx.grp,GPIO_OTYPE_PP, GPIO_OSPEED_25MHZ, info->tx.pin);
 
     /* 配置串口的参数 */
     usart_deinit(info->urt);
@@ -247,24 +242,26 @@ handle_t dal_uart_init(dal_uart_cfg_t *cfg)
         usart_data_first_config(info->urt,USART_MSBF_LSB);
     }
     
-    usart_receive_config(info->urt,USART_RECEIVE_ENABLE);
-    usart_transmit_config(info->urt,USART_TRANSMIT_ENABLE);
-    usart_enable(info->urt);
-    
     if(h->cfg.mode==MODE_DMA) {
         usart_dma_transmit_config(info->urt, USART_DENT_ENABLE);    //打开串口DMA发送
-        usart_dma_receive_config(info->urt,  USART_DENR_DISABLE);     //打开串口DMA接收
+        usart_dma_receive_config(info->urt,  USART_DENR_ENABLE);     //打开串口DMA接收
         uart_dma_init(h);
     }
     
     if(h->cfg.mode==MODE_IT || h->cfg.mode==MODE_DMA) {
-        usart_flag_clear(info->urt, USART_FLAG_TC);
+        //usart_flag_clear(info->urt, USART_FLAG_TC);
+        //usart_interrupt_enable(info->urt, USART_INT_TC);                    //发送完成中断
+        
         usart_interrupt_enable(info->urt, USART_INT_RBNE);                  //使能读区非空中断  
         usart_interrupt_enable(info->urt, USART_INT_IDLE);                  //使能空闲中断
-        //usart_interrupt_enable(info->urt, USART_INT_TC);                    //发送完成中断
+        
         nvic_irq_enable(info->IRQn,5,0);
     }
     
+    usart_receive_config(info->urt,USART_RECEIVE_ENABLE);
+    usart_transmit_config(info->urt,USART_TRANSMIT_ENABLE);
+    usart_enable(info->urt);
+
     uartHandle[cfg->port] = h;
     
     return h;
@@ -280,10 +277,19 @@ int dal_uart_deinit(handle_t h)
     if(!dh) {
         return -1;
     }
+    uart_info_t *info=(uart_info_t*)&uartInfo[dh->cfg.port];
     
-    urt = uartInfo[dh->cfg.port].urt;
-    lock_free(dh->lock);
-    usart_deinit(urt);
+    if(dh->cfg.mode!=MODE_POLL) {
+        usart_interrupt_disable(info->urt, USART_INT_RBNE);
+        usart_interrupt_disable(info->urt, USART_INT_IDLE);
+        nvic_irq_disable(info->IRQn);
+        
+        if(dh->cfg.mode==MODE_DMA) {
+            uart_dma_deinit(dh);
+        }
+    }
+    usart_disable(info->urt);
+    usart_deinit(info->urt);
     uartHandle[dh->cfg.port] = NULL;
     
     free(dh);
@@ -303,7 +309,6 @@ int dal_uart_read(handle_t h, U8 *data, int len)
         return -1;
     }
     
-    lock_on(dh->lock);
     urt = uartInfo[dh->cfg.port].urt;
     if(dh->cfg.mode==MODE_POLL) {
         for(i=0; i<len; i++) {
@@ -311,7 +316,6 @@ int dal_uart_read(handle_t h, U8 *data, int len)
             while(RESET == usart_flag_get(urt,USART_FLAG_TBE));
         }
     }
-    lock_off(dh->lock);
     
     return 0;
 }
@@ -327,7 +331,6 @@ int dal_uart_write(handle_t h, U8 *data, int len)
         return -1;
     }
     
-    lock_on(dh->lock);
     urt = uartInfo[dh->cfg.port].urt;
     if(dh->cfg.mode==MODE_DMA) {
         uart_dma_send(dh, data, len);
@@ -335,11 +338,10 @@ int dal_uart_write(handle_t h, U8 *data, int len)
     else {
     
         for(i=0; i<len; i++) {
-            usart_data_transmit(urt, data[i]);
             while(usart_flag_get(urt,USART_FLAG_TBE) == RESET);
+            usart_data_transmit(urt, data[i]);
         }
     }
-    lock_off(dh->lock);
     
     return 0;
 }

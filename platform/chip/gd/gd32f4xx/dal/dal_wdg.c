@@ -14,8 +14,6 @@ int dal_wdg_init(U16 ms)
     Count：  为看门狗的计数值
     pre：    为看门狗的预分频系数, FWDGT_PSC_DIV32则表示1/32
 */
-    
-#ifdef USE_WDG
     if(ms>32760) {
         LOGE("___ dal_wdg_init, wrong para, range: 1~4096\n");
         return -1;
@@ -29,7 +27,6 @@ int dal_wdg_init(U16 ms)
         fwdgt_config(val, FWDGT_PSC_DIV256);
     }
     fwdgt_enable();
-#endif
     
     return 0;
 }

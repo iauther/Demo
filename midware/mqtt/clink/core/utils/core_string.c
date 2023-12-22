@@ -204,8 +204,13 @@ int32_t core_sprintf(aiot_sysdep_portfile_t *sysdep, char **dest, char *fmt, cha
     char *buffer = NULL, *value = NULL;
     uint8_t idx = 0, percent_idx = 0;
     uint32_t buffer_len = 0;
+    uint32_t fmt_len = (uint32_t)strlen(fmt);
 
-    buffer_len += strlen(fmt) - 2 * count;
+    if(fmt_len  < 2 * count) {
+        return STATE_USER_INPUT_OUT_RANGE;
+    }
+
+    buffer_len += fmt_len - 2 * count;
     for (percent_idx = 0; percent_idx < count; percent_idx++) {
         value = (*(src + percent_idx) == NULL) ? ("") : (*(src + percent_idx));
         buffer_len += strlen(value);
@@ -217,8 +222,8 @@ int32_t core_sprintf(aiot_sysdep_portfile_t *sysdep, char **dest, char *fmt, cha
     }
     memset(buffer, 0, buffer_len + 1);
 
-    for (idx = 0, percent_idx = 0; idx < strlen(fmt);) {
-        if (fmt[idx] == '%' && fmt[idx + 1] == 's') {
+    for (idx = 0, percent_idx = 0; idx < fmt_len;) {
+        if (fmt[idx] == '%' && idx + 1 < fmt_len && fmt[idx + 1] == 's') {
             value = (*(src + percent_idx) == NULL) ? ("") : (*(src + percent_idx));
             memcpy(buffer + strlen(buffer), value, strlen(value));
             percent_idx++;

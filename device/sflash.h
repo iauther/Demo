@@ -3,15 +3,22 @@
 
 #include "types.h"
 
+#define SFLASH_SECTOR_CNT          0x1000
+#define SFLASH_SECTOR_SIZE         0x1000
+#define SFLASH_PAGE_SIZE           0x100
+#define SFLASH_BLOCK_SIZE          0x8000
+
+#define SFLASH_SECTOR_FS_OFFSET    0x200
+
 int sflash_init(void);
 int sflash_deinit(void);
 int sflash_erase_all(void);
-int sflash_erase(U32 addr, U32 length);
+int sflash_erase(U32 addr, U32 len);
 int sflash_erase_sector(U32 sec);
 int sflash_read_sector(U32 sec, void *data);
 int sflash_write_sector(U32 sec, void *data);
-int sflash_write(U32 addr, void* buf, U32 len, U8 check);
-int sflash_read(U32 addr, void* buf, U32 len);
+int sflash_write(U32 addr, void *data, U32 len, U8 erase, U8 chk);
+int sflash_read(U32 addr, void *data, U32 len);
 
 int sflash_test(void);
 #endif

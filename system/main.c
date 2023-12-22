@@ -2,7 +2,7 @@
 #include "boot.h"
 
 int main(void)
-{   
+{
 #ifdef BOOTLOADER
     boot_start();
 #else

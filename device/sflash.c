@@ -4,12 +4,16 @@
 #include "sflash.h"
 #include "log.h"
 
+#define PAGE(addr)          ((addr)/SFLASH_PAGE_SIZE)
+#define PCOUNT(addr)        ((addr)%SFLASH_PAGE_SIZE)
+
+#define SECTOR(addr)        ((addr)/SFLASH_SECTOR_SIZE)
+#define SCOUNT(addr)        ((addr)%SFLASH_SECTOR_SIZE)
+
 
 #define SPI_PORT                   SPI4
 #define SPI_RCU                    RCU_SPI4
 
-#define SFLASH_SECTOR_SIZE         0x1000
-#define SFLASH_PAGE_SIZE           0x100
 #define SFLASH_CS(hl)              gpio_bit_write(GPIOF,GPIO_PIN_6,hl?SET:RESET)
 
 
@@ -32,10 +36,8 @@
 
 
 //////////////////////////////////////////////////////////////////////////////
-static U8 sf_tmp[SFLASH_SECTOR_SIZE];
-
-static U8 read_reg(U8 reg);
-static int page_write(U32 addr, void* buf, U16 len, U8 check);
+static int sf_read(U32 addr, void *data, U32 len);
+static int sf_write(U32 addr, void *data, U32 len, U8 chk);
 
 
 static U8 spi_rw_byte(U8 byte)
@@ -46,9 +48,17 @@ static U8 spi_rw_byte(U8 byte)
     return(spi_i2s_data_receive(SPI_PORT));
 }
 
-static void wait_busy(void)
+static void write_wait(void)
 {
-    while(read_reg(RDSR)&WIP_FLAG);
+    U8 v;
+    
+    SFLASH_CS(0);
+    spi_rw_byte(RDSR);
+    v = spi_rw_byte(DUMMY_BYTE);
+     do{
+        v = spi_rw_byte(DUMMY_BYTE);
+     }while(v&WIP_FLAG);
+    SFLASH_CS(1);
 }
 
 static void write_en(void)
@@ -56,77 +66,41 @@ static void write_en(void)
     SFLASH_CS(0);
     spi_rw_byte(WREN);  //send "write enable" instruction
     SFLASH_CS(1);
-    
-    wait_busy();
 }
-
-static U8 read_reg(U8 reg)
-{
-    U8 v;
-    
-    SFLASH_CS(0);
-    spi_rw_byte(reg);
-    v = spi_rw_byte(DUMMY_BYTE);
-    SFLASH_CS(1);
-    
-    return v;
-}
-
-static int page_write(U32 addr, void* data, U16 len, U8 check)
-{
-    U16 i;
-    U8 *p=(U8*)data;
-    
-    write_en();
-
-    SFLASH_CS(0);
-    spi_rw_byte(WRITE);
-    spi_rw_byte((addr & 0xFF0000) >> 16);
-    spi_rw_byte((addr & 0xFF00) >> 8);
-    spi_rw_byte(addr & 0xFF);
-
-    for(i=0; i<len; i++) {
-        spi_rw_byte(p[i]);
-    }
-    SFLASH_CS(1);
-
-    wait_busy();
-    
-    if(check) {
-        sflash_read(addr, sf_tmp, len);
-        if(memcmp(p, sf_tmp, len)) {
-            return -1;
-        }
-    }
-    
-    return 0;
-}
-
-static int pages_write(U32 addr, void* data, U32 len, U8 check)
+static int do_check(U32 addr, void *data, U32 len)
 {
     int r=0;
-    U32 i,page1,pages,wlen=0;
-    U8 *p=(U8*)data;
+    U8 *p=(U8*)data,*tmp;
+    U32 i,cnt,rem,tlen=0;
+    U32 ulen=SFLASH_SECTOR_SIZE;
     
-    if((addr%SFLASH_PAGE_SIZE) || (len%SFLASH_PAGE_SIZE)) {
-        LOGE("pages_write, addr or len not align to page size!\n");
+    tmp = (U8*)malloc(ulen);
+    if(!tmp) {
         return -1;
     }
-    
-    page1 = addr/SFLASH_PAGE_SIZE;
-    pages = len/SFLASH_PAGE_SIZE;
-    for(i=0; i<pages; i++) {
-        r = page_write(addr+wlen, p+wlen, SFLASH_PAGE_SIZE, check);
-        if(r) {
+    cnt = len/ulen;
+    rem = len%ulen;
+
+    for(i=0; i<cnt; i++) {
+        sf_read(addr+tlen, tmp, ulen);
+        if(memcmp(p+tlen, tmp, ulen)) {
+            LOGE("___ sf_check failed 1, addr: 0x%x, len: %d\n", addr+tlen, ulen);
+            r = -1;
             break;
         }
-        wlen += SFLASH_PAGE_SIZE;
+        tlen += ulen;
     }
+    if(r==0 && rem) {
+        sf_read(addr+tlen, tmp, rem);
+        if(memcmp(p+tlen, tmp, rem)) {
+            LOGE("___ sf_check failed 2, addr: 0x%x, len: %d\n", addr+tlen, rem);
+            r = -1; 
+        }
+    }
+    free(tmp);
     
     return r;
 }
-
-
 static int is_erased(U32 addr, U32 len)
 {
     int r=1;
@@ -149,15 +123,197 @@ static int is_erased(U32 addr, U32 len)
     
     return r;
 }
+static int spi_write(U32 addr, void *data, U32 len)
+{
+    U32 i;
+    U8 *p=(U8*)data;
+    
+    if(len>SFLASH_PAGE_SIZE) {
+        return -1;
+    }
+    
+    write_en();
+
+    SFLASH_CS(0);
+    spi_rw_byte(WRITE);
+    spi_rw_byte((addr & 0xFF0000) >> 16);
+    spi_rw_byte((addr & 0xFF00) >> 8);
+    spi_rw_byte(addr & 0xFF);
+
+    for(i=0; i<len; i++) {
+        spi_rw_byte(p[i]);
+    }
+    SFLASH_CS(1);
+    
+    write_wait();
+    
+    return 0;
+}
 
 
-static int sec_erased(U32 sec)
+static int page_write(U32 page, void *data, U32 len)
+{
+    U32 addr=(page*SFLASH_PAGE_SIZE);
+    
+    if(len>SFLASH_PAGE_SIZE) {
+        return -1;
+    }
+    
+    return spi_write(addr, data, len);
+}
+
+static int is_sec_erased(U32 sec)
 {
     U32 addr=sec*SFLASH_SECTOR_SIZE;
     
     return is_erased(addr, SFLASH_SECTOR_SIZE);
 }
+static int sec_erase(U32 sec)
+{
+    U32 addr=sec*SFLASH_SECTOR_SIZE;
+    
+    if(is_sec_erased(sec)) {
+        return 0;
+    }
+    
+    write_en();
 
+    SFLASH_CS(0);
+    spi_rw_byte(SE);
+    spi_rw_byte((addr & 0xFF0000) >> 16);
+    spi_rw_byte((addr & 0xFF00) >> 8);
+    spi_rw_byte(addr & 0xFF);
+    SFLASH_CS(1);
+
+    write_wait();
+    
+    return 0;
+}
+static int sec_read(U32 sec, void *data, U32 len)
+{
+    U32 addr=sec*SFLASH_SECTOR_SIZE;
+    
+    return sf_read(addr, data, SFLASH_SECTOR_SIZE);
+}
+static int sec_write(U32 sec, void *data, U32 len, U8 chk)
+{
+    int r;
+    U32 addr=sec*SFLASH_SECTOR_SIZE;
+    
+    r = sec_erase(sec);
+    if(r) {
+        return r;
+    }
+    
+    return sf_write(addr, data, len, chk);
+}
+
+static int sf_read(U32 addr, void *data, U32 len)
+{
+    U32 i;
+    U8 *p=(U8*)data;
+    
+    SFLASH_CS(0);
+    spi_rw_byte(READ);
+    spi_rw_byte((addr & 0xFF0000) >> 16);
+    spi_rw_byte((addr& 0xFF00) >> 8);
+    spi_rw_byte(addr & 0xFF);
+    for(i=0; i<len; i++) {
+        p[i] = spi_rw_byte(DUMMY_BYTE);
+    }
+    SFLASH_CS(1);
+    
+    return 0;
+}
+
+static int sf_write(U32 addr, void *data, U32 len, U8 chk)
+{
+    int r=0;
+    U32 i,s,s1,e,e1,tlen=0;
+    U8 *p=(U8*)data;
+    U32 ulen=SFLASH_PAGE_SIZE;
+    
+    s  = PAGE(addr);     s1 = PCOUNT(addr);
+    e  = PAGE(addr+len); e1 = PCOUNT(addr+len);
+    if(s1) {
+        r = spi_write(addr, p, ulen-s1);
+        if(r) {
+            return -1;
+        }
+        s++;
+        tlen += ulen-s1;
+    }
+    
+    for(i=s; i<e; i++) {
+        r = page_write(i, p+tlen, ulen);
+        if(r) {
+            break;
+        }
+        tlen += ulen;
+    }
+    
+    if(r==0 && e1) {
+        r = page_write(e, p+tlen, e1);
+    }
+    
+    if(r==0 && chk) {
+        r = do_check(addr, data, len);
+    }
+    
+    return r;
+}
+
+
+static int sf_erase(U32 addr, U32 len)
+{
+    int r=0;
+    U32 i,s,s1,e,e1;
+    U32 ulen=SFLASH_SECTOR_SIZE;
+    
+    s = SECTOR(addr);      s1 = SCOUNT(addr);
+    e = SECTOR(addr+len);  e1 = SCOUNT(addr+len);
+    if(s1) {
+        U8 *p=(U8*)malloc(ulen);
+        if(!p) {
+            LOGE("___ sf_erase 1, malloc %d failed\n", ulen);
+            return -1;
+        }
+        sec_read(s, p, s1); 
+        r = sec_write(s, p, s1, 1);
+        free(p);
+        
+        if(r) {
+            return -1;
+        }
+    }
+    
+    for(i=s; i<e; i++) {
+        r = sec_erase(i);
+        if(r) {
+            return -1;
+        }
+    }
+    
+    if((s1==0 || e>s) && e1) {
+        U8 *p=(U8*)malloc(ulen);
+        if(!p) {
+            LOGE("___ sf_erase 2, malloc %d failed\n", ulen);
+            return -1;
+        }
+        sf_read(addr+len, p, ulen-e1);
+        r = sec_erase(e);
+        if(r==0) {
+            r = sf_write(addr+len, p, ulen-e1, 1);
+        }
+        free(p);
+        
+        if(r) {
+            return -1;
+        }
+    }
+    
+    return r;
+}
 
 
 ////////////////////////////////////////////////////////////
@@ -215,198 +371,52 @@ int sflash_erase_all(void)
     spi_rw_byte(BE);
     SFLASH_CS(1);
 
-    wait_busy();
+    write_wait();
     
     return 0;
 }
 
 
-static int sector_erase(U32 sec)
+int sflash_erase(U32 addr, U32 len)
 {
-    U32 addr=sec*SFLASH_SECTOR_SIZE;
-
-    if(sec_erased(sec)) {
-        return 0;
-    }
-    
-    write_en();
-
-    SFLASH_CS(0);
-    spi_rw_byte(SE);
-    spi_rw_byte((addr & 0xFF0000) >> 16);
-    spi_rw_byte((addr & 0xFF00) >> 8);
-    spi_rw_byte(addr & 0xFF);
-    SFLASH_CS(1);
-
-    wait_busy();
-    
-    return 0;
-}
-
-
-int sflash_erase(U32 addr, U32 length)
-{
-    int r=0,erased;
-    U32 i,sec1,sec2;
-    U16 rem1,rem2;
-    U32 t1,t2,tlen=0;
-
-    sec1 = addr/SFLASH_SECTOR_SIZE;
-    rem1 = addr%SFLASH_SECTOR_SIZE;
-    
-    sec2 = (addr+length)/SFLASH_SECTOR_SIZE;
-    rem2 = (addr+length)%SFLASH_SECTOR_SIZE;
-    
-    LOGD("sflash erase sector from %d to %d\n", sec1, sec2);
-    
-    if(rem1>0) {
-        t1 = rem1;
-        t2 = SFLASH_SECTOR_SIZE-t1;
-        
-        erased = is_erased(addr, t2);
-        if(!erased) {
-            LOGD("rem1 is not erased, read %d out.\n", t1);
-            
-            sflash_read(addr-t1, sf_tmp, t1);
-            sector_erase(sec1);
-            r = page_write(addr-t1, sf_tmp, t1, 1);
-            if(r) {
-                return -1;
-            }
-        }
-        
-        tlen += t2;
-        sec1++;
-    }
-    
-    for(i=sec1; i<sec2; i++) {
-        sector_erase(i);
-        tlen += SFLASH_SECTOR_SIZE;
-    }
-    
-    if(rem2>0) {
-        t1 = rem2;
-        t2 = SFLASH_SECTOR_SIZE-t1;
-        
-        erased = is_erased(addr+tlen, t1);
-        if(!erased) {
-            LOGD("rem2 is not erased, read %d out.\n", t2);
-            
-            sflash_read(addr+tlen+t1, sf_tmp, t2);
-            sector_erase(sec2);
-            r = page_write(addr+tlen+t1, sf_tmp, t2, 1);
-            if(r) {
-                return -1;
-            }
-        }
-    }
-    
-    return 0;
+    return sf_erase(addr, len);
 }
 
 
 
 int sflash_erase_sector(U32 sec)
 {
-    return sector_erase(sec);
+    return sec_erase(sec);
 }
 
 
 int sflash_write_sector(U32 sec, void *data)
 {
-    int i,cnt,offset;
-    U32 addr=sec*SFLASH_SECTOR_SIZE;
-    
-    cnt = SFLASH_SECTOR_SIZE/SFLASH_PAGE_SIZE;
-    for(i=0; i<cnt; i++) {
-        offset = i*SFLASH_PAGE_SIZE;
-        page_write(addr+offset, (U8*)data+offset, SFLASH_PAGE_SIZE, 0);
-    }
-    
-    return 0;
+    return sec_write(sec, data, SFLASH_SECTOR_SIZE, 1);
 }
 
 
-int sflash_read(U32 addr, void* buf, U32 len)
+int sflash_read(U32 addr, void *data, U32 len)
 {
-    U32 i;
-    U8 *p=(U8*)buf;
-    
-    SFLASH_CS(0);
-
-    spi_rw_byte(READ);
-    spi_rw_byte((addr & 0xFF0000) >> 16);
-    spi_rw_byte((addr& 0xFF00) >> 8);
-    spi_rw_byte(addr & 0xFF);
-
-    for(i=0; i<len; i++) {
-        p[i] = spi_rw_byte(DUMMY_BYTE);
-    }
-
-    SFLASH_CS(1);
-    
-    return 0;
+    return sf_read(addr, data, len);
 }
 
 
-int sflash_write(U32 addr, void* buf, U32 len, U8 check)
+int sflash_write(U32 addr, void *data, U32 len, U8 erase, U8 chk)
 {
     int r=0;
-    U8 *p=(U8*)buf;
-    U32 wlen,tlen=0;
-    U32 i,page1,page2;
-    U16 remain1,remain2;
-    U32 waddr=addr;
 
-#if 0
-    r = sflash_erase(addr, len);
-    if(r) {
-        LOGE("sflash_write, erase failed\n");
-        return -1;
-    }
-#endif
-    
-    page1   = addr/SFLASH_PAGE_SIZE;
-    remain1 = addr%SFLASH_PAGE_SIZE;
-    
-    page2   = (addr+len)/SFLASH_PAGE_SIZE;
-    remain2 = (addr+len)%SFLASH_PAGE_SIZE;
-    
-    if(remain1>0) {
-        wlen = SFLASH_PAGE_SIZE-remain1;
-        r = page_write(waddr+tlen, p+tlen, wlen, 1);
+    if(erase) {
+        r = sf_erase(addr, len);
         if(r) {
-            LOGE("sflash_write 1, 0x%x check len %d failed\n", waddr+tlen, wlen);
+            LOGE("sflash_write, erase failed\n");
             return -1;
         }
-        
-        tlen += wlen;
-        page1++;
     }
     
-    for(i=page1; i<page2; i++) {
-        wlen = SFLASH_PAGE_SIZE;
-        r = page_write(waddr+tlen, p+tlen, wlen, check);
-        if(r) {
-            LOGE("sflash_write 2, 0x%x check len %d failed\n", waddr+tlen, wlen);
-            return -1;
-        }
-        
-        tlen += wlen;
-    }
+    r = sf_write(addr, data, len, chk);
     
-    if(remain2>0) {
-        wlen = remain2;
-        r = page_write(waddr+tlen, p+tlen, wlen, check);
-        if(r) {
-            LOGE("sflash_write 3, 0x%x check len %d failed\n", waddr+tlen, wlen);
-            return -1;
-        }
-        
-        tlen += wlen;
-    }
-    
-    return 0;
+    return r;
 }
 
 
@@ -452,8 +462,8 @@ U32 sflash_read_uid(void)
 int sflash_test(void)
 {
     int r;
-    U32 i,id,tlen=0;
-    #define TCNT        50000
+    U32 i,tlen=0;
+    #define TCNT        5000
     #define TLEN        (TCNT*4)
     #define ONELEN      2000
     U32 addr;
@@ -461,28 +471,16 @@ int sflash_test(void)
     
     sflash_init();
     
-    addr = TMP_APP_OFFSET;
+    addr = TMP_APP_OFFSET+0x1234;
     if(pbuf) {
         sflash_erase(addr, TLEN);
         //sflash_read(addr, pbuf, TLEN);
         
         for(i=0; i<TCNT; i++) {
-            pbuf[i] = i+100;
+            pbuf[i] = i;
         }
         
-        while(1) {
-            r = sflash_write(addr+tlen, ((U8*)pbuf)+tlen, ONELEN, 1);
-            if(r) {
-                LOGE("____ sflash_write failed\n");
-                break;
-            }
-            
-            tlen += ONELEN;
-            if(tlen>=TLEN) {
-                break;
-            }
-        }
-        
+        r = sflash_write(addr, pbuf, TLEN, 0, 1);
         if(r==0) {
             memset(pbuf, 0, TLEN);
             r = sflash_read(addr, pbuf, TLEN);

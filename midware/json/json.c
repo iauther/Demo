@@ -57,9 +57,8 @@ int json_from(char *js, int js_len, usr_para_t *usr)
     int i,j,jlen;
     char *json;
     cJSON *root = NULL;
-    cJSON *l1,*l2,*l3,*a1,*a2;
+    cJSON *l1,*l2,*l3,*l4,*a1,*a2;
     ch_para_t *pch;
-    ch_paras_t *pchs;
 
     if (!js || !js_len || !usr) {
         return -1; 
@@ -135,86 +134,72 @@ int json_from(char *js, int js_len, usr_para_t *usr)
     
     //add usr->smp
     l1 = cJSON_CreateObject();
-    if(l1) {
+    if (l1) {
         int h, m, s;
-        char tmp[100],ht[20],mt[20],st[20];
-        U8  mode=usr->smp.mode;
-        
-        cJSON_AddNumberToObject(l1, "mode",    usr->smp.mode);
-        cJSON_AddNumberToObject(l1, "port",    usr->smp.port);
+        char tmp[100], ht[20], mt[20], st[20];
+        U8  mode = usr->smp.mode;
+
+        cJSON_AddNumberToObject(l1, "mode", usr->smp.mode);
+        cJSON_AddNumberToObject(l1, "port", usr->smp.port);
         cJSON_AddNumberToObject(l1, "pwrmode", usr->smp.pwrmode);
 
-        h = usr->smp.worktime / 3600;
-        m = usr->smp.worktime / 60;
-        s = usr->smp.worktime % 60;
+        h = usr->smp.workInterval / 3600;
+        m = usr->smp.workInterval / 60;
+        s = usr->smp.workInterval % 60;
 
         ht[0] = mt[0] = st[0] = 0;
-        snprintf(tmp, sizeof(tmp), "%dh%dm%ds", h,m,s);
-        if (h>0) sprintf(ht, "%dh", h);
-        if (m>0) sprintf(mt, "%dm", m);
-        if (s>0) sprintf(st, "%ds", s);
-        sprintf(tmp, "%s%s%s", ht,mt,st);
+        snprintf(tmp, sizeof(tmp), "%dh%dm%ds", h, m, s);
+        if (h > 0) sprintf(ht, "%dh", h);
+        if (m > 0) sprintf(mt, "%dm", m);
+        if (s > 0) sprintf(st, "%ds", s);
+        sprintf(tmp, "%s%s%s", ht, mt, st);
 
-        cJSON_AddStringToObject(l1, "worktime", tmp);
-        
-        
+        cJSON_AddStringToObject(l1, "workInterval", tmp);
+
         a1 = cJSON_CreateArray();
-        if(a1) {
-            for(i=0; i<CH_MAX; i++) {
-                pchs = &usr->smp.ch[i];
-                pch  = &pchs->para[mode];
-                
-                l2 = cJSON_CreateObject();
-                if(l2) {
+        if (a1) {
+            for (i = 0; i < CH_MAX; i++) {
+                pch = &usr->smp.ch[i];
+                l2 = cJSON_CreateObject();  //ch
+                if (l2) {
+                    cJSON_AddNumberToObject(l2, "ch", i);
+                    cJSON_AddNumberToObject(l2, "enable", pch->enable);
 
-                    cJSON_AddNumberToObject(l2, "ch",                 i);
-                    cJSON_AddNumberToObject(l2, "enable",             pchs->enable);
-                    
-                    a2 = cJSON_CreateArray();
-                    if(a2) {
-                        l3 = cJSON_CreateObject();
-                        if(l3) {
-                            cJSON_AddNumberToObject(l3, "smpMode",            pch->smpMode);
-                            cJSON_AddNumberToObject(l3, "smpFreq",            pch->smpFreq/1000);
-                            cJSON_AddNumberToObject(l3, "smpPoints",          pch->smpPoints);
-                            cJSON_AddNumberToObject(l3, "smpInterval",        pch->smpInterval);
-                            cJSON_AddNumberToObject(l3, "smpTimes",           pch->smpTimes);
-                            cJSON_AddNumberToObject(l3, "ampThreshold",       pch->ampThreshold);
-                            cJSON_AddNumberToObject(l3, "messDuration",       pch->messDuration/1000);
-                            cJSON_AddNumberToObject(l3, "trigDelay",          pch->trigDelay/1000);
-                            cJSON_AddNumberToObject(l3, "n_ev",               pch->n_ev);
-                            cJSON_AddNumberToObject(l3, "upway",              pch->upway);
-                            cJSON_AddNumberToObject(l3, "upwav",              pch->upwav);
-                            cJSON_AddNumberToObject(l3, "savwav",             pch->savwav);
-                            cJSON_AddNumberToObject(l3, "evCalcCnt",          pch->evCalcCnt);
-                            
-                            cJSON *a3 = cJSON_CreateArray();
-                            if(a3) {
-                                for(j=0; j<pch->n_ev; j++) {
-                                    cJSON_AddItemToArray(a3, cJSON_CreateNumber(pch->ev[j]));
-                                }
-                                cJSON_AddItemToObject(l3, "ev", a3);
-                            }
-                            
-                            cJSON_AddItemToArray(a2, l3);
+                    cJSON_AddNumberToObject(l2, "smpMode", pch->smpMode);
+                    cJSON_AddNumberToObject(l2, "smpFreq", pch->smpFreq / 1000);
+                    cJSON_AddNumberToObject(l2, "smpPoints", pch->smpPoints);
+                    cJSON_AddNumberToObject(l2, "smpInterval", pch->smpInterval);
+                    cJSON_AddNumberToObject(l2, "smpTimes", pch->smpTimes);
+                    cJSON_AddNumberToObject(l2, "ampThreshold", pch->ampThreshold);
+                    cJSON_AddNumberToObject(l2, "messDuration", pch->messDuration / 1000);
+                    cJSON_AddNumberToObject(l2, "trigDelay", pch->trigDelay / 1000);
+
+                    cJSON_AddNumberToObject(l2, "n_ev", pch->n_ev);
+                    cJSON* a2 = cJSON_CreateArray();
+                    if (a2) {
+                        for (j = 0; j < pch->n_ev; j++) {
+                            cJSON_AddItemToArray(a2, cJSON_CreateNumber(pch->ev[j]));
                         }
-                        cJSON_AddItemToObject(l2, "coef", a2);
+                        cJSON_AddItemToObject(l2, "ev", a2);
                     }
-                    
+
+                    cJSON_AddNumberToObject(l2, "upway", pch->upway);
+                    cJSON_AddNumberToObject(l2, "upwav", pch->upwav);
+                    cJSON_AddNumberToObject(l2, "savwav", pch->savwav);
+                    cJSON_AddNumberToObject(l2, "evCalcCnt", pch->evCalcCnt);
+
                     l3 = cJSON_CreateObject();
-                    if(l3) {
-                        cJSON_AddNumberToObject(l3, "a",               pchs->coef.a);
-                        cJSON_AddNumberToObject(l3, "b",               pchs->coef.b);
-                        
+                    if (l3) {
+                        cJSON_AddNumberToObject(l3, "a", pch->coef.a);
+                        cJSON_AddNumberToObject(l3, "b", pch->coef.b);
                         cJSON_AddItemToObject(l2, "coef", l3);
                     }
-                    
+
                     cJSON_AddItemToArray(a1, l2);
-                }  
+                }
             }
-            cJSON_AddItemToObject(root, "chPara", a1);
+            cJSON_AddItemToObject(l1, "chPara", a1);
         }
-        
         cJSON_AddItemToObject(root, "smpPara", l1);
     }
     
@@ -243,7 +228,6 @@ int json_to(char *js, usr_para_t *usr)
     int i,j,k,cnt,ch,sz;
     cJSON *root,*l1,*l2,*l3,*l4,*l5;
     cJSON *a1,*a2;
-    ch_paras_t *pchs;
     ch_para_t  *pch;
 
     if (!js || !usr) {
@@ -424,7 +408,7 @@ int json_to(char *js, usr_para_t *usr)
             h = m = s = 0;
             n = get_hms(l2->valuestring, &h, &m, &s);
             if(n>0) {
-                usr->smp.worktime = h*3600+m*60+s;
+                usr->smp.workInterval = h*3600+m*60+s;
             }
         }
         
@@ -459,134 +443,119 @@ int json_to(char *js, usr_para_t *usr)
                 if(ch>=CH_MAX) {
                     r = -1; LOGE(" ch: %d is error\n", ch); continue; 
                 }
-                pchs = &usr->smp.ch[ch];
-                pchs->ch = ch;
+                pch = &usr->smp.ch[ch];
+                pch->ch = ch;
                 
                 l3 = cJSON_GetObjectItem(a1, "enable");
                 if(l3) {
                     RANGE_CHECK(l3->valueint, 0, 1, "ch[%d].enable is wrong, value: 0,1\n", ch)
-                    pchs->enable = l3->valueint;
+                    pch->enable = l3->valueint;
                 }
                 
                 //ch_para_t
-                l3 = cJSON_GetObjectItem(a1, "chPara");
+                U8 mode=usr->smp.mode;
+                
+                l3 = cJSON_GetObjectItem(a1, "smpMode");
                 if(l3) {
-                    U8 mode=usr->smp.mode;
-                    pch = &pchs->para[mode];
-                    
-                    a2 = cJSON_GetArrayItem(l2, i);
-                    if(!a2) {
-                        r = -1; LOGE("ch_para_t array %d not found!\n", i); continue;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a1, "para");
-                    if(!l4) {
-                        r = -1; LOGE("para not found!\n"); continue; 
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "smpMode");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 0, 2, "ch[%d].smpMode is wrong, value: 0,1,2\n", ch)
-                        pch->smpMode = l4->valueint;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "smpFreq");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 1, 250, "ch[%d].smpFreq is wrong, range: 1~250(kps)\n", ch)
-                        pch->smpFreq = l4->valueint*1000;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "smpPoints");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 1000, 10000, "ch[%d].smpPoints is smpPoints, range: 1000~10000\n", ch)
-                        pch->smpPoints = l4->valueint;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "smpInterval");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 0, 10000, "ch[%d].smpInterval is wrong, range: 0~10000000(us)\n", ch)
-                        pch->smpInterval = l4->valueint;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "smpTimes");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 1, 100, "ch[%d].smpTimes is wrong, range: 1~100\n", ch)
-                        pch->smpTimes = l4->valueint;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "ampThreshold");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
-                        pch->ampThreshold = l3->valuedouble;
-                    }
+                    RANGE_CHECK(l3->valueint, 0, 2, "ch[%d].smpMode is wrong, value: 0,1,2\n", ch)
+                    pch->smpMode = l3->valueint;
+                }
+                
+                l3 = cJSON_GetObjectItem(a1, "smpFreq");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 1, 250, "ch[%d].smpFreq is wrong, range: 1~250(kps)\n", ch)
+                    pch->smpFreq = l3->valueint*1000;
+                }
+                
+                l3 = cJSON_GetObjectItem(a1, "smpPoints");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 1000, 10000, "ch[%d].smpPoints is smpPoints, range: 1000~10000\n", ch)
+                    pch->smpPoints = l3->valueint;
+                }
+                
+                l3 = cJSON_GetObjectItem(a1, "smpInterval");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 0, 10000, "ch[%d].smpInterval is wrong, range: 0~10000000(us)\n", ch)
+                    pch->smpInterval = l3->valueint;
+                }
+                
+                l3 = cJSON_GetObjectItem(a1, "smpTimes");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 1, 100, "ch[%d].smpTimes is wrong, range: 1~100\n", ch)
+                    pch->smpTimes = l3->valueint;
+                }
+                
+                l3 = cJSON_GetObjectItem(a1, "ampThreshold");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
+                    pch->ampThreshold = l3->valuedouble;
+                }
 
-                    l3 = cJSON_GetObjectItem(a2, "messDuration");
-                    if (l4) {
-                        RANGE_CHECK(l4->valueint, 1, 10, "ch[%d].messDuration is wrong, range: 1~10(s)\n", ch)
-                        pch->messDuration = l4->valueint*1000;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "trigDelay");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 10, 60, "ch[%d].trigDelay is wrong, range: 10~60(s)\n", ch)
-                        pch->trigDelay = l4->valueint*1000;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "evCalcCnt");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 1000, 10000, "ch[%d].evCalcCnt is wrong, range: 1000~10000\n", ch)
-                        pch->evCalcCnt = l4->valueint;
-                    } 
-                    
-                    l4 = cJSON_GetObjectItem(a2, "upway");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 0, 1, "ch[%d].upway is wrong, value: 0,1\n", ch)
-                        pch->upway = l4->valueint;
-                    }
-                    
-                    l4 = cJSON_GetObjectItem(a2, "upwav");
-                    if(l4) {
-                        RANGE_CHECK(l4->valueint, 0, 1, "ch[%d].upwav is wrong, value: 0,1\n", ch)
-                        pch->upwav = l4->valueint;
-                    }
+                l3 = cJSON_GetObjectItem(a1, "messDuration");
+                if (l3) {
+                    RANGE_CHECK(l3->valueint, 1, 10, "ch[%d].messDuration is wrong, range: 1~10(s)\n", ch)
+                    pch->messDuration = l3->valueint*1000;
+                }
+                
+                l4 = cJSON_GetObjectItem(a1, "trigDelay");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 10, 60, "ch[%d].trigDelay is wrong, range: 10~60(s)\n", ch)
+                    pch->trigDelay = l3->valueint*1000;
+                }
+                
+                l3 = cJSON_GetObjectItem(a1, "evCalcCnt");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 1000, 10000, "ch[%d].evCalcCnt is wrong, range: 1000~10000\n", ch)
+                    pch->evCalcCnt = l3->valueint;
+                } 
+                
+                l3 = cJSON_GetObjectItem(a1, "upway");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 0, 1, "ch[%d].upway is wrong, value: 0,1\n", ch)
+                    pch->upway = l3->valueint;
+                }
+                
+                l3 = cJSON_GetObjectItem(a1, "upwav");
+                if(l3) {
+                    RANGE_CHECK(l3->valueint, 0, 1, "ch[%d].upwav is wrong, value: 0,1\n", ch)
+                    pch->upwav = l3->valueint;
+                }
 
-                    l4 = cJSON_GetObjectItem(a2, "savwav");
-                    if (l4) {
-                        RANGE_CHECK(l4->valueint, 0, 1, "ch[%d].savwav is wrong, value: 0,1\n", ch)
-                            pch->savwav = l4->valueint;
-                    }
+                l3 = cJSON_GetObjectItem(a1, "savwav");
+                if (l3) {
+                    RANGE_CHECK(l3->valueint, 0, 1, "ch[%d].savwav is wrong, value: 0,1\n", ch)
+                        pch->savwav = l3->valueint;
+                }
+                
+                l3 = cJSON_GetObjectItem(a1, "ev");
+                if (l3 && cJSON_IsArray(l3)){
+                    memset(pch->ev, 0xff, EV_NUM);
                     
-                    l4 = cJSON_GetObjectItem(a2, "ev");
-                    if (l4 && cJSON_IsArray(l4)){
-                        memset(pch->ev, 0xff, EV_NUM);
-                        
-                        int n_ev = cJSON_GetArraySize(l4);
-                        RANGE_CHECK(n_ev, 1, EV_NUM, "ch[%d].ev array size %d is wrong, range: 1~%d\n", ch, n_ev, EV_NUM)
-                        {
-                            pch->n_ev = n_ev;
+                    int n_ev = cJSON_GetArraySize(l3);
+                    RANGE_CHECK(n_ev, 1, EV_NUM, "ch[%d].ev array size %d is wrong, range: 1~%d\n", ch, n_ev, EV_NUM)
+                    {
+                        pch->n_ev = n_ev;
 
-                            for (j = 0; j < pch->n_ev; j++) {
-                                cJSON* it = cJSON_GetArrayItem(l4, j);
-                                if (it && cJSON_IsNumber(it)) {
-                                    RANGE_CHECK(it->valueint, 0, EV_NUM-1, "ch[%d].ev[%d] value %d is wrong, range: 1~%d\n", ch, j, it->valueint, EV_NUM-1)
-                                    pch->ev[j] = it->valueint;
-                                }
+                        for (j = 0; j < pch->n_ev; j++) {
+                            cJSON* it = cJSON_GetArrayItem(l3, j);
+                            if (it && cJSON_IsNumber(it)) {
+                                RANGE_CHECK(it->valueint, 0, EV_NUM-1, "ch[%d].ev[%d] value %d is wrong, range: 1~%d\n", ch, j, it->valueint, EV_NUM-1)
+                                pch->ev[j] = it->valueint;
                             }
                         }
                     }
-                    
-                } 
+                }
 
                 l3 = cJSON_GetObjectItem(a1, "coef");
                 if (l3) {
                     l4 = cJSON_GetObjectItem(l3, "a");
                     if (l4) {
-                        pchs->coef.a = l4->valuedouble;
+                        pch->coef.a = l4->valuedouble;
                     }
 
                     l4 = cJSON_GetObjectItem(l3, "b");
                     if (l4) {
-                        pchs->coef.b = l4->valuedouble;
+                        pch->coef.b = l4->valuedouble;
                     }
                 }
             }

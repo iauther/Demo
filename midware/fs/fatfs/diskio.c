@@ -12,6 +12,7 @@
 #include "dal_sd.h"
 #include "sflash.h"
 #include "fs.h"
+#include "log.h"
 
 
 /*-----------------------------------------------------------------------*/
@@ -109,7 +110,6 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-	DRESULT res=RES_PARERR;
 	int result;
 
 	switch (pdrv) {
@@ -129,9 +129,8 @@ DRESULT disk_read (
         
         case DEV_SFLASH :
         {
-            U32 xsec=512+sector;
-            
-            sflash_read(xsec*4096, buff, count*4096);
+            U32 sec=sector+SFLASH_SECTOR_FS_OFFSET;  
+            sflash_read(sec*SFLASH_SECTOR_SIZE, buff, count*SFLASH_SECTOR_SIZE);
         }
         break;
         
@@ -180,11 +179,11 @@ DRESULT disk_write (
         case DEV_SFLASH :
         {
             UINT i;
-            U32 xsec=512+sector;
-            
+            U32 sec=sector+SFLASH_SECTOR_FS_OFFSET;
+
             for(i=0; i<count; i++) {
-                sflash_erase_sector(xsec+i);
-                sflash_write_sector(xsec+i, (U8*)buff+i*4096);
+                sflash_erase_sector(sec+i);
+                sflash_write_sector(sec+i, (U8*)buff+i*SFLASH_SECTOR_SIZE);
             }
         }
         break;
@@ -232,7 +231,7 @@ DRESULT disk_ioctl (
 
                 case GET_SECTOR_SIZE:
                 {
-                    *(DWORD*)buff = info.capacity/info.secsize;
+                    *(DWORD*)buff = info.secsize;
                 }
                 break;
                 
@@ -261,19 +260,19 @@ DRESULT disk_ioctl (
 
                 case GET_SECTOR_COUNT :
                 {
-                    *(DWORD*)buff = 4096-512;
+                    *(DWORD*)buff = SFLASH_SECTOR_CNT-SFLASH_SECTOR_FS_OFFSET;
                 }
                 break;
 
                 case GET_SECTOR_SIZE:
                 {
-                    *(DWORD*)buff = 4096;
+                    *(DWORD*)buff = SFLASH_SECTOR_SIZE;
                 }
                 break;
                 
                 case GET_BLOCK_SIZE :
                 {
-                    *(WORD*)buff = 1;
+                    *(WORD*)buff = SFLASH_BLOCK_SIZE;
                 }
                 break;
 

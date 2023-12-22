@@ -15,8 +15,8 @@
         1111 0XX	       X	        10 位从地址
         
         
-        在SCL高电平期间, SDA须保持稳定
-        在SCL低电平期间, SDA可以跳变
+        在SCL高电平期间, SDA须保持稳定, 此时器件会对SDA电平采样
+        在SCL低电平期间, SDA可以跳变，此时器件会对SDA电平进行锁存
         I2C规定：SCL线为高电平期间, SDA线由高电平向低电平的变化表示起始信号; 
                  SCL线为高电平期间, SDA线由低电平向高电平的变化表示终止信号  
                  因此，必须保证在每个时钟周期内对数据线SDA采样两次, 即在上升和下降沿都采一次
@@ -116,7 +116,7 @@ static U8 get_ack(si2c_handle_t *h)
     
 	set_scl(h, 1);
     while(t++<h->count) {
-        if(get_sda(h)==0) {
+        if(get_sda(h)==0) { //sda拉低则视为ack
             r = 1;
             break;
         }

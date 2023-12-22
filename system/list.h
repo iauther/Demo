@@ -10,8 +10,8 @@ extern "C" {
 
 
 enum {
-    MODE_FIFO=0,
-    MODE_FILO,
+    MODE_FULL_FIFO=0,
+    MODE_FULL_FILO,
 };
 
 enum {
@@ -35,6 +35,7 @@ typedef struct list_node {
 }list_node_t;
 
 typedef struct {
+    U8          log;        //0:disable  1: enable
     U8          mode;
     int         max;        //the max count
 }list_cfg_t;

@@ -34,6 +34,7 @@
 static uint32_t sdram_device=EXMC_SDRAM_DEVICE0;
 int dal_sdram_init(void)
 {
+    uint32_t cnt=SystemCoreClock/100;
     exmc_sdram_parameter_struct        sdram_init_struct;
     exmc_sdram_timing_parameter_struct  sdram_timing_init_struct;
     exmc_sdram_command_parameter_struct     sdram_command_init_struct;
@@ -150,7 +151,7 @@ int dal_sdram_init(void)
     exmc_sdram_command_config(&sdram_command_init_struct);
 
     /* step 4 : insert 10ms delay----------------------------------------------*/
-    dal_delay_ms(10);
+    while(cnt--);
 
     /* step 5 : configure precharge all command----------------------------------*/
     sdram_command_init_struct.command = EXMC_SDRAM_PRECHARGE_ALL;
@@ -223,6 +224,13 @@ int dal_sdram_init(void)
         return -1;
     }
     
+    return 0;
+}
+
+
+int dal_sdram_deinit(void)
+{
+    exmc_sdram_deinit(sdram_device);
     return 0;
 }
 

@@ -262,35 +262,37 @@ static int send_ack(handle_t h, void *para, U8 type, U8 err)
 
 handle_t comm_init(U8 port, comm_init_para_t *cp)
 {
-    int r;
+    int r=0;
     comm_handle_t *h=NULL;
     
     if(!cp) {
         return NULL;
     }
     
-    h = (comm_handle_t*)calloc(1, sizeof(comm_handle_t));
+    h = (comm_handle_t*)malloc(sizeof(comm_handle_t));
     if(!h) {
         return NULL;
     }
-    
+
     h->port = port;
     if(cp->rlen>0) {
         h->rx.blen = cp->rlen;
-        h->rx.buf = (U8*)eMalloc(h->rx.blen);
+        h->rx.buf = (U8*)eCalloc(h->rx.blen);
         h->rx.dlen = 0;
     }
+    
     if(cp->tlen>0) {
         h->tx.blen = cp->tlen;
-        h->tx.buf = (U8*)eMalloc(h->tx.blen);
+        h->tx.buf = (U8*)eCalloc(h->tx.blen);
         h->tx.dlen = 0;
     }
-    
+
     r = port_init(h, cp->para);
     if(r) {
         free(h);
         return NULL;
     }
+
     
     return h;
 }
@@ -416,11 +418,16 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
         case TYPE_DAC:
         {
 #ifndef _WIN32
+            ch_para_t *para=paras_get_ch_para(CH_0);
+            int points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;
             extern dac_param_t dac_param;
             dac_para_t* dac = (dac_para_t*)hdr->data;
             
             dac_param.enable = dac->enable;
             dac_param.fdiv   = dac->fdiv;
+            dac_param.buf.blen = points*sizeof(U16);
+            dac_param.buf.buf  = eCalloc(dac_param.buf.blen);
+            dac_param.buf.dlen = 0;
             dac_set(&dac_param);
 #endif
         }

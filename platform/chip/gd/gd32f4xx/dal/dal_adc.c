@@ -63,8 +63,8 @@ static void rcu_config(dal_adc_handle_t *h)
     rcu_periph_clock_enable(RCU_GPIOA);
     rcu_periph_clock_enable(RCU_ADC0);
     
-    rcu_periph_clock_enable(RCU_TIMER0);
     rcu_timer_clock_prescaler_config(RCU_TIMER_PSC_MUL4);
+    rcu_periph_clock_enable(RCU_TIMER0);
 
     adc_clock_config(ADC_ADCCK_PCLK2_DIV8);     //APB2(120MHz) -> PCLK2/8 = 15MHz 
 }

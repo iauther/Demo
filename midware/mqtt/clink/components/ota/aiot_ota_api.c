@@ -23,8 +23,7 @@ static void    _http_recv_handler(void *handle, const aiot_http_recv_t *recv_dat
 static int32_t _ota_parse_list_array(char *str, int32_t str_len, ota_list_json *array);
 static int32_t _process_single_file(aiot_sysdep_portfile_t *sysdep, char *data, uint32_t data_len,
                                     int type, aiot_download_task_desc_t *task_desc, ota_handle_t *ota_handle);
-static int32_t _download_parse_url(const char *url, char *host, uint32_t max_host_len, char *path,
-                                   uint32_t max_path_len);
+static int32_t _download_parse_url(aiot_sysdep_portfile_t *sysdep, const char *url, char **host, char **path);
 static int32_t _download_digest_update(download_handle_t *download_handle, uint8_t *buffer, uint32_t buffer_len);
 static int32_t _download_digest_verify(download_handle_t *download_handle);
 static void   *_download_deep_copy_base(aiot_sysdep_portfile_t *sysdep, char *in);
@@ -756,10 +755,11 @@ void _ota_mqtt_process(void *handle, const aiot_mqtt_recv_t *const packet, void 
 
         uint32_t offset = files - data;
         uint32_t files_len = data_len - offset;
+        int cnt = 0; 
 
         ota_list_json array[OTA_ARRAY_MAX];
         int num = _ota_parse_list_array(files, files_len, array);
-        for (int cnt = 0; cnt < num; cnt++) {
+        for (cnt = 0; cnt < num; cnt++) {
             task_desc.file_id = cnt;
             task_desc.file_num = num;
             int32_t ret = _process_single_file(sysdep, array[cnt].pos, array[cnt].len, type, &task_desc, ota_handle);
@@ -879,16 +879,13 @@ exit:
     return ret;
 }
 
-/* 解析URL, 从中解出来host, path */
-static int32_t _download_parse_url(const char *url, char *host, uint32_t max_host_len, char *path,
-                                   uint32_t max_path_len)
+/* 解析URL, 从中解出来host, path, port */
+static int32_t _download_parse_url(aiot_sysdep_portfile_t *sysdep, const char *url, char **host, char **path)
 {
-    char *host_ptr = (char *) strstr(url, "://");
-    uint32_t host_len = 0;
-    uint32_t path_len;
-    char *path_ptr;
-    char *fragment_ptr;
+    char *host_ptr = NULL, *path_ptr = NULL, *fragment_ptr = NULL, *buf = NULL;
+    uint32_t host_len = 0, path_len = 0;
 
+    host_ptr = (char *) strstr(url, "://");
     if (host_ptr == NULL) {
         return STATE_OTA_PARSE_URL_HOST_IS_NULL;
     }
@@ -899,29 +896,77 @@ static int32_t _download_parse_url(const char *url, char *host, uint32_t max_hos
         return STATE_OTA_PARSE_URL_PATH_IS_NULL;
     }
 
-    if (host_len == 0) {
-        host_len = path_ptr - host_ptr;
+    host_len = path_ptr - host_ptr;
+    buf = (char *)sysdep->core_sysdep_malloc(host_len + 1, OTA_MODULE_NAME);
+    if(buf == NULL) {
+        return STATE_SYS_DEPEND_MALLOC_FAILED;
     }
+    memcpy(buf, host_ptr, host_len);
+    buf[host_len] = '\0';
+    *host = buf;
 
-    if (host_len >= max_host_len) {
-        return STATE_OTA_HOST_STRING_OVERFLOW;
-    }
-
-    memcpy(host, host_ptr, host_len);
-    host[host_len] = '\0';
-    fragment_ptr = strchr(host_ptr, '#');
+    fragment_ptr = strchr(path_ptr, '#');
     if (fragment_ptr != NULL) {
         path_len = fragment_ptr - path_ptr;
     } else {
         path_len = strlen(path_ptr);
     }
 
-    if (path_len >= max_path_len) {
-        return STATE_OTA_PATH_STRING_OVERFLOW;
+    buf = (char *)sysdep->core_sysdep_malloc(path_len + 1, OTA_MODULE_NAME);
+    if(buf == NULL) {
+        sysdep->core_sysdep_free(*host);
+        *host = NULL;
+        return STATE_SYS_DEPEND_MALLOC_FAILED;
+    }
+    memcpy(buf, path_ptr, path_len);
+    buf[path_len] = '\0';
+    *path = buf;
+
+    return STATE_SUCCESS;
+}
+
+int32_t _download_generate_header_string(download_handle_t *download_handle, char **header)
+{
+    uint32_t range_start = download_handle->range_start;
+    uint32_t range_end = download_handle->range_end;
+    uint8_t range_start_string_len = 0;
+    uint8_t range_end_string_len = 0;
+    char range_start_string[OTA_MAX_DIGIT_NUM_OF_UINT32] = {0};
+    char range_end_string[OTA_MAX_DIGIT_NUM_OF_UINT32] = {0};
+    char *header_string = NULL;
+    int32_t res = STATE_SUCCESS;
+    uint8_t user_set_range = 1;
+    uint32_t renewal_start = 0;
+    char *prefix = "Accept: text/html, application/xhtml+xml, application/xml;q=0.9, */*;q=0.8\r\nRange: bytes=";
+    char *src[] = { prefix, range_start_string, "-", range_end_string};
+    uint32_t len = sizeof(src) / sizeof(char *);
+
+    /* 判断用户是否打算通过range下载整个固件中的一部分, 非全固件. */
+    /* 判断方法是看range_start和range_end是否同时为0, 或者前者为0, 后者为文件最后一个字节-1 */
+    /* 符合上述2个条件之一, 则认为用户打算下载整个固件中的一部分 */
+    if (0 == range_start) {
+        if (0 == range_end || range_end == (download_handle->task_desc->size_total - 1)) {
+            user_set_range = 0;
+        }
     }
 
-    memcpy(path, path_ptr, path_len);
-    path[path_len] = '\0';
+    /* 对于想下载完整固件的情况,  如果中间出现了断点续传的情况, 则从0开始, 根据已经下载多少字节开始算下载地址 */
+    /* 对于只想下载一段固件的情况, 如果中间出现了断点续传的情况, 则从range_start后面开始, 加上已下载的字节数作为一个续传的起始地址  */
+    renewal_start = (user_set_range == 0) ? download_handle->size_fetched : (range_start +
+                                download_handle->range_size_fetched);
+
+    core_int2str(renewal_start, range_start_string, &range_start_string_len);
+
+    /* 对于按照range下载的情况, 即range_end不为0的情况, 需要将其翻译成字符串 */
+    if (0 != range_end) {
+        core_int2str(range_end, range_end_string, &range_end_string_len);
+    }
+
+    res = core_sprintf(download_handle->sysdep, &header_string, "%s%s%s%s\r\n", src, len, OTA_MODULE_NAME);
+    if (res != STATE_SUCCESS) {
+        return res;
+    }
+    *header = header_string;
     return STATE_SUCCESS;
 }
 
@@ -929,11 +974,14 @@ static int32_t _download_parse_url(const char *url, char *host, uint32_t max_hos
 int32_t aiot_download_send_request(void *handle)
 {
     int32_t res = STATE_SUCCESS;
-    char host[OTA_HTTPCLIENT_MAX_URL_LEN] = { 0 };
-    char path[OTA_HTTPCLIENT_MAX_URL_LEN] = { 0 };
-    char *header_string = NULL;
-    aiot_sysdep_portfile_t *sysdep = NULL;
+    char *host = NULL, *path = NULL, *header_string = NULL;
     download_handle_t *download_handle = (download_handle_t *)handle;
+    core_http_request_t request = {
+        .method = "GET",
+        .content = NULL,
+        .content_len = 0
+    };
+
     if (NULL == download_handle) {
         return STATE_DOWNLOAD_REQUEST_HANDLE_IS_NULL;
     }
@@ -943,86 +991,29 @@ int32_t aiot_download_send_request(void *handle)
     if (NULL == download_handle->task_desc->url) {
         return STATE_DOWNLOAD_REQUEST_URL_IS_NULL;
     }
-    sysdep = download_handle->sysdep;
-
-    {
-        uint32_t range_start = download_handle->range_start;
-        uint32_t range_end = download_handle->range_end;
-        uint8_t range_start_string_len = 0;
-        uint8_t range_end_string_len = 0;
-        char range_start_string[OTA_MAX_DIGIT_NUM_OF_UINT32] = {0};
-        char range_end_string[OTA_MAX_DIGIT_NUM_OF_UINT32] = {0};
-
-        /* 判断用户是否打算通过range下载整个固件中的一部分, 非全固件. */
-        /* 判断方法是看range_start和range_end是否同时为0, 或者前者为0, 后者为文件最后一个字节-1 */
-        /* 符合上述2个条件之一, 则认为用户打算下载整个固件中的一部分 */
-        uint8_t user_set_range = 1;
-        if (0 == range_start) {
-            if (0 == range_end || range_end == (download_handle->task_desc->size_total - 1)) {
-                user_set_range = 0;
-            }
-        }
-
-        /* 对于想下载完整固件的情况,  如果中间出现了断点续传的情况, 则从0开始, 根据已经下载多少字节开始算下载地址 */
-        /* 对于只想下载一段固件的情况, 如果中间出现了断点续传的情况, 则从range_start后面开始, 加上已下载的字节数作为一个续传的起始地址  */
-        uint32_t renewal_start = (user_set_range == 0) ? download_handle->size_fetched : (range_start +
-                                 download_handle->range_size_fetched);
-
-        core_int2str(renewal_start, range_start_string, &range_start_string_len);
-
-        /* 对于按照range下载的情况, 即range_end不为0的情况, 需要将其翻译成字符串 */
-        if (0 != range_end) {
-            core_int2str(range_end, range_end_string, &range_end_string_len);
-        }
-
-        {
-            char *prefix = "Accept: text/html, application/xhtml+xml, application/xml;q=0.9, */*;q=0.8\r\nRange: bytes=";
-            char *src[] = { prefix, range_start_string, "-", range_end_string};
-            uint32_t len = sizeof(src) / sizeof(char *);
-            res = core_sprintf(sysdep, &header_string, "%s%s%s%s\r\n", src, len, OTA_MODULE_NAME);
-            if (res != STATE_SUCCESS) {
-                if (header_string) {
-                    sysdep->core_sysdep_free(header_string);
-                }
-                return res;
-            }
-        }
-    }
-
-    res = _download_parse_url(download_handle->task_desc->url, host, OTA_HTTPCLIENT_MAX_URL_LEN, path,
-                              OTA_HTTPCLIENT_MAX_URL_LEN);
+    res = _download_parse_url(download_handle->sysdep, download_handle->task_desc->url, &host, &path);
     if (res != STATE_SUCCESS) {
-        if (header_string) {
-            sysdep->core_sysdep_free(header_string);
-        }
-        return res;
+        goto exit;
     }
 
     res = core_http_setopt(download_handle->http_handle, CORE_HTTPOPT_HOST, host);
     if (res != STATE_SUCCESS) {
-        if (header_string) {
-            sysdep->core_sysdep_free(header_string);
-        }
-        return res;
+        goto exit;
     }
+
     res = core_http_connect(download_handle->http_handle);
     if (res != STATE_SUCCESS) {
-        if (header_string) {
-            sysdep->core_sysdep_free(header_string);
-        }
-        return res;
+        goto exit;
     }
-    core_http_request_t request = {
-        .method = "GET",
-        .path = path,
-        .header = header_string,
-        .content = NULL,
-        .content_len = 0
-    };
+
+    res = _download_generate_header_string(download_handle, &header_string);
+    if(res != STATE_SUCCESS) {
+        goto exit;
+    }
+
+    request.path = path;
+    request.header = header_string;
     res = core_http_send(download_handle->http_handle, &request);
-    if (header_string) {
-        sysdep->core_sysdep_free(header_string);
-    }
     /* core_http_send 返回的是发送的body的长度; 错误返回负数 */
     if (res < STATE_SUCCESS) {
         download_handle->download_status = DOWNLOAD_STATUS_START;
@@ -1032,6 +1023,17 @@ int32_t aiot_download_send_request(void *handle)
         aiot_download_report_progress(download_handle, download_handle->percent);
         res = STATE_SUCCESS;
     }
+exit:
+    if (header_string != NULL) {
+        download_handle->sysdep->core_sysdep_free(header_string);
+    }
+    if(host != NULL ){
+        download_handle->sysdep->core_sysdep_free(host);
+    }
+    if(path != NULL ){
+        download_handle->sysdep->core_sysdep_free(path);
+    }
+
     return res;
 }
 

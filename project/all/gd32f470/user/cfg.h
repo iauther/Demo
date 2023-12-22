@@ -2,7 +2,23 @@
 #define __CFG_Hx__
 
 
-#define VERSION                     "V1.0.0"
+#define FW_VERSION                  "V1.3.0"
+
+
+#define BOARD_V134
+//#define BOARD_V136
+
+
+#ifdef BOARD_V134
+    #define RS485_PORT              UART_2
+    #define I2C_SOFT                //使用gpio模拟I2C
+#elif defined BOARD_V136
+    #define RS485_PORT              UART_5
+    #define I2C_HARD_PIN            //使用硬件I2C
+#else
+    #error no board define!
+#endif
+
 
 #define BOOT_ADDR                   0x8000000
 
@@ -51,23 +67,36 @@
     
     #define SPI_MODE                 0  
     
+    
+    
+    
+    
     //#define PROD_V2                 //字符串方式，支持批量上传
     #define PROD_V3                 //自定义格式，支持二进制上传
     
-    //#define USE_LAB_1
-    #define USE_LAB_2
+    #define USE_LAB_1
+    //#define USE_LAB_2
     //#define USE_LAB_3
     //#define USE_LAB_4
     
     
     //#define DEV_MODE_NORM
-    //#define DEV_MODE_CALI
-    #define DEV_MODE_TEST
-    //#define DEV_MODE_DEBUG
+    //#define DEV_MODE_TEST
+    #define DEV_MODE_DEBUG
     
     
+    //#define USE_PT1000
     #define AUTO_CAP
-    #ifndef DEV_MODE_DEBUG
+        
+    #ifdef USE_LAB_2
+        #define COUNTDOWN_POWER     //2号设备PA1脚坏了，需用RTC来开关电
+    #endif
+    
+    //关机配置
+    #define COUNTDOWN_MIN           5
+    #define RUNTIME_MAX             30
+    
+    #if (defined DEV_MODE_NORM || defined DEV_MODE_TEST)
         #define USE_WDG                 //使能看门狗
     #endif
     

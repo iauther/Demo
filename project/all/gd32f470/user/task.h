@@ -151,6 +151,7 @@ int task_timer_free(handle_t h);
 
 int task_yield(void);
 U32 task_stack_remain(void);
+void test_main(void);
 
 #endif
 

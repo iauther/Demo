@@ -67,11 +67,6 @@ extern "C" {
  *
  * @details 下文每个选项中的数据类型, 指的是@ref aiot_shadow_setopt 中, data参数的数据类型
  *
- * 当data的数据类型是char *时, 以配置@ref AIOT_SHADOWOPT_PRODUCT_KEY 为例:
- *
- *    char *product_key = "xxx";
- *    aiot_shadow_setopt(shadow_handle, AIOT_SHADOWOPT_PRODUCT_KEY, product_key);
- *
  */
 typedef enum {
     /**

@@ -35,17 +35,33 @@ static int32_t _core_http_sysdep_return(int32_t sysdep_code, int32_t core_code)
 static int32_t _core_http_connect(core_http_handle_t *http_handle)
 {
     int32_t res = STATE_SUCCESS;
-
+    char host[128];
+    uint16_t port = 0;
+    uint32_t port_u32 = 0;
+    char *ptr = NULL;
     /* disconnect first if network is already established */
     if (http_handle->network_handle != NULL) {
         http_handle->sysdep->core_sysdep_network_deinit(&http_handle->network_handle);
+    }
+    if (http_handle->host == NULL) {
+        return STATE_USER_INPUT_MISSING_HOST;
+    }
+    if(strlen(http_handle->host) > sizeof(host)){
+        return STATE_PORT_INPUT_OUT_RANGE;
     }
 
     /* establish network connection */
     core_sysdep_socket_type_t socket_type = CORE_SYSDEP_SOCKET_TCP_CLIENT;
 
-    if (http_handle->host == NULL) {
-        return STATE_USER_INPUT_MISSING_HOST;
+    memset(host, 0, sizeof(host));
+    ptr = strstr(http_handle->host, ":");
+    if(ptr == NULL) {
+        memcpy(host, http_handle->host, strlen(http_handle->host));
+        port = http_handle->port;
+    } else {
+        memcpy(host, http_handle->host, ptr - http_handle->host);
+        core_str2uint(ptr + 1, strlen(ptr + 1), &port_u32);
+        port = port_u32;
     }
 
     http_handle->network_handle = http_handle->sysdep->core_sysdep_network_init();
@@ -56,9 +72,9 @@ static int32_t _core_http_connect(core_http_handle_t *http_handle)
     if ((res = http_handle->sysdep->core_sysdep_network_setopt(http_handle->network_handle, CORE_SYSDEP_NETWORK_SOCKET_TYPE,
                &socket_type)) < 0 ||
         (res = http_handle->sysdep->core_sysdep_network_setopt(http_handle->network_handle, CORE_SYSDEP_NETWORK_HOST,
-                http_handle->host)) < 0 ||
+                host)) < 0 ||
         (res = http_handle->sysdep->core_sysdep_network_setopt(http_handle->network_handle, CORE_SYSDEP_NETWORK_PORT,
-                &http_handle->port)) < 0 ||
+                &port)) < 0 ||
         (res = http_handle->sysdep->core_sysdep_network_setopt(http_handle->network_handle,
                 CORE_SYSDEP_NETWORK_CONNECT_TIMEOUT_MS,
                 &http_handle->connect_timeout_ms)) < 0) {
@@ -108,7 +124,7 @@ static int32_t _core_http_send_body(core_http_handle_t *http_handle, uint8_t *co
 {
     int32_t res = STATE_SUCCESS;
 
-    core_log_hexdump(STATE_HTTP_LOG_SEND_CONTENT, '>', content, len);
+    //core_log_hexdump(STATE_HTTP_LOG_SEND_CONTENT, '>', content, len);
 
     http_handle->sysdep->core_sysdep_mutex_lock(http_handle->send_mutex);
     res = _core_http_send(http_handle, content, len, http_handle->send_timeout_ms);
@@ -124,7 +140,7 @@ static void _core_http_header_print(core_http_handle_t *http_handle, char *prefi
     while (pos != header + header_len) {
         if (*(pos) == '\n' && *(pos - 1) == '\r') {
             line_len = (uint32_t)(pos - prev + 1);
-            core_log3(http_handle->sysdep, STATE_HTTP_LOG_SEND_HEADER, "%s %.*s", prefix, &line_len, prev);
+            //core_log3(http_handle->sysdep, STATE_HTTP_LOG_SEND_HEADER, "%s %.*s", prefix, &line_len, prev);
             prev = pos + 1;
         }
         pos++;
@@ -473,7 +489,8 @@ static int32_t _core_http_recv_header(core_http_handle_t *http_handle, uint32_t 
             continue;
         }
 
-        core_log2(http_handle->sysdep, STATE_HTTP_LOG_RECV_HEADER, "< %.*s", &idx, line);
+        //core_log2(http_handle->sysdep, STATE_HTTP_LOG_RECV_HEADER, "< %.*s", &idx, line);
+        
         /* next line should be http response body */
         if (idx == 2) {
             break;

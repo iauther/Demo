@@ -88,7 +88,7 @@ static void _core_log_append_prefix(aiot_sysdep_portfile_t *sysdep, int32_t code
 
         core_uint642str(timenow, timestamp_str, &timestamp_len);
         if (timestamp_len > 3) {
-            memcpy(&timestamp_str[timestamp_len - 2], &timestamp_str[timestamp_len - 3], 3);
+            memmove(&timestamp_str[timestamp_len - 2], &timestamp_str[timestamp_len - 3], 3);
             timestamp_str[timestamp_len - 3] = '.';
         }
 
@@ -105,11 +105,12 @@ static void _core_log(aiot_sysdep_portfile_t *sysdep, int32_t code, char *buffer
 {
     uint32_t idx = 0, buffer_idx = 0, copy_len = 0, arg_flag = 0, arg_idx = 0;
     void *arg = datas[arg_idx];
+    uint32_t fmt_len = (uint32_t) strlen(fmt);
 
     _core_log_append_prefix(sysdep, code, buffer);
     buffer_idx += strlen(buffer);
 
-    for (idx = 0; idx < strlen(fmt);) {
+    for (idx = 0; idx < fmt_len ;) {
         if (buffer_idx >= CORE_LOG_MAXLEN) {
             break;
         }
@@ -123,7 +124,7 @@ static void _core_log(aiot_sysdep_portfile_t *sysdep, int32_t code, char *buffer
             arg_flag = 0;
         }
 
-        if (fmt[idx] == '%' && fmt[idx + 1] == 's' && arg != NULL) {
+        if (fmt[idx] == '%' && idx + 1 < fmt_len && fmt[idx + 1] == 's' && arg != NULL) {
             char *value = arg;
             copy_len = (strlen(buffer) + strlen(value) > CORE_LOG_MAXLEN) ? (CORE_LOG_MAXLEN - strlen(buffer)) : (strlen(value));
             memcpy(buffer + strlen(buffer), value, copy_len);
@@ -139,7 +140,7 @@ static void _core_log(aiot_sysdep_portfile_t *sysdep, int32_t code, char *buffer
             idx += strlen("%.*s");
             arg_flag = 1;
             arg_idx++;
-        } else if (fmt[idx] == '%' && fmt[idx + 1] == 'd' && arg != NULL) {
+        } else if (fmt[idx] == '%' && idx + 1 < fmt_len && fmt[idx + 1] == 'd' && arg != NULL) {
             char uint32_str[11] = {0};
             core_uint2str(*(uint32_t *)arg, uint32_str, NULL);
             copy_len = (strlen(buffer) + strlen(uint32_str) > CORE_LOG_MAXLEN) ? (CORE_LOG_MAXLEN - strlen(buffer)) : (strlen(
@@ -149,7 +150,7 @@ static void _core_log(aiot_sysdep_portfile_t *sysdep, int32_t code, char *buffer
             idx += 2;
             arg_flag = 1;
         } 
-        else if (fmt[idx] == '%' && fmt[idx + 1] == 'x' && arg != NULL) {
+        else if (fmt[idx] == '%' && idx + 1 < fmt_len && fmt[idx + 1] == 'x' && arg != NULL) {
             char uint32_str[12] = {0};
             core_int2hexstr(*(int32_t *)arg, uint32_str, NULL);
             copy_len = (strlen(buffer) + strlen(uint32_str) > CORE_LOG_MAXLEN) ? (CORE_LOG_MAXLEN - strlen(buffer)) : (strlen(

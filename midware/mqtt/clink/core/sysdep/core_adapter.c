@@ -15,7 +15,7 @@ static aiot_sysdep_portfile_t g_aiot_portfile;
  *  虽然物联网平台接收TCP方式的连接, 但我们不推荐这样做, TLS是更安全的通信方式
  *
  */
-//#define CORE_ADAPTER_MBEDTLS_ENABLED
+#define CORE_ADAPTER_MBEDTLS_ENABLED
 
 /*
  *  CORE_ADAPTER_DTLS_ENABLED 不是一个用户需要关心的编译开关,用于关闭DTLS相关功能
@@ -250,8 +250,8 @@ int32_t _tls_network_establish(void *handle)
 {
     adapter_network_handle_t *adapter_handle = (adapter_network_handle_t *)handle;
     int32_t res = 0;
-    core_log2(g_origin_portfile, STATE_ADAPTER_COMMON, "establish mbedtls connection with server(host='%s', port=[%d])\r\n",
-              adapter_handle->host, &adapter_handle->port);
+    //core_log2(g_origin_portfile, STATE_ADAPTER_COMMON, "establish mbedtls connection with server(host='%s', port=[%d])\r\n",
+    //          adapter_handle->host, &adapter_handle->port);
 
     if (adapter_handle->cred->max_tls_fragment == 0) {
         core_log(g_origin_portfile, STATE_ADAPTER_COMMON, "invalid max_tls_fragment parameter\r\n");
@@ -394,9 +394,9 @@ int32_t _tls_network_establish(void *handle)
         return res;
     }
 
-    core_log2(g_origin_portfile, STATE_ADAPTER_COMMON,
-              "success to establish mbedtls connection, (cost %d bytes in total, max used %d bytes)\r\n",
-              &g_mbedtls_total_mem_used, &g_mbedtls_max_mem_used);
+    //core_log2(g_origin_portfile, STATE_ADAPTER_COMMON,
+    //          "success to establish mbedtls connection, (cost %d bytes in total, max used %d bytes)\r\n",
+    //          &g_mbedtls_total_mem_used, &g_mbedtls_max_mem_used);
     return 0;
 }
 int32_t _tls_network_recv(void *handle, uint8_t *buffer, uint32_t len, uint32_t timeout_ms,

@@ -31,7 +31,6 @@ extern "C" {
 #define OTA_GET_REPLY_TOPIC_SUFFIX           "thing/ota/firmware/get_reply"
 #define OTA_OTA_GET_REPLY_TOPIC              "/sys/+/+/thing/ota/firmware/get_reply"
 
-#define OTA_HTTPCLIENT_MAX_URL_LEN           (256)
 #define OTA_MAX_DIGIT_NUM_OF_UINT32          (20)
 #define OTA_RESPONSE_PARTIAL                 (206)
 #define OTA_RESPONSE_OK                      (200)

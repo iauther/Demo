@@ -99,7 +99,15 @@ static int get_time(TCHAR* path, char* time, int len)
 
 	return 0;
 }
-
+static void print_upg_data(const char* s, upg_data_t* upg)
+{
+	printf("\n");
+	printf("__%s__upg->head:     0x%08x\n", s, upg->head);
+	printf("__%s__upg->tail:     0x%08x\n", s, upg->tail);
+	printf("__%s__upg->fwAddr:   0x%08x\n", s, upg->fwAddr);
+	printf("__%s__upg->runAddr:  0x%08x\n", s, upg->runAddr);
+	printf("\n");
+}
 
 
 int main(char argc, char *argv[])
@@ -108,9 +116,11 @@ int main(char argc, char *argv[])
 	HANDLE hFile=NULL;
 	char* path1, * path2;
 	char imgPath[500],*dot;
+	fw_info_t fwInfo;
 	char time1[100],time2[100],*ptime;
 	TCHAR* xpath1=NULL, * xpath2 = NULL,* xpath3 = NULL;
-	upg_info_t *info;
+	upg_data_t* pupg;
+	fw_info_t *pfw;
 	fw_image_t* img = (fw_image_t*)malloc(sizeof(fw_image_t));
 
 	if (argc < 3) {
@@ -139,17 +149,20 @@ int main(char argc, char *argv[])
 	if (flen <0) {
 		goto fail;
 	}
-
+	pfw = (fw_info_t*)img->app;
 	blanklen = APP_SIZE - flen;
 
-	info = (upg_info_t*)img->info;
-	info->fwAddr = APP_OFFSET;
-	info->runAddr = info->fwAddr + sizeof(upg_hdr_t);
-	info->facFillFlag = 0;
-	info->head = UPG_HEAD_MAGIC;
-	info->tail = UPG_TAIL_MAGIC;
-	info->upgFlag = UPG_FLAG_NORMAL;
-	info->upgCnt = 0;
+	pupg = (upg_data_t*)img->info;
+	pupg->fwAddr = APP_OFFSET;
+	pupg->runAddr = pupg->fwAddr + sizeof(fw_hdr_t);
+	pupg->facFillFlag = 0;
+	pupg->head = UPG_HEAD_MAGIC;
+	pupg->tail = UPG_TAIL_MAGIC;
+	pupg->upgFlag = UPG_FLAG_NORMAL;
+	pupg->runFlag = 1;
+	pupg->upgCnt = 0;
+
+	print_upg_data("$$$", pupg);
 
 	get_time(xpath1, time1, sizeof(time1));
 	get_time(xpath2, time2, sizeof(time2));
@@ -169,7 +182,9 @@ int main(char argc, char *argv[])
 		imgPath[0] = 0;
 	}
 
-	strcat(imgPath, "image_"); 
+	strcat(imgPath, "image_");
+	strcat(imgPath, (char*)pfw->version);
+	strcat(imgPath, "_");
 	strcat(imgPath, ptime);
 	strcat(imgPath, ".bin");
 

@@ -34,12 +34,6 @@ typedef struct
 #define FMC_INVALID_SIZE           ((uint32_t)0xFFFFFFFFU)        /*!< invalid sector size*/
 #define FMC_INVALID_ADDR           ((uint32_t)0xFFFFFFFFU)        /*!< invalid sector address*/
 
-
-
-
-
-
-
 //FLASH 扇区的起始地址
 #define ADDR_FLASH_SECTOR_0     ((uint32_t)0x08000000) 	//扇区0起始地址, 16 Kbytes  
 #define ADDR_FLASH_SECTOR_1     ((uint32_t)0x08004000) 	//扇区1起始地址, 16 Kbytes  
@@ -82,22 +76,16 @@ typedef struct
 #define FLASH_Sector_22    ((uint16_t)0x00D0) /*!< Sector Number 22  */
 #define FLASH_Sector_23    ((uint16_t)0x00D8) /*!< Sector Number 23  */
 
-
-
-
-
-
-
-
-
-
 ///////////////////////////////////////////////////////////////////////////
 #include "types.h"
+
+#define NOR_PAGE_SIZE       4096
+
 int dal_nor_init(void);
 int dal_nor_deinit(void);
 int dal_nor_erase(U32 addr, U32 len);
 int dal_nor_read(U32 addr, void *data, U32 len);
-int dal_nor_write(U32 addr, void *data, U32 len, U8 check);
+int dal_nor_write(U32 addr, void *data, U32 len, U8 erase, U8 chk);
 int dal_nor_test(void);
 
 #endif

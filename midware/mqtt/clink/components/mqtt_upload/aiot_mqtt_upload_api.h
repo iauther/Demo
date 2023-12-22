@@ -565,12 +565,7 @@ int32_t aiot_mqtt_upload_deinit(void **handle);
  * 
  * @param[in] handle MQTT UPLOAD会话句柄
  * @param[in] file_name 需要在服务端创建的文件名
- * @param[in] file_size 需要上传的文件大小
- * @param[in] mode 同名的文件的处理策略, 更多信息请参考 @ref AIOT_MQTT_UPLOAD_FILE_MODE_OVERWRITE 
- *              @ref AIOT_MQTT_UPLOAD_FILE_MODE_APPEND @ref AIOT_MQTT_UPLOAD_FILE_MODE_FAIL
- * @param[in] digest 文件完整的CRC64，不需要完整性校验则为NULL
- * @param[in] read_data_handler 读取用户文件数据的回调函数, 更多信息请参考 @ref aiot_mqtt_upload_read_handler_t
- * @param[in] userdata 用户上下文
+ * @param[in] packet 收到云端的返回信息, 更多信息请参考 @ref aiot_mqtt_upload_recv_t
  *
  * @return int32_t
  * @retval <STATE_SUCCESS  请求发送失败

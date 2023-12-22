@@ -20,12 +20,15 @@ typedef struct {
 
 
 int dal_init(void);
+int dal_deinit(void);
+
 void dal_set_priority(void);
 int dal_set_vector(void);
 void dal_reboot(void);
 U32 dal_get_freq(void);
 int dal_get_info(mcu_info_t *info);
 U32 dal_get_chipid(void);
+void dal_jump(U32 addr);
 
 #endif
 

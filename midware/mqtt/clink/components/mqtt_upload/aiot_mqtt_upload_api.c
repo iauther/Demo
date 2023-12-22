@@ -1652,7 +1652,10 @@ aiot_mqtt_upload_result_t aiot_mqtt_upload_process(void *handle) {
         memset(result.uploadid, 0, sizeof(result.uploadid));
         
         memcpy(result.file_name, up_task->file_name, file_name_len);
-        memcpy(result.uploadid, up_task->upload_id, strlen(up_task->upload_id));
+        if(strlen(up_task->upload_id) <= sizeof(result.uploadid)) {
+            memcpy(result.uploadid, up_task->upload_id, strlen(up_task->upload_id));
+        }
+
         switch (up_task->status)
         {
             case STATE_MQTT_UPLOAD_NONE:

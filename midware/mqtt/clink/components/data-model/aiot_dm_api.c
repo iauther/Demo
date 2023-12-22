@@ -427,6 +427,7 @@ static void _dm_recv_generic_reply_handler(void *handle, const aiot_mqtt_recv_t 
     aiot_dm_recv_t recv;
     char *value = NULL;
     uint32_t value_len = 0;
+    int32_t res = STATE_SUCCESS;
 
     if (NULL == dm_handle->recv_handler) {
         return;
@@ -459,10 +460,14 @@ static void _dm_recv_generic_reply_handler(void *handle, const aiot_mqtt_recv_t 
             break;
         }
 
-        core_json_value((char *)msg->data.pub.payload, msg->data.pub.payload_len,
+        res = core_json_value((char *)msg->data.pub.payload, msg->data.pub.payload_len,
                         ALINK_JSON_KEY_MESSAGE, strlen(ALINK_JSON_KEY_MESSAGE),
                         &recv.data.generic_reply.message,
                         &recv.data.generic_reply.message_len);
+        if(res != STATE_SUCCESS) {
+            recv.data.generic_reply.message = NULL;
+            recv.data.generic_reply.message_len = 0;
+        }
 
         _append_diag_data(dm_handle, DM_DIAG_MSG_TYPE_RSP, recv.data.generic_reply.msg_id);
         dm_handle->recv_handler(dm_handle, &recv, dm_handle->userdata);
@@ -789,12 +794,12 @@ int32_t aiot_dm_send(void *handle, const aiot_dm_msg_t *msg)
     if (NULL == dm_handle->mqtt_handle) {
         return STATE_DM_MQTT_HANDLE_IS_NULL;
     }
-    
+
     res = _dm_prepare_send_topic(dm_handle, msg, &topic);
     if (res < 0) {
         return res;
     }
-    
+
     res = g_dm_send_topic_mapping[msg->type].func(dm_handle, topic, msg);
     dm_handle->sysdep->core_sysdep_free(topic);
     return res;

@@ -1,18 +1,14 @@
 #include "dac.h"
 #include "log.h"
-#include "mem.h"
-#include "dal_dac.h"
+
 
 typedef struct {
     handle_t    hdac;
     dac_param_t para;
-    
-    U16         *buf;
-    int         blen;
 }dac_handle_t;
 
 
-static dac_handle_t dacHandle={
+dac_handle_t dacHandle={
     .hdac = NULL,
     .para = {
         .enable = 0,
@@ -21,15 +17,23 @@ static dac_handle_t dacHandle={
 };
 
 
-int dac_init(void)
+int dac_init(dac_param_t *para)
 {
     handle_t h;
+    dal_dac_para_t dpara;
 
-    h = dal_dac_init(DAC_1);
+    dpara.port = DAC_1;
+    dpara.freq = para->freq/para->fdiv;
+    dpara.blen = para->buf.blen;
+    dpara.buf  = para->buf.buf;
+    dpara.fn   = para->fn;
+    
+    h = dal_dac_init(&dpara);
     if(!h) {
         LOGE("___ dac init error\n");
         return -1;
     }
+    dacHandle.para = *para;
     dacHandle.hdac = h;
     
     return 0;
@@ -41,33 +45,18 @@ int dac_set(dac_param_t *para)
     int r;
     dal_dac_para_t dpara;
     
-    if(!para) {
+    if(!para || !para->buf.buf || (para->buf.blen<=0)) {
         return -1;
     }
     
     dacHandle.para = *para;
-    dpara.freq = dacHandle.para.freq/dacHandle.para.fdiv;
-    dpara.blen = dacHandle.para.points*sizeof(U16);
-    dpara.buf  = eMalloc(dpara.blen);
-    if(!dpara.buf) {
-        LOGE("___ dac mallco failed\n");
-        return -1;
-    }
     
-    if(dacHandle.buf) {
-        xFree(dacHandle.buf);
-    }
-    dacHandle.buf = dpara.buf;
-    dacHandle.blen = dpara.blen;
+    dpara.freq = para->freq/para->fdiv;
+    dpara.buf  = para->buf.buf;
+    dpara.blen = para->buf.blen;
+    
     
     r = dal_dac_set(dacHandle.hdac, &dpara);
-    
-    if(dacHandle.para.enable) {
-        dal_dac_start(dacHandle.hdac);
-    }
-    else {
-        dal_dac_stop(dacHandle.hdac);
-    }
     
     return r;
 }
@@ -75,7 +64,8 @@ int dac_set(dac_param_t *para)
 
 int dac_data_fill(U16 *data, U32 cnt)
 {
-    U32 i,j;
+    U32 i,j=0;
+    U16 *pbuf=NULL;
     
     if(!dacHandle.para.enable || !dacHandle.hdac) {
         return -1;
@@ -84,10 +74,11 @@ int dac_data_fill(U16 *data, U32 cnt)
     if(!data || !cnt) {
         return -1;
     }
+    pbuf = (U16*)dacHandle.para.buf.buf;
     
     for(i=0; i<cnt; i++) { 
         if(i%dacHandle.para.fdiv==0) {
-            dacHandle.buf[j++] = (data[i]<0x8000)?(data[i]+0x8000):(data[i]-0x8000);
+            pbuf[j++] = (data[i]<0x8000)?(data[i]+0x8000):(data[i]-0x8000);
         }
     }
     

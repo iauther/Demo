@@ -504,7 +504,7 @@ int32_t aiot_ota_query_firmware(void *handle);
  * @retval NULL 初始化失败, 或者是因为没有设置portfile, 或者是内存分配失败导致
  *
  */
-void   *aiot_ota_init();
+void   *aiot_ota_init(void);
 
 /**
  * @brief 销毁ota实例句柄
@@ -599,7 +599,7 @@ int32_t aiot_ota_setopt(void *handle, aiot_ota_option_t option, void *data);
  * @retval NULL 初始化失败, 或者是没有设置portfile, 或者是内存不足无法分配download或者http实例
  *
  */
-void   *aiot_download_init();
+void   *aiot_download_init(void);
 
 /**
  * @brief 释放download实例句柄的资源

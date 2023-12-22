@@ -1,6 +1,7 @@
+#include <math.h>
 #include "dsp.h"
 #include "log.h"
-#include <math.h>
+#include "protocol.h"
 
 static F32 ev_ave_calc(F32 *data, U32 cnt)
 {
@@ -16,7 +17,7 @@ static F32 ev_ave_calc(F32 *data, U32 cnt)
 static F32 ev_rms_calc(F32 *data, U32 cnt)
 {
     U32 i;
-    F64 v=0;
+    F32 v=0.0f;
     
     for(i=0; i<cnt; i++) {
         v += data[i]*data[i];

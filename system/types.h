@@ -106,7 +106,7 @@ typedef struct {
 typedef struct {
     date_s_t        date;
     time_s_t        time;
-}date_time_t;
+}datetime_t;
 
 typedef struct {
     U8              *buf;

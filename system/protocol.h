@@ -2,8 +2,6 @@
 #define __PROTOCOL_Hx__
 
 #include "types.h"
-#include "dsp.h"
-#include "dal_adc.h"
 
 #define FW_MAGIC            0xFACEBEAD
 #define PKT_MAGIC           0xDEADBEEF
@@ -50,7 +48,6 @@ enum {
     LEVEL_VPP,
     
 };
-
 
 enum {
     TYPE_ACK=0,
@@ -103,7 +100,33 @@ enum {
     DATA_SETT,
 };
 
+///////////////////
+enum {
+    CH_0=0,
+    CH_1,
+    
+    CH_MAX
+};
 
+typedef enum {
+    EV_RMS=0,
+    EV_AMP,
+    EV_ASL,
+    EV_ENE,
+    EV_AVE,         //average
+    EV_MIN,
+    EV_MAX,
+    
+    EV_NUM
+}EV_TYPE;
+
+typedef enum {
+    FL_FIR=0,
+    FL_IIR,
+    FL_FFT,
+    
+    FL_NUM
+}FLT_TYPE;
 
 
 #ifdef _WIN32
@@ -152,6 +175,14 @@ typedef struct {
     U32  fdiv;              //freq divider
 }dac_para_t;
 
+
+enum {
+    PWRON_RTC=0,
+    PWRON_MANUAL,
+    PWRON_TIMER,
+};
+
+
 enum {
     PWR_NO_PWRDN=0,
     PWR_PERIOD_PWRDN,
@@ -170,35 +201,33 @@ enum {
 };
 
 typedef struct {
-    U8      smpMode;        //SMP_PERIOD_MODE: period sample  SMP_TRIG_MODE: threshold trigger sample   SMP_CONT_MODE: continuous sample
-    U32     smpFreq;        //hz
-    U32     smpPoints;
-    U32     smpInterval;    //sample interval time, unit: us
-    U32     smpTimes;       //number of times
-    F32     ampThreshold;   //sample AMP threshold value, unit: mv
-    U32     messDuration;   //messure end duration, unit: ms
-    U32     trigDelay;      //trigger delay time,   unit: ms
-    U8      ev[EV_NUM];
-    U8      n_ev;
-    U8      upway;          //0: upload realtime   1: delay upload together
-    U8      upwav;
-    U8      savwav;
-    U32     evCalcCnt;
-}ch_para_t;
-typedef struct {
     U8              ch;
     U8              enable;
+    U8              smpMode;        //SMP_PERIOD_MODE: period sample  SMP_TRIG_MODE: threshold trigger sample   SMP_CONT_MODE: continuous sample
+    U32             smpFreq;        //hz
+    U32             smpPoints;
+    U32             smpInterval;    //sample interval time, unit: us
+    U32             smpTimes;       //number of times
+    F32             ampThreshold;   //sample AMP threshold value, unit: mv
+    U32             messDuration;   //messure end duration, unit: ms
+    U32             trigDelay;      //trigger delay time,   unit: ms
+    U8              ev[EV_NUM];
+    U8              n_ev;
+    U8              upway;          //0: upload realtime   1: delay upload together
+    U8              upwav;
+    U8              savwav;
+    U32             evCalcCnt;
     
-    ch_para_t       para[MODE_MAX];
     coef_t          coef;
-}ch_paras_t;
+}ch_para_t;
+
 typedef struct {
     U8              mode;               //dev mode
     U8              port;               //refer to PORT_UART define
     
     U8              pwrmode;           //PWR_NO_PWRDN:no powerdown    PWR_PERIOD_PWRDN: period powerdown
-    U32             worktime;          //unit: second
-    ch_paras_t      ch[CH_MAX];
+    U32             workInterval;      //unit: second
+    ch_para_t       ch[CH_MAX];
 }smp_para_t;
 
 typedef struct {
@@ -267,7 +296,7 @@ typedef struct {
 typedef struct {
     S8              stat[CH_MAX];
     U8              finished[CH_MAX];
-    date_time_t     dt;
+    datetime_t      dt;
 }state_t;
 
 typedef struct {
@@ -313,8 +342,7 @@ typedef struct {
     U8              erase;           //0: no erase   1: do erase
     U8              flag;
     U32             jumpAddr;
-    U8              padd[72];
-}upg_ctl_t;
+}upg_info_t;
 
 typedef struct {
     U32             head;            //UPG_HEAD_MAGIC
@@ -323,15 +351,26 @@ typedef struct {
     U32             runAddr;         //the boot jump offset
     U32             facFillFlag;     //0: not fill  1: already fill
     U32             upgFlag;         //UPG_FLAG_NONE etc.
+    U32             runFlag;         //
     U32             tail;            //UPG_TAIL_MAGIC
-}upg_info_t;
+}upg_data_t;
 
-//make sure sizeof(upg_hdr_t)==128 bytes
-typedef struct {
-    fw_info_t       fwInfo;
-    upg_ctl_t       upgCtl;
-    U8              data[0];
+typedef union {
+    fw_info_t       fw;
+    upg_info_t      upg;
 }upg_hdr_t;
+
+/*
+    make sure sizeof(fw_hdr_t)%0x80==0
+    gd32f470 vector size is 107, total bytes is 107*4=428 bytes
+    so sizeof(fw_hdr_t) must big than 428B and 128B align
+*/
+typedef union {
+    upg_hdr_t       hdr;
+    U8              padd[0x200];
+    U8              data[0];
+}fw_hdr_t;
+
 
 typedef struct {
     U8              digit[32];
@@ -369,7 +408,7 @@ typedef struct {
     cali_sig_t      sig;
 }cali_t;
 typedef struct {
-    U8              psrc;       //poweron trig source, 0: manual poweron  1: rtc poweron
+    U8              psrc;       //poweron trig source, 0: manual poweron  1: rtc poweron  2: timer poweron
     dac_para_t      dac;
     cali_t          cali[CH_MAX];
     state_t         state;

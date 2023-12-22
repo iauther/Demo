@@ -20,22 +20,15 @@ enum {
 };
 
 
-
-
-typedef struct {
-    rx_cb_t             callback;
-    U8                  *buf;
-    U16                 blen;
-    U16                 dlen;       //data length
-}dal_uart_para_t;
-
 typedef struct {
     U8                  mode;
     U8                  port;
     U8                  msb;
     U8                  useDMA;
     U32                 baudrate;
-    dal_uart_para_t     para;
+    
+    buf_t               rx;
+    rx_cb_t             callback;
 }dal_uart_cfg_t;
 
 handle_t dal_uart_init(dal_uart_cfg_t *cfg);

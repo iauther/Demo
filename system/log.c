@@ -2,6 +2,7 @@
 #include "list.h"
 #include "log.h"
 #include "cfg.h"
+#include "mem.h"
 #include "fs.h"
 #include "dal_rtc.h"
 
@@ -60,7 +61,7 @@ int log_print(LOG_LEVEL lv, char *fmt, ...)
 {
     int len;
     va_list args;
-    date_time_t dt;
+    datetime_t dt;
 
     if(!logHandle.enable || !logHandle.cfg.en[lv]) {
         return -1;
@@ -88,32 +89,43 @@ int log_print(LOG_LEVEL lv, char *fmt, ...)
 int log_init(rx_cb_t callback)
 {
     int i,r=0;
-    list_cfg_t lc;
     dal_uart_cfg_t uc;
 
     if(logHandle.hlog) {
         return 0;
     }
-    
+
     uc.mode = MODE_IT;
     uc.port = LOG_UART;
     uc.msb  = 0;
     uc.baudrate = LOG_BAUDRATE;
-    uc.para.callback  = callback;
-    uc.para.buf = NULL;
-    uc.para.blen = 0;
-    uc.para.dlen = 0;
+    uc.callback  = callback;
+    uc.rx.blen = 2*KB;
+    uc.rx.buf = malloc(uc.rx.blen);
+    uc.rx.dlen = 0;
+    
     logHandle.hlog = dal_uart_init(&uc);
     if(!logHandle.hlog) {
         return -1;
     }
+    logHandle.list = NULL;
     
+    log_os_init();
+    
+    LOGD("log_init\n");
+    
+    return 0;
+}
+
+int log_os_init(void)
+{
 #ifdef OS_KERNEL 
-    for(i=0; i<LV_MAX; i++) {
-        lc.max  = LOG_NODE_MAX;
-        lc.mode = MODE_FIFO;
-        logHandle.list = list_init(&lc);
-    }
+    int i;
+    list_cfg_t lc;
+    lc.max  = LOG_NODE_MAX;
+    lc.mode = MODE_FULL_FIFO;
+    lc.log = 0;
+    logHandle.list = list_init(&lc);
 #endif
     
     return 0;
@@ -142,7 +154,7 @@ handle_t log_get_handle(void)
 int log_save(void)
 {
     int r;
-    date_time_t dt;
+    datetime_t dt;
     char tmp[100];
     handle_t hfile;
     list_node_t *lnode;
@@ -155,7 +167,7 @@ int log_save(void)
         return -1;
     }
     
-    dal_rtc_get(&dt);
+    dal_rtc_get_time(&dt);
     sprintf(tmp, "%s/%04d/%02d/%02d/log.txt", SDMMC_MNT_PT, dt.date.year, dt.date.mon, dt.date.day);
     if(fs_exist(tmp)) {
         hfile = fs_open(tmp, FS_MODE_RW);
@@ -197,9 +209,7 @@ int log_deinit(void)
     int i;
     
 #ifdef OS_KERNEL 
-    for(i=0; i<LV_MAX; i++) {
-        list_free(logHandle.list);
-    }
+    list_free(logHandle.list);
 #endif
     
     dal_uart_deinit(logHandle.hlog);

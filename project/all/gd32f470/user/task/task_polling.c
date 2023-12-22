@@ -3,7 +3,7 @@
 #include "fs.h"
 #include "cfg.h"
 #include "dal.h"
-#include "date.h"
+#include "datetime.h"
 #include "power.h"
 #include "rtc.h"
 #include "comm.h"
@@ -15,8 +15,10 @@
 #include "dal_adc.h"
 #include "dal_wdg.h"
 #include "dal_delay.h"
+#include "dal_gpio.h"
 #include "aiot_at_api.h"
-#include "hw_at_impl.h"
+#include "hal_at_impl.h"
+#include "cfg.h"
 
 
 #define POLL_TIME       1000
@@ -25,15 +27,15 @@
 #define TMP_LEN         (0x100*8)
 
 
+
 #ifdef OS_KERNEL
 
 typedef struct {
     int     id;
     void    *data;
-    
 }file_node_t;
 
-
+static handle_t hpwr=NULL;
 static int cap_is_finished(void)
 {
     U8 ch;
@@ -78,41 +80,61 @@ static int upg_file_is_exist(void)
     return upg_file_exist;
 }
 
-static int conn_flag=0;
-static osThreadId_t connThdId=NULL;
+enum {
+    CONN_STOP=0,
+    CONN_FAILED,
+    CONN_BUSYING,
+    CONN_SUCCESS,
+};
+typedef struct {
+    int conn;    
+    int conn_cnt;
+    int rst_cnt;
+}conn_t;
+
+static conn_t connHandle;
 static void task_conn_fn(void *arg)
 {
 #define CONN_MAX  5
 #define REST_MAX  5
-    static int conn_cnt=0;
-    static int rest_cnt=0;
-    U8 port=paras_get_port();
+    int flag;
     
+    memset(&connHandle, 0, sizeof(connHandle));
     while(1) {
-        conn_flag = api_comm_connect(port);
-        if(conn_flag) {
-            conn_cnt = 0;
-            LOGD("___ api_comm_connect ok!\n");
-            break;
-        }
         
-        conn_cnt++;
-        LOGD("___ ad module conn times: %d\n", conn_cnt);
-        
-        if(conn_cnt>0 && (conn_cnt%CONN_MAX==0)) {
-            at_hal_reset();
-            rest_cnt++;
-            LOGD("___ ad module reset: %d\n", rest_cnt);
-            
-            if(rest_cnt>0 && (rest_cnt%REST_MAX==0)) {
-                LOGE("___ ad module reset reach % times, please check the module and repair it\n", rest_cnt);
+        //if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
+        if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM) {
+            connHandle.conn = CONN_BUSYING;
+            flag = api_comm_connect(paras_get_port());
+            if(flag) {
+                connHandle.conn_cnt = 0;
+                connHandle.rst_cnt = 0;
+                connHandle.conn = CONN_SUCCESS;
+                LOGD("___ api_comm_connect ok!\n");
             }
+            else {
+                connHandle.conn = CONN_FAILED;
+                LOGD("___ api_comm_connect fail!\n");
+            }
+
+#if 1
+            connHandle.conn_cnt++;
+            LOGD("___ ad module conn times: %d\n", connHandle.conn_cnt);
+            
+            if(connHandle.conn_cnt>0 && (connHandle.conn_cnt%CONN_MAX==0)) {
+                hal_at_reset();
+                connHandle.rst_cnt++;
+                LOGD("___ ad module reset: %d\n", connHandle.rst_cnt);
+                
+                if(connHandle.rst_cnt>0 && (connHandle.rst_cnt%REST_MAX==0)) {
+                    LOGE("___ ad module reset reach % times, please check the module and repair it\n", connHandle.rst_cnt);
+                }
+            }
+#endif
         }
+        
+        osDelay(1000);
     }
-    LOGD("___ quit task_conn_fn ...\n");
-		
-    connThdId = NULL;
-    osThreadExit();
 }
 
 
@@ -197,15 +219,20 @@ fail:
 }
 
 
-static void print_time(char *s, date_time_t *dt)
+static void print_time(char *s, datetime_t *dt)
 {
     LOGD("%s %4d.%02d.%02d-%02d-%02d:%02d:%02d\n", s, dt->date.year,dt->date.mon,dt->date.day,
                                                    dt->date.week,dt->time.hour,dt->time.min,dt->time.sec);
 }
+static void die(void)
+{
+    LOGD("___ die to wait power off...\n");
+    while(1);
+}
 static void pwroff_polling(void)
 {
-    int r,finish=0;
-    U32 runtime,countdown;
+    U32 runtime;
+    int r,finish=0,countdown;
     gbl_var_t  *var=&allPara.var;
     smp_para_t *smp=paras_get_smp();
     
@@ -218,37 +245,87 @@ static void pwroff_polling(void)
         //缓存数据是否保存完毕
         finish = api_nvm_is_finished();
         if(!finish) {
-            LOGW("___ capture is not finished， pwroff disable!\n");
+            LOGW("___ capture is not finished, pwroff disable!\n");
             return;
         }
         
         //以上都完成时才可以关机
         r = rtc2_get_runtime(&runtime);
         if(r==0) {      //获取运行时间成功才可以进行下面流程
-            countdown = (smp->worktime>(runtime+3))?(smp->worktime- runtime):3;
+            LOGD("____ psrc: %d, finish: %d, runtime: %lu, workInterval: %d\n", var->psrc, finish, runtime, smp->workInterval);
             
-            LOGD("____ psrc: %d, finish: %d, runtime: %lu, worktime: %d, countdown: %d\n", var->psrc, finish, runtime, smp->worktime, countdown);
-            if(var->psrc==1) {      //rtc poweron
-                if(((finish==2) || ((finish==1) && (runtime>=30))) && (countdown>=3)) {
+            if(var->psrc==PWRON_RTC) {      //rtc poweron
+                if((finish==2) || ((finish==1) && (runtime>=RUNTIME_MAX))) {
+                    //api_comm_disconnect();      //断开连接, 该操作耗时较长
                     
-                    api_comm_disconnect();      //断开连接
-                    at_hal_power(0);            //关4g模组
+                    countdown = smp->workInterval- runtime;
                     
-                    countdown -= 2;     //减2为修正值
-                    LOGD("____ rtc2_set_countdown, %d\n", countdown);
+                    if(countdown>=COUNTDOWN_MIN) {
+                        countdown -= 2;     //减2为修正值
+                    }
+                    else {
+                        countdown = smp->workInterval;
+                    }
+                    
                     r = rtc2_set_countdown(countdown);
                     if(r==0) {
-                        while(1);
+                        //添加拉高timer管脚的操作
+                        dal_gpio_set_hl(hpwr, 1);           //v136版本增加了一个硬件timer, 关机时需要拉高一下连接timer的引脚
+                        die();
                     }
                 }
             }
-            else {                  //manual poweron
+            else if(var->psrc==PWRON_MANUAL) {                  //manual poweron
                 //delay powerdown??
             }
         }
     }
     
 }
+
+
+void rtc_test(void)
+{
+    int i,r,cnt=0;
+    U32 runtime,countdown;
+
+#if 1
+    #undef RUNTIME_MAX
+    #undef COUNTDOWN_MIN
+    
+    #define RUNTIME_MAX     3
+    #define COUNTDOWN_MIN   3
+#endif
+    
+    while(1) {
+        r = rtc2_get_runtime(&runtime);
+        if(r==0) {      //获取运行时间成功才可以进行下面流程
+            
+            LOGD("___ runtime: %d\n", runtime);
+            if((runtime>=RUNTIME_MAX)) {
+                
+                countdown = COUNTDOWN_MIN;
+                LOGD("____ countdown: %d\n", countdown);
+                
+                r = rtc2_set_countdown(countdown);
+                if(r==0) {
+                    LOGD("____ die to power off\n");
+                    while(1);
+                }
+            }
+        }
+        
+        dal_delay_ms(1000);
+    }
+}
+
+void pwroff_polling_test(void)
+{
+    rtc_test();
+    //rtc2_test();
+}
+
+
 static F32 get_temp(dal_adc_data_t *adc)
 {
     int r;
@@ -264,7 +341,7 @@ static void stat_polling(void)
     int r;
     F32 temp;
     stat_data_t stat;
-    sig_stat_t sig;
+    signal_info_t si;
     dal_adc_data_t da;
     static U8 send_flag=0;
     mqtt_pub_para_t pub_para={DATA_LT};
@@ -273,18 +350,21 @@ static void stat_polling(void)
         return;
     }
     
-    r = at_hal_stat(&sig);                  //信号强度和质量
+    r = hal_at_stat(&si);                  //信号强度和质量
     if(r) {
-        LOGE("___ get sig stat failed\n");
         return;
     }
+    LOGE("___ at_hal_stat ok\n");
     
     dal_adc_read(&da);
     
-    stat.rssi = sig.rssi;
-    stat.ber  = sig.ber;
-    //stat.temp = get_temp(&da);
+    stat.rssi = si.rssi;
+    stat.ber  = si.ber;
+#ifdef USE_PT1000
+    stat.temp = get_temp(&da);
+#else
     stat.temp = da.t_in;
+#endif
     stat.vbat = da.vbat;
     stat.time = rtc2_get_timestamp_ms();
     LOGD("___ pt: %.1fv, temp: %.1f, vbat: %.1f\n", da.t_pt, stat.temp, stat.vbat);
@@ -294,32 +374,18 @@ static void stat_polling(void)
         send_flag = 1;
     }
 }
-static void conn_polling()
-{
-    smp_para_t *smp=paras_get_smp();
-    
-    if(!cap_is_finished() || (paras_get_mode()==MODE_CALI)) {
-        return;
-    }
-    
-    //周期模式采样时，采样完成再启动连接，避免4g对信号造成干扰
-    if (!conn_flag  && !connThdId) {
-        start_task_simp(task_conn_fn, 2048, NULL, &connThdId);
-    }
-    
-    if(conn_flag) {
-        //api_comm_send_para();
-    }
-}
+
 ////////////////////////////////////////////////////////////////
 static void task_wdg_fn(void *arg)
 {
+#ifdef USE_WDG
     dal_wdg_init(WDG_TIME);
     
     while(1) {
         dal_wdg_feed();     //喂狗
         osDelay(2000);
     }
+#endif
 }
 static void polling_tmr_callback(void *arg)
 {
@@ -332,16 +398,26 @@ void task_polling_fn(void *arg)
     U8  err;
     evt_t e;
     handle_t htmr;
+    dal_gpio_cfg_t gc;
     task_handle_t *h=(task_handle_t*)arg;
     
-    LOGD("_____ task_polling running\n");
-
-    start_task_simp(task_wdg_fn, 256, NULL, NULL);
+    gc.gpio.grp = GPIOA;
+    gc.gpio.pin = GPIO_PIN_0;
+    gc.mode = MODE_OUT_PP;
+    gc.pull = PULL_NONE;
+    gc.hl = 0;;
     
+    LOGD("_____ task_polling running\n");
+    
+    start_task_simp(task_wdg_fn, 256, NULL, NULL);
+#ifdef BOARD_V136
+    hpwr = dal_gpio_init(&gc);
+#endif
     htmr = task_timer_init(polling_tmr_callback, NULL, POLL_TIME, -1);
     if(htmr) {
         task_timer_start(htmr);
     }
+    start_task_simp(task_conn_fn, 4*KB, NULL, NULL);
     
     while(1) {
         r = task_recv(TASK_POLLING, &e, sizeof(e));
@@ -350,18 +426,39 @@ void task_polling_fn(void *arg)
                 
                 case EVT_TIMER:
                 {
-                    pwroff_polling();
+#if 1
+                    //api_cap_start_all();        //finish后不可启动
+                    //stat_polling();
+                    //pwroff_polling();
+#else
+                    pwroff_polling_test();
+#endif
+                }
+                break;
+                
+                case EVT_CALI:
+                {
+                    cali_sig_t *sig=(cali_sig_t*)e.data;
                     
-                    stat_polling();
-                    //upgrade_polling();
+                    LOGD("___ cali para, ch: %hhu, lv: %hhu, max: %hhu, seq: %hhu, volt: %.1fmv, freq: %ukhz, bias: %.1fmv\n", sig->ch, sig->lv, sig->max, sig->seq, sig->volt, sig->freq, sig->bias);
+                    r = paras_set_cali_sig(sig->ch, sig);
+                    if(r==0) {
+                        api_cap_stop(sig->ch);
+                        paras_set_mode(MODE_CALI);
+                        
+                        //断4g并关断
+                        while(connHandle.conn==CONN_BUSYING) osDelay(2);
+                        api_comm_disconnect();
+                        
+                        api_cap_start(sig->ch);
+                    }
                     
-                    conn_polling();
                 }
                 break;
             }
         }
         
-        task_yield();
+        //task_yield();
     }
 }
 #endif

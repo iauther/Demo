@@ -11,5 +11,8 @@ void dal_delay_s(U32 s);
 U64 dal_get_tick_us(void);
 U32 dal_get_tick_ms(void);
 U32 dal_get_tick(void);
+
+U64 dal_get_timestamp(void);
+void dal_set_timestamp(U64 ts);
 #endif
 

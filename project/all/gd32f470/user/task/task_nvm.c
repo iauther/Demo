@@ -5,6 +5,7 @@
 #include "comm.h"
 #include "paras.h"
 #include "cfg.h"
+#include "datetime.h"
 #include "dal_delay.h"
 
 
@@ -38,7 +39,7 @@ static int data_to_file(ch_data_t *pch)
 {
     int r;
     char path[100];
-    date_time_t dt;
+    datetime_t dt;
     handle_t fh=NULL;
     int flen,tlen;
     ch_para_t *para=paras_get_ch_para(pch->ch);
@@ -85,7 +86,7 @@ static int data_to_file(ch_data_t *pch)
         fs_write(fh, pch->data, pch->wavlen, 0);
     }
     
-    rtc2_ts_to_dt(&dt, pch->time/1000);
+    ts_to_tm(pch->time, &dt);
     rtc2_print_time("data_save ts:", &dt);
     
     if(pch->evlen>0) {
@@ -122,7 +123,7 @@ static int data_to_list(ch_data_t *pch)
 static int data_save_csv(ch_data_t *pch)
 {
     int r,i,j;
-    date_time_t dt;
+    datetime_t dt;
     handle_t fh=NULL;
     char path[100];
     int flen,wlen,maxCnt,maxLen;
@@ -211,9 +212,9 @@ static int data_upload(node_t *node)
             return -1;                  //打开文件失败
         }
         
-        pbuf=eMalloc(flen);
+        pbuf=eCalloc(flen);
         if(!pbuf) {
-            LOGE("___ eMalloc fbuf failed\n");
+            LOGE("___ eCalloc fbuf failed\n");
             return -1;                  //分配内存失败
         }
         fs_read(h, pbuf, flen);
@@ -238,8 +239,8 @@ static int data_upload(node_t *node)
     
     r = comm_send_data(tasksHandle.hconn, &pub_para, TYPE_CAP, 0, pch, dlen);
     if(r==0) {
-        date_time_t dt;
-        rtc2_ts_to_dt(&dt, pch->time/1000);
+        datetime_t dt;
+        ts_to_tm(pch->time, &dt);
         
         LOGD("____comm_send_data len: %d, wavlen: %d\n", dlen, pch->wavlen);
         rtc2_print_time("timestamp:", &dt);
@@ -306,6 +307,9 @@ static void file_scan(void)
     list_cfg_t lc;
     
     lc.max = -1;
+    lc.log = 1;
+    lc.mode = MODE_FULL_FIFO;
+    
     nvmHandle.dlist = list_init(&lc);
 
 #ifdef USE_FILE
@@ -356,19 +360,17 @@ int api_nvm_send(void *data, int len)
 int api_nvm_is_finished(void)
 {
     U8 ch;
-    int finished;
+    int finished=0;
     int cap_finished=1;
     int send_finished=1;
-    ch_para_t *pc=NULL;
-    ch_paras_t *pcs=NULL;
+    ch_para_t *pch=NULL;
     
     for(ch=0; ch<CH_MAX; ch++) {
-        pc = paras_get_ch_para(ch);
-        pcs = paras_get_ch_paras(ch);
+        pch = paras_get_ch_para(ch);
         
-        if(pcs->enable) {
-            if(nvmHandle.busying || (nvmHandle.times[ch].cap<pc->smpTimes)) {
-                LOGD("______ is_finished, ch[%d], busying: %d, times: %d, smpTimes: %d\n", ch, nvmHandle.busying, nvmHandle.times[ch].send, pc->smpTimes);
+        if(pch->enable) {
+            if(nvmHandle.busying || (nvmHandle.times[ch].cap<pch->smpTimes)) {
+                LOGD("______ is_finished, ch[%d]: 0, busying: %d, times: %d, smpTimes: %d\n", ch, nvmHandle.busying, nvmHandle.times[ch].send, pch->smpTimes);
                 cap_finished = 0;
                 break;
             }
@@ -376,11 +378,10 @@ int api_nvm_is_finished(void)
     }
     
     for(ch=0; ch<CH_MAX; ch++) {
-        pc = paras_get_ch_para(ch);
-        pcs = paras_get_ch_paras(ch);
+        pch = paras_get_ch_para(ch);
         
-        if(pcs->enable) {
-            if(nvmHandle.times[ch].send<pc->smpTimes) {
+        if(pch->enable) {
+            if(nvmHandle.times[ch].send<pch->smpTimes) {
                 send_finished = 0;
             }
         }

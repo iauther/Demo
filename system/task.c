@@ -370,6 +370,13 @@ U32 task_stack_remain(void)
 }
 
 
+void test_main(void)
+{
+    while(1);
+}
+
+
+
 #endif
 
 

@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define EVT_DATA_LEN_MAX   240
+#define EVT_DATA_LEN_MAX   64
 
 enum {
     EVT_ADS=0,
@@ -17,6 +17,7 @@ enum {
     
     EVT_TIMER,
     EVT_SAVE,
+    EVT_CALI,
     
 };
 

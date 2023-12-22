@@ -6,8 +6,14 @@
 #include "log.h"
 
 
-#ifndef __MICROLIB
-
+#ifdef __MICROLIB
+int fputc(int ch, FILE *p)
+{
+    handle_t h=log_get_handle();
+	dal_uart_rw(h, (u8*)&ch, 1, 1);	
+	return ch;
+}
+#else
 #if (__ARMCC_VERSION<6000000)
 #pragma import(__use_no_semihosting)
 #pragma import(__use_no_semihosting_swi)
@@ -196,36 +202,29 @@ void _sys_exit (int return_code) {
     /* Endless loop. */
     while (1);
 }
-#else
-int fputc(int ch, FILE *p)
-{
-    handle_t h=log_get_handle();
-	dal_uart_rw(h, (u8*)&ch, 1, 1);	
-	return ch;
-}
-
 #endif
 
 
 
-#if 0//def OS_KERNEL
+#ifdef OS_KERNEL
 typedef void* mutex;
 #include "lock.h"
 int __attribute__((weak)) _mutex_initialize(mutex *m)
 {
+    *m = lock_init();
     return 1;
 }
 void __attribute__((weak)) _mutex_acquire(mutex *m)
 {
-    lock_static_hold(LOCK_IMEM);
+    lock_on(*m);
 }
 void __attribute__((weak)) _mutex_release(mutex *m)
 {
-    lock_static_release(LOCK_IMEM);
+    lock_off(*m);
 }
 void __attribute__((weak)) _mutex_free(mutex *m)
 {
-    
+    lock_free(*m);
 }
 #endif
 

@@ -11,13 +11,6 @@ enum {
     ADC_MAX
 };
 
-enum {
-    CH_0=0,
-    CH_1,
-    
-    CH_MAX
-};
-
 
 typedef void (*adc_callback_t)(U16 *data, U32 cnt);
 

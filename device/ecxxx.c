@@ -1,9 +1,9 @@
 #include "ecxxx.h"
 #include "dal_gpio.h"
 #include "dal_delay.h"
+#include "mem.h"
 #include "rtc.h"
 #include "dal.h"
-#include "date.h"
 #include "log.h"
 #include "net.h"
 
@@ -295,7 +295,10 @@ handle_t ecxxx_init(ecxxx_cfg_t *cfg)
     uc.mode = MODE_IT;
     uc.port = h->cfg.port;
     uc.msb  = 0;
-    uc.para.callback = ec_recv_callback;
+    uc.callback = ec_recv_callback;
+    uc.rx.blen = 2000;
+    uc.rx.buf = iMalloc(uc.rx.blen);
+    uc.rx.dlen = 0;
     
     h->hurt = dal_uart_init(&uc);
     
@@ -532,7 +535,7 @@ int ecxxx_ntp(handle_t h, char *server, U16 port)
 {
     int r;
     char tmp[100];
-    date_time_t dt;
+    datetime_t dt;
     ecxxx_handle_t* eh=(ecxxx_handle_t*)h;
     
     if(!eh) {

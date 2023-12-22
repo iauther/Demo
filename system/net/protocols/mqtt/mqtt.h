@@ -47,7 +47,7 @@ handle_t mqtt_conn(conn_para_t *para, void *userdata);
 int mqtt_disconn(handle_t hconn);
 int mqtt_pub(handle_t hconn, void *para, void *data, int len);
 int mqtt_sub(handle_t hconn, void *para);
-int mqtt_req_cfg(handle_t hconn);
+int mqtt_req(handle_t hconn);
 int mqtt_ntp_synced(void);
 
 #ifdef __cplusplus

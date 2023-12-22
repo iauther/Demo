@@ -1,5 +1,5 @@
 #include "paras.h"
-#include "date.h"
+#include "datetime.h"
 #include "nvm.h"
 #include "cfg.h"
 #include "fs.h"
@@ -20,6 +20,7 @@ int paras_load(void)
     fw_info_t *fw=&allPara.sys.fwInfo;
     
     allPara = DFLT_PARA;
+    LOGD("___fw version: %s\n", fw->version);
     
 #ifndef DEV_MODE_DEBUG
     flen = fs_lengthx(FILE_PARA);
@@ -31,7 +32,7 @@ int paras_load(void)
     }
 #endif
     
-    dal_rtc_get(&allPara.var.state.dt);
+    dal_rtc_get_time(&allPara.var.state.dt);
     allPara.sys.devInfo.devID = dal_get_chipid();
     get_datetime_str(fw->bldtime, sizeof(fw->bldtime));
     
@@ -161,20 +162,11 @@ ch_para_t* paras_get_ch_para(U8 ch)
     if(ch>=CH_MAX) {
         return NULL;
     }
-    U8 mode=allPara.usr.smp.mode;
-    ch_paras_t *p=&allPara.usr.smp.ch[ch];
-    
-    return &p->para[mode];
-}
-
-
-ch_paras_t* paras_get_ch_paras(U8 ch)
-{
-    if(ch>=CH_MAX) {
-        return NULL;
-    }
     return &allPara.usr.smp.ch[ch];
 }
+
+
+
 
 int paras_get_smp_points(U8 ch)
 {
@@ -207,12 +199,45 @@ int paras_save(void)
     p->usr = allPara.usr;
     p->var = DFLT_PARA.var;
     
-    //p->usr.smp.mode = MODE_NORM;        //其它模式不保存
+    p->usr.smp.mode = MODE_NORM;        //其它模式不保存
     r = fs_savex(FILE_PARA, p, sizeof(all_para_t));
     free(p);
     
     return r;
 }
+
+
+int paras_save_json(void *data, int len)
+{
+    int r;
+    usr_para_t *usr=NULL;
+    all_para_t *p=malloc(sizeof(all_para_t));
+    
+    if(!p || len<=0) {
+        return -1;
+    }
+    
+    usr = malloc(sizeof(usr_para_t));
+    if(!usr) {
+        free(p);
+        return -1;
+    }
+    
+    memcpy(p, &DFLT_PARA, sizeof(all_para_t));
+    r = json_to((char*)data, usr);
+    if(r==0) {
+        if(memcmp(usr, &p->usr, sizeof(usr_para_t))) {
+            r = fs_savex(FILE_PARA, p, sizeof(all_para_t));
+        }
+        else {
+            r = -1;
+        }
+    }
+    free(usr); free(p);
+    
+    return r;
+}
+
 
 
 int paras_factory(void)
@@ -238,7 +263,7 @@ int paras_check(all_para_t *all)
     //if(all->usr.card.auth>=0)
    
     
-    ch_paras_t *ch=all->usr.smp.ch;
+    ch_para_t *ch=all->usr.smp.ch;
     
     for(i=0; i<CH_MAX; i++) {
         if(ch[i].ch!=i) {

@@ -10,7 +10,7 @@
 #include "dac.h"
 #include "dsp.h"
 #include "power.h"
-#include "hw_at_impl.h"
+#include "hal_at_impl.h"
 
 
 dac_param_t dac_param;
@@ -75,7 +75,7 @@ static U64 get_start_time(U8 ch, U32 cnt)
 static void volt_convert(U8 ch, F32 *f, U16 *u, U32 cnt)
 {
     U32 i;
-    coef_t *coef=&paras_get_ch_paras(ch)->coef;
+    coef_t *coef=&paras_get_ch_para(ch)->coef;
     
     for(i=0; i<cnt; i++) {
         f[i] = (MVOLT(u[i])-coef->b)/coef->a;
@@ -136,79 +136,79 @@ static int cali_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
     static F32 rms2[CALI_MAX][CALI_CNT];
     static coef_t coef[CALI_CNT];
     F32 rms,x=0.0f,y=0.0f;
-    ch_para_t *pc=paras_get_ch_para(ch);
-    ch_paras_t *pcs=paras_get_ch_paras(ch);
+    ch_para_t *pch=paras_get_ch_para(ch);
     cali_t *cali=paras_get_cali(ch);
 
-    if(cali->sig.seq<=cali->sig.max) {
+    if(cali->sig.seq>cali->sig.max || cali->cnt>CALI_CNT) {
+        return -1;
+    }
         
-        for(i=0; i<cnt; i++) {
-            f[i] = MVOLT(u[i]); 
-            y += f[i];
-        }
+    for(i=0; i<cnt; i++) {
+        f[i] = MVOLT(u[i]); 
+        y += f[i];
+    }
+    
+    dsp_ev_calc(EV_RMS, f, cnt, pch->smpFreq, &rms);
+    
+    if(cali->sig.max==1) {      //1次校准
         
-        dsp_ev_calc(EV_RMS, f, cnt, pc->smpFreq, &rms);
-        
-        if(cali->sig.max==1) {      //1次校准
+        if(cali->cnt<CALI_CNT) {
+            y /= cnt;
             
-            if(cali->cnt<CALI_CNT) {
-                y /= cnt;
-                
-                coef[cali->cnt].a = rms/cali->rms[0].in;
-                coef[cali->cnt].b = cali->sig.bias - (coef[cali->cnt].a*y);
+            coef[cali->cnt].a = rms/cali->rms[0].in;
+            coef[cali->cnt].b = cali->sig.bias - (coef[cali->cnt].a*y);
+        }
+        else {
+            pch->coef = average_coef(coef, CALI_CNT);
+            
+            LOGD("____cali: coef.a: %f, coef.b: %f\n", pch->coef.a, pch->coef.b);
+            r = 1;
+        }
+    }
+    else { //多次校准
+        if(cali->cnt<CALI_CNT) {
+            rms2[cali->sig.seq-1][cali->cnt] = rms;
+        }
+        else if (cali->cnt==CALI_CNT){
+            
+            //LOGD("______ rms: %f\n", rms);
+            if(cali->sig.seq<cali->sig.max) {
+                LOGD("--- cali seq %d finished, input %d cali para please\n", cali->sig.seq, cali->sig.seq+1);
             }
             else {
-                pcs->coef = average_coef(coef, CALI_CNT);
+                int xcnt;
+                F32 a=0.0f,b=0.0f,x;
+
+#if 0//def USE_COEF_B
+                for(i=0; i<cali->sig.max; i++) {
+                    cali->rms[i].out = average_f32(rms2[i], CALI_CNT);
+                }
                 
-                LOGD("____cali: coef.a: %f, coef.b: %f\n", pcs->coef.a, pcs->coef.b);
+                xcnt = cali->sig.max/2;
+                for(i=0; i<xcnt; i++) {
+                    a += (cali->rms[i*2+1].out-cali->rms[i*2].out)/(cali->rms[i*2+1].in-cali->rms[i*2].in);
+                    b += cali->rms[i*2].out - a*cali->rms[i*2].in;
+                }
+                
+                pcs->coef.a = a/xcnt;
+                pcs->coef.b = b/xcnt;
+#else
+                for(i=0; i<cali->sig.max; i++) {
+                    cali->rms[i].out = average_f32(rms2[i], CALI_CNT);
+                    x = cali->rms[i].out/cali->rms[i].in;
+                    a += x;
+                    LOGD("___ %d, rms.in: %f, rms.out: %f, coef.a: %f\n", i, cali->rms[i].in, cali->rms[i].out, x);
+                }
+                
+                pch->coef.a = a/cali->sig.max;
+                pch->coef.b = 0;
+#endif
+                LOGD("____cali: coef.a: %f, coef.b: %f\n", pch->coef.a, pch->coef.b);
                 r = 1;
             }
         }
-        else { //多次校准
-            if(cali->cnt<CALI_CNT) {
-                rms2[cali->sig.seq-1][cali->cnt] = rms;
-            }
-            else if (cali->cnt==CALI_CNT){
-                
-                //LOGD("______ rms: %f\n", rms);
-                if(cali->sig.seq<cali->sig.max) {
-                    LOGD("--- cali seq %d finished, input %d cali para please\n", cali->sig.seq, cali->sig.seq+1);
-                }
-                else {
-                    int xcnt;
-                    F32 a=0.0f,b=0.0f,x;
-
-#if 0//def USE_COEF_B
-                    for(i=0; i<cali->sig.max; i++) {
-                        cali->rms[i].out = average_f32(rms2[i], CALI_CNT);
-                    }
-                    
-                    xcnt = cali->sig.max/2;
-                    for(i=0; i<xcnt; i++) {
-                        a += (cali->rms[i*2+1].out-cali->rms[i*2].out)/(cali->rms[i*2+1].in-cali->rms[i*2].in);
-                        b += cali->rms[i*2].out - a*cali->rms[i*2].in;
-                    }
-                    
-                    pcs->coef.a = a/xcnt;
-                    pcs->coef.b = b/xcnt;
-#else
-                    for(i=0; i<cali->sig.max; i++) {
-                        cali->rms[i].out = average_f32(rms2[i], CALI_CNT);
-                        x = cali->rms[i].out/cali->rms[i].in;
-                        a += x;
-                        LOGD("___ %d, rms.in: %f, rms.out: %f, coef.a: %f\n", i, cali->rms[i].in, cali->rms[i].out, x);
-                    }
-                    
-                    pcs->coef.a = a/cali->sig.max;
-                    pcs->coef.b = 0;
-#endif
-                    LOGD("____cali: coef.a: %f, coef.b: %f\n", pcs->coef.a, pcs->coef.b);
-                    r = 1;
-                }
-            }
-        }
-        cali->cnt++;
     }
+    cali->cnt++;
     
     return r;
 }
@@ -227,101 +227,111 @@ static void vib_data_callback(U16 *data, U32 cnt)
 }
 
 
+static void ads_cali_proc(U8 ch, raw_data_t *raw, U16 *data, int cnt)
+{
+    int r;
+    cali_t *cali=paras_get_cali(ch); 
+        
+    r = cali_calc(ch, raw->data, data, cnt);
+    if(r==1) {
+        task_trig(TASK_NVM, EVT_SAVE);
+        api_cap_stop(ch);
+    }
+}
+static void ads_cap_proc(U8 ch, raw_data_t *raw, U16 *data, int cnt)
+{
+    int r;
+    task_buf_t *tb=&taskBuffer;
+    handle_t list=tb->var[ch].raw;
+    U64 stime=get_start_time(ch, cnt);
+    U32 buflen=tb->var[ch].cap.blen;
+    U32 tlen=cnt*sizeof(raw_t)+sizeof(raw_data_t);
+    ch_var_t *cv=&tb->var[ch];
+    ch_para_t *para=paras_get_ch_para(ch);
+    
+    int smp_len=para->smpPoints*sizeof(U16);
+    int t_slen=(para->smpInterval/1000000)*(para->smpFreq*sizeof(U16));
+    int data_len=cnt*2;
+    
+    U16 *real_data=data;
+    int   real_len=data_len;
+    
+    dac_data_fill(data, cnt);
+    
+    if(para->smpMode==SMP_PERIOD_MODE) {
+            
+        if(cv->times>=para->smpTimes) {
+            return;
+        }
+        
+        //达到设定的单次采样长度后，开始数据跳帧
+        if(cv->rlen>=smp_len) {
+            
+            //超过设定的采集间隔长度时，按设定值截取
+            if(cv->slen+data_len>=t_slen) {
+                int x=t_slen-cv->slen;
+                real_len -= x;
+                real_data += x/sizeof(U16);
+                
+                cv->rlen = 0;
+                cv->slen = 0;
+            }
+            else {
+                cv->slen += data_len;
+                real_len = 0;       //skip data
+            }
+        }
+        else {
+            
+            if(cv->rlen+data_len>=smp_len) {
+                real_len = smp_len-cv->rlen;
+                cv->rlen = smp_len;
+            }
+            else {
+                cv->rlen += data_len;
+            }
+        } 
+    }
+
+    if(real_len>0) {
+        int xcnt=real_len/sizeof(U16);
+        raw->time = stime;
+        
+        ori_rms_print(ch, real_data, xcnt);     //just for debug
+        
+        volt_convert(ch, raw->data, real_data, xcnt);
+        
+        //LOGD("_____ ch[%d]  rlen: %d, smplen: %d, skplen: %d, t_skplen: %d, times: %d, real_len: %d\n", ch, cv->rlen, smp_len, cv->slen, t_slen, cv->times, real_len);
+        tlen = xcnt*sizeof(raw_t)+sizeof(raw_data_t);
+        r = list_append(list, 0, raw, tlen);
+
+        
+        if(cv->rlen+data_len>=smp_len) {
+            cv->times++;
+        }
+        
+        //周期采样时，达到设定的次数则停止采样
+        if(cv->times>=para->smpTimes) {
+            cv->rlen = 0; cv->slen = 0;
+            api_cap_power(ch, 0);
+            paras_set_finished(ch, 1);
+        }
+        //LOGD("__1__%dms\n", dal_get_tick());
+    }
+}
 
 static int ads_data_proc(U8 ch, node_t *nd)
 {
-    int i,r,cnt=nd->dlen/2;
+    int cnt=nd->dlen/2;
     U8 mode=paras_get_mode();
-    ch_para_t *para=paras_get_ch_para(ch);
     task_buf_t *tb=&taskBuffer;
-    ch_var_t *cv=&tb->var[ch];
-    handle_t list=tb->var[ch].raw;
     raw_data_t *raw=(raw_data_t*)tb->var[ch].cap.buf;
-    int smp_len=para->smpPoints*sizeof(U16);
-    int t_slen=(para->smpInterval/1000000)*(para->smpFreq*sizeof(U16));
-    int data_len=nd->dlen;
-    
-    U16 *real_data=(U16*)nd->buf;
-    int   real_len=data_len;
     
     if(mode==MODE_CALI) {
-        
-        cali_t *cali=paras_get_cali(ch); 
-        
-        r = cali_calc(ch, raw->data, real_data, cnt);
-        if(r) {
-            task_trig(TASK_NVM, EVT_SAVE);
-             
-            api_cap_stop(ch);
-        }
+        ads_cali_proc(ch, raw, (U16*)nd->buf, cnt);
     }
     else {
-        U64 stime=get_start_time(ch, cnt);
-        U32 buflen=tb->var[ch].cap.blen;
-        U32 tlen=cnt*sizeof(raw_t)+sizeof(raw_data_t);
-        
-        dac_data_fill(real_data, cnt);       //output to dac
-        
-        
-        if(para->smpMode==SMP_PERIOD_MODE) {
-            
-            if(cv->times>=para->smpTimes) {
-                return -1;
-            }
-            
-            //达到设定的单次采样长度后，开始数据跳帧
-            if(cv->rlen>=smp_len) {
-                
-                //超过设定的采集间隔长度时，按设定值截取
-                if(cv->slen+data_len>=t_slen) {
-                    int x=t_slen-cv->slen;
-                    real_len -= x;
-                    real_data += x/sizeof(U16);
-                    
-                    cv->rlen = 0;
-                    cv->slen = 0;
-                }
-                else {
-                    cv->slen += data_len;
-                    real_len = 0;       //skip data
-                }
-            }
-            else {
-                
-                if(cv->rlen+data_len>=smp_len) {
-                    real_len = smp_len-cv->rlen;
-                    cv->rlen = smp_len;
-                }
-                else {
-                    cv->rlen += data_len;
-                }
-            } 
-        }
-        
-        if(real_len>0) {
-            int xcnt=real_len/sizeof(U16);
-            raw->time = stime;
-            
-            ori_rms_print(ch, real_data, xcnt);     //just for debug
-            
-            volt_convert(ch, raw->data, real_data, xcnt);
-            
-            //LOGD("_____ ch[%d]  rlen: %d, smplen: %d, skplen: %d, t_skplen: %d, times: %d, real_len: %d\n", ch, cv->rlen, smp_len, cv->slen, t_slen, cv->times, real_len);
-            tlen = xcnt*sizeof(raw_t)+sizeof(raw_data_t);
-            r = list_append(list, 0, raw, tlen);
-            
-            if(cv->rlen+data_len>=smp_len) {
-                cv->times++;
-            }
-            
-            //周期采样时，达到设定的次数则停止采样
-            if(cv->times>=para->smpTimes) {
-                cv->rlen = 0; cv->slen = 0;
-                api_cap_power(ch, 0);
-                paras_set_finished(ch, 1);
-            }
-            //LOGD("__1__%dms\n", dal_get_tick());
-        }
+        ads_cap_proc(ch, raw, (U16*)nd->buf, cnt);
     }
     
     return 0;
@@ -339,7 +349,7 @@ static int ads_init(void)
     points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;            //10ms
     
     len = points*sizeof(U16)*2;         //*2表示双buffer
-    ac.buf.rx.buf  = (U8*)eMalloc(len);
+    ac.buf.rx.buf  = (U8*)eCalloc(len);
     ac.buf.rx.blen = len;
     
     ac.freq = para->smpFreq;
@@ -348,10 +358,12 @@ static int ads_init(void)
     r = ads9120_init(&ac);
     
     dp.freq = para->smpFreq;
-    dp.points = points;
-    dp.enable = allPara.usr.dac.enable;
+    dp.enable = 0; //allPara.usr.dac.enable;
     dp.fdiv   = allPara.usr.dac.fdiv;
-    dac_set(&dp);
+    dp.buf.blen = points*sizeof(U16)/dp.fdiv;
+    dp.buf.buf  = eCalloc(dp.buf.blen);
+    dac_init(&dp);
+
 
 #ifdef AUTO_CAP
     if(paras_get_mode()!=MODE_CALI) {
@@ -375,13 +387,17 @@ static int vib_init(void)
 /////////////////////////////////////////////////
 int api_cap_start(U8 ch)
 {
-    ch_paras_t *p=paras_get_ch_paras(ch);
+    ch_para_t *pch=paras_get_ch_para(ch);
     
-    if(!p->enable) {
+    if(!pch->enable) {
         return -1;
     }
     
-    at_hal_power(0);        //启动采集时先关4g模组
+    if(paras_get_state(ch)==STAT_RUN) {
+        return 0;
+    }
+    
+    hal_at_power(0);        //启动采集时先关4g模组
     
     if(ch==CH_0) {
         ads9120_enable(1);
@@ -399,9 +415,9 @@ int api_cap_stop(U8 ch)
 {
     int i;
     task_buf_t *tb=&taskBuffer;
-    ch_paras_t *p=paras_get_ch_paras(ch);
+    ch_para_t *pch=paras_get_ch_para(ch);
     
-    if(!p->enable) {
+    if(!pch->enable) {
         return -1;
     }
     
@@ -449,9 +465,9 @@ int api_cap_stop_all(void)
 
 int api_cap_power(U8 ch, U8 on)
 {
-    ch_paras_t *p=paras_get_ch_paras(ch);
+    ch_para_t *pch=paras_get_ch_para(ch);
     
-    if(!p->enable) {
+    if(!pch->enable) {
         return -1;
     }
     
@@ -505,7 +521,7 @@ void task_data_cap_fn(void *arg)
             break;
         }
         
-        task_yield();
+        //task_yield();
     }
 }
 #endif

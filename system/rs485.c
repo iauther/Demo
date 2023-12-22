@@ -1,5 +1,6 @@
 #include "dal_uart.h"
 #include "dal_gpio.h"
+#include "mem.h"
 #include "rs485.h"
 
 #define RX_BUF_LEN  1000
@@ -33,8 +34,8 @@ static int rs485_recv_callback(handle_t h, void *addr, U32 evt, void *data, int 
 
 int rs485_init(rs485_cfg_t *cfg)
 {
-    dal_uart_cfg_t ucfg;
-    dal_gpio_cfg_t gcfg;
+    dal_uart_cfg_t uc;
+    dal_gpio_cfg_t gc;
     rs485_handle_t *h=NULL;
     
     if(!cfg) {
@@ -47,18 +48,22 @@ int rs485_init(rs485_cfg_t *cfg)
     }
     h->cfg = *cfg;
     
-    ucfg.baudrate = cfg->baudrate;
-    ucfg.mode = MODE_IT;
-    ucfg.port = cfg->port;
-    ucfg.msb  = 0;
-    ucfg.para.callback = rs485_recv_callback;
-    h->hurt = dal_uart_init(&ucfg);
+    uc.baudrate = cfg->baudrate;
+    uc.mode = MODE_IT;
+    uc.port = cfg->port;
+    uc.msb  = 0;
+    uc.callback = rs485_recv_callback;
+    uc.rx.blen = 2000;
+    uc.rx.buf = iMalloc(uc.rx.blen);
+    uc.rx.dlen = 0;
     
-    gcfg.gpio.grp = GPIOB;
-    gcfg.gpio.pin = GPIO_PIN_0;
-    gcfg.mode = MODE_OUT_PP;
-    gcfg.pull = PULL_NONE;
-    h->hde = dal_gpio_init(&gcfg);
+    h->hurt = dal_uart_init(&uc);
+
+    gc.gpio.grp = GPIOC;
+    gc.gpio.pin = GPIO_PIN_5;
+    gc.mode = MODE_OUT_PP;
+    gc.pull = PULL_NONE;
+    h->hde = dal_gpio_init(&gc);
     dal_gpio_set_hl(h->hde, 0);         //recv mode
     
     h->rxLen = 0;

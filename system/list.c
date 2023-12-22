@@ -264,7 +264,7 @@ int list_free(handle_t l)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_free lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_free lock failed\n");
         return -1;
     }
     
@@ -300,7 +300,7 @@ int list_get_node(handle_t l, list_node_t **lnode, int index)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_get lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_get lock failed\n");
         return -1;
     }
     
@@ -331,7 +331,7 @@ int list_set_node(handle_t l, list_node_t *lnode, int index)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_set lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_set lock failed\n");
         return -1;
     }
     
@@ -361,7 +361,7 @@ int list_take_node(handle_t l, list_node_t **lnode, int index)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_take_node lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_take_node lock failed\n");
         return -1;
     }
     
@@ -393,7 +393,7 @@ int list_back_node(handle_t l, list_node_t *lnode)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_back_node lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_back_node lock failed\n");
         return -1;
     }
     
@@ -413,7 +413,7 @@ int list_discard_node(handle_t l, list_node_t *lnode)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_discard_node lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_discard_node lock failed\n");
         return -1;
     }
     node_free(l, lnode);
@@ -436,20 +436,20 @@ int list_addto(handle_t l, node_t *node, int index)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_addto lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_addto lock failed\n");
         return -1;
     }
     
     dl = &hl->used;
     if (index>dl->size) {
-        LOGE("list_addto, invalid index, size: %d, index: %d\n", dl->size, index);
+        if (hl->cfg.log) LOGE("list_addto, invalid index, size: %d, index: %d\n", dl->size, index);
         lock_off(hl->lock);
         return -1;
     }
     
     if (hl->cfg.max>0 && dl->size>=hl->cfg.max) {
         
-        if(hl->cfg.mode==MODE_FILO) {
+        if(hl->cfg.mode==MODE_FULL_FILO) {
             //LOGW("___ list is full, FILO mode, new data is discard\n");
             lock_off(hl->lock);
             return 0;
@@ -463,7 +463,7 @@ int list_addto(handle_t l, node_t *node, int index)
     
     tmp = node_new(hl, node);
     if(!tmp) {
-        LOGE("list_addto, malloc %d error, l: 0x%08x, used.size: %d, free.size: %d\n", node->dlen, (U32)hl, hl->used.size, hl->free.size);
+        if (hl->cfg.log) LOGE("list_addto, malloc %d error, l: 0x%08x, used.size: %d, free.size: %d\n", node->dlen, (U32)hl, hl->used.size, hl->free.size);
         lock_off(hl->lock);
         return -1;
     }
@@ -523,20 +523,20 @@ int list_add_node(handle_t l, list_node_t *lnode, int index)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_addto lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_addto lock failed\n");
         return -1;
     }
     
     dl = &hl->used;
     if (index>dl->size) {
-        LOGE("list_addto, invalid index, size: %d, index: %d\n", dl->size, index);
+        if (hl->cfg.log) LOGE("list_addto, invalid index, size: %d, index: %d\n", dl->size, index);
         lock_off(hl->lock);
         return -1;
     }
     
     if (hl->cfg.max>0 && dl->size>=hl->cfg.max) {
         
-        if(hl->cfg.mode==MODE_FILO) {
+        if(hl->cfg.mode==MODE_FULL_FILO) {
             //LOGW("___ list is full, FILO mode, new data is discard\n");
             lock_off(hl->lock);
             return 0;
@@ -616,7 +616,7 @@ int list_remove(handle_t l, int index)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_remove lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_remove lock failed\n");
         return -1;
     }
     
@@ -645,7 +645,7 @@ int list_delete(handle_t l, int index)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_delete lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_delete lock failed\n");
         return -1;
     }
     
@@ -672,7 +672,7 @@ int list_sort(handle_t l, U8 order)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_size lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_size lock failed\n");
         return -1;
     }
     
@@ -717,7 +717,7 @@ int list_size(handle_t l)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_size lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_size lock failed\n");
         return -1;
     }
     
@@ -738,7 +738,7 @@ int list_clear(handle_t l)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_clear lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_clear lock failed\n");
         return -1;
     }
     
@@ -775,7 +775,7 @@ int list_iterator(handle_t l, node_t *node, list_callback_t callback, void *arg)
     }
     
     if(lock_on(hl->lock)) {
-        LOGE("___ list_iterator lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_iterator lock failed\n");
         return -1;
     }
     

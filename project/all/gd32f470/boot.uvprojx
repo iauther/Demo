@@ -10,8 +10,9 @@
       <TargetName>boot</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>6160000::V6.16::ARMCLANG</pCCUsed>
-      <uAC6>1</uAC6>
+      <pArmCC>5060960::V5.06 update 7 (build 960)::.\ARMCC</pArmCC>
+      <pCCUsed>5060960::V5.06 update 7 (build 960)::.\ARMCC</pCCUsed>
+      <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
           <Device>GD32F470ZG</Device>
@@ -276,7 +277,7 @@
               <OCR_RVCT4>
                 <Type>1</Type>
                 <StartAddress>0x8000000</StartAddress>
-                <Size>0x100000</Size>
+                <Size>0x10000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
                 <Type>1</Type>
@@ -322,7 +323,7 @@
             <PlainCh>0</PlainCh>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
-            <wLevel>3</wLevel>
+            <wLevel>2</wLevel>
             <uThumb>0</uThumb>
             <uSurpInc>0</uSurpInc>
             <uC99>1</uC99>
@@ -336,10 +337,10 @@
             <v6WtE>0</v6WtE>
             <v6Rtti>0</v6Rtti>
             <VariousControls>
-              <MiscControls></MiscControls>
-              <Define>GD32F470,BOOTLOADER=1</Define>
+              <MiscControls>--diag_suppress=111,177,550</MiscControls>
+              <Define>BOOTLOADER=1</Define>
               <Undefine></Undefine>
-              <IncludePath>./user;../../../device;../../../system;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/json;../../../midware/xmem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/mqtt;../../../system/net;../../../system/net/protocols/mqtt</IncludePath>
+              <IncludePath>./user;../../../device;../../../system;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -444,9 +445,24 @@
               <FilePath>..\..\..\system\log.c</FilePath>
             </File>
             <File>
-              <FileName>pkt.c</FileName>
+              <FileName>upgrade.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\system\pkt.c</FilePath>
+              <FilePath>..\..\..\system\upgrade.c</FilePath>
+            </File>
+            <File>
+              <FileName>retarget.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\retarget.c</FilePath>
+            </File>
+            <File>
+              <FileName>lock.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\lock.c</FilePath>
+            </File>
+            <File>
+              <FileName>main.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\main.c</FilePath>
               <FileOption>
                 <CommonProperty>
                   <UseCPPCompiler>2</UseCPPCompiler>
@@ -454,7 +470,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
+                  <IncludeInBuild>1</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -500,39 +516,60 @@
               </FileOption>
             </File>
             <File>
-              <FileName>upgrade.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\upgrade.c</FilePath>
-            </File>
-            <File>
-              <FileName>date.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\date.c</FilePath>
-            </File>
-            <File>
-              <FileName>retarget.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\retarget.c</FilePath>
-            </File>
-            <File>
-              <FileName>lock.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\lock.c</FilePath>
-            </File>
-            <File>
-              <FileName>rs485.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\rs485.c</FilePath>
-            </File>
-            <File>
-              <FileName>main.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\system\main.c</FilePath>
-            </File>
-            <File>
               <FileName>boot.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\boot.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>1</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>rtc.c</FileName>
@@ -543,6 +580,11 @@
               <FileName>md5.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\system\md5.c</FilePath>
+            </File>
+            <File>
+              <FileName>datetime.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\system\datetime.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -575,11 +617,6 @@
               <FilePath>..\..\..\platform\chip\gd\gd32f4xx\dal\dal_nor.c</FilePath>
             </File>
             <File>
-              <FileName>dal_jump.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\gd\gd32f4xx\dal\dal_jump.c</FilePath>
-            </File>
-            <File>
               <FileName>dal_rtc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\gd\gd32f4xx\dal\dal_rtc.c</FilePath>
@@ -589,11 +626,6 @@
         <Group>
           <GroupName>chip/gd32f4xx</GroupName>
           <Files>
-            <File>
-              <FileName>gd32f4xx_dbg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\gd\gd32f4xx\src\gd32f4xx_dbg.c</FilePath>
-            </File>
             <File>
               <FileName>gd32f4xx_dma.c</FileName>
               <FileType>1</FileType>
@@ -620,19 +652,9 @@
               <FilePath>..\..\..\platform\chip\gd\gd32f4xx\src\gd32f4xx_rcu.c</FilePath>
             </File>
             <File>
-              <FileName>gd32f4xx_syscfg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\gd\gd32f4xx\src\gd32f4xx_syscfg.c</FilePath>
-            </File>
-            <File>
               <FileName>gd32f4xx_usart.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\gd\gd32f4xx\src\gd32f4xx_usart.c</FilePath>
-            </File>
-            <File>
-              <FileName>gd32f4xx_spi.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\gd\gd32f4xx\src\gd32f4xx_spi.c</FilePath>
             </File>
             <File>
               <FileName>gd32f4xx_rtc.c</FileName>
@@ -645,9 +667,9 @@
               <FilePath>..\..\..\platform\chip\gd\gd32f4xx\src\gd32f4xx_exti.c</FilePath>
             </File>
             <File>
-              <FileName>gd32f4xx_pmu.c</FileName>
+              <FileName>gd32f4xx_spi.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\platform\chip\gd\gd32f4xx\src\gd32f4xx_pmu.c</FilePath>
+              <FilePath>..\..\..\platform\chip\gd\gd32f4xx\src\gd32f4xx_spi.c</FilePath>
             </File>
           </Files>
         </Group>

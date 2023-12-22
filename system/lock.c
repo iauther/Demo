@@ -2,7 +2,9 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include "incs.h"
+#ifdef OS_KERNEL
+#include "cmsis_os2.h"
+#endif
 #endif
 
 

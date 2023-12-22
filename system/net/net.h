@@ -8,7 +8,9 @@
 #include "mySerial.h"
 #include "myMqtt.h"
 #else
+#ifndef BOOTLOADER
 #include "mqtt.h"
+#endif
 #endif
 //#include "netio.h"
 #include "protocol.h"

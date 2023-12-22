@@ -23,7 +23,7 @@ int power_init(void)
 }
 
 
-#ifndef BOOTLOADER
+#ifndef OS_KERNEL
 int power_set_dev(U8 dev, U8 mode)
 {
     switch (dev) {

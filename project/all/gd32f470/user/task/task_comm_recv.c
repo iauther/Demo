@@ -10,12 +10,13 @@
 #include "cfg.h"
 #include "mem.h"
 #include "json.h"
-#include "lock.h"
+#include "upgrade.h"
 #include "dal_delay.h"
+#include "dal_uart.h"
 #include "paras.h"
 #include "cmd.h"
 #include "list.h"
-#include "hw_at_impl.h"
+#include "hal_at_impl.h"
 
 
 #ifdef OS_KERNEL
@@ -36,15 +37,15 @@ tasks_handle_t tasksHandle={0};
 static void recv_buf_init()
 {
     recvBuf.log.blen = 2000;
-    recvBuf.log.buf = eMalloc(recvBuf.log.blen);
+    recvBuf.log.buf = eCalloc(recvBuf.log.blen);
     recvBuf.log.dlen = 0;
     
     recvBuf.net.blen = 2000;
-    recvBuf.net.buf = eMalloc(recvBuf.log.blen);
+    recvBuf.net.buf = eCalloc(recvBuf.log.blen);
     recvBuf.net.dlen = 0;
     
     recvBuf.rs485.blen = 2000;
-    recvBuf.rs485.buf = eMalloc(recvBuf.log.blen);
+    recvBuf.rs485.buf = eCalloc(recvBuf.log.blen);
     recvBuf.rs485.dlen = 0;
 }
 
@@ -113,7 +114,8 @@ static void buf_init(void)
     task_buf_t *tb=&taskBuffer;
     
     lc.max = 10;
-    lc.mode = MODE_FIFO;
+    lc.mode = MODE_FULL_FIFO;
+    lc.log = 1;
     for(i=0; i<CH_MAX; i++) {
         
         if(tb->var[i].raw) {
@@ -136,7 +138,7 @@ static void buf_init(void)
             xFree(tb->var[i].cap.buf);
         }
         tb->var[i].cap.blen = points*sizeof(raw_t)+sizeof(raw_data_t)+32;
-        tb->var[i].cap.buf = eMalloc(tb->var[i].cap.blen); 
+        tb->var[i].cap.buf = eCalloc(tb->var[i].cap.blen); 
         
         
         //为计算任务申请临时内存
@@ -185,28 +187,40 @@ static void buf_init(void)
 static int hw_init(void)
 {
     int r=0;
-    U8 port;
-    
+    dac_param_t dp;
+    rs485_cfg_t rc;
+
     mem_init();
     log_init(log_recv_callback);
+    
     rtc2_init();
-    at_hal_init();
+    upgrade_check(NULL, 0);
+    
+    hal_at_init();
+    
 
 #if 0
     extern void cota_demo_fn(void *arg);
-    start_task_simp(cota_demo_fn, 4096, NULL, NULL);
+    extern void mota_demo_fn(void *arg);
+    extern void fota_demo_fn(void *arg);
+    start_task_simp(fota_demo_fn, 4096, NULL, NULL);
     while(1) osDelay(1000);
 #endif
-
+    
     
     fs_init();
     json_init();
     paras_load();
-    dac_init();
+    
+    rc.port = RS485_PORT;
+    rc.baudrate = 115200;
+    rc.callback = rs485_recv_callback;
+    //rs485_init(&rc);
     
     buf_init();
     recv_buf_init();
     
+
     return r;
 }
 
@@ -228,13 +242,13 @@ static void start_task(int taskid, osPriority_t prio, int stkSize, osThreadFunc_
 
 static void start_tasks(void)
 {
-    start_task(TASK_DATA_CAP,   osPriorityNormal, 2048,  task_data_cap_fn,   5, NULL, 1);
-    start_task(TASK_POLLING,    osPriorityNormal, 2048,  task_polling_fn,    5, NULL, 1);
-    start_task(TASK_NVM,        osPriorityNormal, 2048,  task_nvm_fn,        5, NULL, 1);
+    #define TASK_STACK_SIZE   2048
     
-    start_task_simp(task_data_proc_fn, 2048, NULL, NULL);
-    //start_task_simp(task_comm_send_fn, 2048, NULL, NULL);
+    start_task(TASK_DATA_CAP,   osPriorityNormal, TASK_STACK_SIZE,  task_data_cap_fn,   5, NULL, 1);
+    start_task(TASK_POLLING,    osPriorityNormal, TASK_STACK_SIZE,  task_polling_fn,    5, NULL, 1);
+    start_task(TASK_NVM,        osPriorityNormal, TASK_STACK_SIZE,  task_nvm_fn,        5, NULL, 1);
     
+    start_task_simp(task_data_proc_fn, TASK_STACK_SIZE, NULL, NULL);
 }
 
 
@@ -291,15 +305,14 @@ int api_comm_connect(U8 port)
 
 int api_comm_disconnect(void)
 {
-    int r;
-    
-    if(!tasksHandle.hconn) {
-        return -1;
+    if(tasksHandle.hconn) {
+        comm_close(tasksHandle.hconn);
+        tasksHandle.hconn = NULL;
     }
     
-    r = comm_close(tasksHandle.hconn);
+    hal_at_power(0);            //关4g模组
     
-    return r;
+    return 0;
 }
 
 int api_comm_is_connected(void)
@@ -370,16 +383,6 @@ static void user_cmd_proc(cmd_t *cmd)
         
         case CMD_CALI:
         {
-            cali_sig_t sig={
-                .max  = 1,
-                .seq  = 0,
-                .lv   = LEVEL_RMS,
-                .ch   = CH_0,
-                .volt = 15,
-                .freq = 40000,
-                .bias = 0,
-            };
-            
             /*
                 u8	                                %d
                 s8	                                %d
@@ -410,15 +413,14 @@ static void user_cmd_proc(cmd_t *cmd)
                 科学技术类型(必须转化为double类型)	%e
                 限制输出字段宽度	                    %x.yf (x:整数长度,y:小数点长度)
             */
-            
-            sscanf(cmd->str, "%hhu,%u,%f,%hhu,%f,%hhu,%hhu", &sig.ch, &sig.freq, &sig.bias, &sig.lv, &sig.volt, &sig.max, &sig.seq);
-            LOGD("___ cali para, ch: %hhu, lv: %hhu, max: %hhu, seq: %hhu, volt: %.1fmv, freq: %ukhz, bias: %.1fmv\n", sig.ch, sig.lv, sig.max, sig.seq, sig.volt, sig.freq, sig.bias);
-            
-            r = paras_set_cali_sig(sig.ch, &sig);
-            if(r==0) {
-                paras_set_mode(MODE_CALI);
-                api_cap_start(sig.ch);
+            cali_sig_t sig;
+            r = sscanf(cmd->str, "%hhu,%u,%f,%hhu,%f,%hhu,%hhu", &sig.ch, &sig.freq, &sig.bias, &sig.lv, &sig.volt, &sig.max, &sig.seq);
+            if(r==7) {
+                task_post(TASK_POLLING, NULL, EVT_CALI, 0, &sig, sizeof(sig));
             }
+            else {
+                LOGE("___ cali para is wrong!\n");
+            }  
         }
         break;
         
@@ -433,12 +435,12 @@ static void user_cmd_proc(cmd_t *cmd)
             sscanf(cmd->str, "%d,%d", &param.enable, &param.fdiv);
             LOGD("___ config dac, en: %d, fdiv: %d\n", param.enable, param.fdiv);
             
-            int points = 
-            param.freq = 1000000;
-            param.points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;
-            
+            int points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;
+            param.freq = para->smpFreq;
+            param.buf.blen = points*sizeof(U16);
+            param.buf.buf  = eCalloc(param.buf.blen);
+            param.buf.dlen = 0;
             dac_set(&param);
-            
         }
         break;
         
@@ -508,7 +510,7 @@ void task_comm_recv_fn(void *arg)
             }
         }
         
-        task_yield();
+        //task_yield();
     }
 }
 

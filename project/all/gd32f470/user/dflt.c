@@ -1,5 +1,4 @@
 #include "protocol.h"
-#include "net.h"
 #include "cfg.h"
 
 #define STR1(x)             #x
@@ -27,7 +26,8 @@
     #ifdef USE_LAB_1
     #define DEV_KEY         "lab_1"
     #define DEV_SECRET      "a53fff307f9da16b629868f5232adec7"
-    #define COEF_A          185.495178f  
+    //#define COEF_A          185.495178f  
+    #define COEF_A          206.110092f
     #define COEF_B          0.0f
     
     #elif defined USE_LAB_2
@@ -55,7 +55,7 @@ const all_para_t DFLT_PARA={
     .sys = {
         .fwInfo={
             .magic=FW_MAGIC,
-            .version=VERSION,
+            .version=FW_VERSION,
             .bldtime=__DATE__,
         },
         
@@ -97,160 +97,171 @@ const all_para_t DFLT_PARA={
             .port       = PORT_NET,
             .pwrmode    = PWR_NO_PWRDN,
             
-            #ifdef DEV_MODE_DEBUG
-            .mode       = MODE_DEBUG,
-            .worktime   = 60*1,
-            #elif defined DEV_MODE_TEST
-            .mode       = MODE_TEST,
-            .worktime   = 60*10,
-            #elif defined DEV_MODE_CALI
-            .mode       = MODE_CALI,
-            .worktime   = 60*10,
-            #else
             .mode       = MODE_NORM,
-            .worktime   = 60*60*4,
-            #endif
+    #ifdef DEV_MODE_DEBUG
+            .workInterval    = 60*10,
             
             .ch = {
-                {   //CH_0
-                    .ch         = 0,
-                    .enable     = 1,
-                
-                    {
-                        {   //normal
-                            .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 1000000,
-                            .smpPoints    = 10000,
-                            .smpInterval  = 0,
-                            .smpTimes     = 1,
-                            .ampThreshold = 2.2f,
-                            .messDuration = 5000,
-                            .trigDelay    = 30000,
-                            .ev           = {0,1,2,3},
-                            .n_ev         = 4,
-                            .evCalcCnt    = 10000,
-                            .upway        = 0,
-                            .upwav        = 1,
-                            .savwav       = 1,
-                        },
+                    {   //CH_0
+                        .ch         = 0,
+                        .enable     = 1,
                         
-                        {   //cali
-                            .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 1000000,
-                            .smpPoints    = 10000,
-                        },                
-                                          
-                        {   //test        
-                            .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 1000000,
-                            .smpPoints    = 1000,
-                            .smpInterval  = 0,
-                            .smpTimes     = 1,
-                            .ampThreshold = 2.2f,
-                            .messDuration = 5000,
-                            .trigDelay    = 30000,
-                            .ev           = {0,1,2,3},
-                            .n_ev         = 4,
-                            .evCalcCnt    = 1000,
-                            .upway        = 0,
-                            .upwav        = 1,
-                            .savwav       = 1,
-                        },
+                        .smpMode      = SMP_PERIOD_MODE,
+                        .smpFreq      = 100000,
+                        .smpPoints    = 1000,
+                        .smpInterval  = 1000000,
+                        .smpTimes     = 1,
+                        .ampThreshold = 2.2f,
+                        .messDuration = 5000,
+                        .trigDelay    = 30000,
+                        .ev           = {0,1,2,3},
+                        .n_ev         = 4,
+                        .evCalcCnt    = 1000,
+                        .upway        = 0,
+                        .upwav        = 0,
+                        .savwav       = 1,
                         
-                        {   //debug        
-                            .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 1000000,
-                            .smpPoints    = 10000,
-                            .smpInterval  = 1000000,        //unit: us
-                            .smpTimes     = 1000,
-                            .ampThreshold = 2.2f,
-                            .messDuration = 5000,
-                            .trigDelay    = 30000,
-                            .ev           = {0,1,2,3},
-                            .n_ev         = 4,
-                            .evCalcCnt    = 10000,
-                            .upway        = 0,
-                            .upwav        = 0,
-                            .savwav       = 1,
-                        },
+                        .coef={
+                            .a = COEF_A,
+                            .b = COEF_B,
+                        }
                     },
                     
-                    .coef={
-                        .a = COEF_A,
-                        .b = COEF_B,
-                    }
-                },
-                
-                {      //CH_1
-                    .ch         = 1,
-                    .enable     = 0,
-                    
                     {
-                        {   //normal
-                            .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 100000,
-                            .smpPoints    = 1000,
-                            .smpInterval  = 0,
-                            .smpTimes     = 1,
-                            .ampThreshold = 2.2f,
-                            .messDuration = 5000,
-                            .trigDelay    = 30000,
-                            .ev           = {0,1,2,3},
-                            .n_ev         = 4,
-                            .evCalcCnt    = 1000,
-                            .upway        = 0,
-                            .upwav        = 0,
-                            .savwav       = 1,
-                        },
-                    
-                        {   //cali
-                            .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 100000,
-                            .smpPoints    = 1000,
-                        },
+                        .ch         = 1,
+                        .enable     = 0,
+                
+                        .smpMode      = SMP_PERIOD_MODE,
+                        .smpFreq      = 100000,
+                        .smpPoints    = 1000,
+                        .smpInterval  = 0,
+                        .smpTimes     = 1,
+                        .ampThreshold = 2.2f,
+                        .messDuration = 5000,
+                        .trigDelay    = 30000,
+                        .ev           = {0,1,2,3},
+                        .n_ev         = 4,
+                        .evCalcCnt    = 1000,
+                        .upway        = 0,
+                        .upwav        = 0,
+                        .savwav       = 1,
                         
-                        {   //test
-                            .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 100000,
-                            .smpPoints    = 1000,
-                            .smpInterval  = 0,
-                            .smpTimes     = 1,
-                            .ampThreshold = 2.2f,
-                            .messDuration = 5000,
-                            .trigDelay    = 30000,
-                            .ev           = {0,1,2,3},
-                            .n_ev         = 4,
-                            .evCalcCnt    = 1000,
-                            .upway        = 0,
-                            .upwav        = 0,
-                            .savwav       = 1,
-                        },
-                        
-                        {   //debug
-                            .smpMode      = SMP_PERIOD_MODE,
-                            .smpFreq      = 100000,
-                            .smpPoints    = 1000,
-                            .smpInterval  = 1000000,
-                            .smpTimes     = 1000,
-                            .ampThreshold = 2.2f,
-                            .messDuration = 5000,
-                            .trigDelay    = 30000,
-                            .ev           = {0,1,2,3},
-                            .n_ev         = 4,
-                            .evCalcCnt    = 1000,
-                            .upway        = 0,
-                            .upwav        = 0,
-                            .savwav       = 1,
-                        },
-                    },
-                    
-                    .coef={
-                        .a  = 1.0f,
-                        .b  = 0.0f,
+                        .coef={
+                            .a = 1.0f,
+                            .b = 0.0f,
+                        }
                     }
-                }
             },
+    #elif defined DEV_MODE_TEST
+            .workInterval   = 60*10,
+            
+            .ch = {
+                    {
+                        .ch         = 0,
+                        .enable     = 1,
+                
+                        .smpMode      = SMP_PERIOD_MODE,
+                        .smpFreq      = 1000000,
+                        .smpPoints    = 10000,
+                        .smpInterval  = 0,
+                        .smpTimes     = 1,
+                        .ampThreshold = 2.2f,
+                        .messDuration = 5000,
+                        .trigDelay    = 30000,
+                        .ev           = {0,1,2,3},
+                        .n_ev         = 4,
+                        .evCalcCnt    = 10000,
+                        .upway        = 0,
+                        .upwav        = 0,
+                        .savwav       = 1,
+                        
+                        .coef={
+                            .a = COEF_A,
+                            .b = COEF_B,
+                        }
+                    },
+                    
+                    {
+                        .ch         = 1,
+                        .enable     = 0,
+                
+                        .smpMode      = SMP_PERIOD_MODE,
+                        .smpFreq      = 100000,
+                        .smpPoints    = 1000,
+                        .smpInterval  = 0,
+                        .smpTimes     = 1,
+                        .ampThreshold = 2.2f,
+                        .messDuration = 5000,
+                        .trigDelay    = 30000,
+                        .ev           = {0,1,2,3},
+                        .n_ev         = 4,
+                        .evCalcCnt    = 1000,
+                        .upway        = 0,
+                        .upwav        = 0,
+                        .savwav       = 1,
+                        
+                        .coef={
+                            .a = 1.0f,
+                            .b = 0.0f,
+                        }
+                    }
+            },
+    #else
+            .workInterval   = 60*60*4,
+            
+            .ch = {
+                    {   //CH_0
+                        .ch         = 0,
+                        .enable     = 1,
+                        
+                        .smpMode      = SMP_PERIOD_MODE,
+                        .smpFreq      = 1000000,
+                        .smpPoints    = 10000,
+                        .smpInterval  = 0,
+                        .smpTimes     = 1,
+                        .ampThreshold = 2.2f,
+                        .messDuration = 5000,
+                        .trigDelay    = 30000,
+                        .ev           = {0,1,2,3},
+                        .n_ev         = 4,
+                        .evCalcCnt    = 10000,
+                        .upway        = 0,
+                        .upwav        = 1,
+                        .savwav       = 1,
+                        
+                        .coef={
+                            .a = COEF_A,
+                            .b = COEF_B,
+                        }
+                    },
+                    
+                    {   //CH_1
+                        .ch         = 1,
+                        .enable     = 0,
+
+                        .smpMode      = SMP_PERIOD_MODE,
+                        .smpFreq      = 100000,
+                        .smpPoints    = 1000,
+                        .smpInterval  = 0,
+                        .smpTimes     = 1,
+                        .ampThreshold = 2.2f,
+                        .messDuration = 5000,
+                        .trigDelay    = 30000,
+                        .ev           = {0,1,2,3},
+                        .n_ev         = 4,
+                        .evCalcCnt    = 1000,
+                        .upway        = 0,
+                        .upwav        = 0,
+
+                        .coef={
+                            .a = 1.0f,
+                            .b = 0.0f,
+                        }  
+                    }
+            },
+            #endif
         },
+     
         
         .dac = {
             .enable = 0,
@@ -272,7 +283,7 @@ const all_para_t DFLT_PARA={
 };
 
 
-const date_time_t DFLT_TIME={
+const datetime_t DFLT_TIME={
     .date = {
         .year  = 2000,
         .mon   = 1,
@@ -287,86 +298,6 @@ const date_time_t DFLT_TIME={
     }
 };
 
-#if 0
-const char *all_para_json="{\
-    \"netPara\":\
-        {\
-             \"mode\":           1,                     \
-             \"plat\":                                  \
-             {\
-                \"host\":           "STR(HOST)",        \
-                \"port\":           "STR(PORT)",        \
-                \"productKey\":     "STR(PRD_KEY)",     \
-                \"productSecret\":  "STR(PRD_SECRET)",  \
-                \"deviceKey\":      "STR(DEV_KEY)",     \
-                \"deviceSecret\":   "STR(DEV_SECRET)"   \
-             }\
-         },\
-    \"mbPara\":\
-         {\
-            \"addr\":           20             \
-         },\
-    \"cardPara\":\
-         {\
-            \"type\":           0,             \
-            \"auth\":           1,             \
-            \"apn\":            \"CMNET\"      \
-         },\
-    \"smpPara\":\
-         {\
-             \"pwr_mode\":         0,          \
-             \"pwr_period\":       \"3h\"      \
-         },\
-    \"chPara\":[\
-         {\
-            \"ch\":             0,             \
-            \"smpMode\":        0,             \
-            \"smpFreq\":        1000,          \
-            \"smpTime\":        5,             \
-            \"smpInterval\":    0,             \
-            \"smpTimes\":       1,             \
-            \"ampThreshold\":   2.2,           \
-            \"messDuration\":   5000,          \
-            \"trigDelay\":      300,           \
-            \"ev\":             [0,1,2,3],     \
-            \"evCalcCnt\":      10000,         \
-            \"upway\":          0,             \
-            \"upwav\":          0              \
-        },\
-        {\
-            \"ch\":             1,             \
-            \"smpMode\":        0,             \
-            \"smpFreq\":        100,           \
-            \"smpTime\":        5,             \
-            \"smpInterval\":    100,           \
-            \"smpTimes\":       1,             \
-            \"ampThreshold\":   2.2,           \
-            \"messDuration\":   5000,          \
-            \"trigDelay\":      300,           \
-            \"ev\":             [1],           \
-            \"evCalcCnt\":      1000,          \
-            \"upway\":          0,             \
-            \"upwav\":          0              \
-        }],\
-    \"dbgPara\":\
-        {\
-            \"to\":             0,             \
-            \"level\":          8,             \
-            \"enable\":         1              \
-        },\
-    \"dacPara\":\
-        {\
-            \"enable\":         0,             \
-            \"fdiv\":           1              \
-        }\
-}";
-
-
-const char *all_para_ini="\
-\
-\
-";
-#endif
 
 
 const char *filesPath[FILE_MAX]={

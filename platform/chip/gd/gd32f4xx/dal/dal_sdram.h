@@ -7,6 +7,6 @@
 #define SDRAM_LEN    (32*1024*1024)
 
 int dal_sdram_init(void);
-
+int dal_sdram_deinit(void);
 #endif
 

@@ -126,7 +126,7 @@ void osRtxTick_Handler (void) {
 #endif
 
 #ifdef GD32F470
-    void systick_handler(void);
+    extern void systick_handler(void);
     systick_handler();
 #endif
 
