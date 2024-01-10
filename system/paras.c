@@ -91,7 +91,8 @@ int paras_set_finished(U8 ch, U8 f)
 
 int paras_is_finished(U8 ch)
 {
-    if(!allPara.usr.smp.ch[ch].enable || (allPara.usr.smp.ch[ch].enable && allPara.var.state.finished[ch])) {
+    ch_para_t *para=&allPara.usr.smp.ch[ch];
+    if(!para->enable ||  (para->enable && (allPara.var.state.finished[ch] || para->smpMode!=SMP_MODE_PERIOD))) {
         return 1;
     }
     

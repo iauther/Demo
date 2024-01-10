@@ -468,7 +468,7 @@ int fs_init(void)
     }
     
     r = do_mnount(DEV_SDMMC,  SDMMC_FS_TYPE,  SDMMC_MNT_PT);
-    //r = do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
+    r = do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
     
     return r;
 }
@@ -485,7 +485,6 @@ handle_t fs_open(char *path, FS_MODE mode)
     
     h = find_hnd(path);
     if(!h) {
-        LOGE("___ media not mounted!\n");
         return NULL;
     }
     
@@ -677,7 +676,6 @@ int fs_length(char *path)
     handle_t h=find_hnd(path);
     
     if(!h) {
-        LOGE("___ fs_length %s\n", path?" not mounted!":"path is NULL!");
         return NULL;
     }
     
@@ -690,7 +688,6 @@ int fs_exist(char *path)
     handle_t h=find_hnd(path);
     
     if(!h) {
-        LOGE("___ fs_exist %s\n", path?" not mounted!":"path is NULL!");
         return NULL;
     }
     
@@ -742,9 +739,9 @@ int fs_test(void)
     char *mntDIR=SFLASH_MNT_PT; //SDMMC_MNT_PT
     
     
-    fs_init();
+    //fs_init();
     malloc_test("111");
-    do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
+    r = do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
     malloc_test("222");
     
     

@@ -14,9 +14,11 @@ __STATIC_INLINE void irq_en(U8 on)
 {
     if(on) {
         __enable_irq();
+        __enable_fiq();
     }
     else {
         __disable_irq();
+        __disable_fiq();
     }
 }
 
@@ -71,6 +73,8 @@ int dal_deinit(void)
 
 void dal_reboot(void)
 {
+    irq_en(0);
+    LOGD("____ reboot now ...\n");
     NVIC_SystemReset();
 }
 

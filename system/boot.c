@@ -30,7 +30,7 @@ int boot_start(void)
     boot_init();
     LOGD("__boot start.\n");
 
-    r = upgrade_check(&runAddr, 1);
+   r = upgrade_check(&runAddr, 1);
     if(r==0) {
         boot_deinit();
         dal_jump(runAddr);

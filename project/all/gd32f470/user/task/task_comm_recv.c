@@ -104,19 +104,25 @@ static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int le
 }
 
 ////////////////////////////////////////////////////////
+#define POINTS(us,sfreq)    ((U64)us*sfreq/1000000)
+
 static int max_data_len=0;
 static void buf_init(void)
 {
     int i;
+    U8 *pbuf;
     list_cfg_t lc;
-    int len1,len2,len3,maxlen;
+    rbuf_cfg_t rc;
+    int cnt;
+    int len1,len2,len3,len4,maxlen;
     ch_para_t *para;
     task_buf_t *tb=&taskBuffer;
     
     lc.max = 10;
-    lc.mode = MODE_FULL_FIFO;
+    lc.mode = LIST_FULL_FIFO;
     lc.log = 1;
     for(i=0; i<CH_MAX; i++) {
+        para = paras_get_ch_para(i);
         
         if(tb->var[i].raw) {
             list_free(tb->var[i].raw);
@@ -124,13 +130,40 @@ static void buf_init(void)
         }
         tb->var[i].raw = list_init(&lc);
         
+        cnt = POINTS(para->trigTime.preTime,para->smpFreq);
+        tb->var[i].thr.pre.bcnt = cnt;
+        tb->var[i].thr.pre.dcnt = 0;
+        tb->var[i].thr.pre.data = eMalloc(tb->var[i].thr.pre.bcnt*4);
+        
+        cnt = POINTS(para->trigTime.MDT,para->smpFreq);
+        tb->var[i].thr.bdy.bcnt = cnt;
+        tb->var[i].thr.bdy.dcnt = 0;
+        tb->var[i].thr.bdy.data = eMalloc(tb->var[i].thr.bdy.bcnt*4);
+        
+        cnt = POINTS(para->trigTime.postTime,para->smpFreq);
+        tb->var[i].thr.post.bcnt = cnt;
+        tb->var[i].thr.post.dcnt = 0;
+        tb->var[i].thr.post.data = eMalloc(tb->var[i].thr.post.bcnt*4);
+        
+        tb->var[i].thr.idx = -1;
+        tb->var[i].thr.cur.pdt = -1;
+        tb->var[i].thr.cur.hdt = -1;
+        tb->var[i].thr.cur.hlt = -1;
+        tb->var[i].thr.cur.mdt = -1;
+        
+        tb->var[i].thr.set.pdt = POINTS(para->trigTime.PDT, para->smpFreq);
+        tb->var[i].thr.set.hdt = POINTS(para->trigTime.HDT, para->smpFreq);
+        tb->var[i].thr.set.hlt = POINTS(para->trigTime.HLT, para->smpFreq);
+        tb->var[i].thr.set.mdt = POINTS(para->trigTime.MDT, para->smpFreq);
+        
+        
+        tb->var[i].thr.max = 0.0f;
+        tb->var[i].thr.time = 0;
+        
         tb->var[i].rlen = 0;
         tb->var[i].slen = 0;
         tb->var[i].times = 0;
-        tb->var[i].ts[0] = 0;
-        tb->var[i].ts[1] = 0;
         
-        para = paras_get_ch_para(i);
         int points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;
         
         //为采集任务申请临时内存
@@ -147,8 +180,7 @@ static void buf_init(void)
         }
         
         //申请ev内存
-        
-        int ev_grps = points/para->evCalcCnt+1;
+        int ev_grps = points/para->evCalcPoints+1;
         int ev_len = sizeof(ev_data_t)+(sizeof(ev_grp_t)+sizeof(ev_val_t)*para->n_ev)*ev_grps;
         tb->var[i].ev.blen = ev_len;
         tb->var[i].ev.buf  = eCalloc(tb->var[i].ev.blen); 
@@ -156,7 +188,7 @@ static void buf_init(void)
         
         
         int once_smp_len=(para->smpFreq/1000)*SAMPLE_INT_INTERVAL*sizeof(raw_t)+32;
-        int once_ev_calc_data_len=para->evCalcCnt*sizeof(raw_t);
+        int once_ev_calc_data_len=para->evCalcPoints*sizeof(raw_t);
         
         //计算单次采集能满足ev计算时所需内存长度
         len1 = once_smp_len+ev_len+sizeof(ch_data_t)+32;
@@ -167,7 +199,9 @@ static void buf_init(void)
         //计算阈值触发时缓存设定要求所需内存长度, (1ms+smpPoints)*2
         len3 = (para->smpPoints+para->smpFreq/1000)*2*sizeof(raw_t)+32;
         
-        maxlen = MAX3(len1,len2,len3);
+        len4 = cnt*4+32;
+        
+        maxlen = MAX(MAX(len1,len2),MAX(len3,len4));
         if(maxlen>max_data_len) {
             max_data_len = maxlen;
         }
@@ -176,7 +210,6 @@ static void buf_init(void)
         tb->var[i].prc.buf  = eCalloc(tb->var[i].prc.blen); 
         tb->var[i].prc.dlen = 0;
     }
-    
     tb->file = list_init(&lc);
     
     //lc.max = 10;
@@ -251,12 +284,22 @@ static void start_tasks(void)
     start_task_simp(task_data_proc_fn, TASK_STACK_SIZE, NULL, NULL);
 }
 
+static void start_cap(void)
+{
+#ifdef AUTO_CAP
+    if(paras_get_mode()!=MODE_CALI) {
+        api_cap_start_all();
+    }
+#endif
+}
 
 
 int api_comm_connect(U8 port)
 {
     int r=0;
     comm_init_para_t comm_p;
+    
+    hal_at_power(1);            //4g模组上电
     
     comm_p.rlen = 0;
     comm_p.tlen = max_data_len;
@@ -472,6 +515,7 @@ void task_comm_recv_fn(void *arg)
     
     LOGD("_____ task comm recv running\n");
     start_tasks();
+    start_cap();
     
     while(1) {
         r = task_recv(TASK_COMM_RECV, &e, sizeof(e));

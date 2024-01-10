@@ -94,17 +94,26 @@ static int fatfs_umount(FS_DEV dev)
     return 0;
 }
 
-static U8 workbuf[1024];
+
 static int fatfs_format(FS_DEV dev, char *path)
 {
+    int r;
     MKFS_PARM para;
     char *disk[DEV_MAX]={"0:","1:","2:","3:"};
-            
+    U8 *pbuf=malloc(FF_MAX_SS);
+
+    if(!pbuf) {
+        return -1;
+    }
+    
     para.fmt = FM_ANY;
     para.n_fat = 0;
     para.n_root = 0;
     para.au_size = 1024;
-    return f_mkfs(disk[dev], &para, workbuf, sizeof(workbuf));
+    r = f_mkfs(disk[dev], &para, pbuf, FF_MAX_SS);
+    free(pbuf);
+    
+    return r;
 }
 
 

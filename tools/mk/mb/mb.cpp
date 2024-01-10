@@ -34,11 +34,11 @@ static TCHAR* char_to_tchar(char* str)
 	return pUni;
 }
 
-static int file_read(const TCHAR* path, U8 *buf, int buflen)
+static int file_read(const TCHAR* path, fw_hdr_t *hdr, U8 *buf, int buflen)
 {
+	int r=-1;
 	HANDLE hFile;
 	DWORD  flen,rlen;
-	BOOL r;
 
 	hFile = CreateFile(path,			//name
 		GENERIC_READ,                   //以读方式打开
@@ -55,22 +55,35 @@ static int file_read(const TCHAR* path, U8 *buf, int buflen)
 	flen = GetFileSize(hFile, NULL);
 	if (flen== INVALID_FILE_SIZE) {
 		printf("invalid file len\n");
-		return -1;
+		goto quit;
 	}
 
 	if (flen> buflen) {
 		printf("buf is too small!\n");
-		return -1;
+		goto quit;
+	}
+
+	if (hdr) {
+		r = ReadFile(hFile, hdr, sizeof(fw_hdr_t), &rlen, NULL);
+		if (r == FALSE) {
+			printf("ReadFile hdr failed\n");
+			goto quit;
+		}
+
+		flen -= sizeof(fw_hdr_t);
 	}
 
 	r = ReadFile(hFile, buf, flen, &rlen, NULL);
 	if (r==FALSE) {
-		printf("ReadFile failed\n");
+		printf("ReadFile fw failed\n");
+		goto quit;
 	}
+	r = rlen;
 
+quit:
 	CloseHandle(hFile);
 
-	return flen;
+	return r;
 }
 
 static int get_time(TCHAR* path, char* time, int len)
@@ -99,28 +112,37 @@ static int get_time(TCHAR* path, char* time, int len)
 
 	return 0;
 }
-static void print_upg_data(const char* s, upg_data_t* upg)
+static void print_upg(const char* s, upg_all_t* all)
 {
 	printf("\n");
-	printf("__%s__upg->head:     0x%08x\n", s, upg->head);
-	printf("__%s__upg->tail:     0x%08x\n", s, upg->tail);
-	printf("__%s__upg->fwAddr:   0x%08x\n", s, upg->fwAddr);
-	printf("__%s__upg->runAddr:  0x%08x\n", s, upg->runAddr);
+	printf("__%s__upg->data.head:        0x%08x\n", s, all->upg.head);
+	printf("__%s__upg->data.tail:        0x%08x\n", s, all->upg.tail);
+	printf("__%s__upg->data.fwAddr:      0x%08x\n", s, all->upg.fwAddr);
+
+	printf("__%s__upg->hdr.fw.magic:     0x%08x\n", s, all->hdr.fw.magic);
+	printf("__%s__upg->hdr.fw.version:   %s\n", s, all->hdr.fw.version);
+	printf("__%s__upg->hdr.fw.length:    %d\n", s, all->hdr.fw.length);
+	printf("__%s__upg->hdr.fw.bldtime:   %s\n", s, all->hdr.fw.bldtime);
+
+	printf("__%s__upg->hdr.upg.obj:      %d\n", s, all->hdr.upg.obj);
+	printf("__%s__upg->hdr.upg.force:    %d\n", s, all->hdr.upg.force);
+	printf("__%s__upg->hdr.upg.erase:    %d\n", s, all->hdr.upg.erase);
+	printf("__%s__upg->hdr.upg.flag :    %d\n", s, all->hdr.upg.flag);
+	printf("__%s__upg->hdr.upg.jumpAddr: 0x%08x\n", s, all->hdr.upg.jumpAddr);
 	printf("\n");
 }
 
 
 int main(char argc, char *argv[])
 {
-	int r=0,flen,blanklen;
+	int r=0,flen,wlen;
 	HANDLE hFile=NULL;
 	char* path1, * path2;
 	char imgPath[500],*dot;
 	fw_info_t fwInfo;
 	char time1[100],time2[100],*ptime;
 	TCHAR* xpath1=NULL, * xpath2 = NULL,* xpath3 = NULL;
-	upg_data_t* pupg;
-	fw_info_t *pfw;
+	upg_all_t* all;
 	fw_image_t* img = (fw_image_t*)malloc(sizeof(fw_image_t));
 
 	if (argc < 3) {
@@ -138,31 +160,29 @@ int main(char argc, char *argv[])
 	path1 = argv[1];
 	path2 = argv[2];
 
+	all = (upg_all_t*)img->info;
+	all->upg.fwAddr = APP_OFFSET;
+	all->upg.facFillFlag = 0;
+	all->upg.head = UPG_HEAD_MAGIC;
+	all->upg.tail = UPG_TAIL_MAGIC;
+	all->upg.upgFlag = UPG_FLAG_NORMAL;
+	all->upg.runFlag = 1;
+	all->upg.upgCnt = 0;
+
 	xpath1 = char_to_tchar(path1);
-	flen = file_read(xpath1, img->boot, BOOT_SIZE);
+	flen = file_read(xpath1, NULL, img->boot, BOOT_SIZE);
 	if (flen <0) {
 		goto fail;
 	}
 
 	xpath2 = char_to_tchar(path2);
-	flen = file_read(xpath2, img->app, APP_SIZE);
+	flen = file_read(xpath2, &all->hdr, img->app, APP_SIZE);
 	if (flen <0) {
 		goto fail;
 	}
-	pfw = (fw_info_t*)img->app;
-	blanklen = APP_SIZE - flen;
+	wlen = sizeof(img->boot)+sizeof(img->info) + flen;
 
-	pupg = (upg_data_t*)img->info;
-	pupg->fwAddr = APP_OFFSET;
-	pupg->runAddr = pupg->fwAddr + sizeof(fw_hdr_t);
-	pupg->facFillFlag = 0;
-	pupg->head = UPG_HEAD_MAGIC;
-	pupg->tail = UPG_TAIL_MAGIC;
-	pupg->upgFlag = UPG_FLAG_NORMAL;
-	pupg->runFlag = 1;
-	pupg->upgCnt = 0;
-
-	print_upg_data("$$$", pupg);
+	print_upg("$$$", all);
 
 	get_time(xpath1, time1, sizeof(time1));
 	get_time(xpath2, time2, sizeof(time2));
@@ -183,7 +203,7 @@ int main(char argc, char *argv[])
 	}
 
 	strcat(imgPath, "image_");
-	strcat(imgPath, (char*)pfw->version);
+	strcat(imgPath, (char*)all->hdr.fw.version);
 	strcat(imgPath, "_");
 	strcat(imgPath, ptime);
 	strcat(imgPath, ".bin");
@@ -199,7 +219,7 @@ int main(char argc, char *argv[])
 	if (!hFile) {
 		goto fail;
 	}
-	WriteFile(hFile, img, sizeof(fw_image_t)- blanklen, NULL, NULL);
+	WriteFile(hFile, img, wlen, NULL, NULL);
 
 	printf(" %s created!!!\n", imgPath);
 

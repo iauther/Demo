@@ -108,7 +108,7 @@ enum {
     CH_MAX
 };
 
-typedef enum {
+enum {
     EV_RMS=0,
     EV_AMP,
     EV_ASL,
@@ -118,15 +118,15 @@ typedef enum {
     EV_MAX,
     
     EV_NUM
-}EV_TYPE;
+};
 
-typedef enum {
+enum {
     FL_FIR=0,
     FL_IIR,
     FL_FFT,
     
     FL_NUM
-}FLT_TYPE;
+};
 
 
 #ifdef _WIN32
@@ -195,34 +195,64 @@ typedef struct {
 }coef_t;
 
 enum {
-    SMP_PERIOD_MODE=0,
-    SMP_TRIG_MODE,
-    SMP_CONT_MODE,
+    SMP_MODE_PERIOD=0,
+    SMP_MODE_TRIG,
+    SMP_MODE_CONT,
 };
 
 typedef struct {
+    U32             preTime;            //unit: us
+    U32             postTime;           //unit: us
+    
+    U32             PDT;                /*trigger PEAK DEFINTTION TIME,   unit: us
+                                          PDT为峰值定义时间, 在PDT的时间内出现的最大峰值认为是波峰, PDT的功能是为了快速,
+                                          准确的找到AE波形的主峰值的同时避免将前驱波误判为主波
+                                        */
+    
+    U32             HDT;                /*trigger HIT DEFINTTION TIME,    unit: us
+                                          HDT为撞击定义时间, 在HDT的时间内不再出现过阈值, 则认为该撞击结束, 
+                                          结束之后就开始存储声发射波形和计算特征参数
+                                        */
+    
+    U32             HLT;                /*trigger HIT LOCKOUT TIME,       unit: us
+                                          HLT为撞击锁闭时间, 在HLT的时间内即使出现过阈值也不认为是一个撞击信号, 
+                                          撞击锁闭时间是为了避免将反射波和滞后波当成主波处理
+                                        */
+    
+    U32             MDT;                /*trigger MAX DURATION TIME       unit: us
+                                          MDT为最大持续时间, 当信号比较密集时，超过此长度的数据将会倍强行截断
+                                        */
+}trig_time_t;
+typedef struct {
     U8              ch;
     U8              enable;
-    U8              smpMode;        //SMP_PERIOD_MODE: period sample  SMP_TRIG_MODE: threshold trigger sample   SMP_CONT_MODE: continuous sample
-    U32             smpFreq;        //hz
+    U32             smpFreq;            //hz
+    U8              smpMode;            //SMP_PERIOD_MODE: period sample  SMP_TRIG_MODE: threshold trigger sample   SMP_CONT_MODE: continuous sample
+    
+    //period sample param
     U32             smpPoints;
-    U32             smpInterval;    //sample interval time, unit: us
-    U32             smpTimes;       //number of times
-    F32             ampThreshold;   //sample AMP threshold value, unit: mv
-    U32             messDuration;   //messure end duration, unit: ms
-    U32             trigDelay;      //trigger delay time,   unit: ms
-    U8              ev[EV_NUM];
+    U32             smpTimes;           //number of times
+    U32             smpInterval;        //sample interval time, unit: us
+    
+    //trigger sample param
+    U8              trigEvType;         //EV_RMS~EV_MAX    
+    F32             trigThreshold;      //ev threshold value,   unit: mv
+    trig_time_t     trigTime;
+    
+    //ev param
     U8              n_ev;
-    U8              upway;          //0: upload realtime   1: delay upload together
+    U8              ev[EV_NUM];
+    U32             evCalcPoints;
+    
+    U8              upway;              //0: upload realtime   1: delay upload together
     U8              upwav;
     U8              savwav;
-    U32             evCalcCnt;
-    
+
     coef_t          coef;
 }ch_para_t;
 
 typedef struct {
-    U8              mode;               //dev mode
+    U8              mode;               //work mode
     U8              port;               //refer to PORT_UART define
     
     U8              pwrmode;           //PWR_NO_PWRDN:no powerdown    PWR_PERIOD_PWRDN: period powerdown
@@ -241,6 +271,7 @@ typedef struct {
 
 typedef struct {
     U32             tp;
+    U32             idx;
     F32             data;
 }ev_val_t;
 
@@ -348,28 +379,22 @@ typedef struct {
     U32             head;            //UPG_HEAD_MAGIC
     U32             upgCnt;
     U32             fwAddr;          //app fw header offset in flash
-    U32             runAddr;         //the boot jump offset
     U32             facFillFlag;     //0: not fill  1: already fill
     U32             upgFlag;         //UPG_FLAG_NONE etc.
     U32             runFlag;         //
     U32             tail;            //UPG_TAIL_MAGIC
 }upg_data_t;
 
-typedef union {
+typedef struct {
     fw_info_t       fw;
     upg_info_t      upg;
-}upg_hdr_t;
-
-/*
-    make sure sizeof(fw_hdr_t)%0x80==0
-    gd32f470 vector size is 107, total bytes is 107*4=428 bytes
-    so sizeof(fw_hdr_t) must big than 428B and 128B align
-*/
-typedef union {
-    upg_hdr_t       hdr;
-    U8              padd[0x200];
     U8              data[0];
 }fw_hdr_t;
+
+typedef struct {
+    upg_data_t     upg;
+    fw_hdr_t       hdr;
+}upg_all_t;
 
 
 typedef struct {

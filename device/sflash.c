@@ -67,6 +67,21 @@ static void write_en(void)
     spi_rw_byte(WREN);  //send "write enable" instruction
     SFLASH_CS(1);
 }
+
+static inline int my_cmp(void *p1, void *p2, int len)
+{
+    int i;
+    U8 *x1=(U8*)p1,*x2=(U8*)p2;
+    
+    for(i=0; i<len; i++) {
+        LOGD("%04d: 0x%02x, 0x%02x\n", i, x1[i], x2[i]);
+        if(x1[i] != x2[i]) {
+            return i;
+        }
+    }
+    
+    return 0;
+}
 static int do_check(U32 addr, void *data, U32 len)
 {
     int r=0;
@@ -352,13 +367,17 @@ int sflash_init(void)
     spi_enable(SPI_PORT);
     sf_inited = 1;
     
+    //sflash_test();
+    
     return 0;
 }
 
 
 int sflash_deinit(void)
 {
+    spi_disable(SPI_PORT);
     spi_i2s_deinit(SPI_PORT);
+    
     return 0;
 }
 
@@ -463,15 +482,15 @@ int sflash_test(void)
 {
     int r;
     U32 i,tlen=0;
-    #define TCNT        5000
+    #define TCNT        50000
     #define TLEN        (TCNT*4)
-    #define ONELEN      2000
+    #define ONELEN      SFLASH_SECTOR_SIZE
     U32 addr;
     U32 *pbuf=(U32*)malloc(TLEN);
     
-    sflash_init();
+    //sflash_init();
     
-    addr = TMP_APP_OFFSET+0x1234;
+    addr = TMP_APP_OFFSET;
     if(pbuf) {
         sflash_erase(addr, TLEN);
         //sflash_read(addr, pbuf, TLEN);

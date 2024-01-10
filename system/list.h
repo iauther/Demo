@@ -10,8 +10,8 @@ extern "C" {
 
 
 enum {
-    MODE_FULL_FIFO=0,
-    MODE_FULL_FILO,
+    LIST_FULL_FIFO=0,
+    LIST_FULL_FILO,
 };
 
 enum {

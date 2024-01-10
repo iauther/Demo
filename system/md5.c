@@ -1,7 +1,7 @@
 #include <string.h>
 #include "md5.h"  
   
-unsigned char PADDING[]={0x80,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+uint8_t PADDING[]={0x80,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};  
@@ -15,9 +15,9 @@ void md5_init(md5_ctx_t *ctx)
     ctx->state[2] = 0x98BADCFE;
     ctx->state[3] = 0x10325476;
 }  
-void md5_update(md5_ctx_t* ctx,unsigned char *input,unsigned int inputlen)
+void md5_update(md5_ctx_t* ctx, uint8_t *input,uint32_t inputlen)
 {  
-    unsigned int i = 0,index = 0,partlen = 0;  
+    uint32_t i = 0,index = 0,partlen = 0;  
     index = (ctx->count[0] >> 3) & 0x3F;
     partlen = 64 - index;  
     ctx->count[0] += inputlen << 3;
@@ -39,10 +39,10 @@ void md5_update(md5_ctx_t* ctx,unsigned char *input,unsigned int inputlen)
     }  
     memcpy(&ctx->buffer[index],&input[i],inputlen-i);
 }  
-void md5_final(md5_ctx_t* ctx,unsigned char digest[16])
+void md5_final(md5_ctx_t* ctx,uint8_t digest[16])
 {  
-    unsigned int index = 0,padlen = 0;  
-    unsigned char bits[8];  
+    uint32_t index = 0,padlen = 0;  
+    uint8_t bits[8];  
     index = (ctx->count[0] >> 3) & 0x3F;
     padlen = (index < 56)?(56-index):(120-index);  
     md5_encode(bits, ctx->count,8);
@@ -50,9 +50,9 @@ void md5_final(md5_ctx_t* ctx,unsigned char digest[16])
     md5_update(ctx,bits,8);
     md5_encode(digest, ctx->state,16);
 }  
-void md5_encode(unsigned char *output,unsigned int *input,unsigned int len)  
+void md5_encode(uint8_t *output,uint32_t *input,uint32_t len)  
 {  
-    unsigned int i = 0,j = 0;  
+    uint32_t i = 0,j = 0;  
     while(j < len)  
     {  
         output[j] = input[i] & 0xFF;    
@@ -63,9 +63,9 @@ void md5_encode(unsigned char *output,unsigned int *input,unsigned int len)
         j+=4;  
     }  
 }  
-void md5_decode(unsigned int *output,unsigned char *input,unsigned int len)  
+void md5_decode(uint32_t *output,uint8_t *input,uint32_t len)  
 {  
-    unsigned int i = 0,j = 0;  
+    uint32_t i = 0,j = 0;  
     while(j < len)  
     {  
         output[i] = (input[j]) |  
@@ -76,13 +76,13 @@ void md5_decode(unsigned int *output,unsigned char *input,unsigned int len)
         j+=4;   
     }  
 }  
-void md5_transform(unsigned int state[4],unsigned char block[64])  
+void md5_transform(uint32_t state[4],uint8_t block[64])  
 {  
-    unsigned int a = state[0];  
-    unsigned int b = state[1];  
-    unsigned int c = state[2];  
-    unsigned int d = state[3];  
-    unsigned int x[64];  
+    uint32_t a = state[0];  
+    uint32_t b = state[1];  
+    uint32_t c = state[2];  
+    uint32_t d = state[3];  
+    uint32_t x[64];  
     md5_decode(x,block,64);  
     FF(a, b, c, d, x[ 0], 7, 0xd76aa478);   
     FF(d, a, b, c, x[ 1], 12, 0xe8c7b756);   
@@ -161,7 +161,7 @@ void md5_transform(unsigned int state[4],unsigned char block[64])
 }
 
 #define CHAR(b) (b<=9)?(b+0x30):(b-10+0x61);
-static void byte2char(char *chr, unsigned char b)
+static void byte2char(char *chr, uint8_t b)
 {
     char h,l;
     
@@ -175,12 +175,12 @@ static void byte2char(char *chr, unsigned char b)
 int md5_calc(void *p1, int len1, void *p2, int len2, char *md5)
 {
     int i;
-    unsigned char tmp[16];
+    uint8_t tmp[16];
     md5_ctx_t ctx;
     
     md5_init(&ctx);
-    md5_update(&ctx, (unsigned char*)p1, len1);
-    md5_update(&ctx, (unsigned char*)p2, len2);
+    md5_update(&ctx, (uint8_t*)p1, len1);
+    md5_update(&ctx, (uint8_t*)p2, len2);
     md5_final(&ctx, tmp);
     
     for (i=0; i<16; i++) {

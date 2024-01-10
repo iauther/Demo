@@ -449,7 +449,7 @@ int list_addto(handle_t l, node_t *node, int index)
     
     if (hl->cfg.max>0 && dl->size>=hl->cfg.max) {
         
-        if(hl->cfg.mode==MODE_FULL_FILO) {
+        if(hl->cfg.mode==LIST_FULL_FILO) {
             //LOGW("___ list is full, FILO mode, new data is discard\n");
             lock_off(hl->lock);
             return 0;
@@ -536,7 +536,7 @@ int list_add_node(handle_t l, list_node_t *lnode, int index)
     
     if (hl->cfg.max>0 && dl->size>=hl->cfg.max) {
         
-        if(hl->cfg.mode==MODE_FULL_FILO) {
+        if(hl->cfg.mode==LIST_FULL_FILO) {
             //LOGW("___ list is full, FILO mode, new data is discard\n");
             lock_off(hl->lock);
             return 0;

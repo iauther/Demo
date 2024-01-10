@@ -339,13 +339,14 @@ static void upgrade_proc(ota_data_t *ota)
 {
     int r;
     buf_t sbuf,tbuf;
-    fw_hdr_t *fh=(fw_hdr_t*)ota->buf.buf;
+    int total_upg=0;
+    fw_hdr_t *hdr=(fw_hdr_t*)ota->buf.buf;
     
-    if(upgrade_fw_info_valid(&fh->hdr.fw)) {    //完整升级
-        r = upgrade_erase(ota->buf.dlen);
-        if(r==0) {
-            r = upgrade_write_all(ota->buf.buf, ota->buf.dlen);
-        }
+    total_upg = upgrade_fw_info_valid(&hdr->fw);
+    
+    LOGD("___ total_upg: %d\n", total_upg);
+    if(total_upg) {    //完整升级
+        r = upgrade_write_all(ota->buf.buf, ota->buf.dlen);
     }
     else {                                      //差分升级
         jp_data_t src,dst,patch;
@@ -358,12 +359,23 @@ static void upgrade_proc(ota_data_t *ota)
             return;
         }
         
-        set_jp_data(&src, &sbuf);
-        set_jp_data(&patch, &ota->buf);
+        set_jp_data(&src, &sbuf);               //设置src缓存
+        set_jp_data(&patch, &ota->buf);         //设置dst缓存
         
+        LOGD("___ src.dlen: %d, patch.dlen: %d\n", src.size, patch.size);
+        
+        dst.buf = tbuf.buf; dst.size = tbuf.blen; dst.pos = 0;
         r = jpatch(&src, &patch, &dst);
         if(r==0) {
-            r = upgrade_write_all(dst.buf, dst.size);
+            LOGD("_____ jpatch data len: %d\n", dst.pos);
+            //fs_save("/sd/upg/xxx.upg", dst.buf, dst.pos);
+            r = upgrade_write_all(dst.buf, dst.pos);
+            if(r==0) {
+                r = upgrade_read(dst.buf, dst.pos);
+                if(r>0) {
+                    fs_save("/sd/upg/yyy.upg", dst.buf, r);
+                }
+            }
         }
     }
     
@@ -388,8 +400,7 @@ static void download_recv_handler(void *handle, ota_data_t *ota, int percent, vo
         else if(ota->type==AIOT_OTARECV_FOTA) {
             
             LOGD("_________ FOTA FINISHED, data recv len: %d\n", ota->buf.dlen);
-            
-            
+            upgrade_proc(ota);
         }
         
         set_ota_data(ota, 0, 0);

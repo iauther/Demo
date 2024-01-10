@@ -55,9 +55,35 @@ typedef struct {
 ////////////////////////////////
 
 typedef struct {
+    U8              ch;
     U64             time;
+    U32             cnt;
     F32             data[0];
 }raw_data_t;
+
+typedef struct {
+    int             pdt;
+    int             hdt;
+    int             hlt;
+    int             mdt;
+}index_t;
+
+typedef struct {
+    F32             *data;
+    int             dcnt;
+    int             bcnt;
+}threshold_buf_t;
+
+typedef struct {
+    threshold_buf_t pre;
+    threshold_buf_t bdy;
+    threshold_buf_t post;
+    F32             max;
+    U64             time;
+    int             idx;
+    index_t         cur;
+    index_t         set;
+}threshold_t;
 
 typedef struct {
     buf_t           cap;            //采集数据用临时内存
@@ -69,8 +95,9 @@ typedef struct {
     int             times;          //
     
     handle_t        raw;            //原始采集数据列表
+    threshold_t     thr;            //阈值数据缓存列表
     
-    U64             ts[2];          //ts[0]装的是发现时的时间戳, ts[1]装的是触发时的时间戳
+    
     handle_t        rb;
 }ch_var_t;
 
@@ -127,7 +154,6 @@ int api_comm_send_ack(U8 type, U8 err);
 int api_comm_send_data(U8 type, U8 nAck, void *data, int len);
 int api_nvm_send(void *data, int len);
 int api_nvm_is_finished(void);
-int api_nvm_save_file(void);
 
 void task_init(void);
 int task_new(task_attr_t *atrr);

@@ -6,15 +6,23 @@
 
 TCHAR* cfgPath = (TCHAR*)__TEXT("./user/cfg.h");
 
-static void print_fw_info(const char* s, fw_info_t* info)
+static void print_fw(const char* s, fw_hdr_t* hdr)
 {
 	printf("\n");
-	printf("__%s__fwInfo->magic:   0x%08x\n", s, info->magic);
-	printf("__%s__fwInfo->version: %s\n", s, info->version);
-	printf("__%s__fwInfo->bldtime: %s\n", s, info->bldtime);
-	printf("__%s__fwInfo->length:  %d\n", s, info->length);
+	printf("__%s__hdr.fw.magic:     0x%08x\n", s, hdr->fw.magic);
+	printf("__%s__hdr.fw.version:   %s\n", s, hdr->fw.version);
+	printf("__%s__hdr.fw.length:    %d\n", s, hdr->fw.length);
+	printf("__%s__hdr.fw.bldtime:   %s\n", s, hdr->fw.bldtime);
+
+	printf("__%s__hdr.upg.obj:      %d\n", s, hdr->upg.obj);
+	printf("__%s__hdr.upg.force:    %d\n", s, hdr->upg.force);
+	printf("__%s__hdr.upg.erase:    %d\n", s, hdr->upg.erase);
+	printf("__%s__hdr.upg.flag :    %d\n", s, hdr->upg.flag);
+	printf("__%s__hdr.upg.jumpAddr: 0x%08x\n", s, hdr->upg.jumpAddr);
 	printf("\n");
 }
+
+
 static void print_md5(const char* s, md5_t* m)
 {
 	U8 i;
@@ -33,13 +41,11 @@ int main(char argc, char *argv[])
 	data_t dat;
 	md5_t md5;
 	char newPath[1000];
-	fw_hdr_t fwHdr;
+	fw_hdr_t hdr;
 	char* path = argv[1];
 	//char* goal = argv[1];
 	TCHAR* xPath;
 	myFile mf;
-	upg_info_t* upg=&fwHdr.hdr.upg;
-	fw_info_t* info=&fwHdr.hdr.fw;
 
 	//TCHAR curPath[500];
 	//GetCurrentDirectory(500, curPath);
@@ -72,17 +78,19 @@ int main(char argc, char *argv[])
 		return -1;
 	}
 
-	upg->obj = OBJ_APP;
-	upg->force = 0;
-	upg->erase = 0;
-	info->magic = FW_MAGIC;
-	info->length = sizeof(fwHdr) + dat.dlen;
-	mf.get_version(cfgPath, info->version, sizeof(info->version));
-	mf.get_time(xPath, (char*)info->bldtime, sizeof(info->bldtime));
-	print_fw_info("$$$", info);
+	hdr.upg.obj = OBJ_APP;
+	hdr.upg.force = 0;
+	hdr.upg.erase = 0;
+	hdr.upg.flag = 0;
+	hdr.upg.jumpAddr = 0;
+	hdr.fw.magic = FW_MAGIC;
+	hdr.fw.length = dat.dlen;
+	mf.get_version(cfgPath, hdr.fw.version, sizeof(hdr.fw.version));
+	mf.get_time(xPath, (char*)hdr.fw.bldtime, sizeof(hdr.fw.bldtime));
+	print_fw("$$$", &hdr);
 
-	md5_calc(&fwHdr, sizeof(fwHdr), dat.data, dat.dlen, (char*)md5.digit);
-	fwrite(&fwHdr, 1, sizeof(fwHdr), fp);
+	md5_calc(&hdr, sizeof(hdr), dat.data, dat.dlen, (char*)md5.digit);
+	fwrite(&hdr, 1, sizeof(hdr), fp);
 	fwrite(dat.data, 1, dat.dlen, fp);
 	fwrite(&md5, 1, sizeof(md5), fp);
 	print_md5("md5: ", &md5);

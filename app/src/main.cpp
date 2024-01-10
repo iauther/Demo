@@ -97,7 +97,7 @@ static int io_data_proc(void* data, int datalen)
 }
 int rbuf_clr(void)
 {
-	return rbuf_reset(myHandle.com.hrb);
+	return rbuf_clear(myHandle.com.hrb);
 }
 
 
@@ -125,11 +125,15 @@ static DWORD dataProcThread(LPVOID lpParam)
 	int i, rlen, plen;
 	int err, find;
 	pkt_hdr_t* hdr;
+	rbuf_cfg_t rc;
 	BYTE* rbBuf = myHandle.com.rb;
 	BYTE* tmpBuf = myHandle.com.tmp;
 	BYTE* pktBuf = myHandle.com.pkt;
 
-	myHandle.com.hrb = rbuf_init(rbBuf, BUF_LEN);
+	rc.mode = RBUF_FULL_FIFO;
+	rc.size = BUF_LEN;
+	rc.buf = rbBuf;
+	myHandle.com.hrb = rbuf_init(&rc);
 	while (!quit_flag) {
 		rlen = rbuf_read(myHandle.com.hrb, tmpBuf, BUF_LEN, 0);
 		if (rlen >= PKT_HDR_LENGTH) {

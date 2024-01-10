@@ -54,7 +54,7 @@ static int upg_file_is_exist(void)
 {
     int r,flen;
     handle_t fl;
-    fw_info_t info1,info2;
+    fw_hdr_t h1,h2;
     int upg_file_exist=0;
     
     r = dal_sd_status();
@@ -65,10 +65,10 @@ static int upg_file_is_exist(void)
             flen = fs_size(fl);
             if(flen>0) {
                 
-                fs_read(fl, &info1, sizeof(info1));
-                upgrade_get_fw_info(&info2);
+                fs_read(fl, &h1, sizeof(h1));
+                upgrade_get_fw_info(FW_CUR, &h2);
         
-                if(memcmp(&info1, &info2, sizeof(fw_info_t))) {
+                if(memcmp(&h1, &h2, sizeof(fw_info_t))) {
                     upg_file_exist = 1;
                 }   
             }
@@ -91,19 +91,17 @@ typedef struct {
     int conn_cnt;
     int rst_cnt;
 }conn_t;
-
 static conn_t connHandle;
 static void task_conn_fn(void *arg)
 {
-#define CONN_MAX  5
-#define REST_MAX  5
     int flag;
+    #define CONN_MAX  5
+    #define REST_MAX  5
     
     memset(&connHandle, 0, sizeof(connHandle));
     while(1) {
         
-        //if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
-        if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM) {
+        if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
             connHandle.conn = CONN_BUSYING;
             flag = api_comm_connect(paras_get_port());
             if(flag) {
@@ -241,7 +239,7 @@ static void pwroff_polling(void)
         return;
     }
     
-    if(smp->pwrmode==SMP_PERIOD_MODE) {
+    if(smp->pwrmode==SMP_MODE_PERIOD) {
         //缓存数据是否保存完毕
         finish = api_nvm_is_finished();
         if(!finish) {
@@ -255,16 +253,17 @@ static void pwroff_polling(void)
             LOGD("____ psrc: %d, finish: %d, runtime: %lu, workInterval: %d\n", var->psrc, finish, runtime, smp->workInterval);
             
             if(var->psrc==PWRON_RTC) {      //rtc poweron
+                
+                //finish=2: 采集完成    finish=1: 采集未完成
                 if((finish==2) || ((finish==1) && (runtime>=RUNTIME_MAX))) {
                     //api_comm_disconnect();      //断开连接, 该操作耗时较长
                     
                     countdown = smp->workInterval- runtime;
-                    
                     if(countdown>=COUNTDOWN_MIN) {
                         countdown -= 2;     //减2为修正值
                     }
                     else {
-                        countdown = smp->workInterval;
+                        countdown = smp->workInterval-2;
                     }
                     
                     r = rtc2_set_countdown(countdown);
@@ -277,6 +276,9 @@ static void pwroff_polling(void)
             }
             else if(var->psrc==PWRON_MANUAL) {                  //manual poweron
                 //delay powerdown??
+            }
+            else if(var->psrc==PWRON_TIMER) {
+                //?
             }
         }
     }
@@ -440,7 +442,8 @@ void task_polling_fn(void *arg)
                 {
                     cali_sig_t *sig=(cali_sig_t*)e.data;
                     
-                    LOGD("___ cali para, ch: %hhu, lv: %hhu, max: %hhu, seq: %hhu, volt: %.1fmv, freq: %ukhz, bias: %.1fmv\n", sig->ch, sig->lv, sig->max, sig->seq, sig->volt, sig->freq, sig->bias);
+                    LOGD("___ cali para, ch: %hhu, lv: %hhu, max: %hhu, seq: %hhu, volt: %.1fmv, freq: %ukhz, bias: %.1fmv\n", 
+                                         sig->ch, sig->lv, sig->max, sig->seq, sig->volt, sig->freq, sig->bias);
                     r = paras_set_cali_sig(sig->ch, sig);
                     if(r==0) {
                         api_cap_stop(sig->ch);

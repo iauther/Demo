@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,9 +10,9 @@ extern "C" {
 
 typedef struct
 {
-	unsigned int count[2];
-	unsigned int state[4];
-	unsigned char buffer[64];
+	uint32_t count[2];
+	uint32_t state[4];
+	uint8_t buffer[64];
 }md5_ctx_t;
 
 
@@ -52,11 +51,11 @@ typedef struct
 	}
 
 void md5_init(md5_ctx_t* context);
-void md5_update(md5_ctx_t* context, unsigned char* input, unsigned int inputlen);
-void md5_final(md5_ctx_t* context, unsigned char digest[16]);
-void md5_transform(unsigned int state[4], unsigned char block[64]);
-void md5_encode(unsigned char* output, unsigned int* input, unsigned int len);
-void md5_decode(unsigned int* output, unsigned char* input, unsigned int len);
+void md5_update(md5_ctx_t* context, uint8_t* input, uint32_t inputlen);
+void md5_final(md5_ctx_t* context, uint8_t digest[16]);
+void md5_transform(uint32_t state[4], uint8_t block[64]);
+void md5_encode(uint8_t* output, uint32_t* input, uint32_t len);
+void md5_decode(uint32_t* output, uint8_t* input, uint32_t len);
 
 int md5_calc(void* p1, int len1, void* p2, int len2, char* md5);
 

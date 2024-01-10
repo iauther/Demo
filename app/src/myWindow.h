@@ -395,34 +395,41 @@ public:
 		for (i = 0; i < CH_MAX; i++) {
 			ch_para_t* pch = &usr->smp.ch[i];
 
-			sprintf(tmp, "smp.ch[%d].state: %d\n",        i, var->state.stat[i]);				info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].state: %d\n",             i, var->state.stat[i]);     info_print(tmp);
+														       
+			sprintf(tmp, "smp.ch[%d].enable: %d\n",            i, pch->enable);            info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpMode: %d\n",           i, pch->smpMode);           info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpFreq: %d\n",	       i, pch->smpFreq);           info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpPoints: %d\n",	       i, pch->smpPoints);         info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpInterval: %d\n",       i, pch->smpInterval);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].smpTimes: %d\n",          i, pch->smpTimes);          info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigEvType: %d\n",        i, pch->trigEvType);        info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigThreshold: %0.5f\n",  i, pch->trigThreshold);     info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigTime.preTime: %d\n",  i, pch->trigTime.preTime);  info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigTime.postTime: %d\n", i, pch->trigTime.postTime); info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigTime.PDT: %d\n",      i, pch->trigTime.PDT);      info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigTime.HDT: %d\n",      i, pch->trigTime.HDT);      info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigTime.HLT: %d\n",      i, pch->trigTime.HLT);      info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].trigTime.MDT: %d\n",      i, pch->trigTime.MDT);      info_print(tmp);
 
-			sprintf(tmp, "smp.ch[%d].enable: %d\n",       i, pch->enable);       info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpMode: %d\n",      i, pch->smpMode);       info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpFreq: %d\n",	  i, pch->smpFreq);       info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpPoints: %d\n",	  i, pch->smpPoints);     info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpInterval: %d\n",  i, pch->smpInterval);   info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].smpTimes: %d\n",     i, pch->smpTimes);      info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].ampThreshold: %f\n", i, pch->ampThreshold);  info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].messDuration: %d\n", i, pch->messDuration);  info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].trigDelay: %d\n",    i, pch->trigDelay);     info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].upway: %d\n",        i, pch->upway);         info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].upwav: %d\n",        i, pch->upwav);         info_print(tmp);
 
-			sprintf(tmp, "smp.ch[%d].n_ev: %d\n",		  i, pch->n_ev);          info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].evCalcCnt: %d\n",	  i, pch->evCalcCnt);     info_print(tmp);
-
-			sprintf(tmp, "smp.ch[%d].coef.a: %f\n",		  i, pch->coef.a);       info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].coef.b: %f\n",		  i, pch->coef.b);       info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].upway: %d\n",             i, pch->upway);             info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].upwav: %d\n",             i, pch->upwav);             info_print(tmp);
+														       						       
+			sprintf(tmp, "smp.ch[%d].n_ev: %d\n",		       i, pch->n_ev);              info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].evCalcPoints: %d\n", 	   i, pch->evCalcPoints);      info_print(tmp);
+														       
+			sprintf(tmp, "smp.ch[%d].coef.a: %f\n",		       i, pch->coef.a);            info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].coef.b: %f\n",		       i, pch->coef.b);            info_print(tmp);
 		}
 
-		sprintf(tmp, "dac.enable: %d\n",	usr->dac.enable);		             info_print(tmp);
-		sprintf(tmp, "dac.fdiv: %d\n",		usr->dac.fdiv);		                 info_print(tmp);
-		sprintf(tmp, "mbus.addr: 0x%02x\n", usr->mbus.addr);	                 info_print(tmp);
-																                 
-		sprintf(tmp, "dbg.enable: %d\n",	usr->dbg.enable);	                 info_print(tmp);
-		sprintf(tmp, "dbg.level: %d\n",		usr->dbg.level);	                 info_print(tmp);
-		sprintf(tmp, "dbg.to: %d\n",		usr->dbg.to);		                 info_print(tmp);
+		sprintf(tmp, "dac.enable: %d\n",	usr->dac.enable);		 info_print(tmp);
+		sprintf(tmp, "dac.fdiv: %d\n",		usr->dac.fdiv);		     info_print(tmp);
+		sprintf(tmp, "mbus.addr: 0x%02x\n", usr->mbus.addr);	     info_print(tmp);
+																     
+		sprintf(tmp, "dbg.enable: %d\n",	usr->dbg.enable);	     info_print(tmp);
+		sprintf(tmp, "dbg.level: %d\n",		usr->dbg.level);	     info_print(tmp);
+		sprintf(tmp, "dbg.to: %d\n",		usr->dbg.to);		     info_print(tmp);
 	}
 
 	void btn_update(void)

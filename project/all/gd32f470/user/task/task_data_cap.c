@@ -91,7 +91,7 @@ static void ori_rms_print(U8 ch, U16 *u, U32 cnt)
             p[i] = MVOLT(u[i]);
         }
         
-        dsp_ev_calc(EV_RMS, p, cnt, 0, &rms);
+        dsp_ev_calc(EV_RMS, p, cnt, &rms);
         LOGD("____ ch-%d ori rms: %f\n", ch, rms);
         
         free(p);
@@ -148,7 +148,7 @@ static int cali_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
         y += f[i];
     }
     
-    dsp_ev_calc(EV_RMS, f, cnt, pch->smpFreq, &rms);
+    dsp_ev_calc(EV_RMS, f, cnt, &rms);
     
     if(cali->sig.max==1) {      //1次校准
         
@@ -258,7 +258,7 @@ static void ads_cap_proc(U8 ch, raw_data_t *raw, U16 *data, int cnt)
     
     dac_data_fill(data, cnt);
     
-    if(para->smpMode==SMP_PERIOD_MODE) {
+    if(para->smpMode==SMP_MODE_PERIOD) {
             
         if(cv->times>=para->smpTimes) {
             return;
@@ -294,27 +294,29 @@ static void ads_cap_proc(U8 ch, raw_data_t *raw, U16 *data, int cnt)
     }
 
     if(real_len>0) {
-        int xcnt=real_len/sizeof(U16);
+        raw->ch = ch;
         raw->time = stime;
+        raw->cnt  = real_len/sizeof(U16);
         
-        ori_rms_print(ch, real_data, xcnt);     //just for debug
+        //ori_rms_print(ch, real_data, xcnt);     //just for debug
         
-        volt_convert(ch, raw->data, real_data, xcnt);
+        volt_convert(raw->ch, raw->data, real_data, raw->cnt);
         
         //LOGD("_____ ch[%d]  rlen: %d, smplen: %d, skplen: %d, t_skplen: %d, times: %d, real_len: %d\n", ch, cv->rlen, smp_len, cv->slen, t_slen, cv->times, real_len);
-        tlen = xcnt*sizeof(raw_t)+sizeof(raw_data_t);
+        tlen = raw->cnt*sizeof(raw_t)+sizeof(raw_data_t);
         r = list_append(list, 0, raw, tlen);
 
-        
-        if(cv->rlen+data_len>=smp_len) {
-            cv->times++;
-        }
-        
-        //周期采样时，达到设定的次数则停止采样
-        if(cv->times>=para->smpTimes) {
-            cv->rlen = 0; cv->slen = 0;
-            api_cap_power(ch, 0);
-            paras_set_finished(ch, 1);
+        if(para->smpMode==SMP_MODE_PERIOD) {
+            if(cv->rlen+data_len>=smp_len) {
+                cv->times++;
+            }
+            
+            //周期采样时，达到设定的次数则停止采样
+            if(para->smpMode==SMP_MODE_PERIOD && cv->times>=para->smpTimes) {
+                cv->rlen = 0; cv->slen = 0;
+                api_cap_power(raw->ch, 0);
+                paras_set_finished(raw->ch, 1);
+            }
         }
         //LOGD("__1__%dms\n", dal_get_tick());
     }
@@ -364,13 +366,6 @@ static int ads_init(void)
     dp.buf.buf  = eCalloc(dp.buf.blen);
     dac_init(&dp);
 
-
-#ifdef AUTO_CAP
-    if(paras_get_mode()!=MODE_CALI) {
-        api_cap_start_all();
-    }
-#endif
-
     return r;
 }
 static int vib_init(void)
@@ -387,9 +382,9 @@ static int vib_init(void)
 /////////////////////////////////////////////////
 int api_cap_start(U8 ch)
 {
-    ch_para_t *pch=paras_get_ch_para(ch);
+    ch_para_t *para=paras_get_ch_para(ch);
     
-    if(!pch->enable) {
+    if(!para->enable) {
         return -1;
     }
     
@@ -397,13 +392,11 @@ int api_cap_start(U8 ch)
         return 0;
     }
     
-    hal_at_power(0);        //启动采集时先关4g模组
-    
     if(ch==CH_0) {
         ads9120_enable(1);
         dac_start();
     }
-    else {
+    else if(ch==CH_1) {
         
     }
     paras_set_state(ch, STAT_RUN);
@@ -415,9 +408,9 @@ int api_cap_stop(U8 ch)
 {
     int i;
     task_buf_t *tb=&taskBuffer;
-    ch_para_t *pch=paras_get_ch_para(ch);
+    ch_para_t *para=paras_get_ch_para(ch);
     
-    if(!pch->enable) {
+    if(!para->enable) {
         return -1;
     }
     
@@ -425,14 +418,13 @@ int api_cap_stop(U8 ch)
         ads9120_enable(0);
         dac_stop();
     }
-    else {
+    else if(ch==CH_1) {
         
     }
     tb->var[ch].rlen = 0;
     tb->var[ch].slen = 0;
     tb->var[ch].times = 0;
-    tb->var[ch].ts[0] = 0;
-    tb->var[ch].ts[1] = 0;
+    tb->var[ch].thr.max = 0.0f;
     tb->var[ch].cap.dlen = 0;
     tb->var[ch].prc.dlen = 0;
     paras_set_state(ch, STAT_STOP);

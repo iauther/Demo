@@ -341,6 +341,11 @@ int rtc2_init(void)
     s_lock = lock_init();
     s_inited = 1;
     
+    if(s_psrc==PWRON_TIMER) {
+        //如果是timer周期性开机, 则立即关机
+        //否则是异常开机，则按正常RTC开机运行一次
+    }
+    
     return 0;
 }
 
@@ -441,17 +446,13 @@ int rtc2_set_countdown(U32 sec)
         if(r==0) {
             break;
         }
-        LOGW("___ rtc_power_off failed %d\n", i);
+        LOGW("___ rtc_power_on(0) failed %d\n", i);
         rtc_power_on(1);
     }
-    
     lock_off(s_lock);
     
     return r;
 }
-
-
-
 
 
 U32 rtc2_get_timestamp_s(void)

@@ -35,7 +35,7 @@ static int file_upload(void);
 #define FREE_SIZE   (5*MB)
 
 
-static int data_to_file(ch_data_t *pch)
+static int data_save(ch_data_t *pch)
 {
     int r;
     char path[100];
@@ -67,11 +67,11 @@ static int data_to_file(ch_data_t *pch)
         LOGW("____ %s already exist, delete it\n", path);
         fs_remove(path);
     }
-    LOGD("___ save data to %s\n", path);
+    //LOGD("___ save data to %s\n", path);
     
     fh = fs_open(path, FS_MODE_CREATE);
     if(!fh) {
-        LOGE("___fs_open %s failed\n", path);
+        //LOGE("___fs_open %s failed\n", path);
         nvmHandle.busying = 0;
         return -1;
     }
@@ -190,7 +190,7 @@ static int data_upload(node_t *node)
 {
     handle_t h;
     char *pbuf=NULL;
-    int dlen,r=-1;
+    int dlen,tlen,r=-1;
     ch_data_t *pch=NULL;
     ch_para_t *para=NULL;
     int is_file=node->tp;
@@ -200,7 +200,7 @@ static int data_upload(node_t *node)
         int flen;
         char *path=node->buf;
         flen = fs_length(path);
-        LOGD("____file_upload %s, flen: %d\n", path, flen);
+        LOGD("___ data_upload %s, flen: %d\n", path, flen);
         if(flen<=0) {
             r = (flen==0)?0:-1;
             return r;
@@ -231,58 +231,62 @@ static int data_upload(node_t *node)
         memcpy(pch->data, (U8*)pch->data+pch->wavlen, pch->evlen);
         pch->wavlen = 0;
     }
-    dlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
+    dlen = pch->wavlen+pch->evlen;
     
-    if(pch->wavlen>0) {
-        pub_para.tp = DATA_WAV;
-    }
-    
-    r = comm_send_data(tasksHandle.hconn, &pub_para, TYPE_CAP, 0, pch, dlen);
-    if(r==0) {
-        datetime_t dt;
-        ts_to_tm(pch->time, &dt);
+    if(dlen>0) {
         
-        LOGD("____comm_send_data len: %d, wavlen: %d\n", dlen, pch->wavlen);
-        rtc2_print_time("timestamp:", &dt);
-        
-        if(!is_file) {
-            nvmHandle.times[pch->ch].send++;
+        if(pch->wavlen>0) {
+            pub_para.tp = DATA_WAV;
         }
-    }
-    else {
-        LOGE("___ task_nvm, comm_send_data failed, %d\n", r);
-        r = -1;         //发送文件失败
+        tlen = dlen+sizeof(ch_data_t);
+        
+        r = comm_send_data(tasksHandle.hconn, &pub_para, TYPE_CAP, 0, pch, tlen);
+        if(r==0) {
+            datetime_t dt;
+            ts_to_tm(pch->time, &dt);
+            
+            LOGD("____comm_send_data len: %d, wavlen: %d\n", tlen, pch->wavlen);
+            rtc2_print_time("timestamp:", &dt);
+            
+            if(!is_file) {
+                nvmHandle.times[pch->ch].send++;
+            }
+        }
+        else {
+            LOGE("___ task_nvm, comm_send_data failed, %d\n", r);
+            r = -1;         //发送文件失败
+        }
     }
     
     if(is_file) xFree(pbuf);
     
     return r;
 }
-static int file_upload(void)
+static int data_proc(void)
 {
     int r=0;
     list_node_t *lnode;
     
-    if(!api_comm_is_connected()) {
-        //LOGD("____comm not connected, upload quit\n");
-        return -1;
-    }
-    
     //LOGD("__1__ flist size: %d\n", list_size(nvmHandle.flist));
-    if(list_get_node(nvmHandle.dlist, &lnode, 0)==0) {
+    r = list_take_node(nvmHandle.dlist, &lnode, 0);
+    if(r==0) {
         node_t *nd=&lnode->data;
         
-        r = data_upload(nd);
-        if(r==0) {
-            if(nd->tp) {    //如果是文件且发送成功，需删除该文件
+        if(api_comm_is_connected()) {
+            r = data_upload(nd);
+            if(r==0 && nd->tp) {    //如果是文件且发送成功，需删除该文件
                 nvmHandle.busying = 2;
                 fs_remove(nd->buf);
                 nvmHandle.busying = 0;
             }
-            
-            list_remove(nvmHandle.dlist, 0);
         }
-        //LOGD("__2__ flist size: %d\n", list_size(nvmHandle.flist));
+        else {
+            r = data_save((ch_data_t*)nd->buf);
+        }
+        
+        if(r==0) {
+            list_back_node(nvmHandle.dlist, lnode);
+        }
     }
     
     return 0;
@@ -306,9 +310,9 @@ static void file_scan(void)
 {
     list_cfg_t lc;
     
-    lc.max = -1;
+    lc.max = 20;
     lc.log = 1;
-    lc.mode = MODE_FULL_FIFO;
+    lc.mode = LIST_FULL_FIFO;
     
     nvmHandle.dlist = list_init(&lc);
 
@@ -351,6 +355,9 @@ int api_nvm_send(void *data, int len)
     int r=list_append(taskBuffer.file, 0, data, len);
     if(r==0) {
         task_trig(TASK_NVM, EVT_DATA);
+    }
+    else {
+        LOGD("___ api_nvm_send failed\n");
     }
     
     return r;
@@ -398,24 +405,6 @@ int api_nvm_is_finished(void)
     
     return finished;
 }
-int api_nvm_save_file(void)
-{
-    int r=0;
-    list_node_t *lnode;
-    
-    if(list_get_node(nvmHandle.dlist, &lnode, 0)==0) {
-        node_t *nd=&lnode->data;
-        
-        if(nd->tp==0) {
-            data_to_file((ch_data_t*)nd->buf);
-        }
-            
-        list_remove(nvmHandle.dlist, 0);
-        //LOGD("__2__ flist size: %d\n", list_size(nvmHandle.flist));
-    }
-    
-    return 0;
-}
 
 
 static void nvm_tmr_callback(void *arg)
@@ -429,7 +418,7 @@ static void nvm_init(void)
     memset(&nvmHandle, 0, sizeof(nvmHandle));
     
     file_scan();
-    handle_t htmr = task_timer_init(nvm_tmr_callback, NULL, 1000, -1);
+    handle_t htmr = task_timer_init(nvm_tmr_callback, NULL, 200, -1);
     if(htmr) {
         task_timer_start(htmr);
     }
@@ -454,11 +443,13 @@ void task_nvm_fn(void *arg)
                 {
                     r = list_take_node(taskBuffer.file, &lnode, 0);
                     if(r==0) {
-                        ch_data_t *p_ch=(ch_data_t*)lnode->data.buf;
+                        ch_data_t *pcd=(ch_data_t*)lnode->data.buf;
 
-                        data_print(lnode->data.buf, lnode->data.dlen);
+                        //data_print(lnode->data.buf, lnode->data.dlen);
                         
-                        r = data_to_list(p_ch);
+                        r = data_to_list(pcd);
+                        
+                        list_back_node(taskBuffer.file, lnode);
                     }
                 }
                 break;
@@ -466,7 +457,7 @@ void task_nvm_fn(void *arg)
                 case EVT_TIMER:
                 {
                     //读取上传记录文件，上传成功则删除文件
-                    file_upload();
+                    data_proc();
                 }
                 break;
                 

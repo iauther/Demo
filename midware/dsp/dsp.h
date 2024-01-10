@@ -3,8 +3,8 @@
 
 #include "types.h"
 
-int dsp_ev_calc(U8 tp, F32 *data, U32 cnt, U32 freq, F32 *result);
-int dsp_fl_calc(U8 tp, F32 *data, U32 cnt);
+int dsp_ev_calc(U8 tp, F32 *data, int cnt, F32 *ev);
+int dsp_fl_calc(U8 tp, F32 *data, int cnt);
 void dsp_test(F32* data, int cnt);
 
 #endif

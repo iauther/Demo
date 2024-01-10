@@ -1,4 +1,6 @@
 #include "protocol.h"
+
+#ifndef BOOTLOADER
 #include "cfg.h"
 
 #define STR1(x)             #x
@@ -26,8 +28,8 @@
     #ifdef USE_LAB_1
     #define DEV_KEY         "lab_1"
     #define DEV_SECRET      "a53fff307f9da16b629868f5232adec7"
-    //#define COEF_A          185.495178f  
-    #define COEF_A          206.110092f
+    #define COEF_A          197.745422f
+    //#define COEF_A          206.110092f
     #define COEF_B          0.0f
     
     #elif defined USE_LAB_2
@@ -48,7 +50,14 @@
     #define COEF_B          0.0f
     #endif
 #endif
-      
+
+const char *filesPath[FILE_MAX]={
+    SFLASH_MNT_PT"/cfg/para.bin",
+    SDMMC_MNT_PT"/xxxx",
+    
+    SFLASH_MNT_PT"/upg/app.upg",
+    SFLASH_MNT_PT"/log/run.log",
+};
 
 const all_para_t DFLT_PARA={
     
@@ -102,24 +111,36 @@ const all_para_t DFLT_PARA={
             .workInterval    = 60*10,
             
             .ch = {
-                    {   //CH_0
-                        .ch         = 0,
+                    {
+                        .ch         = CH_0,
                         .enable     = 1,
                         
-                        .smpMode      = SMP_PERIOD_MODE,
-                        .smpFreq      = 100000,
-                        .smpPoints    = 1000,
+                        //.smpMode      = SMP_MODE_PERIOD,
+                        .smpMode    = SMP_MODE_TRIG,
+                        .smpFreq    = 1000000,
+                        
+                        .smpPoints    = 10000,
                         .smpInterval  = 1000000,
                         .smpTimes     = 1,
-                        .ampThreshold = 2.2f,
-                        .messDuration = 5000,
-                        .trigDelay    = 30000,
-                        .ev           = {0,1,2,3},
+                        
+                        .trigEvType     = 1,
+                        .trigThreshold  = 50.0f,
+                        .trigTime={
+                            .preTime    = 600,
+                            .postTime   = 600,
+                            .PDT        = 300,
+                            .HDT        = 600,
+                            .HLT        = 1000,
+                            .MDT        = 50000,
+                        },
+                        
                         .n_ev         = 4,
-                        .evCalcCnt    = 1000,
-                        .upway        = 0,
-                        .upwav        = 0,
-                        .savwav       = 1,
+                        .ev           = {0,1,2,3},
+                        .evCalcPoints = 10000,
+                        
+                        .upway      = 0,
+                        .upwav      = 1,
+                        .savwav     = 1,
                         
                         .coef={
                             .a = COEF_A,
@@ -128,52 +149,74 @@ const all_para_t DFLT_PARA={
                     },
                     
                     {
-                        .ch         = 1,
+                        .ch         = CH_1,
                         .enable     = 0,
-                
-                        .smpMode      = SMP_PERIOD_MODE,
-                        .smpFreq      = 100000,
-                        .smpPoints    = 1000,
-                        .smpInterval  = 0,
+                        
+                        .smpMode      = SMP_MODE_PERIOD,
+                        .smpFreq    = 1000000,
+                        
+                        .smpPoints    = 10000,
+                        .smpInterval  = 1000000,
                         .smpTimes     = 1,
-                        .ampThreshold = 2.2f,
-                        .messDuration = 5000,
-                        .trigDelay    = 30000,
-                        .ev           = {0,1,2,3},
+                        
+                        .trigEvType = 1,
+                        .trigThreshold  = 50.0f,
+                        .trigTime={
+                            .preTime    = 600,
+                            .postTime   = 600,
+                            .PDT        = 300,
+                            .HDT        = 600,
+                            .HLT        = 1000,
+                            .MDT        = 50000,
+                        },
+                        
                         .n_ev         = 4,
-                        .evCalcCnt    = 1000,
-                        .upway        = 0,
-                        .upwav        = 0,
-                        .savwav       = 1,
+                        .ev           = {0,1,2,3},
+                        .evCalcPoints = 5000,
+                        
+                        .upway      = 0,
+                        .upwav      = 0,
+                        .savwav     = 1,
                         
                         .coef={
-                            .a = 1.0f,
-                            .b = 0.0f,
+                            .a = COEF_A,
+                            .b = COEF_B,
                         }
-                    }
+                    },
             },
     #elif defined DEV_MODE_TEST
             .workInterval   = 60*10,
             
             .ch = {
                     {
-                        .ch         = 0,
+                        .ch         = CH_0,
                         .enable     = 1,
-                
-                        .smpMode      = SMP_PERIOD_MODE,
-                        .smpFreq      = 1000000,
+                        
+                        .smpMode      = SMP_MODE_PERIOD,
+                        .smpFreq    = 1000000,
+                        
                         .smpPoints    = 10000,
-                        .smpInterval  = 0,
+                        .smpInterval  = 1000000,
                         .smpTimes     = 1,
-                        .ampThreshold = 2.2f,
-                        .messDuration = 5000,
-                        .trigDelay    = 30000,
-                        .ev           = {0,1,2,3},
+                        
+                        .trigEvType = 1,
+                        .trigPreTime    = 60,
+                        .trigTime={
+                            .preTime    = 600,
+                            .postTime   = 600,
+                            .PDT        = 300,
+                            .HDT        = 600,
+                            .HLT        = 1000,
+                            .MDT        = 200000,
+                        },
+                        
                         .n_ev         = 4,
-                        .evCalcCnt    = 10000,
-                        .upway        = 0,
-                        .upwav        = 0,
-                        .savwav       = 1,
+                        .ev           = {0,1,2,3},
+                        .evCalcPoints = 5000,
+                        
+                        .upway      = 0,
+                        .upwav      = 0,
+                        .savwav     = 1,
                         
                         .coef={
                             .a = COEF_A,
@@ -182,52 +225,74 @@ const all_para_t DFLT_PARA={
                     },
                     
                     {
-                        .ch         = 1,
+                        .ch         = CH_1,
                         .enable     = 0,
-                
-                        .smpMode      = SMP_PERIOD_MODE,
-                        .smpFreq      = 100000,
-                        .smpPoints    = 1000,
-                        .smpInterval  = 0,
+                        
+                        .smpMode      = SMP_MODE_PERIOD,
+                        .smpFreq    = 1000000,
+                        
+                        .smpPoints    = 10000,
+                        .smpInterval  = 1000000,
                         .smpTimes     = 1,
-                        .ampThreshold = 2.2f,
-                        .messDuration = 5000,
-                        .trigDelay    = 30000,
-                        .ev           = {0,1,2,3},
+                        
+                        .trigEvType = 1,
+                        .trigThreshold  = 50.0f,
+                        .trigTime={
+                            .preTime    = 600,
+                            .postTime   = 600,
+                            .PDT        = 300,
+                            .HDT        = 600,
+                            .HLT        = 1000,
+                            .MDT        = 200000,
+                        },
+                        
                         .n_ev         = 4,
-                        .evCalcCnt    = 1000,
-                        .upway        = 0,
-                        .upwav        = 0,
-                        .savwav       = 1,
+                        .ev           = {0,1,2,3},
+                        .evCalcPoints = 5000,
+                        
+                        .upway      = 0,
+                        .upwav      = 0,
+                        .savwav     = 1,
                         
                         .coef={
-                            .a = 1.0f,
-                            .b = 0.0f,
+                            .a = COEF_A,
+                            .b = COEF_B,
                         }
-                    }
+                    },
             },
     #else
             .workInterval   = 60*60*4,
             
             .ch = {
-                    {   //CH_0
-                        .ch         = 0,
+                    {
+                        .ch         = CH_0,
                         .enable     = 1,
                         
-                        .smpMode      = SMP_PERIOD_MODE,
-                        .smpFreq      = 1000000,
+                        .smpMode      = SMP_MODE_PERIOD,
+                        .smpFreq    = 1000000,
+                        
                         .smpPoints    = 10000,
-                        .smpInterval  = 0,
+                        .smpInterval  = 1000000,
                         .smpTimes     = 1,
-                        .ampThreshold = 2.2f,
-                        .messDuration = 5000,
-                        .trigDelay    = 30000,
-                        .ev           = {0,1,2,3},
+                        
+                        .trigEvType = 1,
+                        .trigThreshold  = 50.0f,
+                        .trigTime={
+                            .preTime    = 600,
+                            .postTime   = 600,
+                            .PDT        = 300,
+                            .HDT        = 600,
+                            .HLT        = 1000,
+                            .MDT        = 200000,
+                        },
+                        
                         .n_ev         = 4,
-                        .evCalcCnt    = 10000,
-                        .upway        = 0,
-                        .upwav        = 1,
-                        .savwav       = 1,
+                        .ev           = {0,1,2,3},
+                        .evCalcPoints = 5000,
+                        
+                        .upway      = 0,
+                        .upwav      = 0,
+                        .savwav     = 1,
                         
                         .coef={
                             .a = COEF_A,
@@ -235,29 +300,41 @@ const all_para_t DFLT_PARA={
                         }
                     },
                     
-                    {   //CH_1
-                        .ch         = 1,
+                    {
+                        .ch         = CH_1,
                         .enable     = 0,
-
-                        .smpMode      = SMP_PERIOD_MODE,
-                        .smpFreq      = 100000,
-                        .smpPoints    = 1000,
-                        .smpInterval  = 0,
+                        
+                        .smpMode      = SMP_MODE_PERIOD,
+                        .smpFreq    = 1000000,
+                        
+                        .smpPoints    = 10000,
+                        .smpInterval  = 1000000,
                         .smpTimes     = 1,
-                        .ampThreshold = 2.2f,
-                        .messDuration = 5000,
-                        .trigDelay    = 30000,
-                        .ev           = {0,1,2,3},
+                        
+                        .trigEvType = 1,
+                        .trigThreshold  = 50.0f,
+                        .trigTime={
+                            .preTime    = 600,
+                            .postTime   = 600,
+                            .PDT        = 300,
+                            .HDT        = 600,
+                            .HLT        = 1000,
+                            .MDT        = 200000,
+                        },
+                        
                         .n_ev         = 4,
-                        .evCalcCnt    = 1000,
-                        .upway        = 0,
-                        .upwav        = 0,
-
+                        .ev           = {0,1,2,3},
+                        .evCalcPoints = 5000,
+                        
+                        .upway      = 0,
+                        .upwav      = 0,
+                        .savwav     = 1,
+                        
                         .coef={
-                            .a = 1.0f,
-                            .b = 0.0f,
-                        }  
-                    }
+                            .a = COEF_A,
+                            .b = COEF_B,
+                        }
+                    },
             },
             #endif
         },
@@ -281,6 +358,7 @@ const all_para_t DFLT_PARA={
         }
     }
 };
+#endif
 
 
 const datetime_t DFLT_TIME={
@@ -300,13 +378,7 @@ const datetime_t DFLT_TIME={
 
 
 
-const char *filesPath[FILE_MAX]={
-    SFLASH_MNT_PT"/cfg/para.bin",
-    SDMMC_MNT_PT"/xxxx",
-    
-    SFLASH_MNT_PT"/upg/app.upg",
-    SFLASH_MNT_PT"/log/run.log",
-};
+
 
 
 

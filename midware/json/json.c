@@ -165,14 +165,25 @@ int json_from(char *js, int js_len, usr_para_t *usr)
                     cJSON_AddNumberToObject(l2, "ch", i);
                     cJSON_AddNumberToObject(l2, "enable", pch->enable);
 
-                    cJSON_AddNumberToObject(l2, "smpMode", pch->smpMode);
-                    cJSON_AddNumberToObject(l2, "smpFreq", pch->smpFreq / 1000);
-                    cJSON_AddNumberToObject(l2, "smpPoints", pch->smpPoints);
-                    cJSON_AddNumberToObject(l2, "smpInterval", pch->smpInterval);
-                    cJSON_AddNumberToObject(l2, "smpTimes", pch->smpTimes);
-                    cJSON_AddNumberToObject(l2, "ampThreshold", pch->ampThreshold);
-                    cJSON_AddNumberToObject(l2, "messDuration", pch->messDuration / 1000);
-                    cJSON_AddNumberToObject(l2, "trigDelay", pch->trigDelay / 1000);
+                    cJSON_AddNumberToObject(l2, "smpMode",      pch->smpMode);
+                    cJSON_AddNumberToObject(l2, "smpFreq",      pch->smpFreq / 1000);
+                    cJSON_AddNumberToObject(l2, "smpPoints",    pch->smpPoints);
+                    cJSON_AddNumberToObject(l2, "smpInterval",  pch->smpInterval);
+                    cJSON_AddNumberToObject(l2, "smpTimes",     pch->smpTimes);
+                    cJSON_AddNumberToObject(l2, "trigEvType",   pch->trigEvType);
+                    cJSON_AddNumberToObject(l2, "trigThreshold",  pch->trigThreshold);
+                    
+                    l3 = cJSON_CreateObject();
+                    if(l3) {
+                        cJSON_AddNumberToObject(l2, "preTime",   pch->trigTime.preTime);
+                        cJSON_AddNumberToObject(l2, "postTime",  pch->trigTime.postTime);
+                        cJSON_AddNumberToObject(l2, "PDT",       pch->trigTime.HDT);
+                        cJSON_AddNumberToObject(l2, "HDT",       pch->trigTime.HDT);
+                        cJSON_AddNumberToObject(l2, "HLT",       pch->trigTime.HLT);
+                        cJSON_AddNumberToObject(l2, "MDT",       pch->trigTime.MDT);
+                         cJSON_AddItemToObject(l2, "trigTime", l3);
+                    }
+                    
 
                     cJSON_AddNumberToObject(l2, "n_ev", pch->n_ev);
                     cJSON* a2 = cJSON_CreateArray();
@@ -186,7 +197,7 @@ int json_from(char *js, int js_len, usr_para_t *usr)
                     cJSON_AddNumberToObject(l2, "upway", pch->upway);
                     cJSON_AddNumberToObject(l2, "upwav", pch->upwav);
                     cJSON_AddNumberToObject(l2, "savwav", pch->savwav);
-                    cJSON_AddNumberToObject(l2, "evCalcCnt", pch->evCalcCnt);
+                    cJSON_AddNumberToObject(l2, "evCalcPoints", pch->evCalcPoints);
 
                     l3 = cJSON_CreateObject();
                     if (l3) {
@@ -485,28 +496,58 @@ int json_to(char *js, usr_para_t *usr)
                     pch->smpTimes = l3->valueint;
                 }
                 
-                l3 = cJSON_GetObjectItem(a1, "ampThreshold");
+                l3 = cJSON_GetObjectItem(a1, "trigEvType");
                 if(l3) {
-                    RANGE_CHECK(l3->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
-                    pch->ampThreshold = l3->valuedouble;
+                    RANGE_CHECK(l3->valueint, 0, 6, "ch[%d].ampThreshold is wrong, range: 0~6(mv)\n", ch)
+                    pch->trigEvType = l3->valueint;
                 }
 
-                l3 = cJSON_GetObjectItem(a1, "messDuration");
-                if (l3) {
-                    RANGE_CHECK(l3->valueint, 1, 10, "ch[%d].messDuration is wrong, range: 1~10(s)\n", ch)
-                    pch->messDuration = l3->valueint*1000;
+                //////////////////
+                l3 = cJSON_GetObjectItem(a1, "trigTime");
+                if(l3) {
+                    
+                    l3 = cJSON_GetObjectItem(a1, "preTime");
+                    if(l3) {
+                        //RANGE_CHECK(l3->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
+                        pch->trigTime.preTime = l3->valueint;
+                    }
+
+                    
+                    l3 = cJSON_GetObjectItem(a1, "postTime");
+                    if(l3) {
+                        //RANGE_CHECK(l3->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
+                        pch->trigTime.postTime = l3->valueint;
+                    }
+
+                    l4 = cJSON_GetObjectItem(l3, "PDT");
+                    if(l4) {
+                        //RANGE_CHECK(l4->valueint, 10, 60, "ch[%d].PDT is wrong, range: 10~60(s)\n", ch)
+                        pch->trigTime.PDT = l4->valueint;
+                    }
+                    
+                    l4 = cJSON_GetObjectItem(l3, "HDT");
+                    if(l4) {
+                        //RANGE_CHECK(l4->valueint, 10, 60, "ch[%d].HDT is wrong, range: 10~60(s)\n", ch)
+                        pch->trigTime.HDT = l4->valueint;
+                    }
+                    
+                    l4 = cJSON_GetObjectItem(l3, "HLT");
+                    if (l4) {
+                        //RANGE_CHECK(l4->valueint, 1, 10, "ch[%d].HLT is wrong, range: 1~10(s)\n", ch)
+                        pch->trigTime.HLT = l4->valueint;
+                    }
+                    
+                    l4 = cJSON_GetObjectItem(l3, "MDT");
+                    if (l4) {
+                        //RANGE_CHECK(l4->valueint, 1, 10, "ch[%d].MDT is wrong, range: 1~10(s)\n", ch)
+                        pch->trigTime.MDT = l4->valueint;
+                    }
                 }
                 
-                l4 = cJSON_GetObjectItem(a1, "trigDelay");
+                l3 = cJSON_GetObjectItem(a1, "evCalcPoints");
                 if(l3) {
-                    RANGE_CHECK(l3->valueint, 10, 60, "ch[%d].trigDelay is wrong, range: 10~60(s)\n", ch)
-                    pch->trigDelay = l3->valueint*1000;
-                }
-                
-                l3 = cJSON_GetObjectItem(a1, "evCalcCnt");
-                if(l3) {
-                    RANGE_CHECK(l3->valueint, 1000, 10000, "ch[%d].evCalcCnt is wrong, range: 1000~10000\n", ch)
-                    pch->evCalcCnt = l3->valueint;
+                    RANGE_CHECK(l3->valueint, 1000, 10000, "ch[%d].evCalcPoints is wrong, range: 1000~10000\n", ch)
+                    pch->evCalcPoints = l3->valueint;
                 } 
                 
                 l3 = cJSON_GetObjectItem(a1, "upway");

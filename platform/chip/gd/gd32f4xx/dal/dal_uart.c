@@ -123,6 +123,8 @@ static void uart_dma_deinit(dal_uart_handle_t *h)
     uart_info_t *info=(uart_info_t*)&uartInfo[h->cfg.port];
     dma_channel_disable(info->dmaRx.dma, info->dmaRx.chn);
     dma_channel_disable(info->dmaTx.dma, info->dmaTx.chn);
+    
+    
 }
 static void uart_dma_rx_proc(dal_uart_handle_t *h)
 {
@@ -288,6 +290,9 @@ int dal_uart_deinit(handle_t h)
             uart_dma_deinit(dh);
         }
     }
+    usart_receive_config(info->urt,USART_RECEIVE_DISABLE);
+    usart_transmit_config(info->urt,USART_TRANSMIT_DISABLE);
+    
     usart_disable(info->urt);
     usart_deinit(info->urt);
     uartHandle[dh->cfg.port] = NULL;

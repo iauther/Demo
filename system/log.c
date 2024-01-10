@@ -123,7 +123,7 @@ int log_os_init(void)
     int i;
     list_cfg_t lc;
     lc.max  = LOG_NODE_MAX;
-    lc.mode = MODE_FULL_FIFO;
+    lc.mode = LIST_FULL_FIFO;
     lc.log = 0;
     logHandle.list = list_init(&lc);
 #endif

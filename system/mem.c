@@ -108,7 +108,7 @@ void* mem_malloc(STRATEGY stg, int len, U8 zero)
         p1 = rtx_mem_alloc(xParam.start, len);
     #endif
         if (!p1) {
-            LOGE("___ tiny_malloc or rtx_mem_alloc %d, failed, 0x%08x\n, call malloc.\n", len, p1);
+            LOGE("___ mem_malloc %d, failed, 0x%08x\n, call malloc.\n", len, p1);
             
             p1 = malloc(len);
         }

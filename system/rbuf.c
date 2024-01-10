@@ -10,25 +10,27 @@ typedef struct {
 	int     dlen;
 	int     size;
     U8      *buf;
+    int     mode;
     
     handle_t lock;
 }rbuf_handle_t;
 
 
 
-handle_t rbuf_init(void *buf, int size)
+handle_t rbuf_init(rbuf_cfg_t *cfg)
 {
     rbuf_handle_t *h=(rbuf_handle_t*)calloc(1, sizeof(rbuf_handle_t));
     
-    if(!h) {
+    if(!cfg || !h) {
         return NULL;
     }
     
 	h->pr   = 0;
 	h->pw   = 0;
 	h->dlen = 0;
-	h->size = size;
-	h->buf  = (U8*)buf;
+	h->size = cfg->size;
+    h->mode = cfg->mode;
+	h->buf  = (U8*)cfg->buf;
     h->lock = lock_init();
 	
 	return h;
@@ -50,7 +52,7 @@ int rbuf_free(handle_t h)
 }
 
 
-int rbuf_read(handle_t h, U8 *buf, int len, U8 shift)
+int rbuf_read(handle_t h, void *buf, int len, U8 shift)
 {
     int rlen;
     rbuf_handle_t *rh=(rbuf_handle_t*)h;
@@ -77,7 +79,7 @@ int rbuf_read(handle_t h, U8 *buf, int len, U8 shift)
             }
             else {
                 memcpy(buf, rh->buf+rh->pr, l);
-                memcpy(buf+l, rh->buf, rlen-l);
+                memcpy((U8*)buf+l, rh->buf, rlen-l);
             }
         } 
     }
@@ -93,7 +95,7 @@ int rbuf_read(handle_t h, U8 *buf, int len, U8 shift)
             }
             else {
                 memcpy(buf, rh->buf+rh->pr, l);
-                memcpy(buf+l, rh->buf, rlen-l);
+                memcpy((U8*)buf+l, rh->buf, rlen-l);
             }
         }
     }
@@ -107,7 +109,12 @@ int rbuf_read(handle_t h, U8 *buf, int len, U8 shift)
 	return rlen;
 }
 
-
+static void read_shift(rbuf_handle_t *rh, int len)
+{
+    int xlen=(len>rh->dlen)?rh->dlen:len;
+    rh->pr = (rh->pr + len) % rh->size;        //更新读指针
+    rh->dlen -= len;
+}
 int rbuf_read_shift(handle_t h, int len)
 {
     rbuf_handle_t* rh = (rbuf_handle_t*)h;
@@ -117,14 +124,13 @@ int rbuf_read_shift(handle_t h, int len)
     }
 
     lock_on(rh->lock);
-    rh->pr = (rh->pr + len) % rh->size;        //更新读指针
-    rh->dlen -= len;
+    read_shift(rh, len);
     lock_off(rh->lock);
 
     return 0;
 }
 
-int rbuf_write(handle_t h, U8 *buf, int len)
+int rbuf_write(handle_t h, void *buf, int len)
 {
     int wlen;
     rbuf_handle_t *rh=(rbuf_handle_t*)h;
@@ -134,11 +140,6 @@ int rbuf_write(handle_t h, U8 *buf, int len)
     }
 
     lock_on(rh->lock);
-    if(rh->dlen==rh->size) {        //buffer is full
-        lock_off(rh->lock);
-        return 0;
-    }
-    
     if(len <= (rh->size-rh->dlen)) {    //可全部写入
         wlen = len;
         if(rh->pw <= rh->pr) {      //写指针在前，只用写1次
@@ -151,20 +152,52 @@ int rbuf_write(handle_t h, U8 *buf, int len)
             }
             else {  //写指针在后，后续剩余空间不足，需写2次
                 memcpy(rh->buf+rh->pw, buf, l);
-                memcpy(rh->buf, buf+l, wlen-l);
+                memcpy(rh->buf, (U8*)buf+l, wlen-l);
             }
         }
     }
-    else {  //只能部分写入，即写满buffer
-        wlen = rh->size-rh->dlen;
-        if(rh->pw <= rh->pr) {
-            memcpy(rh->buf+rh->pw, buf, wlen);
+    else {  //只能部分写入
+        if(rh->mode==RBUF_FULL_FILO) {  //丢后面的新数据
+        
+            wlen = rh->size-rh->dlen;
+            if(rh->pw <= rh->pr) {
+                memcpy(rh->buf+rh->pw, buf, wlen);
+            }
+            else {
+                int l = rh->size-rh->pw;
+                memcpy(rh->buf+rh->pw, buf, l);
+                memcpy(rh->buf, (U8*)buf+l, wlen-l);
+            }
         }
-        else {
-            int l = rh->size-rh->pw;
-            memcpy(rh->buf+rh->pw, buf, l);
-            memcpy(rh->buf, buf+l, wlen-l);
-        } 
+        else {                          //丢前面的老数据，保留最后部最新数据
+            //
+            if(len>=rh->size) {
+                wlen = rh->size;
+                rh->pr = rh->pw = 0;
+                
+                memcpy(rh->buf, (U8*)buf+len-wlen, wlen);
+            }
+            else {                      //需将现有数据丢一部分，新数据全部写入
+                
+                int shiftlen=len+rh->dlen-rh->size;
+                read_shift(rh, shiftlen);
+                
+                wlen = len;
+                if(rh->pw <= rh->pr) {      //写指针在前，只用写1次
+                    memcpy(rh->buf+rh->pw, buf, wlen);
+                }
+                else {
+                    int l = rh->size-rh->pw;
+                    if(wlen<=l) {   //写指针在后，后续足够，只需写1次
+                        memcpy(rh->buf+rh->pw, buf, wlen);
+                    }
+                    else {  //写指针在后，后续剩余空间不足，需写2次
+                        memcpy(rh->buf+rh->pw, buf, l);
+                        memcpy(rh->buf, (U8*)buf+l, wlen-l);
+                    }
+                }
+            }
+        }
     }
 
     rh->pw = (rh->pw + wlen) % rh->size;        //更新写指针
@@ -175,7 +208,7 @@ int rbuf_write(handle_t h, U8 *buf, int len)
 }
 
 
-int rbuf_reset(handle_t h)
+int rbuf_clear(handle_t h)
 {
     int size;
     rbuf_handle_t* rh = (rbuf_handle_t*)h;
@@ -194,7 +227,7 @@ int rbuf_reset(handle_t h)
 }
 
 
-int rbuf_get_size(handle_t h)
+int rbuf_size(handle_t h)
 {
     int size;
     rbuf_handle_t *rh=(rbuf_handle_t*)h;
@@ -226,6 +259,26 @@ int rbuf_get_dlen(handle_t h)
 
 	return dlen;
 }
+
+
+int rbuf_is_full(handle_t h)
+{
+    int r=0;
+    rbuf_handle_t *rh=(rbuf_handle_t*)h;
+    
+	if(!rh) {
+        return -1;
+    }
+    
+    lock_on(rh->lock);
+    r = (rh->dlen==rh->size)?1:0;
+    lock_off(rh->lock);
+    
+    return r;
+}
+
+
+
 
 
 

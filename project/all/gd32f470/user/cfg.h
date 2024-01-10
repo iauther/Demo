@@ -2,7 +2,7 @@
 #define __CFG_Hx__
 
 
-#define FW_VERSION                  "V1.3.0"
+#define FW_VERSION                  "V1.0.0"
 
 
 #define BOARD_V134
@@ -43,8 +43,7 @@
     #define SDMMC_MNT_PT             "/sd"
     #define SDMMC_FS_TYPE            FS_FATFS
     
-    //#define SFLASH_MNT_PT            "/sf"
-    #define SFLASH_MNT_PT            "/sd"
+    #define SFLASH_MNT_PT            "/sf"
     #define SFLASH_FS_TYPE           FS_FATFS
     
     

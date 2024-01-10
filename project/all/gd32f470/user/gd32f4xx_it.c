@@ -56,10 +56,39 @@ void NMI_Handler(void)
 */
 void HardFault_Handler(void)
 {
-    /* if Hard Fault exception occurs, go to infinite loop */
     LOGE("--- HardFault\n");
-    while(1) {
+    
+#if 0
+    #define NVIC_CTRL                  REG32(0xE000ED24)
+    #define NVIC_MFSR                  REG32(0xE000ED28)
+    #define NVIC_BFSR                  REG32(0xE000ED29)
+    #define NVIC_UFSR                  REG32(0xE000ED2A)
+    #define NVIC_HFSR                  REG32(0xE000ED2C)
+    #define NVIC_DFSR                  REG32(0xE000ED30)
+    #define NVIC_MMAR                  REG32(0xE000ED34)
+    #define NVIC_BFAR                  REG32(0xE000ED38)
+    #define NVIC_AFSR                  REG32(0xE000ED3C)
+                       
+    if (NVIC_HFSR & (1u << 31)) {
+        NVIC_HFSR |=  (1u << 31);     // Reset Hard Fault status
+        *(pStack + 6u) += 2u;         // PC is located on stack at SP + 24 bytes. Increment PC by 2 to skip break instruction.
+        return;                       // Return to interrupted application
     }
+    
+    LOGE("--- CTRL: 0x%08x\n", NVIC_CTRL);
+    LOGE("--- MFSR: 0x%08x\n", NVIC_MFSR);
+    LOGE("--- BFSR: 0x%08x\n", NVIC_BFSR);
+    LOGE("--- UFSR: 0x%08x\n", NVIC_UFSR);
+    LOGE("--- HFSR: 0x%08x\n", NVIC_HFSR);
+    LOGE("--- HFSR: 0x%08x\n", NVIC_HFSR);
+    LOGE("--- DFSR: 0x%08x\n", NVIC_DFSR);
+    LOGE("--- MMAR: 0x%08x\n", NVIC_MMAR);
+    LOGE("--- BFAR: 0x%08x\n", NVIC_BFAR);
+    LOGE("--- AFSR: 0x%08x\n", NVIC_AFSR);
+        
+#endif
+    
+    while(1);
 }
 
 /*!
