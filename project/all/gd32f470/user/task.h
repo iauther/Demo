@@ -83,6 +83,7 @@ typedef struct {
     int             idx;
     index_t         cur;
     index_t         set;
+    int             trigged;
 }threshold_t;
 
 typedef struct {
@@ -110,10 +111,8 @@ typedef struct {
 
 typedef struct {
     handle_t        hcomm;
-    handle_t        hconn;
     
     handle_t        hMem;
-    handle_t        netList;         //网络连接列表
     
     U8              chs;
     U8              chBits;
@@ -155,6 +154,9 @@ int api_comm_send_data(U8 type, U8 nAck, void *data, int len);
 int api_nvm_send(void *data, int len);
 int api_nvm_is_finished(void);
 
+int api_data_proc_send(U8 ch, void *data, int len);
+
+
 void task_init(void);
 int task_new(task_attr_t *atrr);
 int start_task_simp(osThreadFunc_t fn, int stksize, void *arg, osThreadId_t *tid);
@@ -164,8 +166,8 @@ int task_quit(int id);
 int task_wait(int taskID);
 
 int task_recv(int taskID, evt_t *evt, int evtlen);
-int task_send(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len, U32 timeout);
-int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len);
+int task_send(int taskID, void *arg, U8 evt, U8 type, void *data, int len, U32 timeout);
+int task_post(int taskID, void *arg, U8 evt, U8 type, void *data, int len);
 int task_trig(int taskID, U8 evt);
 int task_trig2(int taskID, U8 evt, U8 data);
 int task_msg_clear(int taskID);
@@ -178,6 +180,7 @@ int task_timer_free(handle_t h);
 int task_yield(void);
 U32 task_stack_remain(void);
 void test_main(void);
+void print_ts(char *s);
 
 #endif
 

@@ -136,8 +136,7 @@ public:
 	CButton btCali,btDflt,btDac,btFresh;
 
 	int      iport=-1;
-	handle_t hand = NULL;
-	handle_t conn = NULL;
+	handle_t hcomm;
 	mySerial mSerial;
 
 	int dev_opened=0;
@@ -387,7 +386,7 @@ public:
 		sprintf(tmp, "smp.mode: %d\n", usr->smp.mode);								info_print(tmp);
 		sprintf(tmp, "smp.port: %d\n", usr->smp.port);								info_print(tmp);
 		sprintf(tmp, "smp.pwrmode: %d\n", usr->smp.pwrmode);						info_print(tmp);
-		sprintf(tmp, "smp.pwr_period: %ds\n", usr->smp.workInterval);				info_print(tmp);
+		sprintf(tmp, "smp.worktime: %ds\n", usr->smp.worktime);				        info_print(tmp);
 		
 		U8  mode=usr->smp.mode;
 		
@@ -627,7 +626,6 @@ public:
 		//dc.SetTextColor(RGB(0, 0, 0));
 
 		json_init();
-		port_init();
 	}
 
 	
@@ -835,93 +833,84 @@ public:
 		return r;
 	}
 
-	char portPara[20];
-	int port_init()
+	
+	int port_open()
 	{
-		comm_init_para_t comm_p;
+		comm_para_t comm_p;
+		char portPara[20];
+		const char* portStr[PORT_MAX] = {"com","net","usb"};
 
 		int r = load_port(&iport, portPara);
 		if (r) {
 			return -1;
 		}
 
+		comm_p.port = iport;
 		comm_p.rlen = 0;
 		comm_p.tlen = 80000;
 		comm_p.para = NULL;
-		hand = comm_init(iport, &comm_p);
-		if (!hand) {
-			LOGE("___ comm_init failed!\n");
-			return -1;
-		}
 
-		return 0;
-	}
-
-	int port_deinit()
-	{
-		comm_deinit(hand);
-		hand = NULL;
-	}
-
-	int port_open()
-	{
 		if (iport ==PORT_NET) {
-			conn_para_t para;
+			conn_para_t conn_p;
 
 			netPara.mode = 1;
 			netPara.para.plat = platPara;
 			load_net_para(&netPara);
 
-			para.callback = NULL;
-			para.proto = PROTO_MQTT;
-			para.para = &netPara;
-
-			conn = comm_open(hand, &para);
+			conn_p.callback = NULL;
+			conn_p.proto = PROTO_MQTT;
+			conn_p.para = &netPara;
+			
+			comm_p.para = &conn_p;
+			hcomm = comm_open(&comm_p);
+			
+			
 		}
 		else if(iport == PORT_UART) {
-			char* para = portPara; 
-			conn = comm_open(hand, para);
+			comm_p.para = portPara;
+			hcomm = comm_open(&comm_p);
 		}
-		if (!conn) {
-			LOGE("___ comm_open failed!\n");
+		if (!hcomm) {
+			LOGE("___ comm_open %s failed!\n", portStr[iport]);
 			return -1;
 		}
-		LOGD("___ comm_open ok!\n");
+		LOGD("___ comm_open %s ok!\n", portStr[iport]);
 
 		return 0;
 	}
 	int port_close(void)
 	{
-		comm_close(conn);
+		comm_close(hcomm);
+		hcomm = NULL;
 
 		return 0;
 	}
 
 	int port_read(void* data, int len)
 	{
-		if (!conn) {
+		if (!hcomm) {
 			return -1;
 		}
 
-		return comm_recv_data(conn, NULL, data, len);
+		return comm_recv_data(hcomm, NULL, data, len);
 	}
 
 	int port_write(U8 type, U8 nack, void* data, int len)
 	{
-		if (!conn) {
+		if (!hcomm) {
 			return -1;
 		}
 
-		return comm_send_data(conn, NULL, type, nack, data, len);
+		return comm_send_data(hcomm, NULL, type, nack, data, len);
 	}
 
 	int port_pure_write(U8* data, int len)
 	{
-		if (!conn) {
+		if (!hcomm) {
 			return -1;
 		}
 
-		return comm_pure_send(conn, NULL, data, len);
+		return comm_pure_send(hcomm, NULL, data, len);
 	}
 
 	int send_ack(U8 type, U8 err, U8 chkID)

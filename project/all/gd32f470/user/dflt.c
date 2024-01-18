@@ -108,7 +108,7 @@ const all_para_t DFLT_PARA={
             
             .mode       = MODE_NORM,
     #ifdef DEV_MODE_DEBUG
-            .workInterval    = 60*10,
+            .worktime    = 60*10,
             
             .ch = {
                     {
@@ -124,14 +124,14 @@ const all_para_t DFLT_PARA={
                         .smpTimes     = 1,
                         
                         .trigEvType     = 1,
-                        .trigThreshold  = 50.0f,
+                        .trigThreshold  = 60.0f,
                         .trigTime={
-                            .preTime    = 600,
-                            .postTime   = 600,
+                            .preTime    = 200,
+                            .postTime   = 200,
                             .PDT        = 300,
                             .HDT        = 600,
-                            .HLT        = 1000,
-                            .MDT        = 50000,
+                            .HLT        = 500000,
+                            .MDT        = 4000,
                         },
                         
                         .n_ev         = 4,
@@ -166,8 +166,8 @@ const all_para_t DFLT_PARA={
                             .postTime   = 600,
                             .PDT        = 300,
                             .HDT        = 600,
-                            .HLT        = 1000,
-                            .MDT        = 50000,
+                            .HLT        = 500000,
+                            .MDT        = 10000,
                         },
                         
                         .n_ev         = 4,
@@ -185,14 +185,15 @@ const all_para_t DFLT_PARA={
                     },
             },
     #elif defined DEV_MODE_TEST
-            .workInterval   = 60*10,
+            .worktime   = 60*10,
             
             .ch = {
                     {
                         .ch         = CH_0,
                         .enable     = 1,
                         
-                        .smpMode      = SMP_MODE_PERIOD,
+                        //.smpMode      = SMP_MODE_PERIOD,
+                        .smpMode    = SMP_MODE_TRIG,
                         .smpFreq    = 1000000,
                         
                         .smpPoints    = 10000,
@@ -200,14 +201,14 @@ const all_para_t DFLT_PARA={
                         .smpTimes     = 1,
                         
                         .trigEvType = 1,
-                        .trigPreTime    = 60,
+                        .trigThreshold  = 50.0f,
                         .trigTime={
                             .preTime    = 600,
                             .postTime   = 600,
                             .PDT        = 300,
                             .HDT        = 600,
-                            .HLT        = 1000,
-                            .MDT        = 200000,
+                            .HLT        = 5000,
+                            .MDT        = 10000,
                         },
                         
                         .n_ev         = 4,
@@ -242,8 +243,8 @@ const all_para_t DFLT_PARA={
                             .postTime   = 600,
                             .PDT        = 300,
                             .HDT        = 600,
-                            .HLT        = 1000,
-                            .MDT        = 200000,
+                            .HLT        = 5000,
+                            .MDT        = 10000,
                         },
                         
                         .n_ev         = 4,
@@ -261,7 +262,7 @@ const all_para_t DFLT_PARA={
                     },
             },
     #else
-            .workInterval   = 60*60*4,
+            .worktime   = 60*60*4,
             
             .ch = {
                     {
@@ -282,8 +283,8 @@ const all_para_t DFLT_PARA={
                             .postTime   = 600,
                             .PDT        = 300,
                             .HDT        = 600,
-                            .HLT        = 1000,
-                            .MDT        = 200000,
+                            .HLT        = 5000,
+                            .MDT        = 10000,
                         },
                         
                         .n_ev         = 4,
@@ -318,8 +319,8 @@ const all_para_t DFLT_PARA={
                             .postTime   = 600,
                             .PDT        = 300,
                             .HDT        = 600,
-                            .HLT        = 1000,
-                            .MDT        = 200000,
+                            .HLT        = 5000,
+                            .MDT        = 10000,
                         },
                         
                         .n_ev         = 4,

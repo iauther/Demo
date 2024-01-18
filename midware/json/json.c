@@ -143,9 +143,9 @@ int json_from(char *js, int js_len, usr_para_t *usr)
         cJSON_AddNumberToObject(l1, "port", usr->smp.port);
         cJSON_AddNumberToObject(l1, "pwrmode", usr->smp.pwrmode);
 
-        h = usr->smp.workInterval / 3600;
-        m = usr->smp.workInterval / 60;
-        s = usr->smp.workInterval % 60;
+        h = usr->smp.worktime / 3600;
+        m = usr->smp.worktime / 60;
+        s = usr->smp.worktime % 60;
 
         ht[0] = mt[0] = st[0] = 0;
         snprintf(tmp, sizeof(tmp), "%dh%dm%ds", h, m, s);
@@ -154,7 +154,7 @@ int json_from(char *js, int js_len, usr_para_t *usr)
         if (s > 0) sprintf(st, "%ds", s);
         sprintf(tmp, "%s%s%s", ht, mt, st);
 
-        cJSON_AddStringToObject(l1, "workInterval", tmp);
+        cJSON_AddStringToObject(l1, "worktime", tmp);
 
         a1 = cJSON_CreateArray();
         if (a1) {
@@ -175,12 +175,12 @@ int json_from(char *js, int js_len, usr_para_t *usr)
                     
                     l3 = cJSON_CreateObject();
                     if(l3) {
-                        cJSON_AddNumberToObject(l2, "preTime",   pch->trigTime.preTime);
-                        cJSON_AddNumberToObject(l2, "postTime",  pch->trigTime.postTime);
-                        cJSON_AddNumberToObject(l2, "PDT",       pch->trigTime.HDT);
-                        cJSON_AddNumberToObject(l2, "HDT",       pch->trigTime.HDT);
-                        cJSON_AddNumberToObject(l2, "HLT",       pch->trigTime.HLT);
-                        cJSON_AddNumberToObject(l2, "MDT",       pch->trigTime.MDT);
+                        cJSON_AddNumberToObject(l3, "preTime",   pch->trigTime.preTime);
+                        cJSON_AddNumberToObject(l3, "postTime",  pch->trigTime.postTime);
+                        cJSON_AddNumberToObject(l3, "PDT",       pch->trigTime.HDT);
+                        cJSON_AddNumberToObject(l3, "HDT",       pch->trigTime.HDT);
+                        cJSON_AddNumberToObject(l3, "HLT",       pch->trigTime.HLT);
+                        cJSON_AddNumberToObject(l3, "MDT",       pch->trigTime.MDT);
                          cJSON_AddItemToObject(l2, "trigTime", l3);
                     }
                     
@@ -209,7 +209,7 @@ int json_from(char *js, int js_len, usr_para_t *usr)
                     cJSON_AddItemToArray(a1, l2);
                 }
             }
-            cJSON_AddItemToObject(l1, "chPara", a1);
+            cJSON_AddItemToObject(l1, "chParas", a1);
         }
         cJSON_AddItemToObject(root, "smpPara", l1);
     }
@@ -419,13 +419,12 @@ int json_to(char *js, usr_para_t *usr)
             h = m = s = 0;
             n = get_hms(l2->valuestring, &h, &m, &s);
             if(n>0) {
-                usr->smp.workInterval = h*3600+m*60+s;
+                usr->smp.worktime = h*3600+m*60+s;
             }
         }
         
-        
-        l2 = cJSON_GetObjectItem(root, "chParas");
-        if (l2 && cJSON_IsArray(l1) ){
+        l2 = cJSON_GetObjectItem(l1, "chParas");
+        if (l2 && cJSON_IsArray(l2) ){
             cnt = cJSON_GetArraySize(l2);
             if(cnt>CH_MAX) {
                 cJSON_Delete(root);
@@ -474,7 +473,7 @@ int json_to(char *js, usr_para_t *usr)
                 
                 l3 = cJSON_GetObjectItem(a1, "smpFreq");
                 if(l3) {
-                    RANGE_CHECK(l3->valueint, 1, 250, "ch[%d].smpFreq is wrong, range: 1~250(kps)\n", ch)
+                    RANGE_CHECK(l3->valueint, 1, 2500, "ch[%d].smpFreq is wrong, range: 1~2500(kps)\n", ch)
                     pch->smpFreq = l3->valueint*1000;
                 }
                 
@@ -486,7 +485,7 @@ int json_to(char *js, usr_para_t *usr)
                 
                 l3 = cJSON_GetObjectItem(a1, "smpInterval");
                 if(l3) {
-                    RANGE_CHECK(l3->valueint, 0, 10000, "ch[%d].smpInterval is wrong, range: 0~10000000(us)\n", ch)
+                    RANGE_CHECK(l3->valueint, 0, 10000000, "ch[%d].smpInterval is wrong, range: 0~10000000(us)\n", ch)
                     pch->smpInterval = l3->valueint;
                 }
                 
@@ -502,21 +501,27 @@ int json_to(char *js, usr_para_t *usr)
                     pch->trigEvType = l3->valueint;
                 }
 
+                l3 = cJSON_GetObjectItem(a1, "trigThreshold");
+                if (l3) {
+                    //RANGE_CHECK(l3->valuedouble, 0, 6, "ch[%d].ampThreshold is wrong, range: 0~6(mv)\n", ch)
+                    pch->trigThreshold = l3->valuedouble;
+                }
+
                 //////////////////
                 l3 = cJSON_GetObjectItem(a1, "trigTime");
                 if(l3) {
                     
-                    l3 = cJSON_GetObjectItem(a1, "preTime");
-                    if(l3) {
-                        //RANGE_CHECK(l3->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
-                        pch->trigTime.preTime = l3->valueint;
+                    l4 = cJSON_GetObjectItem(l3, "preTime");
+                    if(l4) {
+                        //RANGE_CHECK(l4->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
+                        pch->trigTime.preTime = l4->valueint;
                     }
 
                     
-                    l3 = cJSON_GetObjectItem(a1, "postTime");
-                    if(l3) {
-                        //RANGE_CHECK(l3->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
-                        pch->trigTime.postTime = l3->valueint;
+                    l4 = cJSON_GetObjectItem(l3, "postTime");
+                    if(l4) {
+                        //RANGE_CHECK(l4->valueint, 1, 10, "ch[%d].ampThreshold is wrong, range: 1~10(mv)\n", ch)
+                        pch->trigTime.postTime = l4->valueint;
                     }
 
                     l4 = cJSON_GetObjectItem(l3, "PDT");

@@ -146,7 +146,7 @@ typedef struct {
 typedef struct {
     int rssi;   //信号强度
     int ber;    //信道误码率
-} at_sig_stat_t;
+} signal_info_t;
 
 
 /**

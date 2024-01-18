@@ -303,6 +303,19 @@ int dal_uart_deinit(handle_t h)
 }
 
 
+int dal_uart_set_baudrate(handle_t h, int baudrate)
+{
+    dal_uart_handle_t *dh=(dal_uart_handle_t*)h;
+    
+    if(!dh) {
+        return -1;
+    }
+    
+    usart_baudrate_set(uartInfo[dh->cfg.port].urt, baudrate);
+    
+    return 0;
+}
+
 
 int dal_uart_read(handle_t h, U8 *data, int len)
 {

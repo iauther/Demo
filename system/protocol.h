@@ -256,7 +256,7 @@ typedef struct {
     U8              port;               //refer to PORT_UART define
     
     U8              pwrmode;           //PWR_NO_PWRDN:no powerdown    PWR_PERIOD_PWRDN: period powerdown
-    U32             workInterval;      //unit: second
+    U32             worktime;          //unit: second
     ch_para_t       ch[CH_MAX];
 }smp_para_t;
 
@@ -271,7 +271,6 @@ typedef struct {
 
 typedef struct {
     U32             tp;
-    U32             idx;
     F32             data;
 }ev_val_t;
 

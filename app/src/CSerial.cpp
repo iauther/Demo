@@ -28,12 +28,12 @@ string wstringToString(const wstring& wstr)
 }
 
 
-static int enumSerialPorts(SerialPortInfo* portInfoList, int cnt)
+static int enumSerialPorts(sp_info2_t* portInfoList, int cnt)
 {
     // https://docs.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdienumdeviceinfo
     int nport = 0;
     bool bRet = false;
-    SerialPortInfo portInfo;
+    sp_info2_t portInfo;
 
     string strFriendlyName;
     string strPortName;
@@ -170,7 +170,7 @@ bool CSerial::open(LPCTSTR port, int baudrate)
     return bOpened;
 }
 
-bool CSerial::get_list(SerialPortInfo **plist, int *cnt)
+bool CSerial::get_list(sp_info2_t**plist, int *cnt)
 {
     m_PortNum = enumSerialPorts(m_PortInfo, MAX_PORT);
 

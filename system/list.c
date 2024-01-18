@@ -19,7 +19,7 @@ typedef struct {
     
     dlist_t             free;
 }list_t;
-
+static list_node_t *node_get(list_t *l, int index);
 
 static list_node_t* node_from_free(list_t *l, int dlen)
 {
@@ -94,8 +94,6 @@ static int node_to_free(list_t *l, list_node_t *node)
     
     return 0;
 }
-
-
 static list_node_t *node_new(list_t *l, node_t *n)
 {
     list_node_t *node=NULL;
@@ -129,8 +127,6 @@ static int node_free(list_t *l, list_node_t *node)
     
     return 0;
 }
-
-
 static int node_remove(list_t *l, list_node_t *node, U8 ds)
 {
     int index;
@@ -171,6 +167,46 @@ static int node_remove(list_t *l, list_node_t *node, U8 ds)
     else if(ds==2) {
         node_free(l, tmp);
     }
+    
+    return 0;
+}
+static int node_insert(list_t *l, list_node_t *node, int index)
+{
+    list_node_t *xd,*tmp=node;
+    dlist_t *dl=&l->used;
+    
+    if(dl->size==0) {
+        tmp->prev = NULL;
+        tmp->next = NULL;
+        
+        dl->head = tmp;
+        dl->tail = tmp;
+    }
+    else {
+        if(index==0) {                                  //head
+            tmp->prev = NULL;
+            tmp->next = dl->head;
+            
+            xd->prev = tmp;
+            dl->head = tmp;
+        }
+        else if((index==(dl->size)) || (index==-1)) {   //tail
+            tmp->prev = dl->tail;
+            tmp->next = NULL;
+            
+            dl->tail->next = tmp;
+            dl->tail = tmp;
+        }
+        else {
+            xd = node_get(l, index);
+            
+            tmp->prev = xd->prev;
+            tmp->next = xd;
+            xd->prev->next = tmp;
+            xd->prev = tmp;
+        }
+    }
+    dl->size++;
     
     return 0;
 }
@@ -305,17 +341,19 @@ int list_get_node(handle_t l, list_node_t **lnode, int index)
     }
     
     if (hl->used.size<=0 || index>=hl->used.size) {
-        lock_off(hl->lock);
-        return -1;
+        goto quit;
     }
     
     ln = node_get(hl, index);
-    if(ln && lnode) {
-        (*lnode) = ln;
-        r = 0;
+    if(!ln) {
+        goto quit;
     }
-    lock_off(hl->lock);
     
+    *lnode = ln;
+    r = 0;
+    
+quit:
+    lock_off(hl->lock);
     return r;
 }
 
@@ -336,23 +374,23 @@ int list_set_node(handle_t l, list_node_t *lnode, int index)
     }
     
     if (hl->used.size<=0 || index>=hl->used.size) {
-        lock_off(hl->lock);
-        return -1;
+        goto quit;
     }
     
     ln = node_get(hl, index);
     if(ln) {
-        node_set(hl, ln, &lnode->data);
-        r = 0;
+        r = node_set(hl, ln, &lnode->data);
     }
-    lock_off(hl->lock);
     
+quit:
+    lock_off(hl->lock);    
     return r;
 }
 
 
 int list_take_node(handle_t l, list_node_t **lnode, int index)
 {
+    int r=-1;
     list_node_t *ln=NULL;
     list_t *hl=(list_t*)l;
     
@@ -366,21 +404,19 @@ int list_take_node(handle_t l, list_node_t **lnode, int index)
     }
     
     if (hl->used.size<=0 || index>=hl->used.size) {
-        lock_off(hl->lock);
-        return -1;
+       goto quit;
     }
     
     ln = node_get(hl, index);
     if(!ln) {
-        lock_off(hl->lock);
-        return -1;
+        goto quit;
     }
     *lnode = ln;
-    node_remove(hl, ln, 0);
-    
+    r = node_remove(hl, ln, 0);
+
+quit:
     lock_off(hl->lock);    
-    
-    return 0;
+    return r;
 }
 
 
@@ -419,104 +455,77 @@ int list_discard_node(handle_t l, list_node_t *lnode)
     node_free(l, lnode);
     
     lock_off(hl->lock);
-    
     return 0;
 }
 
 
-int list_addto(handle_t l, node_t *node, int index)
+int list_insert(handle_t l, node_t *node, int index)
 {
-    int idx=0;
+    int r=-1;
     list_t *hl=(list_t*)l;
     list_node_t *xd,*tmp;
-    dlist_t *dl=NULL;
     
     if(!hl || !node) {
         return -1;
     }
     
     if(lock_on(hl->lock)) {
-        if (hl->cfg.log) LOGE("___ list_addto lock failed\n");
+        if (hl->cfg.log) LOGE("___list_insert lock failed\n");
         return -1;
     }
     
-    dl = &hl->used;
-    if (index>dl->size) {
-        if (hl->cfg.log) LOGE("list_addto, invalid index, size: %d, index: %d\n", dl->size, index);
-        lock_off(hl->lock);
-        return -1;
+    if (index>hl->used.size) {
+        if (hl->cfg.log) LOGE("___list_insert, invalid index, size: %d, index: %d\n", hl->used.size, index);
+        goto quit;
     }
     
-    if (hl->cfg.max>0 && dl->size>=hl->cfg.max) {
-        
-        if(hl->cfg.mode==LIST_FULL_FILO) {
-            //LOGW("___ list is full, FILO mode, new data is discard\n");
-            lock_off(hl->lock);
-            return 0;
-        }
-        else {
-            xd = node_get(hl, 0);
+    if (hl->cfg.max>0 && hl->used.size>=hl->cfg.max) {
+        //链表装满时, 根据策略丢数据
+        //如果要插入的位置为末尾, 则丢弃
+        if(index<0 || index>=hl->used.size-1) {
+            if(hl->cfg.mode==LIST_FULL_FILO) { //策略为丢新数据时
+                if (hl->cfg.log) {
+                    //LOGW("___list_insert, list full, discard the new data\n");
+                }
+                r = -2; goto quit;
+            }
+            
+            if (hl->cfg.log) {
+                //LOGW("___list_insert, list full, discard the old data\n");
+            }
+            
+            xd = node_get(hl, 0);              //找最老的数据丢
             node_remove(hl, xd, 1);
-            //LOGW("___ list is full, size: %d, FIFO mode, old data is discard\n", dl->size);
+        }
+        else {  //如果插入位置位于中间, 则需丢最后一个数据
+            if (hl->cfg.log) {
+                LOGW("___list_insert, insert to the middle, discard the last data\n");
+            }
+            
+            xd = node_get(hl, hl->used.size-1);
+            node_remove(hl, xd, 1);
         }
     }
     
     tmp = node_new(hl, node);
     if(!tmp) {
-        if (hl->cfg.log) LOGE("list_addto, malloc %d error, l: 0x%08x, used.size: %d, free.size: %d\n", node->dlen, (U32)hl, hl->used.size, hl->free.size);
-        lock_off(hl->lock);
-        return -1;
+        if (hl->cfg.log) LOGE("___list_insert, malloc %d error, l: 0x%08x, used.size: %d, free.size: %d\n", node->dlen, (U32)hl, hl->used.size, hl->free.size);
+        goto quit;
     }
-    
-    if(dl->size==0) {
-        tmp->prev = NULL;
-        tmp->next = NULL;
-        
-        dl->head = tmp;
-        dl->tail = tmp;
-    }
-    else {
-    
-        if(index==0) {                                  //head
-            tmp->prev = NULL;
-            tmp->next = dl->head;
-            
-            xd->prev = tmp;
-            dl->head = tmp;
-        }
-        else if((index==(dl->size)) || (index==-1)) {   //tail
-            
-            tmp->prev = dl->tail;
-            tmp->next = NULL;
-            
-            dl->tail->next = tmp;
-            dl->tail = tmp;
-        }
-        else {
-            
-            xd = node_get(l, index);
-            
-            tmp->prev = xd->prev;
-            tmp->next = xd;
-            
-            xd->prev->next = tmp;
-            xd->prev = tmp;
-        }
-    }
-    dl->size++;
-        
+    r = node_insert(l, tmp, index);
+
+quit:
     lock_off(hl->lock);
     
-    return 0;
+    return r;
 }
 
 
-int list_add_node(handle_t l, list_node_t *lnode, int index)
+int list_insert_node(handle_t l, list_node_t *lnode, int index)
 {
-    int idx=0;
+    int r=-1;
     list_t *hl=(list_t*)l;
     list_node_t *xd,*tmp=lnode;
-    dlist_t *dl=NULL;
     
     if(!hl || !lnode) {
         return -1;
@@ -527,67 +536,31 @@ int list_add_node(handle_t l, list_node_t *lnode, int index)
         return -1;
     }
     
-    dl = &hl->used;
-    if (index>dl->size) {
-        if (hl->cfg.log) LOGE("list_addto, invalid index, size: %d, index: %d\n", dl->size, index);
-        lock_off(hl->lock);
-        return -1;
+    if (index>hl->used.size) {
+        if (hl->cfg.log) LOGE("list_addto, invalid index, size: %d, index: %d\n", hl->used.size, index);
+        goto quit;
     }
     
-    if (hl->cfg.max>0 && dl->size>=hl->cfg.max) {
-        
-        if(hl->cfg.mode==LIST_FULL_FILO) {
-            //LOGW("___ list is full, FILO mode, new data is discard\n");
-            lock_off(hl->lock);
-            return 0;
-        }
-        else {
-            xd = node_get(hl, 0);
+    if (hl->cfg.max>0 && hl->used.size>=hl->cfg.max) {
+        //链表装满时, 根据策略丢数据
+        //如果要插入的位置为末尾, 则丢弃
+        if(index<0 || index>=hl->used.size-1) {
+            if(hl->cfg.mode==LIST_FULL_FILO) { //策略为丢新数据时
+                r = 0; goto quit;
+            }
+            xd = node_get(hl, 0);              //找最老的数据丢
             node_remove(hl, xd, 1);
-            //LOGW("___ list is full, size: %d, FIFO mode, old data is discard\n", dl->size);
+        }
+        else {  //如果插入位置位于中间, 则需丢最后一个数据
+            xd = node_get(hl, hl->used.size-1);
+            node_remove(hl, xd, 1);
         }
     }
-    
-    if(dl->size==0) {
-        tmp->prev = NULL;
-        tmp->next = NULL;
-        
-        dl->head = tmp;
-        dl->tail = tmp;
-    }
-    else {
-    
-        if(index==0) {                                  //head
-            tmp->prev = NULL;
-            tmp->next = dl->head;
-            
-            xd->prev = tmp;
-            dl->head = tmp;
-        }
-        else if((index==(dl->size)) || (index==-1)) {   //tail
-            
-            tmp->prev = dl->tail;
-            tmp->next = NULL;
-            
-            dl->tail->next = tmp;
-            dl->tail = tmp;
-        }
-        else {
-            
-            xd = node_get(l, index);
-            
-            tmp->prev = xd->prev;
-            tmp->next = xd;
-            
-            xd->prev->next = tmp;
-            xd->prev = tmp;
-        }
-    }
-    dl->size++;
-        
+    r = node_insert(l, lnode, index);
+
+quit:
     lock_off(hl->lock);
-    
-    return 0;
+    return r;
 }
 
 
@@ -595,19 +568,33 @@ int list_append(handle_t l, U32 tp, void *data, U32 len)
 {
     node_t node={tp, data, len, len};
     
-    return list_addto(l, &node, -1);
+    return list_insert(l, &node, -1);
 }
 
 
 int list_append_node(handle_t l, list_node_t *lnode)
 {
-    return list_add_node(l, lnode, -1);
+    return list_insert_node(l, lnode, -1);
+}
+
+
+int list_infront(handle_t l, U32 tp, void *data, U32 len)
+{
+    node_t node={tp, data, len, len};
+    
+    return list_insert(l, &node, 0);
+}
+
+
+int list_infront_node(handle_t l, list_node_t *lnode)
+{
+    return list_insert_node(l, lnode, 0);
 }
 
 
 int list_remove(handle_t l, int index)
 {
-    int r;
+    int r=-1;
     list_node_t *xd;
     list_t *hl=(list_t*)l;
     
@@ -622,13 +609,12 @@ int list_remove(handle_t l, int index)
     
     xd = node_get(l, index);
     if(!xd) {
-        lock_off(hl->lock);
-        return -1;
+        goto quit;
     }
-    
     r = node_remove(hl, xd, 1);
-    lock_off(hl->lock);
     
+quit:
+    lock_off(hl->lock);
     return r;
 }
 
@@ -636,7 +622,7 @@ int list_remove(handle_t l, int index)
 
 int list_delete(handle_t l, int index)
 {
-    int r;
+    int r=-1;
     list_node_t *xd;
     list_t *hl=(list_t*)l;
     
@@ -650,21 +636,21 @@ int list_delete(handle_t l, int index)
     }
     
     if(hl->used.size<=0 || index>=hl->used.size) {
-        lock_off(hl->lock);
-        return -1;
+        goto quit;
     }
     
     xd = node_get(l, index);
     r = node_free(hl, xd);
-    lock_off(hl->lock);
     
+quit:
+    lock_off(hl->lock);
     return r;
 }
 
 
 int list_sort(handle_t l, U8 order)
 {
-    int size=0;
+    int r=-1;
     list_t *hl=(list_t*)l;
     
     if (!hl || order>=SORT_MAX) {
@@ -676,9 +662,8 @@ int list_sort(handle_t l, U8 order)
         return -1;
     }
     
-    if(hl->used.size<=2) {
-        lock_off(hl->lock);
-        return -1;
+    if(hl->used.size<2) {
+        goto quit;
     }
     
     {
@@ -700,10 +685,11 @@ int list_sort(handle_t l, U8 order)
             p1 = p1->next;
         }  
     }
+    r = 0;
     
+quit:
     lock_off(hl->lock);
-    
-    return 0;
+    return r;
 }
 
 
@@ -730,6 +716,7 @@ int list_size(handle_t l)
 
 int list_clear(handle_t l)
 {
+    int r=-1;
     list_node_t *xd;
     list_t *hl=(list_t*)l;
     
@@ -743,8 +730,7 @@ int list_clear(handle_t l)
     }
     
     if(hl->used.size<=0) {
-        lock_off(hl->lock);
-        return -1;
+        goto quit;
     }
     
     xd = hl->used.head;
@@ -755,17 +741,18 @@ int list_clear(handle_t l)
     hl->used.size = 0;
     hl->used.head = NULL;
     hl->used.tail = NULL;
+    r = 0;
     
+quit:
     lock_off(hl->lock);
-    
-    return 0;
+    return r;
 }
 
 
 
 int list_iterator(handle_t l, node_t *node, list_callback_t callback, void *arg)
 {
-    int r=0,act=0;
+    int r=-1,act=0;
     list_node_t *xd=NULL;
     list_t *hl=(list_t*)l;
     dlist_t *dl=NULL;
@@ -781,8 +768,7 @@ int list_iterator(handle_t l, node_t *node, list_callback_t callback, void *arg)
     
     dl = &hl->used;
     if (dl->size<=0) {
-        lock_off(hl->lock);
-        return -1;
+        goto quit;
     }
     
     xd = dl->head;
@@ -799,11 +785,12 @@ int list_iterator(handle_t l, node_t *node, list_callback_t callback, void *arg)
                 node_remove(l, xd, 2);
             }
         }
-        
         xd = xd->next;
     }
-    lock_off(hl->lock);
+    r = 0;
     
+quit:
+    lock_off(hl->lock);
     return r;
 }
 

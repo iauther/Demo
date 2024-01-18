@@ -1,45 +1,45 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include "cmsis_os2.h"
-#include "os_net_al.h"
+#include "os_net_interface.h"
+#include "dal_delay.h"
+#include "mem.h"
+
+#if 1
+    #define MALLOC   eMalloc
+    #define FREE     xFree
+#else
+    #define MALLOC   malloc
+    #define FREE     free
+#endif
+
 
 /**
  * @brief 申请内存
  */
 static void* __malloc(uint32_t size) {
-    void *p;
     
-    p = malloc(size);
-    
-    return p;
+    return MALLOC(size);
 }
 /**
  * @brief 释放内存
  */
 void __free(void *ptr) {    
-    free(ptr);
+    FREE(ptr);
 }
 /**
  * @brief 获取当前的时间戳，SDK用于差值计算
  */
 uint64_t __time(void) {
-#ifdef OS_KERNEL
-    return (uint64_t)(osKernelGetTickCount() );
-#else
-    return 0;
-#endif
-    
+    return dal_get_tick();
 }
 /**
  * @brief 睡眠指定的毫秒数
  */
 void __sleep(uint64_t time_ms) {
-#ifdef OS_KERNEL
-    osDelay(time_ms);
-#endif
+    dal_delay_ms(time_ms);
 }
 /**
  * @brief 随机数生成方法

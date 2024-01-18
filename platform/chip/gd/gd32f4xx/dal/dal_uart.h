@@ -33,6 +33,7 @@ typedef struct {
 
 handle_t dal_uart_init(dal_uart_cfg_t *cfg);
 int dal_uart_deinit(handle_t h);
+int dal_uart_set_baudrate(handle_t h, int baudrate);
 int dal_uart_read(handle_t h, U8 *data, int len);
 int dal_uart_write(handle_t h, U8 *data, int len);
 int dal_uart_rw(handle_t h, U8 *data, int len, U8 rw);

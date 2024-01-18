@@ -99,8 +99,6 @@ static void ori_rms_print(U8 ch, U16 *u, U32 cnt)
 }
 
 
-
-#define CALI_CNT   100
 static coef_t average_coef(coef_t *x, int cnt)
 {
     int i;
@@ -128,7 +126,7 @@ static F32 average_f32(F32 *x, int cnt)
     return t;
 }
 
-
+#define CALI_CNT   100
 static int cali_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
 {
     int r=0;
@@ -298,14 +296,13 @@ static void ads_cap_proc(U8 ch, raw_data_t *raw, U16 *data, int cnt)
         raw->time = stime;
         raw->cnt  = real_len/sizeof(U16);
         
-        //ori_rms_print(ch, real_data, xcnt);     //just for debug
-        
+        //ori_rms_print(ch, real_data, xcnt);     //just for debug        
         volt_convert(raw->ch, raw->data, real_data, raw->cnt);
         
         //LOGD("_____ ch[%d]  rlen: %d, smplen: %d, skplen: %d, t_skplen: %d, times: %d, real_len: %d\n", ch, cv->rlen, smp_len, cv->slen, t_slen, cv->times, real_len);
         tlen = raw->cnt*sizeof(raw_t)+sizeof(raw_data_t);
-        r = list_append(list, 0, raw, tlen);
-
+        r = api_data_proc_send(ch, raw, tlen);
+        
         if(para->smpMode==SMP_MODE_PERIOD) {
             if(cv->rlen+data_len>=smp_len) {
                 cv->times++;
@@ -329,6 +326,12 @@ static int ads_data_proc(U8 ch, node_t *nd)
     task_buf_t *tb=&taskBuffer;
     raw_data_t *raw=(raw_data_t*)tb->var[ch].cap.buf;
     
+    extern volatile void* p_dma;
+    if(p_dma != nd->buf) {
+        LOGE("+\n");
+        return 1;
+    }
+    
     if(mode==MODE_CALI) {
         ads_cali_proc(ch, raw, (U16*)nd->buf, cnt);
     }
@@ -351,7 +354,7 @@ static int ads_init(void)
     points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;            //10ms
     
     len = points*sizeof(U16)*2;         //*2±íÊ¾Ë«buffer
-    ac.buf.rx.buf  = (U8*)eCalloc(len);
+    ac.buf.rx.buf  = (U8*)eMalloc(len);
     ac.buf.rx.blen = len;
     
     ac.freq = para->smpFreq;
@@ -363,7 +366,7 @@ static int ads_init(void)
     dp.enable = 0; //allPara.usr.dac.enable;
     dp.fdiv   = allPara.usr.dac.fdiv;
     dp.buf.blen = points*sizeof(U16)/dp.fdiv;
-    dp.buf.buf  = eCalloc(dp.buf.blen);
+    dp.buf.buf  = eMalloc(dp.buf.blen);
     dac_init(&dp);
 
     return r;
@@ -480,6 +483,14 @@ static void cap_config(void)
 {
     ads_init();
     vib_init();
+}
+void print_ts(char *s)
+{
+    static U64 ts=0,ts2;
+    
+    ts2 = dal_get_tick_ms();
+    LOGD("%s tick: %lld\n", s, ts2-ts);
+    ts = ts2;
 }
 
 

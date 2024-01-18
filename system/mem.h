@@ -16,6 +16,16 @@ void* mem_malloc(STRATEGY stg, int len, U8 zero);
 int mem_free(void *ptr);
 int mem_test(void);
 
+#ifdef _WIN32
+#define iMalloc(x)         malloc(x)
+#define iCalloc(x)         calloc(1,x)
+
+//e means external sdram malloc/calloc first
+#define eMalloc(x)         malloc(x)
+#define eCalloc(x)         calloc(1,x)
+
+#define xFree(x)           free(x)
+#else
 //i means internal sram malloc/calloc first
 #define iMalloc(x)         mem_malloc(SRAM_FIRST,x,0)
 #define iCalloc(x)         mem_malloc(SRAM_FIRST,x,1)
@@ -25,6 +35,7 @@ int mem_test(void);
 #define eCalloc(x)         mem_malloc(SDRAM_FIRST,x,1)
 
 #define xFree(x)           mem_free(x)
+#endif
 
 #endif
 

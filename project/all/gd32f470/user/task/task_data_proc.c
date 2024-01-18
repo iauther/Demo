@@ -23,54 +23,6 @@
 #define POINTS(us,sfreq)    ((U64)us*sfreq/1000000)
 
 
-
-#define TRIG_MAX   100
-typedef struct {
-    U8  ov;   //0: lower than threshold  1: over threshold
-    int inx;
-    int len;
-}trig_node_t;
-typedef struct {
-    int         num;
-    trig_node_t node[TRIG_MAX];
-}trig_data_t;
-
-
-static trig_data_t trigData={.num=0};
-
-static int find_hl_threshold(F32 *data, int cnt, F32 v, int hl)
-{
-    int i;
-    for(i=0; i<cnt; i++) {
-        if(hl==0) {
-            if(fabs(data[i])>v) {
-                return i-1;
-            }
-        }
-        else {
-            if(fabs(data[i])<v) {
-                return i-1;
-            }
-        }
-    }
-    
-    return 0;
-}
-
-
-typedef struct {
-    int   dir;        //0: 低于阈值   1: 高于阈值
-    int   off;
-}thr_node_t;
-
-#define THR_MAX  1000
-typedef struct {
-    int              num;
-    thr_node_t node[THR_MAX];
-}thr_data_t;
-static thr_data_t thrData={0};
-     
-
 static void fmemcpy(F32 *m1, F32 *m2, int cnt)
 {
     memcpy(m1, m2, cnt*4);
@@ -83,11 +35,16 @@ static void threshold_reset(threshold_t *thr)
 {
     thr->idx = -1;
     thr->max = 0.0f;
+    thr->trigged = 0;
     
     thr->cur.pdt = -1;
     thr->cur.hdt = -1;
     thr->cur.hlt = -1;
     thr->cur.mdt = -1;
+    
+    thr->pre.dcnt = 0;
+    thr->bdy.dcnt = 0;
+    thr->post.dcnt = 0;
 }
 static inline int threshold_is_full(threshold_buf_t *b)
 {
@@ -99,6 +56,7 @@ static inline int threshold_fill(threshold_buf_t *b, F32 v)
         return -1;
     }
     b->data[b->dcnt++] = v;
+    
     return 0;
 }
 
@@ -108,22 +66,26 @@ enum {
 };
 static inline int threshold_copy(threshold_buf_t *b, F32 *v, int cnt, int mode)
 {
+    if(cnt<=0) {
+        return -1;
+    }
+    
     if(b->dcnt+cnt>b->bcnt) {
         int cnt1,cnt2;
         
-        if(mode==THR_FULL_FIFO) {
+        if(mode==THR_FULL_FIFO) {       //丢最老数据
             
-            if(cnt>b->bcnt) {       //新数据多余内存总长
+            if(cnt>b->bcnt) {       //新数据多于内存总长, 截取新数据尾部bcnt数据
                 fmemcpy(b->data, v+cnt-b->bcnt, b->bcnt);
                 b->dcnt = b->bcnt;
             }
             else {
                 if(cnt+b->dcnt>b->bcnt) {
-                    cnt1=b->dcnt+cnt-b->bcnt;   //最前面要丢的个数
-                    cnt2=b->dcnt-cnt1;          //剩下数据的个数
+                    cnt1=b->dcnt+cnt-b->bcnt;   //原数据最前面要丢的个数
+                    cnt2=b->dcnt-cnt1;          //原数据尾部剩下的数据
                     
-                    fmemmove(b->data, b->data+cnt1, cnt2);
-                    fmemcpy(b->data+cnt2, v, cnt);
+                    fmemmove(b->data, b->data+cnt1, cnt2); //将原数据尾部的cnt2个数据搬到头部
+                    fmemcpy(b->data+cnt2, v, cnt);         //将新数据接在尾部
                     b->dcnt = b->bcnt;
                 }
                 else {
@@ -135,65 +97,227 @@ static inline int threshold_copy(threshold_buf_t *b, F32 *v, int cnt, int mode)
         else {      //丢最新的数据
             cnt1=b->bcnt-b->dcnt;
             if(cnt1>0) {
-                fmemcpy(b->data+b->bcnt, v, cnt1);
-                b->bcnt += cnt1;
+                fmemcpy(b->data+b->dcnt, v, cnt1);
+                b->dcnt += cnt1;
             }
         }
     }
     else {
-        fmemcpy(b->data+b->bcnt, v, cnt);
-        b->bcnt += cnt;
+        fmemcpy(b->data+b->dcnt, v, cnt);
+        b->dcnt += cnt;
     }
     
     return 0;
 }
 
-static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 all)
+int g_fcnt=0;
+float *g_f32=NULL;
+static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 mdtFull)
 {
-    int tcnt=0;
+    int i,j,tcnt=0,ev_calc_cnt,evlen=0;
     int r,prelen,postlen,bodylen,tlen;
     buf_t *buf=&taskBuffer.var[para->ch].prc;
     ch_data_t *pch=(ch_data_t*)buf->buf;
     
     fmemcpy(pch->data+tcnt, thr->pre.data, thr->pre.dcnt);
     tcnt += thr->pre.dcnt;
-    thr->pre.dcnt = 0;
     
     fmemcpy(pch->data+tcnt, thr->bdy.data, thr->bdy.dcnt);
     tcnt += thr->bdy.dcnt;
-    thr->bdy.dcnt = 0;
     
-    if(!all) {
+    if(!mdtFull) {
         fmemcpy(pch->data+tcnt, thr->post.data, thr->post.dcnt);
         tcnt += thr->post.dcnt;
     }
-    thr->post.dcnt = 0;
     
     pch->ch = para->ch;
-    pch->time = thr->time;
+    pch->time = thr->time-MS(thr->pre.dcnt, para->smpFreq);
     pch->smpFreq = para->smpFreq;
     pch->wavlen = tcnt*4;
-    pch->evlen = 0;   
     
+    ev_data_t *pev=(ev_data_t*)(pch->data+tcnt);
+    pev->grps = 1;
     
-    tlen = sizeof(ch_data_t)+pch->wavlen;
+    ev_calc_cnt = tcnt;
+    evlen = sizeof(ev_data_t)+pev->grps*sizeof(ev_grp_t);
+    for(i=0; i<pev->grps; i++) {
+        ev_grp_t *pgrp=&pev->grp[i];
+        
+        pgrp->time = pch->time+MS(ev_calc_cnt*i, para->smpFreq);
+        pgrp->cnt  = para->n_ev;
+        for(j=0; j<pgrp->cnt; j++) {
+            ev_val_t *val=&pgrp->val[j];
+            val->tp = para->ev[j];
+            dsp_ev_calc(val->tp, pch->data, tcnt, &val->data);
+        }
+        evlen += pgrp->cnt*sizeof(ev_val_t);
+    }
+    pch->evlen = evlen;
+    tlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
+    
+    g_fcnt = tcnt;
+    g_f32 = pch->data;
+    
     r = api_nvm_send(pch, tlen);
+    LOGD("___ trigged!, add to send list, cnt: %d, tlen: %d, rslt: %d\n", tcnt, tlen, r);
+    if(r==0) {
+        thr->trigged = 1;
+        thr->pre.dcnt = 0;
+        thr->bdy.dcnt = 0;
+        thr->post.dcnt = 0;
+        
+        memset(pch, 0, sizeof(ch_data_t));
+    }
     
     return r;
 }
 
+static int period_proc(raw_data_t *raw, ch_para_t *para)
+{
+    int i,j,r;
+    int tlen=0;
+    task_buf_t *tb=&taskBuffer;
+    int smp_len=para->smpPoints*sizeof(raw_t);
+    int ev_calc_len=para->evCalcPoints*sizeof(raw_t);
+    int t_skp_len=para->smpInterval*(para->smpFreq*sizeof(raw_t)/1000);
+    ch_var_t *cv=&tb->var[raw->ch];
+    ch_data_t  *p_ch=(ch_data_t*)cv->prc.buf;
+    ev_data_t *p_ev=(ev_data_t*)cv->ev.buf;
+    ev_data_t *p_ev2=NULL;
+    int data_len=raw->cnt*4-sizeof(raw_data_t);
+    
+    raw_t *real_data=raw->data;
+    int    real_len=data_len;
+    
+    if(real_len>=ev_calc_len) {
+            
+        //填充暂存数据头部ch_data_t
+        p_ch->ch = raw->ch;
+        p_ch->time = raw->time;
+        p_ch->smpFreq = para->smpFreq;
+        p_ch->wavlen = real_len;
+        memcpy(p_ch->data, real_data, p_ch->wavlen);      //拷贝wav数据
+        
+        if(para->n_ev>0) {
+            ev_grp_t *grp=p_ev->grp;
+            p_ev->grps = real_len/ev_calc_len;
+            
+            for(i=0; i<p_ev->grps; i++) {
+                U32 index=i*para->evCalcPoints;
+                grp->time = p_ch->time+index*1000/para->smpFreq;
+                grp->cnt = para->n_ev;
+                
+                for(j=0; j<grp->cnt; j++) {
+                    ev_val_t *val=&grp->val[j];
+                    val->tp = para->ev[j];
+                    dsp_ev_calc(val->tp, real_data+index, para->evCalcPoints, &val->data);
+                }
+                grp = (ev_grp_t*)((U8*)grp + sizeof(ev_grp_t) + sizeof(ev_val_t)*grp->cnt);
+            }
+            
+            p_ch->evlen = sizeof(ev_data_t)+p_ev->grps*(sizeof(ev_grp_t)+para->n_ev*sizeof(ev_val_t));
+            
+            p_ev2 = (ev_data_t*)((U8*)p_ch->data+p_ch->wavlen);
+            memcpy(p_ev2, p_ev, p_ch->evlen);  //在wav数据后面追加ev_data_t数据
+        }
+        
+        tlen = p_ch->wavlen+p_ch->evlen;
+    }
+    else { //如果计算ev的数据个数比较多，大于一次采集的数据, 则进行缓存后再计算
+        
+        if(p_ch->wavlen>0 && p_ch->time>0) {    //已经有缓冲数据
+            if(p_ch->wavlen+real_len>=ev_calc_len){
+                int xlen=ev_calc_len-p_ch->wavlen;
+                memcpy((U8*)p_ch->data+p_ch->wavlen, real_data, xlen);
+                p_ch->wavlen += xlen;
+            }
+            else {
+                memcpy((U8*)p_ch->data+p_ch->wavlen, real_data, real_len);
+                p_ch->wavlen += real_len;
+            }
+        }
+        else { //空数据，需要填充头部
+            p_ch->ch = raw->ch;
+            p_ch->time = raw->time;
+            p_ch->smpFreq = para->smpFreq;
+            p_ch->wavlen = 0;
+            
+            memcpy((U8*)p_ch->data, real_data, real_len);
+            p_ch->wavlen += real_len;
+        }
+        
+        //数据缓冲完成则进行计算
+        if(p_ch->wavlen>=ev_calc_len) {
+            
+            ev_grp_t *grp=p_ev->grp;
+            p_ev->grps = 1;
+            
+            grp->time = p_ch->time;
+            grp->cnt = para->n_ev;
+            
+            ev_val_t *val=grp->val;
+            for(j=0; j<para->n_ev; j++) {
+                val[j].tp = para->ev[j];
+                dsp_ev_calc(val[j].tp, p_ch->data, para->evCalcPoints, &val[j].data);
+            }
+            
+            p_ch->evlen = sizeof(ev_data_t)+1*(sizeof(ev_grp_t)+para->n_ev*sizeof(ev_val_t));
+            memcpy((U8*)p_ch->data+p_ch->wavlen, p_ev, p_ch->evlen);  //在wav数据后面追加ev数据
+            
+            tlen = p_ch->wavlen+p_ch->evlen;
+        }
+    }
 
-
+    if(tlen>0) {
+        //LOGD("_______________ RMS: %f\n", ((ev_data_t*)((U8*)(p_ch->data)+p_ch->wavlen))->grp[0].val[0].data);
+        tlen += sizeof(ch_data_t);
+        r = api_nvm_send(p_ch, tlen);
+        
+        if(r==0) {
+            memset(p_ch, 0, sizeof(ch_data_t));
+        }
+    }
+    
+    return r;
+}
 //返回0时，数据需后处理
-static int amp_trig_proc(raw_data_t *raw, ch_para_t *para)
+static int trig_proc(raw_data_t *raw, ch_para_t *para)
 {
     F32 x,max=0.0f;
-    int i,r=-1;
-    threshold_t *thr=&taskBuffer.var[raw->ch].thr;
+    int i,j,r=-1,tlen=0;
+    ch_var_t *var=&taskBuffer.var[raw->ch];
+    threshold_t *thr=&var->thr;
     F32 Vth=pow(10,para->trigThreshold/20-3);
+    ch_data_t *pch=(ch_data_t*)var->prc.buf;
+    ev_data_t *pev=(ev_data_t*)var->ev.buf;
+    ev_grp_t *grp=pev->grp;
+
+#if 0
+    pev->grps = 1;
+    grp->time = raw->time;
+    grp->cnt = para->n_ev;
+    
+    ev_val_t *val=grp->val;
+    for(j=0; j<para->n_ev; j++) {
+        val[j].tp = para->ev[j];
+        dsp_ev_calc(val[j].tp, pch->data, raw->cnt, &val[j].data);
+    }
+    
+    pch->ch = raw->ch;
+    pch->time = raw->time;
+    pch->smpFreq = para->smpFreq;
+    pch->wavlen = 0;
+    pch->evlen = sizeof(ev_data_t)+1*(sizeof(ev_grp_t)+para->n_ev*sizeof(ev_val_t));
+    memcpy((U8*)pch->data+pch->wavlen, pev, pch->evlen);  //在wav数据后面追加ev数据
+    
+    tlen = sizeof(ch_data_t)+pch->evlen;
+    r = api_nvm_send(pch, tlen);
+    if(r==0) {
+        memset(pch, 0, sizeof(ch_data_t));
+    }
+#endif
     
     for(i=0; i<raw->cnt; i++) {
-        
         if(thr->max>0) {
             thr->idx++;
         }
@@ -205,14 +329,15 @@ static int amp_trig_proc(raw_data_t *raw, ch_para_t *para)
             if(thr->max==0.0f) {
                 thr->idx = 0;
                 thr->cur.mdt = thr->idx;
-                thr->time = rtc2_get_timestamp_ms()+MS(i+1,para->smpFreq);
+                thr->time = rtc2_get_timestamp_ms()+MS(i,para->smpFreq);
                 
                 threshold_copy(&thr->pre, raw->data, i, THR_FULL_FIFO);     //保留最新数据，丢前面老数据
             }
             
             if(x>thr->max) {
                 thr->max = x;
-                thr->cur.pdt = thr->idx;  
+                thr->cur.pdt = thr->idx;
+                thr->cur.hdt = -1;
             }
         }
         else {
@@ -228,28 +353,28 @@ static int amp_trig_proc(raw_data_t *raw, ch_para_t *para)
                     thr->cur.hdt = thr->idx;
                 }
                 else {
-                    if(thr->idx-thr->cur.hdt>=thr->set.hdt) {
-                        
-                        if(threshold_is_full(&thr->post)) {
-                            threshold_send(thr, para, 0);
-                        }
-                        else {
-                            threshold_fill(&thr->post, raw->data[i]);
-                        }
-                        
+                    if(thr->idx-thr->cur.hdt>=thr->set.hdt) {                  
                         if(thr->cur.hlt==-1) {
                             thr->cur.hlt = thr->idx;
                         }
                         else {
                             //当数据长度超过HLT设置时，则需将数据丢弃
-                            if(thr->idx-thr->cur.hlt<thr->set.hlt) {
-                                //数据丢弃
+                            if(thr->idx-thr->cur.hlt>=thr->set.hlt) {
+                                threshold_reset(thr);   //复位变量, 重新开始新一轮
                                 continue;
                             }
+                        }
+                        
+                        if(!thr->trigged) {
+                            if(threshold_is_full(&thr->post)) {
+                                threshold_send(thr, para, 0);
+                            }
                             else {
-                                threshold_reset(thr);   //复位变量, 重新开始新一轮
+                                threshold_fill(&thr->post, raw->data[i]);
                             }
                         }
+                        
+                        continue;
                     }
                     else {
                         if(x>=Vth) {
@@ -283,137 +408,21 @@ static int amp_trig_proc(raw_data_t *raw, ch_para_t *para)
 }
 
 
-static int data_proc_fn(handle_t l, U8 ch, F32 *data, int len)
-{
-    int i,j,r;
-    int tlen=0;
-    task_buf_t *tb=&taskBuffer;
-    smp_para_t *smp=paras_get_smp();
-    ch_para_t *para=paras_get_ch_para(ch);
-    int smp_len=para->smpPoints*sizeof(raw_t);
-    int ev_calc_len=para->evCalcPoints*sizeof(raw_t);
-    int t_skp_len=para->smpInterval*(para->smpFreq*sizeof(raw_t)/1000);
-    raw_data_t *p_raw=(raw_data_t*)data;
-    ch_var_t *cv=&tb->var[ch];
-    ch_data_t  *p_ch=(ch_data_t*)cv->prc.buf;
-    ev_data_t *p_ev=(ev_data_t*)tb->var[ch].ev.buf;
-    ev_data_t *p_ev2=NULL;
-    int data_len=len-sizeof(raw_data_t);
-    
-    raw_t *real_data=p_raw->data;
-    int    real_len=data_len;
-    
-    if(real_len>=ev_calc_len) {
-        
-        //填充暂存数据头部ch_data_t
-        p_ch->ch = ch;
-        p_ch->time = p_raw->time;
-        p_ch->smpFreq = para->smpFreq;
-        p_ch->wavlen = real_len;
-        memcpy(p_ch->data, real_data, p_ch->wavlen);      //拷贝wav数据
-        
-        if(para->n_ev>0) {
-            ev_grp_t *grp=p_ev->grp;
-            p_ev->grps = real_len/ev_calc_len;
-            
-            for(i=0; i<p_ev->grps; i++) {
-                U32 idx,index=i*para->evCalcPoints;
-                grp->time = p_ch->time+i*para->evCalcPoints*1000/para->smpFreq;
-                grp->cnt = para->n_ev;
-                
-                for(j=0; j<grp->cnt; j++) {
-                    ev_val_t *val=&grp->val[j];
-                    val->tp = para->ev[j];
-                    idx = dsp_ev_calc(val->tp, real_data+i*para->evCalcPoints, para->evCalcPoints, &val->data);
-                    val->idx = index+idx;
-                }
-                grp = (ev_grp_t*)((U8*)grp + sizeof(ev_grp_t) + sizeof(ev_val_t)*grp->cnt);
-            }
-            
-            p_ch->evlen = sizeof(ev_data_t)+p_ev->grps*(sizeof(ev_grp_t)+para->n_ev*sizeof(ev_val_t));
-            
-            p_ev2 = (ev_data_t*)((U8*)p_ch->data+p_ch->wavlen);
-            memcpy(p_ev2, p_ev, p_ch->evlen);  //在wav数据后面追加ev_data_t数据
-        }
-        
-        tlen = p_ch->wavlen+p_ch->evlen;
-    }
-    else { //如果计算ev的数据个数比较多，大于一次采集的数据, 则进行缓存后再计算
-        
-        if(p_ch->wavlen>0 && p_ch->time>0) {    //已经有缓冲数据
-            if(p_ch->wavlen+real_len>=ev_calc_len){
-                int xlen=ev_calc_len-p_ch->wavlen;
-                memcpy((U8*)p_ch->data+p_ch->wavlen, real_data, xlen);
-                p_ch->wavlen += xlen;
-            }
-            else {
-                memcpy((U8*)p_ch->data+p_ch->wavlen, real_data, real_len);
-                p_ch->wavlen += real_len;
-            }
-        }
-        else { //空数据，需要填充头部
-            p_ch->ch = ch;
-            p_ch->time = p_raw->time;
-            p_ch->smpFreq = para->smpFreq;
-            p_ch->wavlen = 0;
-            
-            memcpy((U8*)p_ch->data, real_data, real_len);
-            p_ch->wavlen += real_len;
-        }
-        
-        //数据缓冲完成则进行计算
-        if(p_ch->wavlen>=ev_calc_len) {
-            
-            ev_grp_t *grp=p_ev->grp;
-            p_ev->grps = 1;
-            
-            grp->time = p_ch->time;
-            grp->cnt = para->n_ev;
-            
-            ev_val_t *val=grp->val;
-            for(j=0; j<para->n_ev; j++) {
-                val[j].tp = para->ev[j];
-                val[j].idx = dsp_ev_calc(val[j].tp, p_ch->data, para->evCalcPoints, &val[j].data);
-            }
-            
-            p_ch->evlen = sizeof(ev_data_t)+1*(sizeof(ev_grp_t)+para->n_ev*sizeof(ev_val_t));
-            memcpy((U8*)p_ch->data+p_ch->wavlen, p_ev, p_ch->evlen);  //在wav数据后面追加ev数据
-            
-            tlen = p_ch->wavlen+p_ch->evlen;
-        }
-    }
-          
-    if(tlen>0) {
-        
-        //LOGD("_______________ RMS: %f\n", ((ev_data_t*)((U8*)(p_ch->data)+p_ch->wavlen))->grp[0].val[0].data);
-        tlen += sizeof(ch_data_t);
-        //r = api_nvm_send(p_ch, tlen);
-        
-        if(para->smpMode==SMP_MODE_TRIG) {
-            buf_t *buf=&cv->prc;
-            threshold_t *thr=&cv->thr;
-            
-            r = amp_trig_proc(p_raw, para);          //利用特征值计算结果
-            if(r) {
-                return -1;
-            }
 
-            p_ch->ch = ch;
-            p_ch->time = thr->time;
-            p_ch->smpFreq = para->smpFreq;
-            p_ch->wavlen = buf->dlen;
-            p_ch->evlen = 0;
-            
-            tlen = sizeof(ch_data_t)+p_ch->wavlen;
-            r = api_nvm_send(p_ch, tlen);
-            
-            LOGD("____ trig send len %d, rslt: %d\n", tlen, r);
-        }
-        
-        if(r==0) {
-            memset(p_ch, 0, sizeof(ch_data_t));
-        }
+static int data_proc(void *data, int len)
+{
+    int r;
+    raw_data_t *raw=(raw_data_t*)data;
+    ch_para_t *para=paras_get_ch_para(raw->ch);
+
+    if(para->smpMode==SMP_MODE_PERIOD) {
+        r = period_proc(raw, para);
     }
+    else if(para->smpMode==SMP_MODE_TRIG) {
+        r = trig_proc(raw, para);          //利用特征值计算结果
+    }
+            
+    //LOGD("_________ cost ms: %lld\n", dal_get_tick_ms()-ts);
     
     return r;
 }
@@ -421,16 +430,30 @@ static int data_proc_fn(handle_t l, U8 ch, F32 *data, int len)
 
 static int ch_data_proc(void)
 {
-    int ch,r=0;
+    int ch,r=-1;
     list_node_t *lnode=NULL;
     ch_var_t *var=taskBuffer.var;
     
     for(ch=0; ch<CH_MAX; ch++) {
         r = list_take_node(var[ch].raw, &lnode, 0);      
         if(r==0) {
-            data_proc_fn(var[ch].raw, ch, lnode->data.buf, lnode->data.dlen);
+            //LOGD("___ size: %d\n", list_size(var[ch].raw));
+            data_proc(lnode->data.buf, lnode->data.dlen);
             list_back_node(var[ch].raw, lnode);
         }
+    }
+    
+    return r;
+}
+////////////////////////////////////////////////////////////////////
+int api_data_proc_send(U8 ch, void *data, int len)
+{
+    int r=list_append(taskBuffer.var[ch].raw, 0, data, len);
+    if(r==0) {
+        r = task_trig(TASK_DATA_PROC, EVT_DATA);
+    }
+    else {
+        LOGD("___ api_data_proc_send failed\n");
     }
     
     return r;
@@ -438,18 +461,26 @@ static int ch_data_proc(void)
 
 
 
-
 void task_data_proc_fn(void *arg)
 {
     int r;
+    evt_t e;
     
     LOGD("_____ task data proc running\n");
     
     while(1) {
         
-        ch_data_proc();
-        
-        osDelay(1);
+        r = task_recv(TASK_DATA_PROC, &e, sizeof(e));
+        if(r==0) {
+             switch(e.evt) {
+                case EVT_DATA:
+                {
+                    ch_data_proc();
+                    //print_ts("222");
+                }
+                break;
+            }
+        }
     }
 }
 #endif

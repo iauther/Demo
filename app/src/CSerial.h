@@ -16,7 +16,7 @@ typedef void(*rx_callback_t)(DWORD len, PVOID pContext);
 typedef struct {
 	string portName;
 	string description;
-}SerialPortInfo;
+}sp_info2_t;
 
 
 

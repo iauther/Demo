@@ -2,8 +2,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#define CONT_ID    3
-at_sig_stat_t sig_stat;
 
 /* 模块初始化命令表 */
 static core_at_cmd_item_t at_ip_init_cmd_table[] = {

@@ -3,6 +3,7 @@
 
 #include <windows.h>
 
+#include "CSerial.h"
 #include "SerialPort.h"
 #include "SerialPortInfo.h"
 

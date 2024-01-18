@@ -34,25 +34,25 @@ static recv_buf_t recvBuf;
 tasks_handle_t tasksHandle={0};
 
 
-static void recv_buf_init()
+static void recv_init()
 {
     recvBuf.log.blen = 2000;
-    recvBuf.log.buf = eCalloc(recvBuf.log.blen);
+    recvBuf.log.buf = eMalloc(recvBuf.log.blen);
     recvBuf.log.dlen = 0;
     
     recvBuf.net.blen = 2000;
-    recvBuf.net.buf = eCalloc(recvBuf.log.blen);
+    recvBuf.net.buf = eMalloc(recvBuf.log.blen);
     recvBuf.net.dlen = 0;
     
     recvBuf.rs485.blen = 2000;
-    recvBuf.rs485.buf = eCalloc(recvBuf.log.blen);
+    recvBuf.rs485.buf = eMalloc(recvBuf.log.blen);
     recvBuf.rs485.dlen = 0;
 }
 
 
 static void comm_tmr_callback(void *arg)
 {
-    task_post(TASK_COMM_RECV, NULL, EVT_TIMER, 0, NULL, 0);
+    task_trig(TASK_COMM_RECV, EVT_TIMER);
 }
 
 
@@ -113,7 +113,7 @@ static void buf_init(void)
     U8 *pbuf;
     list_cfg_t lc;
     rbuf_cfg_t rc;
-    int cnt;
+    int cnt1,cnt2,cnt3;
     int len1,len2,len3,len4,maxlen;
     ch_para_t *para;
     task_buf_t *tb=&taskBuffer;
@@ -130,18 +130,18 @@ static void buf_init(void)
         }
         tb->var[i].raw = list_init(&lc);
         
-        cnt = POINTS(para->trigTime.preTime,para->smpFreq);
-        tb->var[i].thr.pre.bcnt = cnt;
+        cnt1 = POINTS(para->trigTime.preTime,para->smpFreq);
+        tb->var[i].thr.pre.bcnt = cnt1;
         tb->var[i].thr.pre.dcnt = 0;
         tb->var[i].thr.pre.data = eMalloc(tb->var[i].thr.pre.bcnt*4);
         
-        cnt = POINTS(para->trigTime.MDT,para->smpFreq);
-        tb->var[i].thr.bdy.bcnt = cnt;
+        cnt2 = POINTS(para->trigTime.MDT,para->smpFreq);
+        tb->var[i].thr.bdy.bcnt = cnt2;
         tb->var[i].thr.bdy.dcnt = 0;
         tb->var[i].thr.bdy.data = eMalloc(tb->var[i].thr.bdy.bcnt*4);
         
-        cnt = POINTS(para->trigTime.postTime,para->smpFreq);
-        tb->var[i].thr.post.bcnt = cnt;
+        cnt3 = POINTS(para->trigTime.postTime,para->smpFreq);
+        tb->var[i].thr.post.bcnt = cnt3;
         tb->var[i].thr.post.dcnt = 0;
         tb->var[i].thr.post.data = eMalloc(tb->var[i].thr.post.bcnt*4);
         
@@ -159,6 +159,7 @@ static void buf_init(void)
         
         tb->var[i].thr.max = 0.0f;
         tb->var[i].thr.time = 0;
+        tb->var[i].thr.trigged = 0;
         
         tb->var[i].rlen = 0;
         tb->var[i].slen = 0;
@@ -171,7 +172,7 @@ static void buf_init(void)
             xFree(tb->var[i].cap.buf);
         }
         tb->var[i].cap.blen = points*sizeof(raw_t)+sizeof(raw_data_t)+32;
-        tb->var[i].cap.buf = eCalloc(tb->var[i].cap.blen); 
+        tb->var[i].cap.buf = iMalloc(tb->var[i].cap.blen); 
         
         
         //为计算任务申请临时内存
@@ -183,7 +184,7 @@ static void buf_init(void)
         int ev_grps = points/para->evCalcPoints+1;
         int ev_len = sizeof(ev_data_t)+(sizeof(ev_grp_t)+sizeof(ev_val_t)*para->n_ev)*ev_grps;
         tb->var[i].ev.blen = ev_len;
-        tb->var[i].ev.buf  = eCalloc(tb->var[i].ev.blen); 
+        tb->var[i].ev.buf  = eMalloc(tb->var[i].ev.blen); 
         tb->var[i].ev.dlen = 0;
         
         
@@ -197,17 +198,15 @@ static void buf_init(void)
         len2 = once_ev_calc_data_len+ev_len+sizeof(ch_data_t)+32;
         
         //计算阈值触发时缓存设定要求所需内存长度, (1ms+smpPoints)*2
-        len3 = (para->smpPoints+para->smpFreq/1000)*2*sizeof(raw_t)+32;
+        len3 = (cnt1+cnt2+cnt3)*4+ev_len+32;
         
-        len4 = cnt*4+32;
-        
-        maxlen = MAX(MAX(len1,len2),MAX(len3,len4));
+        maxlen = MAX3(len1,len2,len3);
         if(maxlen>max_data_len) {
             max_data_len = maxlen;
         }
         
         tb->var[i].prc.blen = maxlen;
-        tb->var[i].prc.buf  = eCalloc(tb->var[i].prc.blen); 
+        tb->var[i].prc.buf  = eMalloc(tb->var[i].prc.blen); 
         tb->var[i].prc.dlen = 0;
     }
     tb->file = list_init(&lc);
@@ -231,16 +230,6 @@ static int hw_init(void)
     
     hal_at_init();
     
-
-#if 0
-    extern void cota_demo_fn(void *arg);
-    extern void mota_demo_fn(void *arg);
-    extern void fota_demo_fn(void *arg);
-    start_task_simp(fota_demo_fn, 4096, NULL, NULL);
-    while(1) osDelay(1000);
-#endif
-    
-    
     fs_init();
     json_init();
     paras_load();
@@ -248,10 +237,10 @@ static int hw_init(void)
     rc.port = RS485_PORT;
     rc.baudrate = 115200;
     rc.callback = rs485_recv_callback;
-    //rs485_init(&rc);
+    rs485_init(&rc);
     
     buf_init();
-    recv_buf_init();
+    recv_init();
     
 
     return r;
@@ -277,11 +266,11 @@ static void start_tasks(void)
 {
     #define TASK_STACK_SIZE   2048
     
-    start_task(TASK_DATA_CAP,   osPriorityNormal, TASK_STACK_SIZE,  task_data_cap_fn,   5, NULL, 1);
+    start_task(TASK_DATA_CAP,   osPriorityISR,    TASK_STACK_SIZE,  task_data_cap_fn,   5, NULL, 1);
     start_task(TASK_POLLING,    osPriorityNormal, TASK_STACK_SIZE,  task_polling_fn,    5, NULL, 1);
     start_task(TASK_NVM,        osPriorityNormal, TASK_STACK_SIZE,  task_nvm_fn,        5, NULL, 1);
     
-    start_task_simp(task_data_proc_fn, TASK_STACK_SIZE, NULL, NULL);
+    start_task(TASK_DATA_PROC,  osPriorityNormal, TASK_STACK_SIZE,  task_data_proc_fn,    10, NULL, 1);
 }
 
 static void start_cap(void)
@@ -297,48 +286,27 @@ static void start_cap(void)
 int api_comm_connect(U8 port)
 {
     int r=0;
-    comm_init_para_t comm_p;
+    comm_para_t comm_p;
+    conn_para_t conn_p;
     
     hal_at_power(1);            //4g模组上电
     
+    comm_p.port = port;
     comm_p.rlen = 0;
     comm_p.tlen = max_data_len;
     comm_p.para = NULL;
-    if(port==PORT_NET) {
-        net_cfg_t cfg;
-        
-        comm_p.para = &cfg;
-        if(!tasksHandle.hcomm) {
-            tasksHandle.hcomm = comm_init(port, &comm_p);
-        }
-        
-        if(tasksHandle.hcomm && !tasksHandle.hconn) {
-            conn_para_t conn_p;
-            
+    
+    if(!tasksHandle.hcomm) {
+        if(port==PORT_NET) {
             conn_p.para = &allPara.usr.net;
             conn_p.callback = net_recv_callback;
             conn_p.proto = PROTO_MQTT;
-            tasksHandle.hconn = comm_open(tasksHandle.hcomm, &conn_p);
-            if(tasksHandle.hconn) {
-                LOGD("___ comm_open ok!\n");
-            }
-        }
-        else {
-            r = 1;
-        }
-    }
-    else {
-        if(!tasksHandle.hcomm) {
-            tasksHandle.hcomm = comm_init(port, &comm_p);
+            comm_p.para = &conn_p;
         }
         
-        if(tasksHandle.hcomm && !tasksHandle.hconn) {
-            tasksHandle.hconn = comm_open(tasksHandle.hcomm, NULL);
-            if(tasksHandle.hconn) {
-                LOGD("___ comm_open ok!\n");
-            }
-        }
-        else {
+        tasksHandle.hcomm = comm_open(&comm_p);
+        if(tasksHandle.hcomm) {
+            LOGD("___ comm_open ok!\n");
             r = 1;
         }
     }
@@ -348,9 +316,9 @@ int api_comm_connect(U8 port)
 
 int api_comm_disconnect(void)
 {
-    if(tasksHandle.hconn) {
-        comm_close(tasksHandle.hconn);
-        tasksHandle.hconn = NULL;
+    if(tasksHandle.hcomm) {
+        comm_close(tasksHandle.hcomm);
+        tasksHandle.hcomm = NULL;
     }
     
     hal_at_power(0);            //关4g模组
@@ -360,7 +328,7 @@ int api_comm_disconnect(void)
 
 int api_comm_is_connected(void)
 {
-    if(tasksHandle.hcomm && tasksHandle.hconn) {
+    if(tasksHandle.hcomm) {
         return 1;
     }
     
@@ -373,11 +341,11 @@ int api_comm_send_para(void)
     int r;
     mqtt_pub_para_t pub_para={DATA_SETT};
     
-    if(!tasksHandle.hcomm || !tasksHandle.hconn) {
+    if(!tasksHandle.hcomm) {
         return -1;
     }
     
-    r = comm_send_data(tasksHandle.hconn, &pub_para, TYPE_PARA, 1, &allPara, sizeof(allPara));
+    r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_PARA, 1, &allPara, sizeof(allPara));
     
     return r;
 }
@@ -458,12 +426,12 @@ static void user_cmd_proc(cmd_t *cmd)
             */
             cali_sig_t sig;
             r = sscanf(cmd->str, "%hhu,%u,%f,%hhu,%f,%hhu,%hhu", &sig.ch, &sig.freq, &sig.bias, &sig.lv, &sig.volt, &sig.max, &sig.seq);
-            if(r==7) {
-                task_post(TASK_POLLING, NULL, EVT_CALI, 0, &sig, sizeof(sig));
-            }
-            else {
+            if(r!=7) {
                 LOGE("___ cali para is wrong!\n");
-            }  
+                return;
+            }
+            
+            task_post(TASK_POLLING, NULL, EVT_CALI, 0, &sig, sizeof(sig));
         }
         break;
         
@@ -481,7 +449,7 @@ static void user_cmd_proc(cmd_t *cmd)
             int points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;
             param.freq = para->smpFreq;
             param.buf.blen = points*sizeof(U16);
-            param.buf.buf  = eCalloc(param.buf.blen);
+            param.buf.buf  = eMalloc(param.buf.blen);
             param.buf.dlen = 0;
             dac_set(&param);
         }
@@ -525,7 +493,7 @@ void task_comm_recv_fn(void *arg)
                 {
                     buf_t *pb=&recvBuf.net;
                     
-                    err = comm_recv_proc(tasksHandle.hconn, NULL, pb->buf, pb->dlen);
+                    err = comm_recv_proc(tasksHandle.hcomm, NULL, pb->buf, pb->dlen);
                     pb->dlen = 0;
                 }
                 break;
@@ -534,7 +502,7 @@ void task_comm_recv_fn(void *arg)
                 {
                     buf_t *pb=&recvBuf.rs485;
                     
-                    err = comm_recv_proc(tasksHandle.hconn, NULL, pb->buf, pb->dlen);
+                    err = comm_recv_proc(tasksHandle.hcomm, NULL, pb->buf, pb->dlen);
                     pb->dlen = 0;
                 }
                 break;

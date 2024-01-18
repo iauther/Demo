@@ -62,7 +62,7 @@ int log_print(LOG_LEVEL lv, char *fmt, ...)
     int len;
     va_list args;
     datetime_t dt;
-
+    
     if(!logHandle.enable || !logHandle.cfg.en[lv]) {
         return -1;
     }    

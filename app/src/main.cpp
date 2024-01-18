@@ -43,6 +43,12 @@ typedef struct {
 }buf_data_t;
 
 typedef struct {
+	handle_t    hcomm;
+
+	buf_data_t  buf;
+}io_handle_t;
+
+typedef struct {
 	U8          sysState;
 
 #ifdef USE_MYFRAME
@@ -53,12 +59,9 @@ typedef struct {
 	myWindow	 myWin;
 #endif
 
-	buf_data_t  com;
-	buf_data_t  sock;
-
 	myFile      mFile;
 	
-	handle_t    hcomm;
+	io_handle_t hio;
 }my_handle_t;
 
 
@@ -80,8 +83,6 @@ static void post_event(DWORD thdID, UINT Msg, WPARAM wParam, LPARAM lParam)
 }
 
 
-
-
 #if 1
 static int io_read(void *buf, int buflen)
 {
@@ -97,7 +98,8 @@ static int io_data_proc(void* data, int datalen)
 }
 int rbuf_clr(void)
 {
-	return rbuf_clear(myHandle.com.hrb);
+	rbuf_clear(myHandle.hio.buf.hrb);
+	return 0;
 }
 
 
@@ -105,7 +107,7 @@ static int quit_flag = 0;
 static DWORD dataRecvThread(LPVOID lpParam)
 {
 	int rlen, find, wlen;
-	BYTE* rxBuf = myHandle.com.rx;
+	BYTE* rxBuf = myHandle.hio.buf.rx;
 
 	memset(rxBuf, 0, BUF_LEN);
 	while (!quit_flag) {
@@ -114,7 +116,7 @@ static DWORD dataRecvThread(LPVOID lpParam)
 			continue;
 		}
 
-		wlen = rbuf_write(myHandle.com.hrb, rxBuf, rlen);
+		wlen = rbuf_write(myHandle.hio.buf.hrb, rxBuf, rlen);
 	}
 
 	return 0;
@@ -126,16 +128,18 @@ static DWORD dataProcThread(LPVOID lpParam)
 	int err, find;
 	pkt_hdr_t* hdr;
 	rbuf_cfg_t rc;
-	BYTE* rbBuf = myHandle.com.rb;
-	BYTE* tmpBuf = myHandle.com.tmp;
-	BYTE* pktBuf = myHandle.com.pkt;
+	io_handle_t* hio = &myHandle.hio;
+
+	BYTE* rbBuf  = hio->buf.rb;
+	BYTE* tmpBuf = hio->buf.tmp;
+	BYTE* pktBuf = hio->buf.pkt;
 
 	rc.mode = RBUF_FULL_FIFO;
 	rc.size = BUF_LEN;
 	rc.buf = rbBuf;
-	myHandle.com.hrb = rbuf_init(&rc);
+	hio->buf.hrb = rbuf_init(&rc);
 	while (!quit_flag) {
-		rlen = rbuf_read(myHandle.com.hrb, tmpBuf, BUF_LEN, 0);
+		rlen = rbuf_read(hio->buf.hrb, tmpBuf, BUF_LEN, 0);
 		if (rlen >= PKT_HDR_LENGTH) {
 			find = plen = 0;
 			for (i = 0; i < rlen; i++) {
@@ -152,7 +156,7 @@ static DWORD dataProcThread(LPVOID lpParam)
 
 						if (plen <= BUF_LEN) {
 							memcpy(pktBuf, hdr, (plen));
-							rbuf_read_shift(myHandle.com.hrb, plen);
+							rbuf_read_shift(hio->buf.hrb, plen);
 							find = 1;
 							break;
 						}

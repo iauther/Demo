@@ -72,7 +72,7 @@ const PKT_MAGIC=0xDEADBEEF;
 
 const DEV_TYPE = {
     DTYPE_NA:       0,    
-    DTYPE_XAEDAU100:       1,        //设备类型    
+    DTYPE_XAEDAU100:       1,        //璁惧绫诲瀷    
     DTYPE_MAX:       2
 };
 
@@ -266,6 +266,7 @@ function pkt_data_parse(array)
     
     pos += 4;
     if(magic!=PKT_MAGIC) {
+        console.log("wrong magic\n");
         return dataObj;
     } 
     
@@ -275,6 +276,7 @@ function pkt_data_parse(array)
     var msgType = dv.getUint8(pos, 1);
     pos += 1;
     if(msgType>=PKT_TYPE.TYPE_MAX) {
+        console.log("wrong msgType\n");
         return dataObj;
     }
     
@@ -329,7 +331,7 @@ function transformPayload(topic, rawData)
     var jsonObj = {};
     
     var u8Array = rawToArray(rawData);
-    if (topic.includes("user/set")) {
+    if (topic.includes("user/set") || topic.includes("user/wav")) {
         jsonObj = pkt_data_parse(u8Array);
     }
     

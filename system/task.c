@@ -17,19 +17,19 @@ static int get_free_id(void)
 }
 
 
-static int msg_tx(task_handle_t *h, void *addr, U8 evt, U8 type, void *data, U16 len, U32 timeout)
+static int msg_tx(task_handle_t *h, void *addr, U8 evt, U8 type, void *data, int len, U32 timeout)
 {
     int r;
     evt_t e;
     
-    if(!h || len>EVT_DATA_LEN_MAX) {
+    if(!h || len>EVT_DATA_MAX) {
         return -1;
     }
     
     e.arg = addr;
     e.evt = evt;
     e.type = type;
-    e.dLen = len;
+    e.dlen = len;
     if(data && len>0) {
         memcpy(e.data, data, len);
     }
@@ -210,7 +210,7 @@ int task_recv(int taskID, evt_t *evt, int evtlen)
 }
 
 
-int task_send(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len, U32 timeout)
+int task_send(int taskID, void *arg, U8 evt, U8 type, void *data, int len, U32 timeout)
 {
     task_handle_t *h=taskHandle[taskID];
     
@@ -218,11 +218,11 @@ int task_send(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len, U32 
         return -1;
     }
     
-    return msg_tx(h, addr, evt, type, data, len, timeout);
+    return msg_tx(h, arg, evt, type, data, len, timeout);
 }
 
 
-int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len)
+int task_post(int taskID, void *arg, U8 evt, U8 type, void *data, int len)
 {
     task_handle_t *h=taskHandle[taskID];
     
@@ -230,7 +230,7 @@ int task_post(int taskID, void *addr, U8 evt, U8 type, void *data, U16 len)
         return -1;
     }
     
-    return msg_tx(h, addr, evt, type, data, len, 0);
+    return msg_tx(h, arg, evt, type, data, len, 0);
 }
 
 

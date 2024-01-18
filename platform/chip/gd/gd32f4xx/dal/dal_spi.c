@@ -104,7 +104,7 @@ static void spi_dma_init(dal_spi_handle_t *h)
 #endif
 }
 
-
+volatile void* p_dma=NULL;
 void DMA1_Channel6_IRQHandler(void)     //spi dma rx
 {
     U32 cnt;
@@ -119,14 +119,14 @@ void DMA1_Channel6_IRQHandler(void)     //spi dma rx
     cnt = h->cfg.buf.rx.blen/4;     //双buffer，取总个数的一半
     if(dma_interrupt_flag_get(DMA1, DMA_CH6, DMA_INT_FLAG_HTF)) {
         dma_interrupt_flag_clear(DMA1, DMA_CH6, DMA_INT_FLAG_HTF);
-
+ p_dma = (U16*)h->cfg.buf.rx.buf;
         if(h && h->cfg.callback) {
             h->cfg.callback((U16*)h->cfg.buf.rx.buf, cnt);
         }
     }
     else if(dma_interrupt_flag_get(DMA1, DMA_CH6, DMA_INT_FLAG_FTF)) {
         dma_interrupt_flag_clear(DMA1, DMA_CH6, DMA_INT_FLAG_FTF);
-        
+p_dma = (U16*)h->cfg.buf.rx.buf+cnt;        
         if(h && h->cfg.callback) {
             h->cfg.callback((U16*)h->cfg.buf.rx.buf+cnt, cnt);
         }

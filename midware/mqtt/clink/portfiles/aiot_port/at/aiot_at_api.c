@@ -18,7 +18,7 @@
 #include "aiot_sysdep_api.h"
 #include "aiot_at_api.h"
 #include "core_log.h"
-#include "os_net_al.h"
+#include "os_net_interface.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -36,6 +36,7 @@ static at_rsp_result_t at_csq_handler(char *rsp)
     at_rsp_result_t res = AT_RSP_WAITING;
     int rssi = 0, ber = 0;
     char *line = NULL;
+    
     line = strstr(rsp, "+CSQ");
     /*获取信号强度，强度<5返回失败，否则返回成功*/
     if(line != NULL && sscanf(line, "+CSQ: %d,%d\r\n", &rssi, &ber)) {
@@ -61,6 +62,8 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
         .cmd = "ATE0\r\n",
         .rsp = "OK",
     },
+    
+#if 0
     {   /* 获取模组型号 */
         .cmd = "ATI\r\n",
         .rsp = "OK",
@@ -88,7 +91,7 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
         .rsp = "OK",
         .handler = at_csq_handler,
     },
-
+#endif
 };
 
 
@@ -303,7 +306,7 @@ static int32_t core_at_commands_send_sync(const core_at_cmd_item_t *cmd_list, ui
                 i--;
                 continue;
             } else {
-                LOGE("___ wait %s resp timeout\n", cmd_list[i].cmd);
+                printf("___ wait %s resp timeout\n", cmd_list[i].cmd);
                 break;
             }
         }
@@ -324,7 +327,7 @@ int32_t aiot_at_init(void)
     int32_t res = STATE_SUCCESS;
 
     if (at_handle.is_init != 0) {
-        return 0;
+        return STATE_AT_ALREADY_INITED;
     }
 
     memset(&at_handle, 0, sizeof(core_at_handle_t));
@@ -435,41 +438,22 @@ int32_t aiot_at_bootstrap(void)
         return STATE_AT_NOT_INITED;
     }
     
-    LOGD("___ module_init_cmd ...\n");
+    printf("___ module_init_cmd ...\n");
     res = core_at_commands_send_sync(at_handle.device->module_init_cmd, at_handle.device->module_init_cmd_size);
     if(STATE_SUCCESS != res) {
-        LOGE("___ module_init_cmd failed\n");
+        printf("___ module_init_cmd failed\n");
         return res;
     }
-    LOGD("___ module_init_cmd ok\n");
+    printf("___ module_init_cmd ok\n");
     
-    LOGD("___ ip_init_cmd ...\n");
+    printf("___ ip_init_cmd ...\n");
     res = core_at_commands_send_sync(at_handle.device->ip_init_cmd, at_handle.device->ip_init_cmd_size);
     if(STATE_SUCCESS != res) {
-        LOGE("___ ip_init_cmd failed\n");
+        printf("___ ip_init_cmd failed\n");
         return res;
     }
-    LOGD("___ ip_init_cmd ok\n");
+    printf("___ ip_init_cmd ok\n");
 
-    return res;
-}
-
-
-int32_t aiot_at_sig_stat()
-{
-    int32_t res = STATE_SUCCESS;
-    if (at_handle.is_init != 1) {
-        return STATE_AT_NOT_INITED;
-    }
-    
-    LOGD("___ module_init_cmd ...\n");
-    res = core_at_commands_send_sync(at_handle.device->module_init_cmd, at_handle.device->module_init_cmd_size);
-    if(STATE_SUCCESS != res) {
-        LOGE("___ module_init_cmd failed\n");
-        return res;
-    }
-    LOGD("___ aiot_at_sig_stat ok\n");
-    
     return res;
 }
 
@@ -519,6 +503,7 @@ int32_t aiot_at_set_ssl(uint8_t socket_id, const char *ca_cert)
         }
     }
 
+    printf("___ aiot_at_set_ssl\n");
     res = core_at_commands_send_sync(at_handle.device->ssl_cmd, at_handle.device->ssl_cmd_size);
     if (res == STATE_SUCCESS) {
         at_handle.fd[socket_id].link_status = CORE_AT_LINK_CONN;
@@ -551,6 +536,8 @@ int32_t aiot_at_nwk_connect(uint8_t socket_id, const char *host, uint16_t port, 
     snprintf(conn_cmd_open, sizeof(conn_cmd_open),at_handle.device->open_cmd[0].fmt, socket_id + AT_SOCKET_ID_START, host, port);
     at_handle.device->open_cmd[0].cmd = conn_cmd_open;
     at_handle.device->open_cmd[0].cmd_len = strlen(conn_cmd_open);
+    
+    printf("___ aiot_at_nwk_connect\n");
     /* send tcp setup command */
     res = core_at_commands_send_sync(at_handle.device->open_cmd, at_handle.device->open_cmd_size);
     if (res == STATE_SUCCESS) {
@@ -743,11 +730,12 @@ static int32_t core_at_recv_prefix_match(const char *data, uint32_t size)
 
 static int32_t core_at_process_line(char *line, uint32_t len)
 {
+    int i = 0 ;
     if(at_handle.cmd_content) {
         core_ringbuf_write(&at_handle.rsp_rb, (uint8_t *)line, len);
     }
 
-    for(int i = 0 ; i < at_handle.device->urc_register_size; i++) {
+    for(i = 0 ; i < at_handle.device->urc_register_size; i++) {
         if(strstr(line, at_handle.device->urc_register[i].prefix) != NULL) {
             at_handle.device->urc_register[i].handle(line);
             break;

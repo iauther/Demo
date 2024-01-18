@@ -61,7 +61,7 @@ handle_t netio_init(netio_cfg_t *cfg)
         case NETIO_ECXXX:
         {
             nh->para.ec = *(ecxxx_cfg_t*)(cfg->para);
-            nh->h = ecxxx_init(&nh->para.ec);
+            //nh->h = ecxxx_init(&nh->para.ec);
         }
         break;
     }
@@ -111,7 +111,7 @@ int netio_deinit(handle_t hio)
         
         case NETIO_ECXXX:
         {
-            ecxxx_deinit(nh->h);
+            //ecxxx_deinit(nh->h);
         }
         break;
     }
@@ -163,7 +163,7 @@ int netio_write(handle_t hio, void *data, int len)
         
         case NETIO_ECXXX:
         {
-            r = ecxxx_write(nh->h, data, len, 500);
+            //r = ecxxx_write(nh->h, data, len, 500);
         }
         break;
     }

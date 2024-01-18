@@ -103,6 +103,8 @@ static void task_conn_fn(void *arg)
         
         if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
             connHandle.conn = CONN_BUSYING;
+            
+            LOGD("___ api_comm_connect\n");
             flag = api_comm_connect(paras_get_port());
             if(flag) {
                 connHandle.conn_cnt = 0;
@@ -239,7 +241,7 @@ static void pwroff_polling(void)
         return;
     }
     
-    if(smp->pwrmode==SMP_MODE_PERIOD) {
+    if(smp->pwrmode==PWR_PERIOD_PWRDN) {
         //缓存数据是否保存完毕
         finish = api_nvm_is_finished();
         if(!finish) {
@@ -250,7 +252,7 @@ static void pwroff_polling(void)
         //以上都完成时才可以关机
         r = rtc2_get_runtime(&runtime);
         if(r==0) {      //获取运行时间成功才可以进行下面流程
-            LOGD("____ psrc: %d, finish: %d, runtime: %lu, workInterval: %d\n", var->psrc, finish, runtime, smp->workInterval);
+            LOGD("____ psrc: %d, finish: %d, runtime: %lu, worktime: %d\n", var->psrc, finish, runtime, smp->worktime);
             
             if(var->psrc==PWRON_RTC) {      //rtc poweron
                 
@@ -258,12 +260,12 @@ static void pwroff_polling(void)
                 if((finish==2) || ((finish==1) && (runtime>=RUNTIME_MAX))) {
                     //api_comm_disconnect();      //断开连接, 该操作耗时较长
                     
-                    countdown = smp->workInterval- runtime;
+                    countdown = smp->worktime- runtime;
                     if(countdown>=COUNTDOWN_MIN) {
                         countdown -= 2;     //减2为修正值
                     }
                     else {
-                        countdown = smp->workInterval-2;
+                        countdown = smp->worktime-2;
                     }
                     
                     r = rtc2_set_countdown(countdown);
@@ -317,7 +319,7 @@ void rtc_test(void)
             }
         }
         
-        dal_delay_ms(1000);
+        osDelay(1000);
     }
 }
 
@@ -371,7 +373,7 @@ static void stat_polling(void)
     stat.time = rtc2_get_timestamp_ms();
     LOGD("___ pt: %.1fv, temp: %.1f, vbat: %.1f\n", da.t_pt, stat.temp, stat.vbat);
     
-    r = comm_send_data(tasksHandle.hconn, &pub_para, TYPE_STAT, 0, &stat, sizeof(stat));
+    r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_STAT, 0, &stat, sizeof(stat));
     if(r==0) {
         send_flag = 1;
     }
@@ -384,14 +386,15 @@ static void task_wdg_fn(void *arg)
     dal_wdg_init(WDG_TIME);
     
     while(1) {
+        //LOGD("___%d\n", dal_get_tick_ms());
         dal_wdg_feed();     //喂狗
-        osDelay(2000);
+        osDelay(1000);
     }
 #endif
 }
 static void polling_tmr_callback(void *arg)
 {
-    task_post(TASK_POLLING, NULL, EVT_TIMER, 0, NULL, 0);
+    task_trig(TASK_POLLING, EVT_TIMER);
 }
 
 void task_polling_fn(void *arg)
@@ -428,13 +431,8 @@ void task_polling_fn(void *arg)
                 
                 case EVT_TIMER:
                 {
-#if 1
-                    //api_cap_start_all();        //finish后不可启动
-                    //stat_polling();
-                    //pwroff_polling();
-#else
-                    pwroff_polling_test();
-#endif
+                    stat_polling();
+                    pwroff_polling();
                 }
                 break;
                 

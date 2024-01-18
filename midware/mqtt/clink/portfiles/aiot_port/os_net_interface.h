@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef _OS_NET_AL_H_
-#define _OS_NET_AL_H_
+#ifndef _POXIS_PORT_H_
+#define _POXIS_PORT_H_
 
 #if defined(__cplusplus)
 extern "C" {

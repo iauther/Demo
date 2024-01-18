@@ -45,6 +45,7 @@ static int data_save(ch_data_t *pch)
     ch_para_t *para=paras_get_ch_para(pch->ch);
     fs_space_t sp;
     
+    LOGD("___ data save\n");
     nvmHandle.busying = 1;
     
 #if 0
@@ -104,20 +105,6 @@ static int data_save(ch_data_t *pch)
     
     return 0;
 }
-static int data_to_list(ch_data_t *pch)
-{
-    int r;
-    int tlen;
-
-    tlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
-    r = list_append(nvmHandle.dlist, 0, pch, tlen);
-    
-    nvmHandle.times[pch->ch].cap++;
-    
-    return r;
-}
-
-
 
 
 static int data_save_csv(ch_data_t *pch)
@@ -196,6 +183,7 @@ static int data_upload(node_t *node)
     int is_file=node->tp;
     mqtt_pub_para_t pub_para={DATA_LT};
     
+    LOGD("___ data upload\n");
     if(is_file) {       //node is file path
         int flen;
         char *path=node->buf;
@@ -212,9 +200,9 @@ static int data_upload(node_t *node)
             return -1;                  //打开文件失败
         }
         
-        pbuf=eCalloc(flen);
+        pbuf=eMalloc(flen);
         if(!pbuf) {
-            LOGE("___ eCalloc fbuf failed\n");
+            LOGE("___ eMalloc fbuf failed\n");
             return -1;                  //分配内存失败
         }
         fs_read(h, pbuf, flen);
@@ -240,7 +228,7 @@ static int data_upload(node_t *node)
         }
         tlen = dlen+sizeof(ch_data_t);
         
-        r = comm_send_data(tasksHandle.hconn, &pub_para, TYPE_CAP, 0, pch, tlen);
+        r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_CAP, 0, pch, tlen);
         if(r==0) {
             datetime_t dt;
             ts_to_tm(pch->time, &dt);
@@ -285,7 +273,12 @@ static int data_proc(void)
         }
         
         if(r==0) {
-            list_back_node(nvmHandle.dlist, lnode);
+            if(nd->blen>=20*KB) {       //数据过大，则释放内存
+                list_discard_node(nvmHandle.dlist, lnode);
+            }
+            else {
+                list_back_node(nvmHandle.dlist, lnode);
+            }
         }
     }
     
@@ -441,15 +434,14 @@ void task_nvm_fn(void *arg)
                 
                 case EVT_DATA:
                 {
-                    r = list_take_node(taskBuffer.file, &lnode, 0);
-                    if(r==0) {
-                        ch_data_t *pcd=(ch_data_t*)lnode->data.buf;
-
+                    while(1) {
+                        r = list_take_node(taskBuffer.file, &lnode, 0);
+                        if(r) {
+                            break;
+                        }
                         //data_print(lnode->data.buf, lnode->data.dlen);
                         
-                        r = data_to_list(pcd);
-                        
-                        list_back_node(taskBuffer.file, lnode);
+                        list_append_node(nvmHandle.dlist, lnode);
                     }
                 }
                 break;
@@ -468,8 +460,6 @@ void task_nvm_fn(void *arg)
                 break;
             }
         }
-        
-        osDelay(1);
     }
     
 }

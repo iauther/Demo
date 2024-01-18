@@ -6,36 +6,19 @@
 
 
 typedef struct {
+    U8          port;
     U32         rlen;
     int         tlen;
-    
     void        *para;
-}comm_init_para_t;
-
-typedef struct {
-    U8          port;
-    handle_t    h;
-    
-    buf_t       rx;
-    buf_t       tx;
-    
-    int         chkID;
-    
-#ifdef _WIN32
-    mySock      mSock;
-    mySerial    mSerial;
-#endif
-}comm_handle_t;
+}comm_para_t;
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-handle_t comm_init(U8 port, comm_init_para_t *cp);
-int comm_deinit(handle_t h);
 
-handle_t comm_open(handle_t h, void *para);
+handle_t comm_open(comm_para_t *para);
 int comm_close(handle_t conn);
 
 int comm_data_proc(handle_t h, void *para, void* data, int len);

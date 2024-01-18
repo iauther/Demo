@@ -290,7 +290,7 @@ static void set_ota_data(ota_data_t *ota, int type, U32 len)
 {
     if(len>0) {
         ota->type = type;
-        ota->buf.buf = eCalloc(len);
+        ota->buf.buf = eMalloc(len);
         ota->buf.blen = len;
         ota->buf.dlen = 0;
     }
@@ -320,7 +320,7 @@ static void set_buf(buf_t *buf, int len)
     if(len>0) {
         buf->blen = len;
         buf->dlen = 0;
-        buf->buf  = eCalloc(buf->blen);
+        buf->buf  = eMalloc(buf->blen);
     }
     else {
         xFree(buf->buf);

@@ -38,23 +38,20 @@ typedef struct {
     net_gate_t  gate;
 }net_cfg_t;
 
-
-
 typedef struct {
     handle_t     h;
+    handle_t     hc;
     conn_para_t  para;
 }conn_handle_t;
 
 
-int net_init(net_cfg_t *cfg);
-int net_deinit(void);
+handle_t net_init(net_cfg_t *cfg);
+int net_deinit(handle_t h);
 
-handle_t net_conn(conn_para_t *para);
+handle_t net_conn(handle_t h, conn_para_t *para);
 int net_disconn(handle_t hconn);
 
 int net_read(handle_t hconn, void *para, void *data, int len);
 int net_write(handle_t hconn, void *para, void *data, int len);
-
-int net_broadcast(void *data, int len);
 
 #endif

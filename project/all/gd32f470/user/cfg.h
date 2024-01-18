@@ -95,7 +95,7 @@
     #define COUNTDOWN_MIN           5
     #define RUNTIME_MAX             30
     
-    #if (defined DEV_MODE_NORM || defined DEV_MODE_TEST)
+    #ifndef DEV_MODE_DEBUG
         #define USE_WDG                 //使能看门狗
     #endif
     

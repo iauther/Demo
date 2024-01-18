@@ -204,7 +204,7 @@ static int ec_wait(ecxxx_handle_t *h, int ms, U8 clr_data)
             break;
         }
         
-        dal_delay_ms(1);
+        dal_hw_delay_ms(1);
     }
     
     return r;  
@@ -238,7 +238,7 @@ static int ec_waitfor(ecxxx_handle_t *h, int ms, char *ok, char *err)
                 }
             }
             
-            dal_delay_ms(1);
+            dal_hw_delay_ms(1);
         }
     }
     x = dal_get_tick_ms()-time;
@@ -415,7 +415,7 @@ static U8 is_pwr_on(ecxxx_handle_t *h)
                 break;
             }
             
-            dal_delay_ms(1);
+            dal_hw_delay_ms(1);
         }
     }
     x = dal_get_tick_ms()-time;
@@ -440,7 +440,7 @@ int ecxxx_power(handle_t h, U8 on)
     if(pwr_on!=on) {
         if(on) {        //power on
             dal_gpio_set_hl(eh->hpwr, 0);
-            dal_delay_ms(600);
+            dal_hw_delay_ms(600);
             dal_gpio_set_hl(eh->hpwr, 1);
             
             r = ec_waitfor(eh, 2000, "RDY", "ERROR");
@@ -450,7 +450,7 @@ int ecxxx_power(handle_t h, U8 on)
         }
         else {          //power off
             dal_gpio_set_hl(eh->hpwr, 0);       //pull low power key
-            dal_delay_ms(600);
+            dal_hw_delay_ms(600);
             dal_gpio_set_hl(eh->hpwr, 1);
             
             r = ec_waitfor(eh, 2000, "POWERED DOWN", "ERROR");
@@ -493,7 +493,7 @@ int ecxxx_restart(handle_t h)
     pwr_on = is_pwr_on(eh);
     if(pwr_on) {        //if already powered on, power down it
         dal_gpio_set_hl(eh->hpwr, 0);       //pull low power key
-        dal_delay_ms(700);
+        dal_hw_delay_ms(700);
         dal_gpio_set_hl(eh->hpwr, 1);
         
         r = ec_waitfor(eh, 2000, "POWERED DOWN", "ERROR");
@@ -509,7 +509,7 @@ int ecxxx_restart(handle_t h)
     //power on it
     {
         dal_gpio_set_hl(eh->hpwr, 0);
-        dal_delay_ms(1000);
+        dal_hw_delay_ms(1000);
         dal_gpio_set_hl(eh->hpwr, 1);
         
         r = ec_waitfor(eh, 2000, "RDY", "ERROR");
