@@ -152,98 +152,18 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>2695</LineNumber>
+          <LineNumber>59</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134246118</Address>
+          <Address>134226896</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;..\..\..\midware\mqtt\clink\core\aiot_mqtt_api.c</Filename>
+          <Filename>&lt;1&gt;.\user\gd32f4xx_it.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\app\../../../midware/mqtt/clink/core/aiot_mqtt_api.c\2695</Expression>
-        </Bp>
-        <Bp>
-          <Number>1</Number>
-          <Type>0</Type>
-          <LineNumber>2696</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134246128</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;..\..\..\midware\mqtt\clink\core\aiot_mqtt_api.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\../../../midware/mqtt/clink/core/aiot_mqtt_api.c\2696</Expression>
-        </Bp>
-        <Bp>
-          <Number>2</Number>
-          <Type>0</Type>
-          <LineNumber>2697</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134246142</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;..\..\..\midware\mqtt\clink\core\aiot_mqtt_api.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\../../../midware/mqtt/clink/core/aiot_mqtt_api.c\2697</Expression>
-        </Bp>
-        <Bp>
-          <Number>3</Number>
-          <Type>0</Type>
-          <LineNumber>240</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134299608</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;.\user\task\task_send.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\user/task/task_send.c\240</Expression>
-        </Bp>
-        <Bp>
-          <Number>4</Number>
-          <Type>0</Type>
-          <LineNumber>274</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134421888</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;.\user\task\task_data_proc.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\user/task/task_data_proc.c\274</Expression>
-        </Bp>
-        <Bp>
-          <Number>5</Number>
-          <Type>0</Type>
-          <LineNumber>516</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134474688</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>&lt;1&gt;.\user\task\task_send.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\app\user/task/task_send.c\516</Expression>
+          <Expression>\\app\user/gd32f4xx_it.c\59</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -276,8 +196,8 @@
       <MemoryWindow1>
         <Mm>
           <WinNumber>1</WinNumber>
-          <SubType>256</SubType>
-          <ItemText>pch</ItemText>
+          <SubType>2</SubType>
+          <ItemText>data</ItemText>
           <AccSizeX>0</AccSizeX>
         </Mm>
       </MemoryWindow1>
@@ -856,7 +776,7 @@
 
   <Group>
     <GroupName>system/net</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>

@@ -153,7 +153,7 @@ static int at_power(int on)
     }
     
     pwred = is_powered();
-    LOGD("___ at module is %s, switch to %s\n", pwred?"on":"off", on?"on":"off");
+    LOGD("___ at module is %s, now switch to %s\n", pwred?"on":"off", on?"on":"off");
     
     if(on==pwred) return 1;
     
@@ -194,7 +194,7 @@ static void at_set_baudrate(void)
 {
     int  r,br=115200*4;     //过大，则发较长数据会导致超时无回应，过小则耗时太长
     char tmp[60];
-return;
+    
     sprintf(tmp, "AT+IPR=%d\r\n", br);
     r = send_cmd(tmp, "OK",  300);
     if(r==0) {

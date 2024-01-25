@@ -11,7 +11,7 @@
 #define HTMR_PERIOD   7200
 #define RETRY_TIMES   5
 
-#define RTC_MAGIC   0x1234abcd
+#define RTC_MAGIC   0xAABB9966
 typedef struct {
     U32     magic;              //RTC_MAGIC
     U32     times[PWRON_MAX];   //times
@@ -79,44 +79,7 @@ static int get_info(sd_info_t *info)
 }
 
 ///////////////////////////////////////
-static void gpio_init(void)
-{
-    rcu_periph_clock_enable(RCU_GPIOA);
-    
-    gpio_bit_reset(GPIOA,GPIO_PIN_1);
-    gpio_output_options_set(GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_25MHZ, GPIO_PIN_1);
-    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
-    
-#ifdef BOARD_V136
-    gpio_bit_reset(GPIOA,GPIO_PIN_0);
-    gpio_output_options_set(GPIOA, GPIO_OTYPE_PP, GPIO_OSPEED_25MHZ, GPIO_PIN_0);
-    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_0);
-#endif
-}
-
-static u8 get_psrc(sd_info_t *info)
-{
-    u8 psrc=PWRON_RTC;
-    
-    //如果启动时该引脚为低电平，且中断标志不为0，则为rtc中断触发开机
-    gpio_mode_set(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
-    if(gpio_input_bit_get(GPIOA,GPIO_PIN_1)==RESET) {
-        dal_delay_ms(50);
-        if(gpio_input_bit_get(GPIOA,GPIO_PIN_1)==RESET) {
-            psrc = PWRON_MANUAL;
-        }
-        else {
-            if(info->irq==IRQ_NONE) {
-                psrc = PWRON_TIMER;
-            }
-        }
-    }
-    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
-    
-    return psrc;
-}
-
-static void rtc_ext_power(U8 on)
+static void power_en(U8 on)
 {
     if(on) {    //拉低上电
         gpio_bit_reset(GPIOA,GPIO_PIN_1);
@@ -136,6 +99,43 @@ static void rtc_ext_power(U8 on)
     }
 }
 
+static void gpio_init(void)
+{
+    rcu_periph_clock_enable(RCU_GPIOA);
+    
+    gpio_bit_reset(GPIOA,GPIO_PIN_1);
+    gpio_output_options_set(GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_25MHZ, GPIO_PIN_1);
+    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
+    
+#ifdef BOARD_V136
+    gpio_bit_reset(GPIOA,GPIO_PIN_0);
+    gpio_output_options_set(GPIOA, GPIO_OTYPE_PP, GPIO_OSPEED_25MHZ, GPIO_PIN_0);
+    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_0);
+#endif
+    
+    power_en(1);
+}
+
+static u8 get_psrc(sd_info_t *info)
+{
+    u8 psrc=PWRON_RTC;
+    
+    sd30xx_clr_irq();
+    
+    //如果启动时该引脚为低电平，且中断标志不为0，则为rtc中断触发开机
+    gpio_mode_set(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
+    if(gpio_input_bit_get(GPIOA,GPIO_PIN_1)==RESET) {
+        if(info->irq==IRQ_NONE) {
+            psrc = PWRON_MANUAL;
+        }
+    }
+    else {
+        psrc = PWRON_TIMER;
+    }
+    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
+    
+    return psrc;
+}
 
 static int rtc_int_get(datetime_t *dt)
 {
@@ -170,53 +170,84 @@ static inline datetime_t to_tm(U64 ts)
     
     return dt;
 }
-
-#ifndef BOOTLOADER
-static int rtc_usr_get(void)
+static int usr_get(rtc_usr_t *usr)
 {
     int i,r=-1;
-    rtc_usr_t usr;
+    
+    for(i=0; i<RETRY_TIMES; i++) {
+        r = sd30xx_read(0x2c, (U8*)usr, sizeof(rtc_usr_t));
+        if(r==0) {
+            break;
+        }
+        LOGW("usr_get failed, %d\n", i);
+    }
+    
+    return r;
+}
+static int usr_set(rtc_usr_t *usr)
+{
+    int i,r=-1;
+    
+    for(i=0; i<RETRY_TIMES; i++) {
+        r = sd30xx_write(0x2c, (U8*)usr, sizeof(rtc_usr_t));
+        if(r==0) {
+            break;
+        }
+        LOGW("usr_set failed, %d\n", i);
+    }
+    
+    return r;
+}
+static void print_usr(char *s, rtc_usr_t *usr)
+{
+    LOGD("%s usr->magic:  0x%x\n",    s, usr->magic);
+    LOGD("%s usr->cnt  :  %u\n",      s, usr->cnt);
+    LOGD("%s usr->cntMax: %u\n",      s, usr->cntMax);
+    LOGD("%s usr->times[rtc]: %u\n",  s, usr->times[PWRON_RTC]);
+    LOGD("%s usr->times[tmr]: %u\n",  s, usr->times[PWRON_TIMER]);
+    LOGD("%s usr->times[man]: %u\n",  s, usr->times[PWRON_MANUAL]);
+}
+
+
+
+#ifndef BOOTLOADER
+static int usr_proc(void)
+{
+    int i,r=0;
+    rtc_usr_t *usr=&rtcHandle.usr;
+    smp_para_t *smp=paras_get_smp();
+    U32 cntMax=(smp->worktime/7200)+1;
     
     if(!rtcHandle.period) {
         return -1;
     }
     
-    for(i=0; i<RETRY_TIMES; i++) {
-        r = sd30xx_read(0x2c, (U8*)&usr, sizeof(rtc_usr_t));
-        if(r==0) {
-            rtcHandle.usr = usr;
-            break;
-        }
-        LOGD("rtc_usr_get failed, %d\n", i);
-    }
+    r = usr_get(usr);
     if(r) {
         return -1;
     }
+    print_usr("111", usr);
     
-    if(usr.magic!=RTC_MAGIC) {
-        usr.magic = RTC_MAGIC;
-        memset(usr.times, 0, sizeof(usr.times));
+    if(usr->magic!=RTC_MAGIC) {
+        memset(usr, 0, sizeof(rtc_usr_t));
+        usr->magic = RTC_MAGIC;
     }
-    else {
-        usr.times[rtcHandle.psrc]++;
+    
+    if(usr->cntMax!=cntMax) {
+        usr->cntMax = cntMax;
     }
+    usr->times[rtcHandle.psrc]++;
     
     if(rtcHandle.psrc==PWRON_RTC) {
-        usr.cnt = 0;
+        usr->cnt = 0;
     }
     else if(rtcHandle.psrc==PWRON_TIMER) {
-        smp_para_t *smp=paras_get_smp();
-        if(usr.cntMax==0) {
-            usr.cnt = 0;
-            usr.cntMax = (smp->worktime/7200)+1;
+        if(usr->cnt<usr->cntMax) {
+            r = 1;
+            usr->cnt++;
         }
         else {
-            usr.cnt++;
-        }
-        
-        if(usr.cnt>=usr.cntMax) {
-            r = 1;       //此时需要采集数据
-            usr.cnt = 0;
+            usr->cnt = 0;
         }
     }
     else {  //PWRON_MANUAL
@@ -225,25 +256,13 @@ static int rtc_usr_get(void)
     
     return r;
 }
-static int rtc_usr_set(void)
+static int usr_flush(void)
 {
-    int i,r=-1;
-    int period=1;
-    rtc_usr_t usr;
-    
     if(!rtcHandle.period) {
         return -1;
     }
     
-    for(i=0; i<RETRY_TIMES; i++) {
-        r = sd30xx_write(0x2c, (U8*)&rtcHandle.usr, sizeof(rtc_usr_t));
-        if(r==0) {
-            break;
-        }
-        LOGD("rtc_usr_set failed, %d\n", i);
-    }
-    
-    return r;
+    return usr_set(&rtcHandle.usr);
 }
 #endif
 
@@ -359,51 +378,30 @@ static int rtc_ext_set(datetime_t *dt)
     
     return r;
 }
-static int rtc_power_en(U8 on)
+
+
+static int sd_powerdown(sd_countdown_t *cd)
 {
     int i,r=0;
-    sd_countdown_t cd;
-    char *str=on?"on":"off";
     
     for(i=0; i<RETRY_TIMES; i++) {
-        if(on) {
-            LOGD("___ rtc power %s ...\n", str);
-            rtc_ext_power(1);
-            
-    #ifdef COUNTDOWN_POWER
-            cd.im  = 0;
-            cd.clk = S_4096Hz;
-            cd.val = 1;
-            r = sd30xx_set_countdown(&cd);      //第一次，尽快使RTC接通电源
-            if(r) {
-                continue;
-            }
-            LOGW("___ rtc power %s failed 11, %d\n", str, i);
-    #endif  
+        r = sd30xx_set_countdown(cd);
+        if(r) {
+            LOGW("___ sd_powerdown failed 11, %d\n", i);
+            continue;
         }
-        else {
-            LOGD("___ rtc power off ...\n");
-            
-            r = sd30xx_set_countdown(&rtcHandle.cd);
-            if(r) {
-                LOGW("___ rtc power %s failed 11, %d\n", str, i);
-                continue;
-            }
-            
-            r = sd30xx_clr_irq();
-            if(r) {
-                LOGW("___ rtc power %s failed 11, %d\n", str, i);
-                continue;
-            }
-            log_save();
-            
-            rtc_ext_power(0);
+        
+        r = sd30xx_clr_irq();
+        if(r) {
+            LOGW("___ sd_powerdown failed 22, %d\n", i);
+            power_en(1);
+            continue;
         }
-        break;
     }
     
-    return 0;
+    return r;
 }
+
 static U32 get_runtime(void)
 {
     U32 ts,t1,t2;
@@ -418,26 +416,43 @@ static U32 get_runtime(void)
 static int rtc_power(U8 on)
 {
     int r=-1;
+    char *str=on?"on":"off";
 
+    LOGD("___ rtc power %s ...\n", str);
+    
 #ifndef BOOTLOADER    
     if(on) {
-        if(rtc_usr_get()==0) {
-            U32 runtime = get_runtime();
+        if(usr_proc()==1) {
+            sd_countdown_t cd;
             smp_para_t *smp=paras_get_smp();
             
-            rtcHandle.cd.im  = 0;
-            rtcHandle.cd.clk = S_1s;
-            rtcHandle.cd.val = smp->worktime-runtime-2;
-            rtc_power_en(0);
+            cd.im  = 0;
+            cd.clk = S_1s;
+            cd.val = smp->worktime-1;
+            r = sd_powerdown(&cd);
+            if(r==0) {
+                usr_flush();
+                power_en(0);
+                return 0;
+            }
         }
     }
 #endif
     
-    r = rtc_power_en(on);
-
+    if(on) {
+        power_en(1);
+    }
+    else {
+        r = sd_powerdown(&rtcHandle.cd);
+        if(r==0) {
+            log_save();
+            power_en(0);
+        }
+    }
+    
 #ifndef BOOTLOADER
     if(r==0 && !on) {
-        rtc_usr_set();
+        usr_flush();
     }
 #endif
     
@@ -487,10 +502,12 @@ int rtc2_init(void)
     else {        
         r = rtc_ext_get(&dt);
         if(r==0) {
+            print_time("rtc time", &dt);
+            
             rtc_int_set(&dt);
         }
         else {
-            LOGE("___ rtc_ext_get failed\n");
+            LOGE("___ read rtc time failed\n");
         }
     }
     

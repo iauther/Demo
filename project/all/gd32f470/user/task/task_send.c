@@ -100,6 +100,7 @@ static int data_save_bin(ch_data_t *pch)
     }
     
     ts_to_tm(pch->time, &dt);
+    LOGD("___ pch->time: %lld\n", pch->time);
     rtc2_print_time("data_save ts:", &dt);
     
     if(pch->evlen>0) {
@@ -416,11 +417,10 @@ int api_send_save_file(void)
         r = data_save_bin((ch_data_t*)lnode->data.buf);
         if(r==0) {
             list_discard_node(sendHandle.dlist, lnode);
-        
         }
     }
     
-    return r;
+    return 0;
 }
 
 
@@ -446,14 +446,8 @@ int api_send_is_finished(void)
         }
     }
     
-    for(ch=0; ch<CH_MAX; ch++) {
-        pch = paras_get_ch_para(ch);
-        
-        if(pch->enable) {
-            if(sendHandle.times[ch].send<pch->smpTimes) {
-                send_finished = 0;
-            }
-        }
+    if(list_size(sendHandle.dlist)>0) {
+        send_finished = 0;
     }
     
     if(cap_finished) {

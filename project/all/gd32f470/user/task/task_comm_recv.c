@@ -298,20 +298,19 @@ int api_comm_connect(U8 port)
     int r=0;
     comm_para_t comm_p;
     conn_para_t conn_p;
-    
-    hal_at_power(1);            //4g模组上电
-    
+
     comm_p.port = port;
     comm_p.rlen = 0;
     comm_p.tlen = max_data_len;
     comm_p.para = NULL;
-    
     if(!tasksHandle.hcomm) {
         if(port==PORT_NET) {
             conn_p.para = &allPara.usr.net;
             conn_p.callback = net_recv_callback;
             conn_p.proto = PROTO_MQTT;
             comm_p.para = &conn_p;
+            
+            hal_at_power(1);            //4g模组上电
         }
         
         tasksHandle.hcomm = comm_open(&comm_p);
@@ -329,9 +328,9 @@ int api_comm_disconnect(void)
     if(tasksHandle.hcomm) {
         comm_close(tasksHandle.hcomm);
         tasksHandle.hcomm = NULL;
+        
+        hal_at_power(0);            //关4g模组
     }
-    
-    hal_at_power(0);            //关4g模组
     
     return 0;
 }

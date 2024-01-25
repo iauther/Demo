@@ -101,6 +101,7 @@ static void task_conn_fn(void *arg)
     while(1) {
         
         if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
+        //if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM) {
             connHandle.conn = CONN_BUSYING;
             
             LOGD("___ api_comm_connect\n");

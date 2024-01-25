@@ -129,6 +129,7 @@ function stat_data_parse(array,devid, msgType, devType)
     var version = "1.0"
     
     var dv = new DataView(array.buffer, 0);    
+    var tlen = array.byteLength;
     
     var id = ""+devid;
     
@@ -138,6 +139,13 @@ function stat_data_parse(array,devid, msgType, devType)
     var ber = dv.getInt32(pos, 1);
     pos += 4;
     
+    if(tlen>24) {
+        var rsrp = dv.getInt32(pos, 1);
+        pos += 4;
+        
+        var snr  = dv.getInt32(pos, 1);
+        pos += 4;
+    }
     
     var vbat = dv.getFloat32(pos, 1);
     pos += 4;
@@ -152,6 +160,12 @@ function stat_data_parse(array,devid, msgType, devType)
     
     properties["stat_data:rssi"]    = [{"value": rssi, "time": time}];
     properties["stat_data:ber"]     = [{"value": ber,  "time": time}];
+    
+    if(tlen>24) {
+        properties["stat_data:rsrp"]    = [{"value": rsrp,  "time": time}];
+        properties["stat_data:snr"]     = [{"value": snr,   "time": time}];
+    }
+    
     properties["stat_data:vbat"]    = [{"value": toFloatSpecial(vbat,2), "time": time}];
     properties["stat_data:temp"]    = [{"value": toFloatSpecial(temp,2), "time": time}];
 	properties["dev_id"] = [{"value": devid, "time": time}];
