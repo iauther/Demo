@@ -5,8 +5,8 @@
 #define FW_VERSION                  "V1.0.0"
 
 
-#define BOARD_V134
-//#define BOARD_V136
+//#define BOARD_V134
+#define BOARD_V136
 
 
 #ifdef BOARD_V134
@@ -15,6 +15,7 @@
 #elif defined BOARD_V136
     #define RS485_PORT              UART_5
     #define I2C_HARD_PIN            //使用硬件I2C
+    #define I2C_SOFT
 #else
     #error no board define!
 #endif
@@ -65,9 +66,6 @@
     //#define ADC_CONV_FLOAT
     
     #define SPI_MODE                 0  
-    
-    
-    
     
     
     //#define PROD_V2                 //字符串方式，支持批量上传

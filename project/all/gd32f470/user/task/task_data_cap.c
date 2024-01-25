@@ -232,7 +232,7 @@ static void ads_cali_proc(U8 ch, raw_data_t *raw, U16 *data, int cnt)
         
     r = cali_calc(ch, raw->data, data, cnt);
     if(r==1) {
-        task_trig(TASK_NVM, EVT_SAVE);
+        task_trig(TASK_SEND, EVT_SAVE);
         api_cap_stop(ch);
     }
 }

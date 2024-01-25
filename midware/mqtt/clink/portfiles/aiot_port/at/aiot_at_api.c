@@ -26,29 +26,70 @@
 
 extern aiot_os_al_t  *os_api;
 extern const char *ali_ca_cert;
-
+static stat_info_t statInfo;
 static core_at_handle_t at_handle = {
     .is_init = 0,
 };
 
-static at_rsp_result_t at_csq_handler(char *rsp)
+static char *find_chr(char *s, char c, int idx)
 {
-    at_rsp_result_t res = AT_RSP_WAITING;
+    int i=0;
+    char *p=s;
+    
+    while(*p) {
+        if(*p==c) {
+            i++;
+            if(i==idx) {
+                return p+1;
+            }
+        }
+        p++;
+    }
+    
+    return NULL;
+}
+static at_rsp_result_t at_stat_handler(char *rsp)
+{
+    at_rsp_result_t r = AT_RSP_WAITING;
     int rssi = 0, ber = 0;
+    int rsrp = 0, snr = 0;
     char *line = NULL;
+    stat_info_t *si=&statInfo;
     
     line = strstr(rsp, "+CSQ");
-    /*获取信号强度，强度<5返回失败，否则返回成功*/
-    if(line != NULL && sscanf(line, "+CSQ: %d,%d\r\n", &rssi, &ber)) {
-        if(rssi < 5) {
-            res =  AT_RSP_FAILED;
-        } else {
-            res =  AT_RSP_SUCCESS;
+    if(line && sscanf(line, "+CSQ: %d,%d", &rssi, &ber)==2) {
+        if(rssi==99 || rssi==199) {
+            si->rssi = -1;
+        }
+        else if(rssi>=0 && rssi<99){
+            si->rssi = -113+rssi*2;
+        }
+        else if(rssi>=100 && rssi<199){
+            si->rssi = -116+(rssi-100);
+        }
+        si->ber  = (ber==99)?-1:ber;
+        r = AT_RSP_SUCCESS;
+    }
+    else {
+        line = strstr(rsp, "+QENG");
+        if(line) {
+            char *s = find_chr(line, ',', 13);
+            if(s && sscanf(s, "%d,%*d,%*d,%d,%*d", &rsrp, &snr)==2) {
+                si->rsrp = rsrp;
+                si->snr  = snr;
+                    
+                r = AT_RSP_SUCCESS;
+            }
+            else {
+                r =  AT_RSP_FAILED;
+            }
         }
     }
 
-    return res;
+    return r;
 }
+
+
 
 /*模组初始化命令集*/
 core_at_cmd_item_t at_module_init_cmd_table[] = {
@@ -95,6 +136,22 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
 };
 
 
+core_at_cmd_item_t at_stat_cmd_table[] = {
+    {
+        .cmd = "AT+CSQ\r\n",
+        .rsp = "OK",
+        .handler = at_stat_handler,
+    }, 
+    
+    {
+        .cmd = "AT+QENG=\"servingcell\"\r\n",
+        .rsp = "OK",
+        .handler = at_stat_handler,
+    }, 
+};
+
+    
+    
 /*** ringbuf start ***/
 int32_t core_ringbuf_init(core_ringbuf_t *rbuf, uint32_t size)
 {
@@ -349,7 +406,7 @@ static int32_t core_at_set_device(at_device_t *device)
     int32_t i = 0;
 
     at_handle.device = device;
-    /* 未定义模组初始化命令，使用默认的 */
+    
     if(device->module_init_cmd == NULL) {
         at_handle.device->module_init_cmd = at_module_init_cmd_table;
         at_handle.device->module_init_cmd_size = sizeof(at_module_init_cmd_table) / sizeof(core_at_cmd_item_t);
@@ -365,14 +422,16 @@ static int32_t core_at_set_device(at_device_t *device)
             at_handle.device->ip_init_cmd[i].cmd_len = strlen(at_handle.device->ip_init_cmd[i].cmd);
         }
     }
- 
-/*    
+
+    if(device->stat_cmd == NULL) {
+        at_handle.device->stat_cmd = at_stat_cmd_table;
+        at_handle.device->stat_cmd_size = sizeof(at_stat_cmd_table) / sizeof(core_at_cmd_item_t);
+    }
     for(i = 0; i < at_handle.device->stat_cmd_size; i++) {
         if(at_handle.device->stat_cmd[i].cmd != NULL) {
             at_handle.device->stat_cmd[i].cmd_len = strlen(at_handle.device->stat_cmd[i].cmd);
         }
     }
-*/
     
     for(i = 0; i < at_handle.device->open_cmd_size; i++) {
         if(at_handle.device->open_cmd[i].cmd != NULL) {
@@ -438,24 +497,48 @@ int32_t aiot_at_bootstrap(void)
         return STATE_AT_NOT_INITED;
     }
     
-    printf("___ module_init_cmd ...\n");
+    LOGD("___ module_init_cmd ...\n");
     res = core_at_commands_send_sync(at_handle.device->module_init_cmd, at_handle.device->module_init_cmd_size);
     if(STATE_SUCCESS != res) {
-        printf("___ module_init_cmd failed\n");
+        LOGE("___ module_init_cmd failed\n");
         return res;
     }
-    printf("___ module_init_cmd ok\n");
+    LOGD("___ module_init_cmd ok\n");
     
-    printf("___ ip_init_cmd ...\n");
+    LOGD("___ ip_init_cmd ...\n");
     res = core_at_commands_send_sync(at_handle.device->ip_init_cmd, at_handle.device->ip_init_cmd_size);
     if(STATE_SUCCESS != res) {
-        printf("___ ip_init_cmd failed\n");
+        LOGE("___ ip_init_cmd failed\n");
         return res;
     }
-    printf("___ ip_init_cmd ok\n");
+    LOGD("___ ip_init_cmd ok\n");
 
     return res;
 }
+
+
+int32_t aiot_at_stat(stat_info_t *si)
+{
+    int32_t res = STATE_SUCCESS;
+    if (at_handle.is_init != 1) {
+        return STATE_AT_NOT_INITED;
+    }
+    
+    res = core_at_commands_send_sync(at_handle.device->stat_cmd, at_handle.device->stat_cmd_size);
+    if(STATE_SUCCESS != res) {
+        LOGE("___ stat_cmd failed\n");
+        return res;
+    }
+    
+    if(si) {
+        *si = statInfo;
+    }
+
+    return res;
+}
+
+
+
 
 
 int32_t aiot_at_nwk_open(uint8_t *socket_id)

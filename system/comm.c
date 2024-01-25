@@ -28,7 +28,6 @@ typedef struct {
     buf_t       tx;
     
     int         chkID;
-    
 #ifdef _WIN32
     mySock      mSock;
     mySerial    mSerial;
@@ -119,7 +118,7 @@ static int port_write(comm_handle_t *h, void *para, void *data, int len)
         break;
 
         default:
-            return -1;
+            r = -1;
     }
     
     return r;
@@ -330,7 +329,7 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
                     
     #ifdef OS_KERNEL
                     //need save the para
-                    task_trig(TASK_NVM, EVT_SAVE);
+                    task_trig(TASK_SEND, EVT_SAVE);
     #endif
                 }
                 
@@ -449,14 +448,21 @@ int comm_recv_proc(handle_t h, void *para, void *data, int len)
 int comm_send_data(handle_t h, void *para, U8 type, U8 nAck, void* data, int len)
 {
     int r;
+    comm_handle_t *ch=(comm_handle_t*)h;
     
-    r =  send_data(h, para, type, nAck, data, len);
+    if(!ch) {
+        return -1;
+    }
+    
+    r = send_data(ch, para, type, nAck, data, len);
+    
     return (r == 0) ? 0 : -1;
 }
 
 
 int comm_pure_send(handle_t h, void *para, void* data, int len)
 {
+    int r;
     comm_handle_t *ch=(comm_handle_t*)h;
     
     if(!ch) {
@@ -468,18 +474,24 @@ int comm_pure_send(handle_t h, void *para, void* data, int len)
         return -1;
     }
     
-    return port_write(ch, para, data, len);
+    r = port_write(ch, para, data, len);
+    
+    return r;
 }
 
 
 int comm_recv_data(handle_t h, void *para, void* data, int len)
 {
+    int r;
     comm_handle_t *ch=(comm_handle_t*)h;
+    
     if (!ch) {
         return -1;
     }
     
-    return port_read(ch, para, data, len);
+    r =  port_read(ch, para, data, len);
+    
+    return r;
 }
 
 

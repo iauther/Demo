@@ -144,10 +144,11 @@ typedef struct {
 
 
 typedef struct {
-    int rssi;   //信号强度
-    int ber;    //信道误码率
-} signal_info_t;
-
+    int rssi;       //信号强度
+    int ber;        //信道误码率
+    int rsrp;       //Reference Signal Receiving Power
+    int snr;        //信噪比
+} stat_info_t;
 
 /**
  * @brief AT设备结构化数据
@@ -166,8 +167,8 @@ typedef struct {
     uint32_t           open_cmd_size;
 
     /* 获取卡及网络状态 */
-    //core_at_cmd_item_t *stat_cmd;
-    //uint32_t           stat_cmd_size;
+    core_at_cmd_item_t *stat_cmd;
+    uint32_t           stat_cmd_size;
     
     /* 发送数据命令列表 */
     core_at_cmd_item_t *send_cmd;
@@ -301,6 +302,10 @@ int32_t aiot_at_setopt(aiot_at_option_t opt, void *data);
  * @retval <0 启动失败
  */
 int32_t aiot_at_bootstrap(void);
+
+
+int32_t aiot_at_stat(stat_info_t *si);
+
 
 /**
  * @brief 为对应的链路ID创建ringbuf资源

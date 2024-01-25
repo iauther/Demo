@@ -709,74 +709,22 @@ void i2c1_error_irq_handler(void)
 #endif
 
 
-static void svc_irq_en(int on)
-{
-    static U32 masked=0;
-    
-    if(on) {
-        if(masked==0) {
-            __enable_irq();
-        }
-    }
-    else {
-        masked = __get_PRIMASK();
-        __disable_irq();
-    }
-}
-static void usr_irq_en(int on)
-{
-    static U32 masked=0;
-    
-    if(on) {
-        if(masked==0) {
-            __enable_irq();
-        }
-    }
-    else {
-        masked = __disable_irq();
-    }
-}
-
-
-static void sd_irq_en(int on)
-{
-#ifdef DISABLE_IRQ
-    #ifdef CALL_IN_SVC
-        svc_irq_en(on);
-    #else
-        usr_irq_en(on);
-    #endif
-#endif
-}
-
 ////////////////////////////////////////////////////
-#ifdef CALL_IN_SVC
-int sdxx_init(void)
-#else
 int sd30xx_init(void)
-#endif
 {
     io_init();
     return 0;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_deinit(void)
-#else
 int sd30xx_deinit(void)
-#endif
 {
     io_deinit();
     return 0;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_write_time(sd_time_t *tm)
-#else
 int sd30xx_write_time(sd_time_t *tm)
-#endif
 {
     int r=-1;
     u8 t,buf[7];
@@ -789,8 +737,6 @@ int sd30xx_write_time(sd_time_t *tm)
     buf[5] = tm->month;
     buf[6] = tm->year;
     
-    
-    sd_irq_en(0);
     if(!Write_Enable(RTC_Address)) {
         LOGE("___ sd30xx_write_time failed 111\n");
         goto quit;
@@ -811,21 +757,15 @@ int sd30xx_write_time(sd_time_t *tm)
     }
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_read_time(sd_time_t *tm)
-#else
 int sd30xx_read_time(sd_time_t *tm)
-#endif
 {
     u8 r,buf[7]={0};
     int x=-1;
     
-    sd_irq_en(0);
     r = I2CReadSerial(RTC_Address, 0, buf, sizeof(buf));
     if(r==FALSE) {
         LOGE("___ sd30xx_read_time failed\n");
@@ -841,15 +781,11 @@ int sd30xx_read_time(sd_time_t *tm)
     x = 0;
     
 quit:
-    sd_irq_en(1);
     return x;
 }
 
-#ifdef CALL_IN_SVC
-int sdxx_set_countdown(sd_countdown_t *cd)
-#else
+
 int sd30xx_set_countdown(sd_countdown_t *cd)
-#endif
 {
     u8 i;
     int r=-1;
@@ -862,8 +798,6 @@ int sd30xx_set_countdown(sd_countdown_t *cd)
     buf[3] = cd->val & 0x0000FF;                        //13H
     buf[4] = (cd->val & 0x00FF00) >> 8;                 //14H
     buf[5] = (cd->val & 0xFF0000) >> 16;                //15H
-    
-    sd_irq_en(0);
     
     if(!I2CWriteSerial(RTC_Address, CTR2+1, buf+1, 5)) {
         LOGE("___ sd30xx_set_countdown failed 111\n");
@@ -884,16 +818,11 @@ int sd30xx_set_countdown(sd_countdown_t *cd)
     r = 0;
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_set_alarm(u8 en, sd_time_t *tm)
-#else
 int sd30xx_set_alarm(u8 en, sd_time_t *tm)
-#endif
 {
     int r=-1;
     u8 buf[10];
@@ -909,7 +838,6 @@ int sd30xx_set_alarm(u8 en, sd_time_t *tm)
     buf[8] = 0xFF;
     buf[9] = 0x92;
     
-    sd_irq_en(0);
     if(!I2CWriteSerial(RTC_Address, Alarm_SC, buf, 10)) {
         LOGE("___ sd30xx_set_alarm failed\n");
         goto quit;
@@ -917,16 +845,11 @@ int sd30xx_set_alarm(u8 en, sd_time_t *tm)
     r = 0;
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_set_freq(SD_FREQ freq)
-#else
 int sd30xx_set_freq(SD_FREQ freq)
-#endif
 {
     int r=-1;
     u8 buf[2];
@@ -934,7 +857,6 @@ int sd30xx_set_freq(SD_FREQ freq)
     buf[0] = 0xA1;
     buf[1] = freq;
     
-    sd_irq_en(0);
     if(!I2CWriteSerial(RTC_Address, CTR2, buf, 2)) {
         LOGE("___ sd30xx_set_freq failed\n");
         goto quit;
@@ -942,16 +864,11 @@ int sd30xx_set_freq(SD_FREQ freq)
     r = 0;
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_set_irq(SD_IRQ irq, u8 on)
-#else
 int sd30xx_set_irq(SD_IRQ irq, u8 on)
-#endif
 {
     u8 buf;
     int r=-1;
@@ -964,7 +881,6 @@ int sd30xx_set_irq(SD_IRQ irq, u8 on)
         buf = 0x80 | (~flag[irq]);
     }
     
-    sd_irq_en(0);
     if(!I2CWriteSerial(RTC_Address, CTR2, &buf, 1)) {
         LOGE("___ sd30xx_set_irq failed\n");
         goto quit;
@@ -972,21 +888,15 @@ int sd30xx_set_irq(SD_IRQ irq, u8 on)
     r = 0;
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_clr_irq(void)
-#else
 int sd30xx_clr_irq(void)
-#endif
 {
     int i,r=-1;
     u8 tmp[3],bak[3];
 
-    sd_irq_en(0);
 #ifdef USE_ARST
     r = I2CReadSerial(RTC_Address, CTR3, &tmp, 1);
     LOGD("CTR1: 0x%02x\n", buf);
@@ -1010,7 +920,7 @@ int sd30xx_clr_irq(void)
     
     bak[0] |= 0x84; bak[1] |= 0x80;
     if(memcmp(tmp,bak,3)) {
-        LOGE("___ sd30xx_clr_irq memcmp failed\n");
+        LOGE("___ sd30xx_clr_irq, memcmp failed\n");
         for(i=0; i<3; i++) {
             LOGD("___reg[0x%02x] w:0x%02x, r:0x%02x\n", CTR1+i, tmp[i], bak[i]);
         }
@@ -1020,16 +930,11 @@ int sd30xx_clr_irq(void)
     r = 0;
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_read_id(U8 *buf, U8 len)
-#else
 int sd30xx_read_id(U8 *buf, U8 len)
-#endif
 {
     int r=-1;
     
@@ -1037,7 +942,6 @@ int sd30xx_read_id(U8 *buf, U8 len)
         return -1;
     }
     
-    sd_irq_en(0);
     if(!I2CReadSerial(RTC_Address, ID_Address, buf, 8)) {
         LOGE("___ sd30xx_read_id failed\n");
         goto quit;
@@ -1045,23 +949,16 @@ int sd30xx_read_id(U8 *buf, U8 len)
     r = 0;
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_set_charge(U8 on)
-#else
 int sd30xx_set_charge(U8 on)
-#endif
 {
     u8 buf;
     int r=-1;
 
     buf = (on?Chg_enable:Chg_disable);
-    
-    sd_irq_en(0);
     if(!I2CWriteSerial(RTC_Address, Chg_MG, &buf, 1)) {
         LOGE("___ sd30xx_set_charge failed\n");
         goto quit;
@@ -1069,23 +966,17 @@ int sd30xx_set_charge(U8 on)
     r = 0;
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_get_volt(F32 *volt)
-#else
 int sd30xx_get_volt(F32 *volt)
-#endif
 {
     u8 buf[2];
     u16 vbat;
     f32 tmp;
     int r=-1;
 
-    sd_irq_en(0);
     if(!I2CReadSerial(RTC_Address, Bat_H8, buf, 2)) {
         LOGE("___ sd30xx_get_volt failed\n");
         goto quit;
@@ -1096,19 +987,14 @@ int sd30xx_get_volt(F32 *volt)
     r = 0;
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_get_info(sd_info_t *info)
-#else
 int sd30xx_get_info(sd_info_t *info)
-#endif
 {
     int r=-1;
-    u8 buf[2]={0};
+    u8 buf[2];
     u8 irq,first;
     SD_IRQ IRQ[3]={IRQ_NONE,IRQ_COUNTDOWN,IRQ_ALARM};
 
@@ -1116,10 +1002,10 @@ int sd30xx_get_info(sd_info_t *info)
         return -1;
     }
     
-    sd_irq_en(0);
     if(!I2CReadSerial(RTC_Address, CTR1, buf, 2)) {
         goto quit;
     }
+    
     irq   = (buf[0]&0x30)>>4;
     first = (buf[0]&0x01)?1:0;
     
@@ -1129,27 +1015,31 @@ int sd30xx_get_info(sd_info_t *info)
     LOGD("___ CTR1: 0x%02x, CTR2: 0x%02x\n", buf[0], buf[1]);
     
 quit:
-    sd_irq_en(1);
     return r;
 }
 
 
-#ifdef CALL_IN_SVC
-int sdxx_read(U8 reg, U8 *buf, U8 len)
-#else
 int sd30xx_read(U8 reg, U8 *buf, U8 len)
-#endif
-
 {
     int r=-1;
     
-    sd_irq_en(0);
     if(I2CReadSerial(RTC_Address, reg, buf, len)) {
         r = 0;
     }
-    sd_irq_en(1);
     return r;
 }
+
+
+int sd30xx_write(U8 reg, U8 *buf, U8 len)
+{
+    int r=-1;
+    
+    if(I2CWriteSerial(RTC_Address, reg, buf, len)) {
+        r = 0;
+    }
+    return r;
+}
+
 
 void sd30xx_test(void)
 {
@@ -1178,36 +1068,10 @@ void sd30xx_test(void)
     I2CReadBytes(RTC_Address,  CTR1, bak, CNT);
     LOGD("___2___ CTR1:0x%02x, CTR2:0x%02x\n", bak[0], bak[1]);
 #else
-
     Write_Enable(RTC_Address);
-    
     Write_Disable(RTC_Address);
-    
-    
 
 #endif
-    
-
 }
 
-
-#ifdef CALL_IN_SVC
-#define USER_SVC_COUNT  13
-void *const osRtxUserSVC[1+USER_SVC_COUNT] = {
-    (void*)USER_SVC_COUNT,
-    (void*)sdxx_init,
-    (void*)sdxx_write_time,
-    (void*)sdxx_read_time,
-    (void*)sdxx_set_countdown,
-    (void*)sdxx_set_alarm,
-    (void*)sdxx_set_freq,
-    (void*)sdxx_set_irq,
-    (void*)sdxx_clr_irq,
-    (void*)sdxx_read_id,
-    (void*)sdxx_set_charge,
-    (void*)sdxx_get_volt,
-    (void*)sdxx_first,
-    (void*)sdxx_read,  
-};
-#endif
 

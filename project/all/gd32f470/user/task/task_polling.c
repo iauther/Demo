@@ -35,7 +35,6 @@ typedef struct {
     void    *data;
 }file_node_t;
 
-static handle_t hpwr=NULL;
 static int cap_is_finished(void)
 {
     U8 ch;
@@ -235,56 +234,46 @@ static void pwroff_polling(void)
     int r,finish=0,countdown;
     gbl_var_t  *var=&allPara.var;
     smp_para_t *smp=paras_get_smp();
-    
-    if(paras_get_mode()==MODE_CALI) {
+        
+    if(smp->mode==MODE_CALI || smp->pwrmode!=PWR_PERIOD_PWRDN) {
         //LOGW("___ in cali mode, power off disabled!\n");
         return;
     }
     
-    if(smp->pwrmode==PWR_PERIOD_PWRDN) {
-        //缓存数据是否保存完毕
-        finish = api_nvm_is_finished();
-        if(!finish) {
-            LOGW("___ capture is not finished, pwroff disable!\n");
-            return;
-        }
-        
-        //以上都完成时才可以关机
-        r = rtc2_get_runtime(&runtime);
-        if(r==0) {      //获取运行时间成功才可以进行下面流程
-            LOGD("____ psrc: %d, finish: %d, runtime: %lu, worktime: %d\n", var->psrc, finish, runtime, smp->worktime);
-            
-            if(var->psrc==PWRON_RTC) {      //rtc poweron
-                
-                //finish=2: 采集完成    finish=1: 采集未完成
-                if((finish==2) || ((finish==1) && (runtime>=RUNTIME_MAX))) {
-                    //api_comm_disconnect();      //断开连接, 该操作耗时较长
-                    
-                    countdown = smp->worktime- runtime;
-                    if(countdown>=COUNTDOWN_MIN) {
-                        countdown -= 2;     //减2为修正值
-                    }
-                    else {
-                        countdown = smp->worktime-2;
-                    }
-                    
-                    r = rtc2_set_countdown(countdown);
-                    if(r==0) {
-                        //添加拉高timer管脚的操作
-                        dal_gpio_set_hl(hpwr, 1);           //v136版本增加了一个硬件timer, 关机时需要拉高一下连接timer的引脚
-                        die();
-                    }
-                }
-            }
-            else if(var->psrc==PWRON_MANUAL) {                  //manual poweron
-                //delay powerdown??
-            }
-            else if(var->psrc==PWRON_TIMER) {
-                //?
-            }
-        }
+    finish = api_send_is_finished();
+    if(!finish) {
+        LOGW("___ capture is not finished, pwroff disable!\n");
+        return;
     }
     
+    //以上都完成时才可以关机
+    runtime = rtc2_get_runtime();
+    LOGD("____ psrc: %d, finish: %d, runtime: %lu, worktime: %d\n", var->psrc, finish, runtime, smp->worktime);
+    
+    if(var->psrc==PWRON_RTC) {      //rtc poweron
+        
+        //finish=2: 采集完成    finish=1: 采集未完成
+        if((finish==2) || ((finish==1) && (runtime>=RUNTIME_MAX))) {
+            //api_comm_disconnect();      //断开连接, 该操作耗时较长
+            api_send_save_file();
+            
+            countdown = smp->worktime- runtime;
+            if(countdown>=COUNTDOWN_MIN) {
+                countdown -= 2;     //减2为修正值
+            }
+            else {
+                countdown = smp->worktime-2;
+            }
+            
+            r = rtc2_set_countdown(countdown);
+        }
+    }
+    else if(var->psrc==PWRON_MANUAL) {                  //manual poweron
+        //delay powerdown??
+    }
+    else if(var->psrc==PWRON_TIMER) {
+        //?
+    }
 }
 
 
@@ -302,20 +291,18 @@ void rtc_test(void)
 #endif
     
     while(1) {
-        r = rtc2_get_runtime(&runtime);
-        if(r==0) {      //获取运行时间成功才可以进行下面流程
+        runtime = rtc2_get_runtime();
+        
+        LOGD("___ runtime: %d\n", runtime);
+        if((runtime>=RUNTIME_MAX)) {
             
-            LOGD("___ runtime: %d\n", runtime);
-            if((runtime>=RUNTIME_MAX)) {
-                
-                countdown = COUNTDOWN_MIN;
-                LOGD("____ countdown: %d\n", countdown);
-                
-                r = rtc2_set_countdown(countdown);
-                if(r==0) {
-                    LOGD("____ die to power off\n");
-                    while(1);
-                }
+            countdown = COUNTDOWN_MIN;
+            LOGD("____ countdown: %d\n", countdown);
+            
+            r = rtc2_set_countdown(countdown);
+            if(r==0) {
+                LOGD("____ die to power off\n");
+                while(1);
             }
         }
         
@@ -335,7 +322,11 @@ static F32 get_temp(dal_adc_data_t *adc)
     int r;
     F32 temp;
     
+#ifdef USE_PT1000
     pt1000_temp(adc->t_pt, &temp);
+#else
+    rtc2_get_temp(&temp);
+#endif
     
     return temp;
 }
@@ -343,39 +334,42 @@ static F32 get_temp(dal_adc_data_t *adc)
 static void stat_polling(void)
 {
     int r;
+    U32 ts;
     F32 temp;
     stat_data_t stat;
-    signal_info_t si;
+    stat_info_t si;
     dal_adc_data_t da;
-    static U8 send_flag=0;
+    static U32 send_ts=0;
     mqtt_pub_para_t pub_para={DATA_LT};
     
-    if(!api_comm_is_connected() || send_flag==1) {
+    ts = dal_get_timestamp();
+    if(ts-send_ts<3600*24) {
         return;
     }
     
-    r = hal_at_stat(&si);                  //信号强度和质量
+    r = aiot_at_stat(&si);                  //信号强度和质量
     if(r) {
         return;
     }
-    LOGE("___ at_hal_stat ok\n");
     
     dal_adc_read(&da);
     
     stat.rssi = si.rssi;
     stat.ber  = si.ber;
-#ifdef USE_PT1000
+    stat.rsrp = si.rsrp;
+    stat.snr  = si.snr;
     stat.temp = get_temp(&da);
-#else
-    stat.temp = da.t_in;
-#endif
+
     stat.vbat = da.vbat;
     stat.time = rtc2_get_timestamp_ms();
-    LOGD("___ pt: %.1fv, temp: %.1f, vbat: %.1f\n", da.t_pt, stat.temp, stat.vbat);
+    LOGD("___ temp: %.1f, vbat: %.1f, rssi: %d, ber: %d, rsrp: %d, snr: %d\n", stat.temp, stat.vbat, stat.rssi, stat.ber, stat.rsrp, stat.snr);
     
-    r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_STAT, 0, &stat, sizeof(stat));
-    if(r==0) {
-        send_flag = 1;
+    if(api_comm_is_connected()) {
+        r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_STAT, 0, &stat, sizeof(stat));
+        if(r==0) {
+            send_ts = dal_get_timestamp();
+        }
+        LOGD("___ stat send %s\n", r?"failed":"ok");
     }
 }
 
@@ -415,9 +409,6 @@ void task_polling_fn(void *arg)
     LOGD("_____ task_polling running\n");
     
     start_task_simp(task_wdg_fn, 256, NULL, NULL);
-#ifdef BOARD_V136
-    hpwr = dal_gpio_init(&gc);
-#endif
     htmr = task_timer_init(polling_tmr_callback, NULL, POLL_TIME, -1);
     if(htmr) {
         task_timer_start(htmr);

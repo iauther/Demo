@@ -12,6 +12,7 @@
 #include "aiot_mqtt_api.h"
 #include "aiot_mqtt_download_api.h"
 #include "hal_at_impl.h"
+#include "dal_delay.h"
 #include "fs.h"
 #include "jpatch.h"
 #include "upgrade.h"
@@ -859,10 +860,10 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
             free(h);
             return NULL;
         }
-        
         set_userdata(h);
         aiot_ota_report_version(h->hota, FW_VERSION);
         
+        //dal_delay_ms(500);
         mqtt_ali_sub(h, NULL);
         mqtt_ali_req(h);
         
@@ -931,14 +932,10 @@ static int mqtt_ali_pub(handle_t hconn, void *para, void *data, int len)
     plat_para_t *plat=&conn->para.para->para.plat;
     mqtt_pub_para_t *pp=(mqtt_pub_para_t*)para;
 
-    if(!h || !para || !data || !len) {
+    if(!h || !para || !data || !len || !mqttFlag.conn) {
         return -1;
     }
     
-    if(!mqttFlag.conn) {
-        return -1;
-    }
-
     if(pp->tp==DATA_LT) {
         memset(&msg, 0, sizeof(aiot_dm_msg_t));
         msg.type = AIOT_DMMSG_RAW_DATA;
@@ -954,6 +951,7 @@ static int mqtt_ali_pub(handle_t hconn, void *para, void *data, int len)
         else {
             sprintf(tmp, "/%s/%s/user/set", plat->prdKey, plat->devKey);
         }
+        
         r = aiot_mqtt_pub(h->hmq, tmp, data, len, 1);
     }
     

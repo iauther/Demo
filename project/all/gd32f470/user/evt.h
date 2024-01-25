@@ -16,6 +16,7 @@ enum {
     EVT_FINISH,
     
     EVT_TIMER,
+    EVT_SEND,
     EVT_SAVE,
     EVT_CALI,
     

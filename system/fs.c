@@ -291,7 +291,7 @@ static int fx_get_space(fx_handle_t *h, char *path, fs_space_t *sp)
 }
 
 
-static int fx_scan(fx_handle_t *h, char *path, handle_t l)
+static int fx_scan(fx_handle_t *h, char *path, handle_t l, int *nfiles)
 {
     int r;
     handle_t hd;
@@ -320,11 +320,12 @@ static int fx_scan(fx_handle_t *h, char *path, handle_t l)
                 sprintf(tmp, "%s/%s", path, info->fname);
                 if(info->isdir) {
                     LOGD("___dir, %s\n", tmp);
-                    fx_scan(h, tmp, l);
+                    fx_scan(h, tmp, l, nfiles);
                 }
                 else {
                     LOGD("___file, %s/%s, %d\n", path, info->fname, info->size);
                     list_append(l, 1, tmp, len);
+                    if(nfiles) (*nfiles)++;
                 }
             
                 free(tmp);
@@ -605,7 +606,7 @@ int fs_remove(char *path)
     return fx_remove(h, path);
 }
 
-int fs_scan(char *path, handle_t l)
+int fs_scan(char *path, handle_t l, int *nfiles)
 {
     handle_t h=find_hnd(path);
     
@@ -614,7 +615,7 @@ int fs_scan(char *path, handle_t l)
         return NULL;
     }
     
-    return fx_scan(h, path, l);
+    return fx_scan(h, path, l, nfiles);
 }
 
 
@@ -736,6 +737,7 @@ int fs_test(void)
     datetime_t dt;
     char tt[60];
     char tmp[100];
+    int files=0;
     char *mntDIR=SFLASH_MNT_PT; //SDMMC_MNT_PT
     
     
@@ -756,7 +758,7 @@ int fs_test(void)
         return -1;
     }
     
-    fs_scan(mntDIR, NULL);
+    fs_scan(mntDIR, NULL, &files);
     
     sprintf(tt, "11223344556677889900aabbccdd");
     fs_write(hfile, tt, strlen(tt), 0);

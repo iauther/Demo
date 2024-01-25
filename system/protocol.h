@@ -178,8 +178,10 @@ typedef struct {
 
 enum {
     PWRON_RTC=0,
-    PWRON_MANUAL,
     PWRON_TIMER,
+    PWRON_MANUAL,
+    
+    PWRON_MAX
 };
 
 
@@ -299,6 +301,8 @@ typedef struct {
 typedef struct {
     S32             rssi;          //dB,
     S32             ber;           //0~7,-1
+    S32             rsrp;
+    S32             snr;
     F32             vbat;          //batt volt
     F32             temp;
     U64             time;

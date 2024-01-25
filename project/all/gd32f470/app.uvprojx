@@ -339,7 +339,7 @@
               <MiscControls>--diag_suppress=111,177,550</MiscControls>
               <Define>OS_KERNEL=1</Define>
               <Undefine></Undefine>
-              <IncludePath>./user;../../../device;../../../system;../../../system/net;../../../system/net/protocols/mqtt;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/ota;../../../midware/mqtt/clink/components/data-model;../../../midware/mqtt/clink/external/mbedtls/include;../../../midware/mqtt/clink/portfiles/aiot_port;../../../midware/mqtt/clink/portfiles/aiot_port/platform;../../../midware/mqtt/clink/portfiles/aiot_port/at;../../../midware/jpatch</IncludePath>
+              <IncludePath>./user;./user/task;../../../device;../../../system;../../../system/net;../../../system/net/protocols/mqtt;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/ota;../../../midware/mqtt/clink/components/data-model;../../../midware/mqtt/clink/external/mbedtls/include;../../../midware/mqtt/clink/portfiles/aiot_port;../../../midware/mqtt/clink/portfiles/aiot_port/platform;../../../midware/mqtt/clink/portfiles/aiot_port/at;../../../midware/jpatch</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -394,6 +394,21 @@
               <FilePath>.\user\evt.h</FilePath>
             </File>
             <File>
+              <FileName>task.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\user\task\task.h</FilePath>
+            </File>
+            <File>
+              <FileName>platform.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\user\platform.h</FilePath>
+            </File>
+            <File>
+              <FileName>gd32f4xx_libopt.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\user\gd32f4xx_libopt.h</FilePath>
+            </File>
+            <File>
               <FileName>dflt.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\dflt.c</FilePath>
@@ -407,16 +422,6 @@
               <FileName>gd32f4xx_it.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\gd32f4xx_it.c</FilePath>
-            </File>
-            <File>
-              <FileName>platform.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\user\platform.h</FilePath>
-            </File>
-            <File>
-              <FileName>gd32f4xx_libopt.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\user\gd32f4xx_libopt.h</FilePath>
             </File>
             <File>
               <FileName>system_gd32f4xx.c</FileName>
@@ -444,19 +449,14 @@
               <FilePath>.\user\task\task_data_proc.c</FilePath>
             </File>
             <File>
-              <FileName>task_nvm.c</FileName>
+              <FileName>task_send.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\user\task\task_nvm.c</FilePath>
+              <FilePath>.\user\task\task_send.c</FilePath>
             </File>
             <File>
               <FileName>task_polling.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\user\task\task_polling.c</FilePath>
-            </File>
-            <File>
-              <FileName>task.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\user\task.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -487,62 +487,6 @@
               <FileName>pt1000.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\device\pt1000.c</FilePath>
-            </File>
-            <File>
-              <FileName>sd30xx2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\device\sd30xx2.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>2</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>0</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                  <ComprImg>1</ComprImg>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <uC99>2</uC99>
-                    <uGnu>2</uGnu>
-                    <useXO>2</useXO>
-                    <v6Lang>0</v6Lang>
-                    <v6LangP>0</v6LangP>
-                    <vShortEn>2</vShortEn>
-                    <vShortWch>2</vShortWch>
-                    <v6Lto>2</v6Lto>
-                    <v6WtE>2</v6WtE>
-                    <v6Rtti>2</v6Rtti>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
             </File>
           </Files>
         </Group>

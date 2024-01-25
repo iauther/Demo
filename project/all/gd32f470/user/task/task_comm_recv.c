@@ -156,7 +156,7 @@ static void buf_init(void)
         tb->var[i].thr.set.hlt = POINTS(para->trigTime.HLT, para->smpFreq);
         tb->var[i].thr.set.mdt = POINTS(para->trigTime.MDT, para->smpFreq);
         
-        
+        tb->var[i].thr.vth = pow(10,para->trigThreshold/20-3);
         tb->var[i].thr.max = 0.0f;
         tb->var[i].thr.time = 0;
         tb->var[i].thr.trigged = 0;
@@ -183,10 +183,6 @@ static void buf_init(void)
         //申请ev内存
         int ev_grps = points/para->evCalcPoints+1;
         int ev_len = sizeof(ev_data_t)+(sizeof(ev_grp_t)+sizeof(ev_val_t)*para->n_ev)*ev_grps;
-        tb->var[i].ev.blen = ev_len;
-        tb->var[i].ev.buf  = eMalloc(tb->var[i].ev.blen); 
-        tb->var[i].ev.dlen = 0;
-        
         
         int once_smp_len=(para->smpFreq/1000)*SAMPLE_INT_INTERVAL*sizeof(raw_t)+32;
         int once_ev_calc_data_len=para->evCalcPoints*sizeof(raw_t);
@@ -194,7 +190,7 @@ static void buf_init(void)
         //计算单次采集能满足ev计算时所需内存长度
         len1 = once_smp_len+ev_len+sizeof(ch_data_t)+32;
         
-        //计算特征值计算时需要的内存长度
+        //计算特征值计算时需要的内存长度,特别是特征值计算点数大于采集点数时
         len2 = once_ev_calc_data_len+ev_len+sizeof(ch_data_t)+32;
         
         //计算阈值触发时缓存设定要求所需内存长度, (1ms+smpPoints)*2
@@ -206,13 +202,27 @@ static void buf_init(void)
         }
         
         tb->var[i].prc.blen = maxlen;
-        tb->var[i].prc.buf  = eMalloc(tb->var[i].prc.blen); 
+        tb->var[i].prc.buf  = eCalloc(tb->var[i].prc.blen); 
         tb->var[i].prc.dlen = 0;
     }
     tb->file = list_init(&lc);
     
     //lc.max = 10;
     tb->send = list_init(&lc);
+}
+static int at_init(void)
+{
+    smp_para_t *smp=paras_get_smp();
+    
+    hal_at_init();
+    if(smp->pwrmode==PWR_PERIOD_PWRDN) {
+        hal_at_power(0);
+    }
+    else {
+        hal_at_power(1);
+    }
+    
+    return 0;
 }
 
 
@@ -225,14 +235,15 @@ static int hw_init(void)
     mem_init();
     log_init(log_recv_callback);
     
-    rtc2_init();
-    upgrade_check(NULL, 0);
     
-    hal_at_init();
+    upgrade_check(NULL, 0);
     
     fs_init();
     json_init();
     paras_load();
+    
+    rtc2_init();
+    at_init();
     
     rc.port = RS485_PORT;
     rc.baudrate = 115200;
@@ -241,7 +252,6 @@ static int hw_init(void)
     
     buf_init();
     recv_init();
-    
 
     return r;
 }
@@ -266,11 +276,11 @@ static void start_tasks(void)
 {
     #define TASK_STACK_SIZE   2048
     
-    start_task(TASK_DATA_CAP,   osPriorityISR,    TASK_STACK_SIZE,  task_data_cap_fn,   5, NULL, 1);
+    start_task(TASK_DATA_CAP,   osPriorityNormal, TASK_STACK_SIZE,  task_data_cap_fn,   5, NULL, 1);
     start_task(TASK_POLLING,    osPriorityNormal, TASK_STACK_SIZE,  task_polling_fn,    5, NULL, 1);
-    start_task(TASK_NVM,        osPriorityNormal, TASK_STACK_SIZE,  task_nvm_fn,        5, NULL, 1);
+    start_task(TASK_SEND,       osPriorityNormal, TASK_STACK_SIZE*2,  task_send_fn,        5, NULL, 1);
     
-    start_task(TASK_DATA_PROC,  osPriorityNormal, TASK_STACK_SIZE,  task_data_proc_fn,    10, NULL, 1);
+    start_task(TASK_DATA_PROC,  osPriorityNormal, TASK_STACK_SIZE,  task_data_proc_fn,  10, NULL, 1);
 }
 
 static void start_cap(void)

@@ -16,6 +16,7 @@ int paras_set_state(U8 ch, U8 stat);
 int paras_get_state(U8 ch);
 int paras_set_finished(U8 ch, U8 f);
 int paras_is_finished(U8 ch);
+int paras_is_period(void);
 
 cali_t* paras_get_cali(U8 ch);
 int paras_set_coef(U8 ch, coef_t *coef);

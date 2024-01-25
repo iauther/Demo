@@ -21,7 +21,7 @@ enum {
     TASK_DATA_CAP,
     TASK_DATA_PROC,
     TASK_POLLING,
-    TASK_NVM,
+    TASK_SEND,
     
     TASK_MAX
 };
@@ -78,6 +78,7 @@ typedef struct {
     threshold_buf_t pre;
     threshold_buf_t bdy;
     threshold_buf_t post;
+    F32             vth;
     F32             max;
     U64             time;
     int             idx;
@@ -89,7 +90,6 @@ typedef struct {
 typedef struct {
     buf_t           cap;            //采集数据用临时内存
     buf_t           prc;            //转换数据用临时内存
-    buf_t           ev;             //特征值计算结果内存
     
     int             rlen;           //recved len
     int             slen;           //skiped len
@@ -133,7 +133,7 @@ void task_data_cap_fn(void *arg);
 void task_data_proc_fn(void *arg);
 void task_polling_fn(void *arg);
 void task_mqtt_fn(void *arg);
-void task_nvm_fn(void *arg);
+void task_send_fn(void *arg);
 
 
 int api_cap_start(U8 ch);
@@ -151,8 +151,9 @@ int api_comm_is_connected(void);
 
 int api_comm_send_ack(U8 type, U8 err);
 int api_comm_send_data(U8 type, U8 nAck, void *data, int len);
-int api_nvm_send(void *data, int len);
-int api_nvm_is_finished(void);
+int api_send_append(void *data, int len);
+int api_send_save_file(void);
+int api_send_is_finished(void);
 
 int api_data_proc_send(U8 ch, void *data, int len);
 

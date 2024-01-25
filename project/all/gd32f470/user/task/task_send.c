@@ -14,6 +14,7 @@
 #include "task.h"
 
 //#define USE_FILE
+#define FILE_MAX   500
 
 typedef struct {
     int         cap;
@@ -22,20 +23,37 @@ typedef struct {
 
 
 typedef struct {
+    int         fuseup;
     int         busying;
     times_t     times[CH_MAX];
     handle_t    dlist;
-}nvm_handle_t;
+    handle_t    flist;
+}send_handle_t;
 
 
-static nvm_handle_t nvmHandle;
-static void file_scan(void);
-static void file_add(char *path);
+static send_handle_t sendHandle;
+static int file_scan(void);
 static int file_upload(void);
 #define FREE_SIZE   (5*MB)
+static int space_is_full(void)
+{
+    int r;
+    fs_space_t sp;
+    
+    r = fs_get_space(SDMMC_MNT_PT, &sp);
+    if(r==0) {
+        LOGD("___ sd space: %lldMB, free: %lldMB\n", sp.total/MB, sp.free/MB);
+        if(sp.free>=FREE_SIZE) {
+            LOGE("___ sd is full, freespace<%dMB\n", FREE_SIZE/MB);
+            
+            return 0;
+        }
+    }
+    
+    return 1;
+}
 
-
-static int data_save(ch_data_t *pch)
+static int data_save_bin(ch_data_t *pch)
 {
     int r;
     char path[100];
@@ -43,21 +61,15 @@ static int data_save(ch_data_t *pch)
     handle_t fh=NULL;
     int flen,tlen;
     ch_para_t *para=paras_get_ch_para(pch->ch);
-    fs_space_t sp;
+    
     
     LOGD("___ data save\n");
-    nvmHandle.busying = 1;
+    sendHandle.busying = 1;
     
 #if 0
-    r = fs_get_space(SDMMC_MNT_PT, &sp);
-    
-    if(r==0) {
-        LOGD("___ sd space: %lldMB, free: %lldMB\n", sp.total/MB, sp.free/MB);
-        if(sp.free<FREE_SIZE) {
-            LOGE("___ sd is full, freespace<%dMB\n", FREE_SIZE/MB);
-            nvmHandle.busying = 0;
-            return -1;
-        }
+    if(space_is_full()){
+        sendHandle.busying = 0;
+        return -1;
     }
 #endif
     
@@ -73,7 +85,7 @@ static int data_save(ch_data_t *pch)
     fh = fs_open(path, FS_MODE_CREATE);
     if(!fh) {
         //LOGE("___fs_open %s failed\n", path);
-        nvmHandle.busying = 0;
+        sendHandle.busying = 0;
         return -1;
     }
     
@@ -99,9 +111,9 @@ static int data_save(ch_data_t *pch)
     flen = fs_length(path);
     LOGD("___ %s length: %d\n", path, flen);
     
-    list_append(nvmHandle.dlist, 1, path, strlen(path)+1);
+    list_append(sendHandle.dlist, 1, path, strlen(path)+1);
     
-    nvmHandle.busying = 0;
+    sendHandle.busying = 0;
     
     return 0;
 }
@@ -114,12 +126,9 @@ static int data_save_csv(ch_data_t *pch)
     handle_t fh=NULL;
     char path[100];
     int flen,wlen,maxCnt,maxLen;
-    fs_space_t sp;
     
-    r = fs_get_space(SDMMC_MNT_PT, &sp);
-    LOGD("___ SDMMC space: %lldMB, free: %lldMB\n", sp.total/MB, sp.free/MB);
-    if(r==0 && sp.free<pch->wavlen*10) {
-        LOGE("___ SDMMC is full, total: %lld, free: %lld\n", sp.total, sp.free);
+    if(space_is_full()){
+        sendHandle.busying = 0;
         return -1;
     }
     
@@ -183,7 +192,6 @@ static int data_upload(node_t *node)
     int is_file=node->tp;
     mqtt_pub_para_t pub_para={DATA_LT};
     
-    LOGD("___ data upload\n");
     if(is_file) {       //node is file path
         int flen;
         char *path=node->buf;
@@ -237,11 +245,11 @@ static int data_upload(node_t *node)
             rtc2_print_time("timestamp:", &dt);
             
             if(!is_file) {
-                nvmHandle.times[pch->ch].send++;
+                sendHandle.times[pch->ch].send++;
             }
         }
         else {
-            LOGE("___ task_nvm, comm_send_data failed, %d\n", r);
+            LOGE("___ task_send, comm_send_data failed, %d\n", r);
             r = -1;         //发送文件失败
         }
     }
@@ -253,31 +261,48 @@ static int data_upload(node_t *node)
 static int data_proc(void)
 {
     int r=0;
+    handle_t xlist;
     list_node_t *lnode;
+    smp_para_t *smp=paras_get_smp();
     
-    //LOGD("__1__ flist size: %d\n", list_size(nvmHandle.flist));
-    r = list_take_node(nvmHandle.dlist, &lnode, 0);
+    if(smp->pwrmode==PWR_PERIOD_PWRDN) {
+        if(!api_comm_is_connected()) {
+            return -1;
+        }
+    }
+    
+    file_scan();
+    if(list_size(sendHandle.flist)) {
+        xlist = sendHandle.flist;
+    }
+    else {
+        xlist = sendHandle.dlist;
+    }
+    
+    r = list_take_node(xlist, &lnode, 0);
     if(r==0) {
         node_t *nd=&lnode->data;
         
-        if(api_comm_is_connected()) {
-            r = data_upload(nd);
-            if(r==0 && nd->tp) {    //如果是文件且发送成功，需删除该文件
-                nvmHandle.busying = 2;
-                fs_remove(nd->buf);
-                nvmHandle.busying = 0;
+        r = data_upload(nd);
+        if(r==0) {
+            if(nd->tp) {     //如果是文件且发送成功，需删除该文件
+                sendHandle.busying = 2;
+                r = fs_remove(nd->buf);
+                sendHandle.busying = 0;
             }
         }
         else {
-            r = data_save((ch_data_t*)nd->buf);
+            if(smp->pwrmode==PWR_NO_PWRDN) {    //非关机电源模式下需要及时保存数据
+                r = data_save_bin((ch_data_t*)nd->buf);
+            }
         }
         
         if(r==0) {
             if(nd->blen>=20*KB) {       //数据过大，则释放内存
-                list_discard_node(nvmHandle.dlist, lnode);
+                list_discard_node(sendHandle.dlist, lnode);
             }
             else {
-                list_back_node(nvmHandle.dlist, lnode);
+                list_back_node(sendHandle.dlist, lnode);
             }
         }
     }
@@ -297,24 +322,43 @@ static int iterator_fn(handle_t l, node_t *node, node_t *xd, void *arg, int *act
 static void file_print(void)
 {
     LOGD("___ nvmFlist:\n");
-    list_iterator(nvmHandle.dlist, NULL, iterator_fn, NULL);
+    list_iterator(sendHandle.dlist, NULL, iterator_fn, NULL);
 }
-static void file_scan(void)
-{
-    list_cfg_t lc;
-    
-    lc.max = 20;
-    lc.log = 1;
-    lc.mode = LIST_FULL_FIFO;
-    
-    nvmHandle.dlist = list_init(&lc);
 
-#ifdef USE_FILE
-    fs_scan(SAV_DATA_PATH, nvmHandle.dlist);
-    list_sort(nvmHandle.dlist, SORT_ASCEND);
-    file_print();
-#endif
+//返回1: 文件全部扫完
+//返回0: 文件未扫完
+static int file_scan(void)
+{
+    int files=0;
+
+    if(!sendHandle.flist) {
+        list_cfg_t lc;
+        
+        lc.max = FILE_MAX;
+        lc.log = 1;
+        lc.mode = LIST_FULL_FILO;
+        
+        sendHandle.flist = list_init(&lc);
+    }
     
+    if(!sendHandle.flist) {
+        return -1;
+    }
+    
+    if(sendHandle.fuseup) {
+        return 1;
+    }
+
+    fs_scan(SAV_DATA_PATH, sendHandle.flist, &files);
+    list_sort(sendHandle.flist, SORT_ASCEND);
+    //file_print();
+    
+    if(files<=FILE_MAX) {
+        sendHandle.fuseup = 1;
+        return 1;
+    }
+    
+    return 0;
 }
 
 
@@ -323,13 +367,13 @@ static void data_print(void *data, int len)
     int i,j;
     char *data_ptr=(char*)data;
     const char* ev_str[EV_NUM] = { "rms","amp","asl","ene","ave","min","max" };
-    ch_data_t *p_ch=(ch_data_t*)data;
-    ch_para_t *para=paras_get_ch_para(p_ch->ch);
-    ev_data_t *p_ev=(ev_data_t*)((U8*)(p_ch->data)+p_ch->wavlen);
+    ch_data_t *pch=(ch_data_t*)data;
+    ch_para_t *para=paras_get_ch_para(pch->ch);
+    ev_data_t *pev=(ev_data_t*)((U8*)(pch->data)+pch->wavlen);
 
-    if(p_ch->evlen>0) {
-        ev_grp_t *grp=p_ev->grp;
-        for(i=0; i<p_ev->grps; i++) {
+    if(pch->evlen>0) {
+        ev_grp_t *grp=pev->grp;
+        for(i=0; i<pev->grps; i++) {
             for(j=0; j<grp->cnt; j++) {
                 LOGD("%s[%d]: %0.5f\n", ev_str[grp->val[j].tp], i, grp->val[j].data);
             }
@@ -343,11 +387,13 @@ static void data_print(void *data, int len)
 
 //////////////////////////////////////////////////////////////
 
-int api_nvm_send(void *data, int len)
+int api_send_append(void *data, int len)
 {
-    int r=list_append(taskBuffer.file, 0, data, len);
+    int r=list_append(sendHandle.dlist, 0, data, len);
     if(r==0) {
-        task_trig(TASK_NVM, EVT_DATA);
+        ch_data_t *pch=(ch_data_t*)data;
+        sendHandle.times[pch->ch].cap++;
+        task_trig(TASK_SEND, EVT_DATA);
     }
     else {
         LOGD("___ api_nvm_send failed\n");
@@ -356,8 +402,31 @@ int api_nvm_send(void *data, int len)
     return r;
 }
 
+int api_send_save_file(void)
+{
+    int r;
+    list_node_t *lnode=NULL;
+    
+    while(1) {
+        r = list_take_node(sendHandle.dlist, &lnode, 0);
+        if(r) {
+            break;
+        }
+        
+        r = data_save_bin((ch_data_t*)lnode->data.buf);
+        if(r==0) {
+            list_discard_node(sendHandle.dlist, lnode);
+        
+        }
+    }
+    
+    return r;
+}
+
+
+
 //返回1表示采集结束，返回本次采集的数据全部发出去
-int api_nvm_is_finished(void)
+int api_send_is_finished(void)
 {
     U8 ch;
     int finished=0;
@@ -369,8 +438,8 @@ int api_nvm_is_finished(void)
         pch = paras_get_ch_para(ch);
         
         if(pch->enable) {
-            if(nvmHandle.busying || (nvmHandle.times[ch].cap<pch->smpTimes)) {
-                LOGD("______ is_finished, ch[%d]: 0, busying: %d, times: %d, smpTimes: %d\n", ch, nvmHandle.busying, nvmHandle.times[ch].send, pch->smpTimes);
+            if(sendHandle.busying || (sendHandle.times[ch].cap<pch->smpTimes)) {
+                LOGD("______ is_finished, ch[%d]: 0, busying: %d, times: %d, smpTimes: %d\n", ch, sendHandle.busying, sendHandle.times[ch].send, pch->smpTimes);
                 cap_finished = 0;
                 break;
             }
@@ -381,7 +450,7 @@ int api_nvm_is_finished(void)
         pch = paras_get_ch_para(ch);
         
         if(pch->enable) {
-            if(nvmHandle.times[ch].send<pch->smpTimes) {
+            if(sendHandle.times[ch].send<pch->smpTimes) {
                 send_finished = 0;
             }
         }
@@ -400,24 +469,30 @@ int api_nvm_is_finished(void)
 }
 
 
-static void nvm_tmr_callback(void *arg)
+static void send_tmr_callback(void *arg)
 {
-    task_post(TASK_NVM, NULL, EVT_TIMER, 0, NULL, 0);
+    task_post(TASK_SEND, NULL, EVT_TIMER, 0, NULL, 0);
 }
 
 
-static void nvm_init(void)
+static void send_init(void)
 {
-    memset(&nvmHandle, 0, sizeof(nvmHandle));
+    list_cfg_t lc;
+    memset(&sendHandle, 0, sizeof(sendHandle));
     
-    file_scan();
-    handle_t htmr = task_timer_init(nvm_tmr_callback, NULL, 200, -1);
+    lc.max = 20;
+    lc.log = 1;
+    lc.mode = LIST_FULL_FIFO;
+    
+    sendHandle.dlist = list_init(&lc);
+    
+    handle_t htmr = task_timer_init(send_tmr_callback, NULL, 300, -1);
     if(htmr) {
         task_timer_start(htmr);
     }
 }
 
-void task_nvm_fn(void *arg)
+void task_send_fn(void *arg)
 {
     int i,r;
     U8  err;
@@ -425,27 +500,14 @@ void task_nvm_fn(void *arg)
     list_node_t *lnode;
     
     LOGD("_____ task nvm running\n");
-    nvm_init();
+    send_init();
     
     while(1) {
-        r = task_recv(TASK_NVM, &e, sizeof(e));
+        r = task_recv(TASK_SEND, &e, sizeof(e));
         if(r==0) {
             switch(e.evt) {
                 
                 case EVT_DATA:
-                {
-                    while(1) {
-                        r = list_take_node(taskBuffer.file, &lnode, 0);
-                        if(r) {
-                            break;
-                        }
-                        //data_print(lnode->data.buf, lnode->data.dlen);
-                        
-                        list_append_node(nvmHandle.dlist, lnode);
-                    }
-                }
-                break;
-                
                 case EVT_TIMER:
                 {
                     //读取上传记录文件，上传成功则删除文件

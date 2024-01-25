@@ -104,19 +104,19 @@ const all_para_t DFLT_PARA={
         
         .smp = {
             .port       = PORT_NET,
-            .pwrmode    = PWR_NO_PWRDN,
+            .pwrmode    = PWR_PERIOD_PWRDN,
             
             .mode       = MODE_NORM,
     #ifdef DEV_MODE_DEBUG
-            .worktime    = 60*10,
+            .worktime    = 60*1,
             
             .ch = {
                     {
                         .ch         = CH_0,
                         .enable     = 1,
                         
-                        //.smpMode      = SMP_MODE_PERIOD,
-                        .smpMode    = SMP_MODE_TRIG,
+                        .smpMode      = SMP_MODE_PERIOD,
+                        //.smpMode    = SMP_MODE_TRIG,
                         .smpFreq    = 1000000,
                         
                         .smpPoints    = 10000,

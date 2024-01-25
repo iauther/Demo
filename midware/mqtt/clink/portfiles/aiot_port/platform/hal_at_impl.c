@@ -175,20 +175,6 @@ static int at_power(int on)
 
 ////////////////////////////////////////////////////////
 
-static void do_print(char *s, void *data, int len)
-{
-    int i;
-    uint8_t *p=(uint8_t*)data;
-    
-    printf("%s[%d]\n", s, len);
-    for(i=0; i<len; i++) {
-        printf("0x%02x,", p[i]);
-        if((i+1)%16==0) {
-            printf("\n");
-        }
-    }
-    printf("\n");
-}
 static int32_t at_uart_send(const uint8_t *data, uint16_t len, uint32_t timeout)
 {
     int r;
@@ -197,18 +183,23 @@ static int32_t at_uart_send(const uint8_t *data, uint16_t len, uint32_t timeout)
     
     //printf("[%d] >>>> %s", len, (char*)data);
     //printf("at_uart_send: %d\n", len);
-    //do_print("send", data, len);
     lock_on(atHandle.lck);
     r = dal_uart_write(atHandle.hurt, (U8*)data, len);
     lock_off(atHandle.lck);
-    //dal_delay_us(20);
+    //dal_delay_us(50);
     
     return (r==0)?len:0;
 }
-static void at_set_max_baudrate(void)
+static void at_set_baudrate(void)
 {
-    send_cmd("AT+IPR=921600\r\n", "OK", 300);
-    dal_uart_set_baudrate(atHandle.hurt, 921600);
+    int  r,br=115200*4;     //过大，则发较长数据会导致超时无回应，过小则耗时太长
+    char tmp[60];
+return;
+    sprintf(tmp, "AT+IPR=%d\r\n", br);
+    r = send_cmd(tmp, "OK",  300);
+    if(r==0) {
+        dal_uart_set_baudrate(atHandle.hurt, br);
+    }
 }
 
 
@@ -219,7 +210,6 @@ static int at_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len
     
     //printf("$$:%s\n", data);
     //printf("at_uart_recv: %d\n", len);
-    //do_print("recv", data, len);
     
     fill_temp_buf(data, len);
     aiot_at_hal_recv_handle(data, len);
@@ -288,8 +278,6 @@ int hal_at_init(void)
     aiot_at_setopt(AIOT_ATOPT_UART_TX_FUNC, at_uart_send);
     /*设置模组*/
     aiot_at_setopt(AIOT_ATOPT_DEVICE, device);
-    
-    at_power(0);
 
     return 0;
 }
@@ -306,7 +294,7 @@ int hal_at_boot(void)
         return -1;
     }
     
-    at_set_max_baudrate();
+    at_set_baudrate();
     atHandle.inited = 1;
     
     return 0;
@@ -375,39 +363,6 @@ int hal_at_reset(void)
     return 0;
 }
 
-
-int hal_at_stat(signal_info_t *si)
-{
-    int r=-1,cnt=0;
-    signal_info_t sinf;
-    buf_t *pb=&atHandle.tmp;
-    
-    if(!si || !atHandle.inited) {
-        return -1;
-    }
-    
-    set_temp_buf(1);
-    r = send_cmd("AT+CSQ\r\n", "+CSQ", 10);
-    if(r==0) {
-        char *line = strstr((char*)pb->buf, "+CSQ");
-        if(line && sscanf(line, "+CSQ: %d,%d\r\n", &sinf.rssi, &sinf.ber)==2) {
-            if(sinf.rssi==99 || sinf.rssi==199) {
-                si->rssi = -1;
-            }
-            else if(sinf.rssi>=0 && sinf.rssi<99){
-                si->rssi = -113+sinf.rssi*2;
-            }
-            else if(sinf.rssi>=100 && sinf.rssi<199){
-                si->rssi = -116+(sinf.rssi-100);
-            }
-            si->ber  = (sinf.ber==99)?-1:sinf.ber;
-            r = 0;
-        }
-    }
-    set_temp_buf(0);
-
-    return r;
-}
 
 
 

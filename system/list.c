@@ -658,7 +658,7 @@ int list_sort(handle_t l, U8 order)
     }
     
     if(lock_on(hl->lock)) {
-        if (hl->cfg.log) LOGE("___ list_size lock failed\n");
+        if (hl->cfg.log) LOGE("___ list_sort lock failed\n");
         return -1;
     }
     

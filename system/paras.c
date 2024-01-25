@@ -167,7 +167,21 @@ ch_para_t* paras_get_ch_para(U8 ch)
 }
 
 
-
+int paras_is_period(void)
+{
+    U8 ch;
+    int period=1;
+    
+    for(ch=0; ch<CH_MAX; ch++) {
+        ch_para_t* para = paras_get_ch_para(ch);
+        if(para->enable && (para->smpMode!=SMP_MODE_PERIOD)) {
+            period = 0;
+            break;
+        }
+    }
+    
+    return period;
+}
 
 int paras_get_smp_points(U8 ch)
 {

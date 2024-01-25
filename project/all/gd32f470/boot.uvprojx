@@ -621,6 +621,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\platform\chip\gd\gd32f4xx\dal\dal_rtc.c</FilePath>
             </File>
+            <File>
+              <FileName>gd32f4xx_i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\xxxx\iphm_hwtest\fw\platform\chip\gd\gd32f4xx\src\gd32f4xx_i2c.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

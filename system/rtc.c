@@ -4,22 +4,39 @@
 #include "sd30xx.h"
 #include "dal_gpio.h"
 #include "dal_delay.h"
+#include "paras.h"
 #include "log.h"
 #include "cfg.h"
 
-
+#define HTMR_PERIOD   7200
 #define RETRY_TIMES   5
 
+#define RTC_MAGIC   0x1234abcd
+typedef struct {
+    U32     magic;              //RTC_MAGIC
+    U32     times[PWRON_MAX];   //times
+    U32     timestamp;          //timestamp
+    U32     cnt;
+    U32     cntMax;
+}rtc_usr_t;
 
 
-static U8 s_psrc=1;
-static int s_first=0;
-static U8 s_synced=0;
-static U8 s_inited=0;
-static U32 s_tstamp=0;
-static U32 s_runtime=0;
-static sd_countdown_t s_countdown;
-static handle_t s_lock=NULL;
+typedef struct {
+    U8 psrc;
+    S8  first;
+    U8  synced;
+    U8  inited;
+    int period;
+    
+    U32 ts;
+    U32 runtime;
+    handle_t lck;
+    handle_t htmr;
+    
+    rtc_usr_t      usr;
+    sd_countdown_t cd;
+}rtc_handle_t;
+static rtc_handle_t rtcHandle={0};
 
 static U8 dec2bcd(U8 x)
 {
@@ -42,13 +59,13 @@ static void print_stime(char *s, sd_time_t *st)
 }
 
 
-static int get_sd_info(sd_info_t *info)
+static int get_info(sd_info_t *info)
 {
-    int i,r;
+    int i,r=-1;
     
     for(i=0; i<RETRY_TIMES; i++) {
         r = sd30xx_get_info(info);
-        if(r>=0) {
+        if(r==0) {
             break;
         }
         LOGW("___ sd30xx_get_info failed %d\n", i);
@@ -69,6 +86,12 @@ static void gpio_init(void)
     gpio_bit_reset(GPIOA,GPIO_PIN_1);
     gpio_output_options_set(GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_25MHZ, GPIO_PIN_1);
     gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
+    
+#ifdef BOARD_V136
+    gpio_bit_reset(GPIOA,GPIO_PIN_0);
+    gpio_output_options_set(GPIOA, GPIO_OTYPE_PP, GPIO_OSPEED_25MHZ, GPIO_PIN_0);
+    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_0);
+#endif
 }
 
 static u8 get_psrc(sd_info_t *info)
@@ -76,27 +99,40 @@ static u8 get_psrc(sd_info_t *info)
     u8 psrc=PWRON_RTC;
     
     //如果启动时该引脚为低电平，且中断标志不为0，则为rtc中断触发开机
-    if(gpio_output_bit_get(GPIOA,GPIO_PIN_1)==RESET) {
-        if(info->irq==IRQ_NONE) {
-            psrc = PWRON_TIMER;
+    gpio_mode_set(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
+    if(gpio_input_bit_get(GPIOA,GPIO_PIN_1)==RESET) {
+        dal_delay_ms(50);
+        if(gpio_input_bit_get(GPIOA,GPIO_PIN_1)==RESET) {
+            psrc = PWRON_MANUAL;
         }
         else {
-            psrc = PWRON_RTC;
+            if(info->irq==IRQ_NONE) {
+                psrc = PWRON_TIMER;
+            }
         }
     }
-    else {   //人为手动开机
-        psrc = PWRON_MANUAL;
-    }
+    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_PIN_1);
     
-    return 0;
+    return psrc;
 }
+
 static void rtc_ext_power(U8 on)
 {
     if(on) {    //拉低上电
         gpio_bit_reset(GPIOA,GPIO_PIN_1);
+        
+#ifdef BOARD_V136
+        gpio_bit_reset(GPIOA,GPIO_PIN_0);     //v136版本增加了一个硬件timer, 开机时需要拉低一下连接timer的引脚
+#endif        
     }
     else {      //拉高断电
         gpio_bit_set(GPIOA,GPIO_PIN_1);
+        
+#ifdef BOARD_V136
+        gpio_bit_set(GPIOA,GPIO_PIN_0);     //v136版本增加了一个硬件timer, 关机时需要拉高一下连接timer的引脚
+        dal_delay_ms(100);
+        gpio_bit_reset(GPIOA,GPIO_PIN_0);
+#endif
     }
 }
 
@@ -135,6 +171,82 @@ static inline datetime_t to_tm(U64 ts)
     return dt;
 }
 
+#ifndef BOOTLOADER
+static int rtc_usr_get(void)
+{
+    int i,r=-1;
+    rtc_usr_t usr;
+    
+    if(!rtcHandle.period) {
+        return -1;
+    }
+    
+    for(i=0; i<RETRY_TIMES; i++) {
+        r = sd30xx_read(0x2c, (U8*)&usr, sizeof(rtc_usr_t));
+        if(r==0) {
+            rtcHandle.usr = usr;
+            break;
+        }
+        LOGD("rtc_usr_get failed, %d\n", i);
+    }
+    if(r) {
+        return -1;
+    }
+    
+    if(usr.magic!=RTC_MAGIC) {
+        usr.magic = RTC_MAGIC;
+        memset(usr.times, 0, sizeof(usr.times));
+    }
+    else {
+        usr.times[rtcHandle.psrc]++;
+    }
+    
+    if(rtcHandle.psrc==PWRON_RTC) {
+        usr.cnt = 0;
+    }
+    else if(rtcHandle.psrc==PWRON_TIMER) {
+        smp_para_t *smp=paras_get_smp();
+        if(usr.cntMax==0) {
+            usr.cnt = 0;
+            usr.cntMax = (smp->worktime/7200)+1;
+        }
+        else {
+            usr.cnt++;
+        }
+        
+        if(usr.cnt>=usr.cntMax) {
+            r = 1;       //此时需要采集数据
+            usr.cnt = 0;
+        }
+    }
+    else {  //PWRON_MANUAL
+        //
+    }
+    
+    return r;
+}
+static int rtc_usr_set(void)
+{
+    int i,r=-1;
+    int period=1;
+    rtc_usr_t usr;
+    
+    if(!rtcHandle.period) {
+        return -1;
+    }
+    
+    for(i=0; i<RETRY_TIMES; i++) {
+        r = sd30xx_write(0x2c, (U8*)&rtcHandle.usr, sizeof(rtc_usr_t));
+        if(r==0) {
+            break;
+        }
+        LOGD("rtc_usr_set failed, %d\n", i);
+    }
+    
+    return r;
+}
+#endif
+
 static int rtc_int_set(datetime_t *dt)
 {
     U64 v;
@@ -144,7 +256,7 @@ static int rtc_int_set(datetime_t *dt)
     //dal_rtc_set_time(&dt);
     //dal_rtc_get_time(&dt2);
     
-    if(s_tstamp) {
+    if(rtcHandle.ts) {
         dal_rtc_get_timestamp(&ts1);
         dal_rtc_set_time(dt);
         dal_rtc_get_timestamp(&ts2);
@@ -158,8 +270,8 @@ static int rtc_int_set(datetime_t *dt)
     
     //ts = to_ts(dt);
     //LOGD("__1__ ts1: %lu, ts2: %lu, s_ts: %lu, s_runtime: %lu\n", ts1, ts2, s_tstamp, s_runtime);
-    s_runtime += ts1?(ts1-s_tstamp):0;
-    s_tstamp = ts2;
+    rtcHandle.runtime += ts1?(ts1-rtcHandle.ts):0;
+    rtcHandle.ts = ts2;
     //LOGD("__2__ ts1: %lu, ts2: %lu, s_ts: %lu, s_runtime: %lu\n", ts1, ts2, s_tstamp, s_runtime);
     //LOGD("__3__ write_ts: %lu, read_ts: %lu\n", ts, ts2);
     
@@ -243,50 +355,96 @@ static int rtc_ext_set(datetime_t *dt)
         return -1;
     }
     
-    s_synced = 1;
+    rtcHandle.synced = 1;
     
     return r;
 }
-static int rtc_power_on(U8 on)
+static int rtc_power_en(U8 on)
 {
     int i,r=0;
     sd_countdown_t cd;
+    char *str=on?"on":"off";
     
-    if(on) {
-        LOGD("___ rtc power on ...\n");
-        rtc_ext_power(1);
-        
-#ifdef COUNTDOWN_POWER
-        cd.im  = 0;
-        cd.clk = S_4096Hz;
-        cd.val = 1;
-        r = sd30xx_set_countdown(&cd);      //第一次，尽快使RTC接通电源
-        if(r) {
-            LOGE("___ rtc power on failed 111\n");
-            return -1;
+    for(i=0; i<RETRY_TIMES; i++) {
+        if(on) {
+            LOGD("___ rtc power %s ...\n", str);
+            rtc_ext_power(1);
+            
+    #ifdef COUNTDOWN_POWER
+            cd.im  = 0;
+            cd.clk = S_4096Hz;
+            cd.val = 1;
+            r = sd30xx_set_countdown(&cd);      //第一次，尽快使RTC接通电源
+            if(r) {
+                continue;
+            }
+            LOGW("___ rtc power %s failed 11, %d\n", str, i);
+    #endif  
         }
-#endif
-    }
-    else {
-        LOGD("___ rtc power off ...\n");
-    
-        r = sd30xx_set_countdown(&s_countdown);
-        if(r) {
-            LOGE("___ rtc power off failed 111\n");
-            return -1;
+        else {
+            LOGD("___ rtc power off ...\n");
+            
+            r = sd30xx_set_countdown(&rtcHandle.cd);
+            if(r) {
+                LOGW("___ rtc power %s failed 11, %d\n", str, i);
+                continue;
+            }
+            
+            r = sd30xx_clr_irq();
+            if(r) {
+                LOGW("___ rtc power %s failed 11, %d\n", str, i);
+                continue;
+            }
+            log_save();
+            
+            rtc_ext_power(0);
         }
-        log_save();
-        
-        r = sd30xx_clr_irq();
-        if(r) {
-            LOGE("___ rtc power off failed 222\n");
-            return -1;
-        }
-        rtc_ext_power(0);
+        break;
     }
     
     return 0;
 }
+static U32 get_runtime(void)
+{
+    U32 ts,t1,t2;
+    
+    ts = rtc_int_get_ts();
+    t1 = ts-rtcHandle.ts;
+    t2 = t1+rtcHandle.runtime;
+    
+    return t2;
+}
+
+static int rtc_power(U8 on)
+{
+    int r=-1;
+
+#ifndef BOOTLOADER    
+    if(on) {
+        if(rtc_usr_get()==0) {
+            U32 runtime = get_runtime();
+            smp_para_t *smp=paras_get_smp();
+            
+            rtcHandle.cd.im  = 0;
+            rtcHandle.cd.clk = S_1s;
+            rtcHandle.cd.val = smp->worktime-runtime-2;
+            rtc_power_en(0);
+        }
+    }
+#endif
+    
+    r = rtc_power_en(on);
+
+#ifndef BOOTLOADER
+    if(r==0 && !on) {
+        rtc_usr_set();
+    }
+#endif
+    
+    return r;
+}
+
+
 ////////////////////////////////////////////
 int rtc2_init(void)
 {
@@ -294,26 +452,39 @@ int rtc2_init(void)
     datetime_t dt;
     sd_info_t  info;
     
+    memset(&rtcHandle, 0, sizeof(rtcHandle));
+#ifdef BOOTLOADER
+    rtcHandle.period = 0;
+#else
+    rtcHandle.period = paras_is_period();
+#endif
+    
     gpio_init();
     dal_rtc_init();
     sd30xx_init();
     
-    get_sd_info(&info);
-    s_psrc = get_psrc(&info);
-    s_first = info.first;
+    r = get_info(&info);
+    if(r) {
+        return -1;
+    }
     
-    LOGD("__rtc.first: %d, rtc.psrc: %d\n", s_first, s_psrc);
-    if(s_first<0) {
+    rtcHandle.psrc = get_psrc(&info);
+    rtcHandle.first = info.first;
+    LOGD("__rtc.first: %d, rtc.psrc: %d\n", rtcHandle.first, rtcHandle.psrc);
+    
+    r = rtc_power(1);
+    
+    if(rtcHandle.first<0) {
         LOGE("__rtc2 read first failed\n");
     }
     
-    if(s_first>0) {
+    if(rtcHandle.first>0) {
         dt = DFLT_TIME;
         dt.date.week = get_week(dt.date.year, dt.date.mon, dt.date.day);
         
         rtc_int_set(&dt);
     }
-    else {
+    else {        
         r = rtc_ext_get(&dt);
         if(r==0) {
             rtc_int_set(&dt);
@@ -330,21 +501,8 @@ int rtc2_init(void)
     }
     print_time("rtc2_init,", &dt);
     
-    for(i=0; i<RETRY_TIMES; i++) {
-        r = rtc_power_on(1);
-        if(r==0) {
-            break;
-        }
-        LOGW("___ rtc_power_on failed %d\n", i);
-    }
-    
-    s_lock = lock_init();
-    s_inited = 1;
-    
-    if(s_psrc==PWRON_TIMER) {
-        //如果是timer周期性开机, 则立即关机
-        //否则是异常开机，则按正常RTC开机运行一次
-    }
+    rtcHandle.lck = lock_init();
+    rtcHandle.inited = 1;
     
     return 0;
 }
@@ -363,9 +521,9 @@ int rtc2_get_time(datetime_t *dt)
 {
     int r;
     
-    lock_on(s_lock);
+    lock_on(rtcHandle.lck);
     r = rtc_int_get(dt);
-    lock_off(s_lock);
+    lock_off(rtcHandle.lck);
     
     return r;
 }
@@ -375,9 +533,9 @@ int rtc2_set_time(datetime_t *dt)
 {
     int r;
     
-    lock_on(s_lock);
+    lock_on(rtcHandle.lck);
     r = rtc_int_set(dt);
-    lock_off(s_lock);
+    lock_off(rtcHandle.lck);
     
     return r;
 }
@@ -392,7 +550,7 @@ int rtc2_set_alarm(datetime_t *dt)
         return -1;
     }
     
-    lock_on(s_lock);
+    lock_on(rtcHandle.lck);
     tm.year   = dt->date.year;
     tm.month  = dt->date.mon;
     tm.day    = dt->date.day;
@@ -404,11 +562,14 @@ int rtc2_set_alarm(datetime_t *dt)
     for(i=0; i<RETRY_TIMES; i++) {
         r = sd30xx_set_alarm(1, &tm);
         if(r==0) {
-            rtc_power_on(1);
             break;
         }
     }
-    lock_off(s_lock);
+    if(r==0) {
+        r = rtc_power(1);
+    }
+    
+    lock_off(rtcHandle.lck);
     
     return r;
 }
@@ -425,11 +586,11 @@ int rtc2_set_countdown(U32 sec)
         return -1;
     }
     
-    s_countdown.im  = 0;             //设置为周期性中断
-    s_countdown.clk = S_1s;          //倒计时中断源选择1s
-    s_countdown.val = sec;           //倒计时初值设置为sec
+    rtcHandle.cd.im  = 0;             //设置为非周期性中断
+    rtcHandle.cd.clk = S_1s;          //倒计时中断源选择1s
+    rtcHandle.cd.val = sec;           //倒计时初值设置为sec
     
-    lock_on(s_lock);
+    lock_on(rtcHandle.lck);
     
     rtc_int_get(&dt);
     r = rtc_ext_set(&dt);
@@ -441,15 +602,8 @@ int rtc2_set_countdown(U32 sec)
         LOGE("___ rtc2_set_countdown, failed 000\n");
     }
     
-    for(i=0; i<RETRY_TIMES; i++) {
-        r = rtc_power_on(0);
-        if(r==0) {
-            break;
-        }
-        LOGW("___ rtc_power_on(0) failed %d\n", i);
-        rtc_power_on(1);
-    }
-    lock_off(s_lock);
+    r = rtc_power(0);
+    lock_off(rtcHandle.lck);
     
     return r;
 }
@@ -459,9 +613,9 @@ U32 rtc2_get_timestamp_s(void)
 {
     U32 v;
     
-    lock_on(s_lock);
+    lock_on(rtcHandle.lck);
     dal_rtc_get_timestamp(&v);
-    lock_off(s_lock);
+    lock_off(rtcHandle.lck);
     
     return v;
 }
@@ -471,9 +625,9 @@ U64 rtc2_get_timestamp_ms(void)
 {
     U64 v;
     
-    lock_on(s_lock);
+    lock_on(rtcHandle.lck);
     dal_rtc_get_timestamp_ms(&v);
-    lock_off(s_lock);
+    lock_off(rtcHandle.lck);
     
     return v;
 }
@@ -500,19 +654,19 @@ int rtc2_is_synced(void)
     datetime_t dt1,dt2=DFLT_TIME;
     U32 inv,day_s=3600*24;
     
-    if(s_synced) {
+    if(rtcHandle.synced) {
         return 1;
     }
     
-    lock_on(s_lock);
-    if(s_first>0) {
+    lock_on(rtcHandle.lck);
+    if(rtcHandle.first>0) {
         dal_rtc_get_time(&dt1);
         inv = to_ts(&dt1) - to_ts(&dt2);
         if(inv<=day_s) {
             r = 0;
         }
     }
-    lock_off(s_lock);
+    lock_off(rtcHandle.lck);
     
     return r;
 }
@@ -520,24 +674,27 @@ int rtc2_is_synced(void)
 
 U8 rtc2_get_psrc(void)
 {
-    return s_psrc;
+    return rtcHandle.psrc;
 }
 
 
-int rtc2_get_runtime(U32 *runtime)
+U32 rtc2_get_runtime(void)
 {
-    U32 ts,t1,t2;
+    return get_runtime();
+}
+
+
+int rtc2_get_temp(F32 *temp)
+{
+    int r;
+    S8  t;
     
-    ts = rtc_int_get_ts();
-    t1 = ts-s_tstamp;
-    t2 = t1+s_runtime;
-    
-    //LOGD("____s_ts: %lu, ts: %lu, t1: %lu, s_runtime: %lu, t2: %lu\n", ts, s_tstamp, t1, t2);
-    if(runtime) {
-        *runtime = t2;
+    r = sd30xx_read(0x16, (U8*)&t, 1);
+    if(r==0 && temp) {
+        *temp = (F32)t;
     }
     
-    return 0;
+    return r;
 }
 
 
