@@ -1,3 +1,4 @@
+#if (MQTT_LIB==1)
 
 #include "ota_md5.h"
 
@@ -296,4 +297,5 @@ int32_t utils_md5_finish(utils_md5_context_t *ctx,
     return (0);
 }
 
+#endif
 

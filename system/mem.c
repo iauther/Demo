@@ -25,7 +25,7 @@ static mem_para_t xParam={(U8*)0x2000000,2000000, NULL};
 #else
 #define OUT_RANGE(x,a,b) (((U32)(x)<(a)) || ((U32)(x)>(b)))
 
-extern U32 __heap_base,__heap_limit;
+extern U32 __heap_base,__heap_limit,Heap_Size;
 #define I_OUT_RANGE(x) OUT_RANGE(x,__heap_base,__heap_limit)
 #define E_OUT_RANGE(x) OUT_RANGE(x,SDRAM_ADDR,SDRAM_ADDR+SDRAM_LEN)
 
@@ -73,10 +73,9 @@ int mem_deinit(void)
 
 
 
-void* mem_malloc(STRATEGY stg, int len, U8 zero)
+void* mem_malloc(MEM_WHERE where, int len, U8 zero)
 {
-    void*  p1;
-    void** p2;
+    void*  p1=NULL;
     
     if(!xParam.start || !xParam.len || len<=0) {
         return NULL;
@@ -85,21 +84,10 @@ void* mem_malloc(STRATEGY stg, int len, U8 zero)
     lock_on(xParam.lock);
 #ifdef _WIN32
     p1 = malloc(len);
-    if(!p1) {
-        LOGE("___ malloc %d failed, 0x%08x\n", len, p1);
-    }
 #else
-    if(stg==SRAM_FIRST) {
+    if(where==MEM_SRAM) {
         p1 = malloc(len);
-        if(!p1) {
-            LOGE("___ malloc %d failed, 0x%08x, call tiny_malloc or rtx_mem_alloc\n", len, p1);
-            
-    #ifdef USE_TINY
-            p1 = tiny_malloc(len);
-    #else
-            p1 = rtx_mem_alloc(xParam.start, len);
-    #endif
-        }
+        
     }
     else {
     #ifdef USE_TINY
@@ -107,23 +95,19 @@ void* mem_malloc(STRATEGY stg, int len, U8 zero)
     #else
         p1 = rtx_mem_alloc(xParam.start, len);
     #endif
-        if (!p1) {
-            LOGE("___ mem_malloc %d, failed, 0x%08x\n, call malloc.\n", len, p1);
-            
-            p1 = malloc(len);
-        }
     }
 #endif
     
-    if(((U32)p1)%4) {
-        LOGE("___ p1: 0x%08x not align 4 byte!!!\n", (U32)p1);
-        lock_off(xParam.lock);
-        return NULL;
+    if(p1) {
+        if(zero) {
+            memset(p1, 0, len);
+        }
     }
-    
-    if(p1 && zero) memset(p1, 0, len);
+    else {
+        LOGE("mem_malloc failed\n");
+    }
     lock_off(xParam.lock);
-
+    
     return p1;
 }
 
@@ -135,14 +119,13 @@ int mem_free(void *ptr)
     void* p1 = ptr;
     
     
-    if(!xParam.start || !xParam.len || !ptr) {
+    if(!xParam.start || !xParam.len || !p1) {
         return -1;
     }
     
     lock_on(xParam.lock);
-    
 #ifdef _WIN32
-    free(ptr);
+    free(p1);
 #else
     if((U32)p1>=(U32)xParam.start) {
     #ifdef USE_TINY
@@ -156,24 +139,54 @@ int mem_free(void *ptr)
     }
 #endif
     
+    if(r==-1) {
+        LOGE("mem free failed\n");
+    }
+    
     lock_off(xParam.lock);
     
     return r;
 }
 
 
-int mem_get_free(void)
+U32 mem_used(MEM_WHERE where)
 {
-    //extern U32 base_sp;
-    //return (int)(base_sp - __malloc_heap_start);
-    return 0;
+    U32 used=0;
+    
+    if(where==MEM_SRAM) {
+        extern U32 __heap_base,__heap_limit,Heap_Size;
+        //return (U32)(base_sp - __malloc_heap_start);
+    }
+    else {
+#ifdef USE_TINY
+        tiny_summary summ = tiny_inspect();
+        used = summ.sections.total-summ.sections.free;
+#else
+        used = rtx_mem_used(xParam.start);
+#endif
+    }
+    
+    return used;
 }
 
-int mem_get_used(void)
+U32 mem_unused(MEM_WHERE where)
 {
-    //extern ulong base_sp;
-    //return (int)(_heap_base - __malloc_heap_start);
-    return 0;
+    U32 unused=0;
+    
+    if(where==MEM_SRAM) {
+        extern U32 __heap_base,__heap_limit,Heap_Size;
+        //return (int)(base_sp - __malloc_heap_start);
+    }
+    else {
+#ifdef USE_TINY
+        tiny_summary summ = tiny_inspect();
+        unused = summ.sections.free;
+#else
+        unused = rtx_mem_unused(xParam.start);
+#endif
+    }
+    
+    return unused;
 }
 
 

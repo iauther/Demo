@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_GLOBAL_H_
 #define _CORE_GLOBAL_H_
 
@@ -19,6 +21,8 @@ int32_t core_global_deinit(aiot_sysdep_portfile_t *sysdep);
 
 #if defined(__cplusplus)
 }
+#endif
+
 #endif
 
 #endif

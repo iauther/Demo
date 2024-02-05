@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_DIAG_H_
 #define _CORE_DIAG_H_
 
@@ -15,6 +17,8 @@ void core_diag(aiot_sysdep_portfile_t *sysdep, int32_t code, uint8_t *data, uint
 
 #if defined(__cplusplus)
 }
+#endif
+
 #endif
 
 #endif

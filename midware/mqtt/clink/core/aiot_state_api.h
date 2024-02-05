@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #ifndef _AIOT_STATE_API_H_
 #define _AIOT_STATE_API_H_
@@ -797,4 +798,6 @@ int32_t aiot_state_set_logcb(aiot_state_logcb_t handler);
 #endif
 
 #endif /* #ifndef _AIOT_STATE_API_H_ */
+
+#endif
 

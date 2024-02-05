@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #include "core_log.h"
 
 extern aiot_state_logcb_t g_logcb_handler;
@@ -302,4 +304,5 @@ void core_log_hexdump(int32_t code, char prefix, uint8_t *buffer, uint32_t len)
     }
     g_logcb_handler(code, "\r\n");
 }
+#endif
 

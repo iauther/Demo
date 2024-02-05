@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_STRING_H_
 #define _CORE_STRING_H_
 
@@ -37,6 +39,8 @@ int32_t core_strcat(aiot_sysdep_portfile_t *sysdep, char **dest, char *src1, cha
 
 #if defined(__cplusplus)
 }
+#endif
+
 #endif
 
 #endif

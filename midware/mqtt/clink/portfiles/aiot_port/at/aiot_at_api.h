@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #ifndef _AIOT_AT_API_H_
 #define _AIOT_AT_API_H_
@@ -44,14 +45,14 @@ extern "C" {
  */
 #define AIOT_AT_CMD_LEN_MAXIMUM             (128)       /* AT命令最大长度 */
 #define AIOT_AT_RSP_LEN_MAXIMUM             (128)       /* AT应答最大长度 */
-#define AIOT_AT_TX_TIMEOUT_DEFAULT          (10000)      /* UART默认发送超时时间 */
-#define AIOT_AT_RX_TIMEOUT_DEFAULT          (10000)      /* UART默认接受等待超时时间 */
+#define AIOT_AT_TX_TIMEOUT_DEFAULT          (2000)      /* UART默认发送超时时间 */
+#define AIOT_AT_RX_TIMEOUT_DEFAULT          (4000)      /* UART默认接受等待超时时间 */
 #define AIOT_AT_DATA_RB_SIZE_DEFAULT        (4096)       /* 内部网络数据接收缓冲区大小,用户可根据接收数据流量的大小调整 */
 #define AIOT_AT_RSP_RB_SIZE_DEFAULT         (4096)       /* 内部应答报文接受缓冲区大小,用户可根据接收数据流量的大小调整 */
 #define AIOT_AT_CMD_RETRY_TIME              (3)         /* AT命令发送重试最大次数 */
 #define AIOT_AT_RINGBUF_RETRY_INTERVAL      (5)     /* RINGBUF数据长度检查间隔时间 */
 #define AIOT_AT_SOCKET_NUM                  (5)         /* 支持的数据链路数量 */
-#define AIOT_AT_MAX_PACKAGE_SIZE            (1460)      /* 一帧报文最大的数据长度*/
+#define AIOT_AT_MAX_PACKAGE_SIZE            (1024)      /* 一帧报文最大的数据长度*/
 #define AT_SOCKET_ID_START                  (1)
 
 /**
@@ -170,10 +171,13 @@ typedef struct {
     core_at_cmd_item_t *stat_cmd;
     uint32_t           stat_cmd_size;
     
+    core_at_cmd_item_t *pwr_cmd;
+    uint32_t           pwr_cmd_size;
+    
     /* 发送数据命令列表 */
     core_at_cmd_item_t *send_cmd;
     uint32_t           send_cmd_size;
-
+    
     /* 模组主动上报数据标识符，识别到数据上报，会进入数据接收流程 */
     core_at_recv_data_prefix *recv;
 
@@ -306,7 +310,6 @@ int32_t aiot_at_bootstrap(void);
 
 int32_t aiot_at_stat(stat_info_t *si);
 
-
 /**
  * @brief 为对应的链路ID创建ringbuf资源
  *
@@ -393,6 +396,9 @@ int32_t core_at_socket_status(uint32_t id, core_at_link_status_t status);
 #if defined(__cplusplus)
 }
 #endif
+
+#endif
+
 
 
 #endif

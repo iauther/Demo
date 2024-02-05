@@ -128,7 +128,7 @@ int dal_sdram_init(void)
     sdram_init_struct.internal_bank_number = EXMC_SDRAM_4_INTER_BANK;
     sdram_init_struct.cas_latency = EXMC_CAS_LATENCY_3_SDCLK;
     sdram_init_struct.write_protection = DISABLE;
-    sdram_init_struct.sdclock_config = EXMC_SDCLK_PERIODS_3_HCLK;
+    sdram_init_struct.sdclock_config = EXMC_SDCLK_PERIODS_2_HCLK;
     sdram_init_struct.burst_read_switch = ENABLE;
     sdram_init_struct.pipeline_read_delay = EXMC_PIPELINE_DELAY_2_HCLK;
     sdram_init_struct.timing  = &sdram_timing_init_struct;

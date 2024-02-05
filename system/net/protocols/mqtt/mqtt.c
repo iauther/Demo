@@ -71,6 +71,15 @@ int mqtt_disconn(handle_t hconn)
 }
 
 
+int mqtt_reconn(handle_t hconn)
+{
+    if(!p_mqtt_fn) {
+        return -1;
+    }
+    
+    return p_mqtt_fn->reconn(hconn);
+}
+
 int mqtt_pub(handle_t hconn, void *para, void *data, int len)
 {
     if(!p_mqtt_fn) {
@@ -101,14 +110,6 @@ int mqtt_req_cfg(handle_t hconn)
 }
 
 
-int mqtt_ntp_synced(void)
-{
-    if(!p_mqtt_fn) {
-        return 0;
-    }
-    
-    return p_mqtt_fn->ntp_synced();
-}
 
 
 

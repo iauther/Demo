@@ -1,6 +1,7 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_HTTP_H_
 #define _CORE_HTTP_H_
-
 
 #if defined(__cplusplus)
 extern "C" {
@@ -188,4 +189,6 @@ int32_t core_http_deinit(void **p_handle);
 #endif
 
 #endif /* #ifndef _CORE_HTTP_H_ */
+
+#endif
 

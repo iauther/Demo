@@ -7,6 +7,8 @@
  */
 
 /* TODO: 对本模块的头文件, 仅需包含ntp_private.h, 不需包含aiot_ntp_api.h */
+#if (MQTT_LIB==1)
+
 #include "ntp_private.h"
 
 /* TODO: 列出对core模块需要包含的头文件 */
@@ -339,4 +341,5 @@ int32_t aiot_ntp_send_request(void *handle)
 
     return STATE_SUCCESS;
 }
+#endif
 

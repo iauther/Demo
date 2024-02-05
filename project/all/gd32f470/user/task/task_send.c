@@ -31,7 +31,7 @@ typedef struct {
 }send_handle_t;
 
 
-static send_handle_t sendHandle;
+send_handle_t sendHandle;
 static int file_scan(void);
 static int file_upload(void);
 #define FREE_SIZE   (5*MB)
@@ -183,6 +183,51 @@ static int data_save_csv(ch_data_t *pch)
 }
 
 /////////////////////////////////////////////////////
+static int data_upload_test(void)
+{
+    int r,cnt=10000,tlen;
+    mqtt_pub_para_t pub_para={DATA_WAV};
+    ch_data_t *pch=(ch_data_t*)eMalloc(cnt*4*2);
+    
+    if(!pch) {
+        return -1;
+    }
+    
+    pch->ch = 0;
+    pch->time = rtc2_get_timestamp_ms();
+    pch->smpFreq = 1000000;
+    pch->wavlen = cnt*4;
+    
+    tlen = pch->wavlen+sizeof(ch_data_t);
+    
+    r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_CAP, 0, pch, tlen);
+    if(r==0) {
+        datetime_t dt;
+        ts_to_tm(pch->time, &dt);
+        
+        LOGD("____comm_send_data len: %d, wavlen: %d\n", tlen, pch->wavlen);
+        rtc2_print_time("timestamp:", &dt);
+        
+        
+    }
+    else {
+        LOGE("___ task_send, comm_send_data failed, %d\n", r);
+        r = -1;         //发送文件失败
+    }
+    
+    xFree(pch);
+    
+    return r;
+}
+
+
+static void print_time(char *s, U64 time)
+{
+    datetime_t dt;
+    ts_to_tm(time, &dt);
+    rtc2_print_time(s, &dt);
+}
+
 static int data_upload(node_t *node)
 {
     handle_t h;
@@ -190,14 +235,15 @@ static int data_upload(node_t *node)
     int dlen,tlen,r=-1;
     ch_data_t *pch=NULL;
     ch_para_t *para=NULL;
-    int is_file=node->tp;
+    U32 bfile=node->tp;
     mqtt_pub_para_t pub_para={DATA_LT};
     
-    if(is_file) {       //node is file path
+    if(bfile) {       //node is file path
         int flen;
         char *path=node->buf;
         flen = fs_length(path);
-        LOGD("___ data_upload %s, flen: %d\n", path, flen);
+        
+        //LOGD("___ data_upload %s, flen: %d\n", path, flen);
         if(flen<=0) {
             r = (flen==0)?0:-1;
             return r;
@@ -230,6 +276,7 @@ static int data_upload(node_t *node)
     }
     dlen = pch->wavlen+pch->evlen;
     
+    //LOGD("___wavlen: %d, evlen: %d\n", pch->wavlen, pch->evlen);
     if(dlen>0) {
         
         if(pch->wavlen>0) {
@@ -237,29 +284,27 @@ static int data_upload(node_t *node)
         }
         tlen = dlen+sizeof(ch_data_t);
         
+        LOGD("___comm_send_data, len: %d\n", tlen);
         r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_CAP, 0, pch, tlen);
         if(r==0) {
-            datetime_t dt;
-            ts_to_tm(pch->time, &dt);
+            LOGD("___comm_send_data ok!\n");
+            //print_time("__ts__", pch->time);
             
-            LOGD("____comm_send_data len: %d, wavlen: %d\n", tlen, pch->wavlen);
-            rtc2_print_time("timestamp:", &dt);
-            
-            if(!is_file) {
+            if(!bfile) {
                 sendHandle.times[pch->ch].send++;
             }
         }
         else {
-            LOGE("___ task_send, comm_send_data failed, %d\n", r);
+            LOGE("___comm_send_data failed, %d\n", r);
             r = -1;         //发送文件失败
         }
     }
     
-    if(is_file) xFree(pbuf);
+    if(pbuf) xFree(pbuf);
     
     return r;
 }
-static int data_proc(void)
+static int data_upload_proc(void)
 {
     int r=0;
     handle_t xlist;
@@ -272,6 +317,7 @@ static int data_proc(void)
         }
     }
     
+#if 0    
     file_scan();
     if(list_size(sendHandle.flist)) {
         xlist = sendHandle.flist;
@@ -279,6 +325,9 @@ static int data_proc(void)
     else {
         xlist = sendHandle.dlist;
     }
+#else
+    xlist = sendHandle.dlist;
+#endif
     
     r = list_take_node(xlist, &lnode, 0);
     if(r==0) {
@@ -299,7 +348,7 @@ static int data_proc(void)
         }
         
         if(r==0) {
-            if(nd->blen>=20*KB) {       //数据过大，则释放内存
+            if(nd->blen>50*KB) {       //数据过大，则释放内存
                 list_discard_node(sendHandle.dlist, lnode);
             }
             else {
@@ -308,7 +357,8 @@ static int data_proc(void)
         }
     }
     
-    return 0;
+    
+    return r;
 }
 static int iterator_fn(handle_t l, node_t *node, node_t *xd, void *arg, int *act)
 {
@@ -439,7 +489,7 @@ int api_send_is_finished(void)
         
         if(pch->enable) {
             if(sendHandle.busying || (sendHandle.times[ch].cap<pch->smpTimes)) {
-                LOGD("______ is_finished, ch[%d]: 0, busying: %d, times: %d, smpTimes: %d\n", ch, sendHandle.busying, sendHandle.times[ch].send, pch->smpTimes);
+                //LOGD("______ is_finished, ch[%d]: 0, busying: %d, times: %d, smpTimes: %d\n", ch, sendHandle.busying, sendHandle.times[ch].send, pch->smpTimes);
                 cap_finished = 0;
                 break;
             }
@@ -493,7 +543,7 @@ void task_send_fn(void *arg)
     evt_t e;
     list_node_t *lnode;
     
-    LOGD("_____ task nvm running\n");
+    LOGD("_____ task send running\n");
     send_init();
     
     while(1) {
@@ -505,7 +555,8 @@ void task_send_fn(void *arg)
                 case EVT_TIMER:
                 {
                     //读取上传记录文件，上传成功则删除文件
-                    data_proc();
+                    data_upload_proc();
+                    //data_upload_test();
                 }
                 break;
                 

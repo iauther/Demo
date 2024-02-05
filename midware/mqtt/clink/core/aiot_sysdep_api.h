@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #ifndef _AIOT_SYSDEP_API_H_
 #define _AIOT_SYSDEP_API_H_
@@ -140,6 +141,8 @@ aiot_sysdep_portfile_t *aiot_sysdep_get_portfile(void);
 
 #if defined(__cplusplus)
 }
+#endif
+
 #endif
 
 #endif

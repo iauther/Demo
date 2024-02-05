@@ -6,9 +6,9 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #include "core_mqtt.h"
-
 
 static int32_t last_failed_error_code = 0;
 static int32_t _core_mqtt_sysdep_return(int32_t sysdep_code, int32_t core_code)
@@ -2550,6 +2550,15 @@ static int32_t _core_mqtt_check_tx_payload_len(uint32_t pkt_len, core_mqtt_handl
     return STATE_SUCCESS;
 }
 
+typedef struct {
+  struct mem_block_s *next;     // Next Memory Block in list
+  uint32_t            size;     // Block Info or max used Memory (in last block)
+} mem_block_t;
+mem_block_t *p_blk=NULL;
+void print_blk(char *s, uint32_t len)
+{
+    printf("%s %d %d\n", s, p_blk->size, len);
+}
 static int32_t _core_mqtt_pub(void *handle, core_mqtt_buff_t *topic, core_mqtt_buff_t *payload, uint8_t qos, uint8_t retain,
                               mqtt_properties_t *pub_prop)
 {
@@ -2692,8 +2701,11 @@ static int32_t _core_mqtt_pub(void *handle, core_mqtt_buff_t *topic, core_mqtt_b
         }
     }
 
+    p_blk=((mem_block_t*)(pkt-sizeof(mem_block_t)));
     mqtt_handle->sysdep->core_sysdep_mutex_lock(mqtt_handle->send_mutex);
+    //print_blk("__11__", pkt_len);
     res = _core_mqtt_write(handle, pkt, pkt_len, mqtt_handle->send_timeout_ms);
+    //print_blk("__22__", pkt_len);
     mqtt_handle->sysdep->core_sysdep_mutex_unlock(mqtt_handle->send_mutex);
     if (res < STATE_SUCCESS) {
         mqtt_handle->sysdep->core_sysdep_free(pkt);
@@ -3401,4 +3413,6 @@ int32_t aiot_mqtt_connect_v5(void *handle, will_message_t *will_message, mqtt_pr
     }
     return _mqtt_connect_with_prop(handle, will_message, conn_prop);
 }
+#endif
+
 

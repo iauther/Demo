@@ -222,9 +222,11 @@ static int usr_proc(void)
         return -1;
     }
     
-    r = usr_get(usr);
-    if(r) {
-        return -1;
+    if(rtcHandle.first==0) {
+        r = usr_get(usr);
+        if(r) {
+            return -1;
+        }
     }
     print_usr("111", usr);
     
@@ -380,20 +382,20 @@ static int rtc_ext_set(datetime_t *dt)
 }
 
 
-static int sd_powerdown(sd_countdown_t *cd)
+static int sd_countdown(sd_countdown_t *cd)
 {
     int i,r=0;
     
     for(i=0; i<RETRY_TIMES; i++) {
         r = sd30xx_set_countdown(cd);
         if(r) {
-            LOGW("___ sd_powerdown failed 11, %d\n", i);
+            LOGW("___ sd_countdown failed 11, %d\n", i);
             continue;
         }
         
         r = sd30xx_clr_irq();
         if(r) {
-            LOGW("___ sd_powerdown failed 22, %d\n", i);
+            LOGW("___ sd_countdown failed 22, %d\n", i);
             power_en(1);
             continue;
         }
@@ -401,6 +403,23 @@ static int sd_powerdown(sd_countdown_t *cd)
     
     return r;
 }
+static int sd_powerdown(void)
+{
+    int i,r=0;
+    
+    for(i=0; i<RETRY_TIMES; i++) {
+        r = sd30xx_clr_irq();
+        if(r) {
+            LOGW("___ sd_powerdown failed, %d\n", i);
+            power_en(1);
+            continue;
+        }
+    }
+    
+    return r;
+}
+
+
 
 static U32 get_runtime(void)
 {
@@ -423,18 +442,12 @@ static int rtc_power(U8 on)
 #ifndef BOOTLOADER    
     if(on) {
         if(usr_proc()==1) {
-            sd_countdown_t cd;
-            smp_para_t *smp=paras_get_smp();
-            
-            cd.im  = 0;
-            cd.clk = S_1s;
-            cd.val = smp->worktime-1;
-            r = sd_powerdown(&cd);
+            usr_flush();
+            r = sd_powerdown();
             if(r==0) {
-                usr_flush();
                 power_en(0);
-                return 0;
             }
+            return r;
         }
     }
 #endif
@@ -443,7 +456,7 @@ static int rtc_power(U8 on)
         power_en(1);
     }
     else {
-        r = sd_powerdown(&rtcHandle.cd);
+        r = sd_countdown(&rtcHandle.cd);
         if(r==0) {
             log_save();
             power_en(0);

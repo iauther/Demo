@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #include "core_adapter.h"
 #include "aiot_state_api.h"
 #include "core_log.h"
@@ -730,3 +732,4 @@ aiot_sysdep_portfile_t *aiot_sysdep_get_adapter_portfile(aiot_sysdep_portfile_t 
     return &g_aiot_portfile;
 }
 
+#endif

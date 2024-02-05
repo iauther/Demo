@@ -150,6 +150,48 @@ int net_disconn(handle_t hconn)
 }
 
 
+int net_reconn(handle_t hconn)
+{
+    int r=-1;
+    conn_handle_t *ch=(conn_handle_t*)hconn;
+    
+    if(!ch) {
+        return -1;
+    }
+    
+    switch(ch->para.proto) {
+        case PROTO_TCP:
+        break;
+        
+        case PROTO_UDP:
+        break;
+        
+        case PROTO_MQTT:
+        {
+#ifdef _WIN32
+            net_handle_t* nh = (net_handle_t*)ch->h;
+            nh->mMqtt.disconn(ch->hc);
+            ch->hc = nh->mMqtt.conn(ch->hc);
+            if(ch->hc) {
+                r = 0;
+            }
+#else
+            r = mqtt_reconn(ch->hc);
+#endif
+        }
+        break;
+        
+        case PROTO_COAP:
+        {
+        }
+        break;
+    }
+    
+    return r;
+}
+
+
+
 int net_read(handle_t hconn, void *para, void *data, int len)
 {
     int r;

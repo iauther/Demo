@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -49,5 +51,6 @@ aiot_net_al_t  g_aiot_net_at_api = {
     .send = __at_send,
     .close = __at_close,
 };
+#endif
 
 

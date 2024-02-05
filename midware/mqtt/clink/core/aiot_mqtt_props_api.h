@@ -5,6 +5,8 @@
  * @copyright Copyright (C) 2015-2020 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
+ 
 #ifndef __aiot_mqtt_props_API_H__
 #define __aiot_mqtt_props_API_H__
 
@@ -161,4 +163,6 @@ mqtt_properties_t *aiot_mqtt_props_copy(mqtt_properties_t *props);
 #endif
 
 #endif  /* __aiot_mqtt_props_API_H__ */
+
+#endif
 

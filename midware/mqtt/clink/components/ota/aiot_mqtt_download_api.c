@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #include "aiot_ota_api.h"
 #include "core_mqtt.h"
@@ -650,3 +651,4 @@ int32_t aiot_mqtt_download_process(void *handle)
     }
     return res;
 }
+#endif

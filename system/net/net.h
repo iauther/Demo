@@ -50,6 +50,7 @@ int net_deinit(handle_t h);
 
 handle_t net_conn(handle_t h, conn_para_t *para);
 int net_disconn(handle_t hconn);
+int net_reconn(handle_t hconn);
 
 int net_read(handle_t hconn, void *para, void *data, int len);
 int net_write(handle_t hconn, void *para, void *data, int len);

@@ -174,3 +174,16 @@ int rtx_mem_free (void *mem, void *block)
 }
 
 
+uint32_t rtx_mem_used(void *mem)
+{
+    return head_ptr(mem)->used;
+}
+
+
+uint32_t rtx_mem_unused(void *mem)
+{
+    mem_head_t *h=head_ptr(mem);
+    
+    return (h->size-h->used);
+}
+

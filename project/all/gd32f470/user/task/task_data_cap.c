@@ -328,7 +328,7 @@ static int ads_data_proc(U8 ch, node_t *nd)
     
     extern volatile void* p_dma;
     if(p_dma != nd->buf) {
-        LOGE("+\n");
+        LOGE("dma overlap\n");
         return 1;
     }
     
@@ -498,7 +498,8 @@ void task_data_cap_fn(void *arg)
 {
     int i,r,r1;
     U8  err;
-    evt_t e;    
+    evt_t e;
+    U64 ts1=0,ts2=0;
     
     LOGD("_____ task data cap running\n");
     cap_config();
@@ -519,7 +520,12 @@ void task_data_cap_fn(void *arg)
             
             case EVT_ADS:
             {
+                //ts1 = dal_get_tick_ms();
+                
+                //LOGD("____ts1: %lld\n", ts1-ts2);
                 ads_data_proc(CH_0, (node_t*)e.data);
+                //ts2 = dal_get_tick_ms();
+                //LOGD("____ts2: %lld\n", ts2-ts1);
             }
             break;
         }

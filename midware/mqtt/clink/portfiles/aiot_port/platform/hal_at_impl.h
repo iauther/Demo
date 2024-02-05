@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef __HAL_AT_IMPL_Hx__
 #define __HAL_AT_IMPL_Hx__
 
@@ -9,6 +11,6 @@ int hal_at_ntp(void);
 int hal_at_power(int on);
 int hal_at_reset(void);
 
-
 #endif
 
+#endif

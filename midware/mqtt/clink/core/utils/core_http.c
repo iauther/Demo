@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #include "core_http.h"
 
@@ -673,4 +674,5 @@ int32_t core_http_deinit(void **p_handle)
 
     return STATE_SUCCESS;
 }
+#endif
 

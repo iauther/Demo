@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #ifndef _AIOT_HTTP_API_H_
 #define _AIOT_HTTP_API_H_
@@ -470,4 +471,6 @@ int32_t aiot_http_deinit(void **p_handle);
 #endif
 
 #endif /* #ifndef _AIOT_HTTP_API_H_ */
+
+#endif
 

@@ -719,17 +719,6 @@ int fs_get_space(char *path, fs_space_t *sp)
 
 
 #include "rtc.h"
-void malloc_test(char *s)
-{
-    char *p=malloc(10);
-    if(!p) {
-        LOGE("____ malloc %s failed\n", s);
-        return;
-    }
-    LOGE("____ malloc %s ok\n", s);
-    
-    free(p);
-}
 int fs_test(void)
 {
     int r;
@@ -742,10 +731,7 @@ int fs_test(void)
     
     
     //fs_init();
-    malloc_test("111");
     r = do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
-    malloc_test("222");
-    
     
     r = rtc2_get_time(&dt);
 

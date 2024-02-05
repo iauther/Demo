@@ -4,16 +4,18 @@
 #include "cfg.h"
 #include "mem.h"
 #include "fs.h"
+#include "lock.h"
 #include "dal_rtc.h"
 
 
 #define LOG_BUF_LEN  2000
-#define LOG_NODE_MAX 2000
+#define LOG_NODE_MAX 1000
 
 typedef struct {
     handle_t  hlog;
     int       enable;
     
+    handle_t  lck;
     handle_t  list;
     log_cfg_t cfg;
     char      buffer[LOG_BUF_LEN];
@@ -41,11 +43,9 @@ static log_handle_t logHandle={
 
 int log_set(LOG_LEVEL lv, int en)
 {
-    int i;
-    
-    for(i=0; i<LV_MAX; i++) {
-        logHandle.cfg.en[i] = en;
-    }
+    lock_on(logHandle.lck);
+    logHandle.cfg.en[lv] = en;
+    lock_off(logHandle.lck);
     
     return 0;
 }
@@ -53,7 +53,10 @@ int log_set(LOG_LEVEL lv, int en)
 
 int log_enable(int en)
 {
+    lock_on(logHandle.lck);
     logHandle.enable = en;
+    lock_off(logHandle.lck);
+    
     return 0;
 }
 
@@ -66,6 +69,8 @@ int log_print(LOG_LEVEL lv, char *fmt, ...)
     if(!logHandle.enable || !logHandle.cfg.en[lv]) {
         return -1;
     }    
+    
+    lock_on(logHandle.lck);
     
     va_start(args, fmt);
     //dal_rtc_get(&dt);
@@ -80,6 +85,7 @@ int log_print(LOG_LEVEL lv, char *fmt, ...)
 #ifdef OS_KERNEL
     list_append(logHandle.list, lv, logHandle.buffer, len);
 #endif
+    lock_off(logHandle.lck);
 
     return 0;
 }
@@ -100,7 +106,7 @@ int log_init(rx_cb_t callback)
     uc.msb  = 0;
     uc.baudrate = LOG_BAUDRATE;
     uc.callback  = callback;
-    uc.rx.blen = 2*KB;
+    uc.rx.blen = LOG_BUF_LEN;
     uc.rx.buf = malloc(uc.rx.blen);
     uc.rx.dlen = 0;
     
@@ -109,6 +115,7 @@ int log_init(rx_cb_t callback)
         return -1;
     }
     logHandle.list = NULL;
+    logHandle.lck  = NULL;
     
     log_os_init();
     
@@ -120,12 +127,13 @@ int log_init(rx_cb_t callback)
 int log_os_init(void)
 {
 #ifdef OS_KERNEL 
-    int i;
     list_cfg_t lc;
     lc.max  = LOG_NODE_MAX;
     lc.mode = LIST_FULL_FIFO;
     lc.log = 0;
     logHandle.list = list_init(&lc);
+    
+    logHandle.lck = lock_init();
 #endif
     
     return 0;
@@ -134,13 +142,22 @@ int log_os_init(void)
 
 int log_set_callback(rx_cb_t cb)
 {
-    return dal_uart_set_callback(logHandle.hlog, 0, cb);
+    int r;
+    
+    lock_on(logHandle.lck);
+    r = dal_uart_set_callback(logHandle.hlog, 0, cb);
+    lock_off(logHandle.lck);
+    
+    return r ;
 }
 
 
 int log_set_handle(handle_t h)
 {
+    lock_on(logHandle.lck);
     logHandle.hlog = h;
+    lock_off(logHandle.lck);
+    
     return 0;
 }
 
@@ -153,7 +170,7 @@ handle_t log_get_handle(void)
 
 int log_save(void)
 {
-    int r;
+    int r=0;
     datetime_t dt;
     char tmp[100];
     handle_t hfile;
@@ -161,10 +178,13 @@ int log_save(void)
     handle_t list=logHandle.list;
     char *tok1="\n\n+++++++ log start +++++++\n";
     char *tok2="+++++++ log end   +++++++\n\n";
+    
+    lock_on(logHandle.lck);
 
-#ifdef OS_KERNEL   
+#ifdef OS_KERNEL
     if(list_size(list)==0) {
-        return -1;
+        r = -1;
+        goto quit;
     }
     
     dal_rtc_get_time(&dt);
@@ -181,7 +201,8 @@ int log_save(void)
     
     if(!hfile) {
         LOGE("___ %s open failed\n", tmp);
-        return -1;
+        r = -1;
+        goto quit;
     }
     
     fs_write(hfile, tok1, strlen(tok1), 0);
@@ -198,8 +219,10 @@ int log_save(void)
     
     fs_close(hfile);
 #endif
-    
-    return 0;
+
+quit:
+    lock_off(logHandle.lck);
+    return r;
 }
 
 
@@ -210,10 +233,13 @@ int log_deinit(void)
     
 #ifdef OS_KERNEL 
     list_free(logHandle.list);
+    lock_free(logHandle.lck);
 #endif
     
     dal_uart_deinit(logHandle.hlog);
     logHandle.hlog = NULL;
+    logHandle.list = NULL;
+    logHandle.lck  = NULL;
     
     return 0;
 }

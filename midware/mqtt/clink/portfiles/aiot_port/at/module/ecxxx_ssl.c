@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #include "aiot_at_api.h"
 #include <stdio.h>
 
@@ -114,3 +116,6 @@ at_device_t ecxxx_at_cmd_ssl = {
     .recv = &at_recv,
     .error_prefix = "ERROR",
 };
+
+#endif
+

@@ -121,7 +121,7 @@ const all_para_t DFLT_PARA={
                         
                         .smpPoints    = 10000,
                         .smpInterval  = 1000000,
-                        .smpTimes     = 1,
+                        .smpTimes     = 200,
                         
                         .trigEvType     = 1,
                         .trigThreshold  = 60.0f,

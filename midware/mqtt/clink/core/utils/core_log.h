@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_LOG_H_
 #define _CORE_LOG_H_
 
@@ -37,3 +39,4 @@ void _core_log_append_date(aiot_sysdep_portfile_t *sysdep, uint64_t timestamp, c
 
 #endif
 
+#endif

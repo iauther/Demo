@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_MQTT_H_
 #define _CORE_MQTT_H_
 
@@ -379,3 +381,4 @@ int32_t _read_variable(uint8_t *input, uint32_t *output);
 
 #endif
 
+#endif

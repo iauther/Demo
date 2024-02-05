@@ -194,6 +194,7 @@ static int period_proc(raw_data_t *raw, ch_para_t *para)
         pch->time = raw->time;
         pch->smpFreq = para->smpFreq;
         pch->wavlen = real_len;
+        pch->evlen  = 0;
         memcpy(pch->data, real_data, pch->wavlen);      //拷贝wav数据
         
         if(para->n_ev>0) {
@@ -220,7 +221,7 @@ static int period_proc(raw_data_t *raw, ch_para_t *para)
             ev_data_t *pev2 = (ev_data_t*)((U8*)pch->data+pch->wavlen);
             memcpy(pev2, pev, pch->evlen);  //在wav数据后面追加ev_data_t数据
         }
-        
+
         tlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
     }
     else { //如果计算ev的数据个数比较多，大于一次采集的数据, 则进行缓存后再计算

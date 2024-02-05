@@ -11,6 +11,7 @@
  * 3. 支持多条数据链路同时收发的情况
  * 4. 用户应根据应用的实际数据吞吐量合理配置ringbuf大小, ringbuf写入溢出会导致报文不完整, 设备会重新建连
  */
+ #if (MQTT_LIB==1)
 
 #include "core_stdinc.h"
 #include "core_string.h"
@@ -26,74 +27,26 @@
 
 extern aiot_os_al_t  *os_api;
 extern const char *ali_ca_cert;
-static stat_info_t statInfo;
+stat_info_t stat_info;
 static core_at_handle_t at_handle = {
     .is_init = 0,
 };
 
-static char *find_chr(char *s, char c, int idx)
-{
-    int i=0;
-    char *p=s;
-    
-    while(*p) {
-        if(*p==c) {
-            i++;
-            if(i==idx) {
-                return p+1;
-            }
-        }
-        p++;
-    }
-    
-    return NULL;
-}
-static at_rsp_result_t at_stat_handler(char *rsp)
-{
-    at_rsp_result_t r = AT_RSP_WAITING;
-    int rssi = 0, ber = 0;
-    int rsrp = 0, snr = 0;
-    char *line = NULL;
-    stat_info_t *si=&statInfo;
-    
-    line = strstr(rsp, "+CSQ");
-    if(line && sscanf(line, "+CSQ: %d,%d", &rssi, &ber)==2) {
-        if(rssi==99 || rssi==199) {
-            si->rssi = -1;
-        }
-        else if(rssi>=0 && rssi<99){
-            si->rssi = -113+rssi*2;
-        }
-        else if(rssi>=100 && rssi<199){
-            si->rssi = -116+(rssi-100);
-        }
-        si->ber  = (ber==99)?-1:ber;
-        r = AT_RSP_SUCCESS;
-    }
-    else {
-        line = strstr(rsp, "+QENG");
-        if(line) {
-            char *s = find_chr(line, ',', 13);
-            if(s && sscanf(s, "%d,%*d,%*d,%d,%*d", &rsrp, &snr)==2) {
-                si->rsrp = rsrp;
-                si->snr  = snr;
-                    
-                r = AT_RSP_SUCCESS;
-            }
-            else {
-                r =  AT_RSP_FAILED;
-            }
-        }
-    }
-
-    return r;
-}
-
-
+/*
+https://acuity.blog.csdn.net/article/details/104982950?spm=1001.2101.3001.6650.3&utm_medium=\
+distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-3-104982950-blog-122999262.\
+235%5Ev43%5Epc_blog_bottom_relevance_base3&depth_1-utm_source=distribute.pc_relevant.none-task-\
+blog-2%7Edefault%7ECTRLIST%7ERate-3-104982950-blog-122999262.235%5Ev43%5Epc_blog_bottom_relevanc\
+e_base3&utm_relevant_index=6
+测试串口链路—>关闭回显—>查询模组名称—>获取IEME号—>
+检测SIM卡—>查询信号强度—>设置网络着附—>查询网络着附—>
+查询运营商—>设置APN—>查询本地IP—>IEME认证—>建立连接—>
+open socket—>数据发送/接收—>close socket
+*/
 
 /*模组初始化命令集*/
 core_at_cmd_item_t at_module_init_cmd_table[] = {
-#if 0
+#if 1
     {   /* UART通道测试 */
         .cmd = "AT\r\n",
         .rsp = "OK",
@@ -103,7 +56,7 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
         .cmd = "ATE0\r\n",
         .rsp = "OK",
     },
-    
+
 #if 0
     {   /* 获取模组型号 */
         .cmd = "ATI\r\n",
@@ -127,30 +80,9 @@ core_at_cmd_item_t at_module_init_cmd_table[] = {
         .cmd = "AT+CIMI\r\n",
         .rsp = "OK",
     },
-    {   /* 检查信号强度 */
-        .cmd = "AT+CSQ\r\n",
-        .rsp = "OK",
-        .handler = at_csq_handler,
-    },
 #endif
 };
-
-
-core_at_cmd_item_t at_stat_cmd_table[] = {
-    {
-        .cmd = "AT+CSQ\r\n",
-        .rsp = "OK",
-        .handler = at_stat_handler,
-    }, 
-    
-    {
-        .cmd = "AT+QENG=\"servingcell\"\r\n",
-        .rsp = "OK",
-        .handler = at_stat_handler,
-    }, 
-};
-
-    
+   
     
 /*** ringbuf start ***/
 int32_t core_ringbuf_init(core_ringbuf_t *rbuf, uint32_t size)
@@ -356,14 +288,14 @@ static int32_t core_at_commands_send_sync(const core_at_cmd_item_t *cmd_list, ui
             break;
         }
         
-        //LOGD("___ wait %s resp\n", cmd_list[i].cmd);
+        //LOGD("___ wait %s rsp\n", cmd_list[i].cmd);
         res = core_at_wait_resp(at_handle.cmd_content);
         if (res < 0) {
             if (--retry_cnt > 0) {
                 i--;
                 continue;
             } else {
-                printf("___ wait %s resp timeout\n", cmd_list[i].cmd);
+                LOGE("___ wait %s rsp timeout\n", cmd_list[i].cmd);
                 break;
             }
         }
@@ -384,7 +316,7 @@ int32_t aiot_at_init(void)
     int32_t res = STATE_SUCCESS;
 
     if (at_handle.is_init != 0) {
-        return STATE_AT_ALREADY_INITED;
+        return STATE_SUCCESS;
     }
 
     memset(&at_handle, 0, sizeof(core_at_handle_t));
@@ -422,22 +354,25 @@ static int32_t core_at_set_device(at_device_t *device)
             at_handle.device->ip_init_cmd[i].cmd_len = strlen(at_handle.device->ip_init_cmd[i].cmd);
         }
     }
-
-    if(device->stat_cmd == NULL) {
-        at_handle.device->stat_cmd = at_stat_cmd_table;
-        at_handle.device->stat_cmd_size = sizeof(at_stat_cmd_table) / sizeof(core_at_cmd_item_t);
-    }
-    for(i = 0; i < at_handle.device->stat_cmd_size; i++) {
-        if(at_handle.device->stat_cmd[i].cmd != NULL) {
-            at_handle.device->stat_cmd[i].cmd_len = strlen(at_handle.device->stat_cmd[i].cmd);
-        }
-    }
     
     for(i = 0; i < at_handle.device->open_cmd_size; i++) {
         if(at_handle.device->open_cmd[i].cmd != NULL) {
             at_handle.device->open_cmd[i].cmd_len = strlen(at_handle.device->open_cmd[i].cmd);
         }
     }
+    
+    for(i = 0; i < at_handle.device->stat_cmd_size; i++) {
+        if(at_handle.device->stat_cmd[i].cmd != NULL) {
+            at_handle.device->stat_cmd[i].cmd_len = strlen(at_handle.device->stat_cmd[i].cmd);
+        }
+    }
+    
+    for(i = 0; i < at_handle.device->pwr_cmd_size; i++) {
+        if(at_handle.device->pwr_cmd[i].cmd != NULL) {
+            at_handle.device->pwr_cmd[i].cmd_len = strlen(at_handle.device->pwr_cmd[i].cmd);
+        }
+    }
+    
     for(i = 0; i < at_handle.device->send_cmd_size; i++) {
         if(at_handle.device->send_cmd[i].cmd != NULL) {
             at_handle.device->send_cmd[i].cmd_len = strlen(at_handle.device->send_cmd[i].cmd);
@@ -531,13 +466,28 @@ int32_t aiot_at_stat(stat_info_t *si)
     }
     
     if(si) {
-        *si = statInfo;
+        *si = stat_info;
     }
 
     return res;
 }
 
 
+int32_t aiot_at_is_poweron(void)
+{
+    int32_t res = STATE_SUCCESS;
+    if (at_handle.is_init != 1) {
+        return 0;
+    }
+    
+    res = core_at_commands_send_sync(&at_handle.device->pwr_cmd[0], 1);
+    if(STATE_SUCCESS != res) {
+        LOGE("___ aiot_at_is_poweron failed\n");
+        return 0;
+    }
+
+    return 1;
+}
 
 
 
@@ -586,7 +536,6 @@ int32_t aiot_at_set_ssl(uint8_t socket_id, const char *ca_cert)
         }
     }
 
-    printf("___ aiot_at_set_ssl\n");
     res = core_at_commands_send_sync(at_handle.device->ssl_cmd, at_handle.device->ssl_cmd_size);
     if (res == STATE_SUCCESS) {
         at_handle.fd[socket_id].link_status = CORE_AT_LINK_CONN;
@@ -620,7 +569,6 @@ int32_t aiot_at_nwk_connect(uint8_t socket_id, const char *host, uint16_t port, 
     at_handle.device->open_cmd[0].cmd = conn_cmd_open;
     at_handle.device->open_cmd[0].cmd_len = strlen(conn_cmd_open);
     
-    printf("___ aiot_at_nwk_connect\n");
     /* send tcp setup command */
     res = core_at_commands_send_sync(at_handle.device->open_cmd, at_handle.device->open_cmd_size);
     if (res == STATE_SUCCESS) {
@@ -949,3 +897,6 @@ int32_t core_at_socket_status(uint32_t id, core_at_link_status_t status)
     at_handle.fd[id - AT_SOCKET_ID_START].link_status = status;
     return STATE_SUCCESS;
 }
+#endif
+
+

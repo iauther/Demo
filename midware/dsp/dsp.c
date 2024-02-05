@@ -2,6 +2,8 @@
 #include "dsp.h"
 #include "log.h"
 #include "protocol.h"
+#include "arm_math.h"
+#include "arm_const_structs.h"
 
 static int ev_ave_calc(F32 *data, int cnt, F32 *ev)
 {
@@ -129,28 +131,59 @@ int dsp_ev_calc(U8 tp, F32 *data, int cnt, F32 *ev)
 
 
 
-static void fl_fir_calc(F32 *data, int cnt)
+static void fl_fir_calc(F32 *data, int cnt, U32 sfreq)
 {
+    //arm_fir_init_f32();
+    //arm_fir_f32
     
 }
-static void fl_iir_calc(F32 *data, int cnt)
+static void fl_iir_calc(F32 *data, int cnt, U32 sfreq)
 {
-    
+    //arm_iir_f32();
+    //arm_iir_f32_process();
 }
-static void fl_fft_calc(F32 *data, int cnt)
+static void fl_fft_calc(F32 *data, int cnt, U32 sfreq)
 {
+    int i;
+    U32 idx;
+    F32 max,freq ;// 用于存放计算结果的频率变量
+    int xcnt=4096;//cnt;
+    int fftlen=xcnt*2*sizeof(F32);
+    F32 *pout=malloc(fftlen);
+    arm_status r;
     
+    if(!pout) {
+        return;
+    }
+
+#if 1
+    arm_rfft_fast_instance_f32 h;
+    
+    r = arm_rfft_fast_init_f32(&h, xcnt);
+    arm_rfft_fast_f32(&h, data, pout, 0);    //FFT正变换
+    arm_max_f32(pout, fftlen, &max, &idx);
+    freq = (F32)idx*sfreq/xcnt;               // 根据最大值的索引计算信号的频率
+#else
+    arm_cfft_radix2_instance_f32 h;
+    
+    arm_cfft_radix2_init_f32(&h, xcnt, 0, 1);
+    arm_cfft_radix2_f32(&h, data);
+    //arm_cfft_f32(&h, data, 0, 1);// 执行 FFT 计算
+    arm_cmplx_mag_f32(data, pout, xcnt);
+#endif
+    
+    free(pout);
 }
-int dsp_fl_calc(U8 tp, F32 *data, int cnt)
+int dsp_fl_calc(U8 tp, F32 *data, int cnt, U32 sfreq)
 {
     if(tp>=FL_NUM || !data || !cnt) {
         return -1;
     }
     
     switch(tp) {
-        case FL_FIR: fl_fir_calc(data, cnt); break;
-        case FL_IIR: fl_iir_calc(data, cnt); break;
-        case FL_FFT: fl_fft_calc(data, cnt); break;
+        case FL_FIR: fl_fir_calc(data, cnt, sfreq); break;
+        case FL_IIR: fl_iir_calc(data, cnt, sfreq); break;
+        case FL_FFT: fl_fft_calc(data, cnt, sfreq); break;
         default: return -1;
     }
     

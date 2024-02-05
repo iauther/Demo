@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2020 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #include "dm_private.h"
 
@@ -836,4 +837,4 @@ int32_t aiot_dm_deinit(void **p_handle)
     core_global_deinit(sysdep);
     return STATE_SUCCESS;
 }
-
+#endif

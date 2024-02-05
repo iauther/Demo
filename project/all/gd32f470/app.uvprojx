@@ -337,9 +337,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress=111,177,550</MiscControls>
-              <Define>OS_KERNEL=1</Define>
+              <Define>OS_KERNEL=1,MQTT_LIB=1,ARM_MATH_CM4</Define>
               <Undefine></Undefine>
-              <IncludePath>./user;./user/task;../../../device;../../../system;../../../system/net;../../../system/net/protocols/mqtt;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/ota;../../../midware/mqtt/clink/components/data-model;../../../midware/mqtt/clink/external/mbedtls/include;../../../midware/mqtt/clink/portfiles/aiot_port;../../../midware/mqtt/clink/portfiles/aiot_port/platform;../../../midware/mqtt/clink/portfiles/aiot_port/at;../../../midware/jpatch</IncludePath>
+              <IncludePath>./user;./user/task;../../../device;../../../system;../../../system/net;../../../system/net/protocols/mqtt;../../../platform/chip/gd/gd32f4xx/dal;../../../platform/chip/gd/gd32f4xx/inc;../../../platform/os;../../../platform/core/inc;../../../midware/modbus;../../../midware/ini;../../../midware/json;../../../midware/mem;../../../midware/fs/fatfs;../../../midware/fs/yaffs2;../../../midware/dsp;../../../midware/utils;../../../midware/mqtt;../../../midware/mqtt/clink/core;../../../midware/mqtt/clink/core/utils;../../../midware/mqtt/clink/core/sysdep;../../../midware/mqtt/clink/components/ntp;../../../midware/mqtt/clink/components/ota;../../../midware/mqtt/clink/components/data-model;../../../midware/mqtt/clink/portfiles/aiot_port;../../../midware/mqtt/clink/portfiles/aiot_port/platform;../../../midware/mqtt/clink/portfiles/aiot_port/at;../../../midware//mbedtls/include;../../../midware/jpatch</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -402,6 +402,11 @@
               <FileName>platform.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\user\platform.h</FilePath>
+            </File>
+            <File>
+              <FileName>RTX_Config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\user\task\RTX_Config.h</FilePath>
             </File>
             <File>
               <FileName>gd32f4xx_libopt.h</FileName>
@@ -1198,6 +1203,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\dsp\dsp.c</FilePath>
             </File>
+            <File>
+              <FileName>arm_cortexM4lf_math.lib</FileName>
+              <FileType>4</FileType>
+              <FilePath>..\..\..\midware\dsp\arm_cortexM4lf_math.lib</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1231,7 +1241,102 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>midware/clink</GroupName>
+          <GroupName>midware/mqtt/mc</GroupName>
+          <Files>
+            <File>
+              <FileName>mqtt_list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\common\mqtt_list.c</FilePath>
+            </File>
+            <File>
+              <FileName>random.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\common\random.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTConnectClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\mqtt\MQTTConnectClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTDeserializePublish.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\mqtt\MQTTDeserializePublish.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTFormat.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\mqtt\MQTTFormat.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTPacket.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\mqtt\MQTTPacket.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTSerializePublish.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\mqtt\MQTTSerializePublish.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTSubscribeClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\mqtt\MQTTSubscribeClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTUnsubscribeClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\mqtt\MQTTUnsubscribeClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>mqttclient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\mqttclient\mqttclient.c</FilePath>
+            </File>
+            <File>
+              <FileName>nettype_tcp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\network\nettype_tcp.c</FilePath>
+            </File>
+            <File>
+              <FileName>nettype_tls.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\network\nettype_tls.c</FilePath>
+            </File>
+            <File>
+              <FileName>network.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\network\network.c</FilePath>
+            </File>
+            <File>
+              <FileName>platform_memory.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\platform\rtx\platform_memory.c</FilePath>
+            </File>
+            <File>
+              <FileName>platform_mutex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\platform\rtx\platform_mutex.c</FilePath>
+            </File>
+            <File>
+              <FileName>platform_net_socket.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\platform\rtx\platform_net_socket.c</FilePath>
+            </File>
+            <File>
+              <FileName>platform_thread.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\platform\rtx\platform_thread.c</FilePath>
+            </File>
+            <File>
+              <FileName>platform_timer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\mc\platform\rtx\platform_timer.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>midware/mqtt/clink</GroupName>
           <Files>
             <File>
               <FileName>core_auth.c</FileName>
@@ -1324,11 +1429,6 @@
               <FilePath>..\..\..\midware\mqtt\clink\portfiles\aiot_port\at_port.c</FilePath>
             </File>
             <File>
-              <FileName>ecxxx_tcp.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\portfiles\aiot_port\at\module\ecxxx_tcp.c</FilePath>
-            </File>
-            <File>
               <FileName>net_at_impl.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\mqtt\clink\portfiles\aiot_port\at\net_at_impl.c</FilePath>
@@ -1353,6 +1453,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\midware\mqtt\clink\components\ota\aiot_mqtt_download_api.c</FilePath>
             </File>
+            <File>
+              <FileName>ecxxx_tcp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\portfiles\aiot_port\at\module\ecxxx_tcp.c</FilePath>
+            </File>
+            <File>
+              <FileName>air724_tcp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\midware\mqtt\clink\portfiles\aiot_port\at\module\air724_tcp.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1361,152 +1471,152 @@
             <File>
               <FileName>aes.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\aes.c</FilePath>
+              <FilePath>..\..\..\midware\\mbedtls\library\aes.c</FilePath>
             </File>
             <File>
               <FileName>asn1parse.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\asn1parse.c</FilePath>
+              <FilePath>..\..\..\midware\\mbedtls\library\asn1parse.c</FilePath>
             </File>
             <File>
               <FileName>base64.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\base64.c</FilePath>
+              <FilePath>..\..\..\midware\\mbedtls\library\base64.c</FilePath>
             </File>
             <File>
               <FileName>bignum.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\bignum.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\bignum.c</FilePath>
             </File>
             <File>
               <FileName>cipher.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\cipher.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\cipher.c</FilePath>
             </File>
             <File>
               <FileName>cipher_wrap.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\cipher_wrap.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\cipher_wrap.c</FilePath>
             </File>
             <File>
               <FileName>ctr_drbg.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\ctr_drbg.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\ctr_drbg.c</FilePath>
             </File>
             <File>
               <FileName>debug.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\debug.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\debug.c</FilePath>
             </File>
             <File>
               <FileName>entropy.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\entropy.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\entropy.c</FilePath>
             </File>
             <File>
               <FileName>error.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\error.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\error.c</FilePath>
             </File>
             <File>
               <FileName>md.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\md.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\md.c</FilePath>
             </File>
             <File>
               <FileName>md_wrap.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\md_wrap.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\md_wrap.c</FilePath>
             </File>
             <File>
               <FileName>oid.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\oid.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\oid.c</FilePath>
             </File>
             <File>
               <FileName>pem.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\pem.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\pem.c</FilePath>
             </File>
             <File>
               <FileName>pk.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\pk.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\pk.c</FilePath>
             </File>
             <File>
               <FileName>pk_wrap.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\pk_wrap.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\pk_wrap.c</FilePath>
             </File>
             <File>
               <FileName>pkparse.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\pkparse.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\pkparse.c</FilePath>
             </File>
             <File>
               <FileName>platform.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\platform.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\platform.c</FilePath>
             </File>
             <File>
               <FileName>platform_util.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\platform_util.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\platform_util.c</FilePath>
             </File>
             <File>
               <FileName>rsa.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\rsa.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\rsa.c</FilePath>
             </File>
             <File>
               <FileName>rsa_internal.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\rsa_internal.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\rsa_internal.c</FilePath>
             </File>
             <File>
               <FileName>sha1.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\sha1.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\sha1.c</FilePath>
             </File>
             <File>
               <FileName>sha256.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\sha256.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\sha256.c</FilePath>
             </File>
             <File>
               <FileName>ssl_ciphersuites.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\ssl_ciphersuites.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\ssl_ciphersuites.c</FilePath>
             </File>
             <File>
               <FileName>ssl_cli.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\ssl_cli.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\ssl_cli.c</FilePath>
             </File>
             <File>
               <FileName>ssl_cookie.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\ssl_cookie.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\ssl_cookie.c</FilePath>
             </File>
             <File>
               <FileName>ssl_tls.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\ssl_tls.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\ssl_tls.c</FilePath>
             </File>
             <File>
               <FileName>x509.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\x509.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\x509.c</FilePath>
             </File>
             <File>
               <FileName>x509_crt.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\x509_crt.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\x509_crt.c</FilePath>
             </File>
             <File>
               <FileName>sha512.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\midware\mqtt\clink\external\mbedtls\library\sha512.c</FilePath>
+              <FilePath>..\..\..\midware\mbedtls\library\sha512.c</FilePath>
             </File>
           </Files>
         </Group>

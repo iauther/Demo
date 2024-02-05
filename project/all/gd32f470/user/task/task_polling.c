@@ -100,8 +100,8 @@ static void task_conn_fn(void *arg)
     memset(&connHandle, 0, sizeof(connHandle));
     while(1) {
         
-        if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
-        //if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM) {
+        //if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
+        if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM) {
             connHandle.conn = CONN_BUSYING;
             
             LOGD("___ api_comm_connect\n");
@@ -398,23 +398,16 @@ void task_polling_fn(void *arg)
     U8  err;
     evt_t e;
     handle_t htmr;
-    dal_gpio_cfg_t gc;
     task_handle_t *h=(task_handle_t*)arg;
     
-    gc.gpio.grp = GPIOA;
-    gc.gpio.pin = GPIO_PIN_0;
-    gc.mode = MODE_OUT_PP;
-    gc.pull = PULL_NONE;
-    gc.hl = 0;;
-    
     LOGD("_____ task_polling running\n");
+    start_task_simp(task_conn_fn, 4*KB, NULL, NULL);
     
     start_task_simp(task_wdg_fn, 256, NULL, NULL);
     htmr = task_timer_init(polling_tmr_callback, NULL, POLL_TIME, -1);
     if(htmr) {
         task_timer_start(htmr);
     }
-    start_task_simp(task_conn_fn, 4*KB, NULL, NULL);
     
     while(1) {
         r = task_recv(TASK_POLLING, &e, sizeof(e));
@@ -423,8 +416,8 @@ void task_polling_fn(void *arg)
                 
                 case EVT_TIMER:
                 {
-                    stat_polling();
-                    pwroff_polling();
+                    //stat_polling();
+                    //pwroff_polling();
                 }
                 break;
                 

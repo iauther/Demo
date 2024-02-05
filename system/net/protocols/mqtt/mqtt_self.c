@@ -26,17 +26,29 @@ static handle_t mqtt_self_conn(conn_para_t *para, void *userdata)
 }
 
 
-static int mqtt_self_disconn(handle_t h)
+static int mqtt_self_disconn(handle_t hconn)
 {
     int r;
     
-    if(!h) {
+    if(!hconn) {
         return -1;
     }
     
     return 0;
 }
 
+
+static int mqtt_self_reconn(handle_t hconn)
+{
+    int r;
+    
+    if(!hconn) {
+        return -1;
+    }
+    
+    
+    return r;
+}
 
 
 static int mqtt_self_sub(handle_t hconn, void *para)
@@ -82,12 +94,6 @@ static int mqtt_self_req(handle_t hconn)
 
 
 
-static int mqtt_self_ntp_synced(void)
-{
-    return 0;
-}
-
-
 
 mqtt_fn_t mqtt_self_fn={
     mqtt_self_init,
@@ -95,9 +101,9 @@ mqtt_fn_t mqtt_self_fn={
     
     mqtt_self_conn,
     mqtt_self_disconn,
+    mqtt_self_reconn,
     mqtt_self_sub,
     mqtt_self_pub,
     mqtt_self_req,
-    mqtt_self_ntp_synced,
 };
 

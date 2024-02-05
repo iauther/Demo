@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_STDINC_H_
 #define _CORE_STDINC_H_
 
@@ -14,3 +16,4 @@ extern "C" {
 
 #endif
 
+#endif

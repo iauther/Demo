@@ -56,12 +56,12 @@ typedef struct {
     
     U32         totalen;
     U32         downlen;
+    
+    flags_t     flags;
+    U32         ntime;
 }mqtt_handle_t;
 
 #ifdef OS_KERNEL
-
-static flags_t mqttFlag={0};
-static U32 ntp_time=0;
 
 extern const char* ali_ca_cert;
 static U8 proc_thread_running=0;
@@ -81,24 +81,15 @@ static int32_t ali_state_logcb(int32_t code, char *message)
     return 0;
 }
 
-static int set_userdata(mqtt_handle_t *h)
-{    
-    aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_USERDATA, h->userdata);
-    aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_USERDATA, h->userdata);
-    aiot_dm_setopt(h->hmq, AIOT_DMOPT_USERDATA, h->userdata);
-    
-    return 0;
-}
-
-
 /* MQTT事件回调函数, 当网络连接/重连/断开时被触发, 事件定义见core/aiot_mqtt_api.h */
 static void mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void *userdata)
 {
+    mqtt_handle_t *h=(mqtt_handle_t*)userdata;
     switch (event->type) {
         /* SDK因为用户调用了aiot_mqtt_connect()接口, 与mqtt服务器建立连接已成功 */
         case AIOT_MQTTEVT_CONNECT: {
             LOGD("AIOT_MQTTEVT_CONNECT\n");
-            mqttFlag.conn = 1;
+            h->flags.conn = 1;
             
             /* TODO: 处理SDK建连成功, 不可以在这里调用耗时较长的阻塞函数 */
         }
@@ -107,7 +98,7 @@ static void mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, voi
         /* SDK因为网络状况被动断连后, 自动发起重连已成功 */
         case AIOT_MQTTEVT_RECONNECT: {
             LOGD("AIOT_MQTTEVT_RECONNECT\n");
-            mqttFlag.conn = 2;
+            h->flags.conn = 2;
             /* TODO: 处理SDK重连成功, 不可以在这里调用耗时较长的阻塞函数 */
         }
         break;
@@ -117,7 +108,7 @@ static void mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, voi
             char *cause = (event->data.disconnect == AIOT_MQTTDISCONNEVT_NETWORK_DISCONNECT) ? ("network disconnect") :
                           ("heartbeat disconnect");
             LOGD("AIOT_MQTTEVT_DISCONNECT: %s\n", cause);
-            mqttFlag.conn = 0;
+            h->flags.conn = -1;
             /* TODO: 处理SDK被动断连, 不可以在这里调用耗时较长的阻塞函数 */
         }
         break;
@@ -248,6 +239,8 @@ static void ntp_event_handler(void *handle, const aiot_ntp_event_t *event, void 
 }
 static void ntp_recv_handler(void *handle, const aiot_ntp_recv_t *packet, void *userdata)
 {
+    mqtt_handle_t *h=(mqtt_handle_t*)userdata;
+        
     switch (packet->type) {
         /* TODO: 结构体 aiot_ntp_recv_t{} 中包含当前时区下, 年月日时分秒的数值, 可在这里把它们解析储存起来 */
         case AIOT_NTPRECV_LOCAL_TIME: {
@@ -255,7 +248,7 @@ static void ntp_recv_handler(void *handle, const aiot_ntp_recv_t *packet, void *
             {
                 datetime_t dt;
                 
-                mqttFlag.ntp = 1;
+                h->flags.ntp = 1;
                 LOGD("___ ntp data recved!\n");
                 
                 dt.date.year = packet->data.local_time.year;
@@ -275,8 +268,7 @@ static void ntp_recv_handler(void *handle, const aiot_ntp_recv_t *packet, void *
                                                         packet->data.local_time.sec);
                 
                 rtc2_set_time(&dt);
-                
-                ntp_time = rtc2_get_timestamp_s();
+                h->ntime = rtc2_get_timestamp_s();
             }       
         }
         break;
@@ -519,6 +511,7 @@ static void ota_recv_handler(void *ota_handle, aiot_ota_recv_t *ota_msg, void *u
 {
     int r;
     mqtt_handle_t *h=(mqtt_handle_t*)userdata;
+    conn_handle_t *conn=(conn_handle_t*)h->userdata;
     int ota_size[2]={1*MB,64*KB};
     static ota_data_t ota_data[2]={{{NULL,0,0},-1},{{NULL,0,0},-1}},*ota;
     
@@ -622,6 +615,8 @@ static int mqtt_dm_init(mqtt_handle_t *h)
         LOGE("aiot_dm_init failed\n");
         return -1;
     }
+    
+    aiot_dm_setopt(h->hdm, AIOT_DMOPT_USERDATA,  h);
     aiot_dm_setopt(h->hdm, AIOT_DMOPT_MQTT_HANDLE, h->hmq);
     aiot_dm_setopt(h->hdm, AIOT_DMOPT_RECV_HANDLER, (void *)dm_recv_handler);
     
@@ -641,35 +636,13 @@ static int mqtt_ntp_init(mqtt_handle_t *h)
         LOGE("aiot_ntp_init failed\n");
         return -1;
     }
-
-    res = aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_MQTT_HANDLE, h->hmq);
-    if (res < STATE_SUCCESS) {
-        LOGE("aiot_ntp_setopt AIOT_NTPOPT_MQTT_HANDLE failed, res: -0x%04X\n", -res);
-        aiot_ntp_deinit(&h->hntp);
-        return -1;
-    }
-
-    res = aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_TIME_ZONE, (int8_t *)&time_zone);
-    if (res < STATE_SUCCESS) {
-        LOGE("aiot_ntp_setopt AIOT_NTPOPT_TIME_ZONE failed, res: -0x%04X\n", -res);
-        aiot_ntp_deinit(&h->hntp);
-        return -1;
-    }
-
-    /* TODO: NTP消息回应从云端到达设备时, 会进入此处设置的回调函数 */
-    res = aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_RECV_HANDLER, (void *)ntp_recv_handler);
-    if (res < STATE_SUCCESS) {
-        LOGE("aiot_ntp_setopt AIOT_NTPOPT_RECV_HANDLER failed, res: -0x%04X\n", -res);
-        aiot_ntp_deinit(&h->hntp);
-        return -1;
-    }
-
-    res = aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_EVENT_HANDLER, (void *)ntp_event_handler);
-    if (res < STATE_SUCCESS) {
-        LOGE("aiot_ntp_setopt AIOT_NTPOPT_EVENT_HANDLER failed, res: -0x%04X\n", -res);
-        aiot_ntp_deinit(&h->hntp);
-        return -1;
-    }
+    
+    aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_USERDATA, h);
+    aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_MQTT_HANDLE, h->hmq);
+    aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_TIME_ZONE, (int8_t *)&time_zone);
+    
+    aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_RECV_HANDLER, (void *)ntp_recv_handler);
+    aiot_ntp_setopt(h->hntp, AIOT_NTPOPT_EVENT_HANDLER, (void *)ntp_event_handler);
 #endif
     
     return 0;
@@ -680,11 +653,10 @@ static void mqtt_ota_init(mqtt_handle_t *h)
     if (h->hota==NULL) {
         return;
     }
-
+    
+    aiot_ota_setopt(h->hota, AIOT_OTAOPT_USERDATA, h);
     aiot_ota_setopt(h->hota, AIOT_OTAOPT_MQTT_HANDLE, h->hmq);
     aiot_ota_setopt(h->hota, AIOT_OTAOPT_RECV_HANDLER, ota_recv_handler);
-    aiot_ota_setopt(h->hota, AIOT_OTAOPT_USERDATA, h);
-    
 }
 
 static void start_thread(void *p)
@@ -725,19 +697,19 @@ static void mqtt_proc_thread(void *arg)
             break;
         }
         
-        if(mqttFlag.ntp) {
+        if(h->flags.ntp) {
             period = 3600;
         }
         else {
             period = 2;
         }
         
-        interval = rtc2_get_timestamp_s()-ntp_time;
+        interval = rtc2_get_timestamp_s()-h->ntime;
         if(interval>=period) {
             r = aiot_ntp_send_request(h->hntp);
             
             //LOGD("___ ntp_request: %d, ntpflag: %d, interval: %d, period: %d\n", r, mqttFlag.ntp, interval, period);
-            ntp_time = rtc2_get_timestamp_s();
+            h->ntime = rtc2_get_timestamp_s();
         }
         
         osDelay(1);
@@ -793,7 +765,8 @@ static int mqtt_ali_deinit(void)
 
 static void mqtt_recv_handler(void *handle, const aiot_mqtt_recv_t *packet, void *userdata)
 {
-    conn_handle_t *conn=(conn_handle_t*)userdata;
+    mqtt_handle_t *h=(mqtt_handle_t*)userdata;
+    conn_handle_t *conn=(conn_handle_t*)h->userdata;
     
     switch (packet->type) {
 
@@ -837,6 +810,7 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
         cred.x509_server_cert = ali_ca_cert;                 /* 用来验证MQTT服务端的RSA根证书 */
         cred.x509_server_cert_len = strlen(ali_ca_cert);     /* 用来验证MQTT服务端的RSA根证书长度 */ 
         
+        aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_USERDATA, h);
         aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_HOST, (void *)plat->host);
         aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_PORT, (void *)&plat->port);
         aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_PRODUCT_KEY, (void *)plat->prdKey);
@@ -852,6 +826,7 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
         mqtt_ota_init(h);
         
         r = aiot_mqtt_connect(h->hmq);
+        //r = aiot_mqtt_connect_v5(h->hmq, NULL, NULL);
         if(r) {
             aiot_dm_deinit(&h->hdm);
             aiot_ntp_deinit(&h->hntp);
@@ -860,10 +835,9 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
             free(h);
             return NULL;
         }
-        set_userdata(h);
         aiot_ota_report_version(h->hota, FW_VERSION);
         
-        //dal_delay_ms(500);
+        dal_delay_ms(100);
         mqtt_ali_sub(h, NULL);
         mqtt_ali_req(h);
         
@@ -873,31 +847,45 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
     return h;
 }
 
-
-static int mqtt_ali_disconn(handle_t h)
+static int mqtt_ali_reconn(handle_t hconn)
 {
     int r;
-    mqtt_handle_t *mh=(mqtt_handle_t*)h;
+    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
     
-    if(!mh) {
+    if(!h) {
         return -1;
     }
     
-    aiot_mqtt_disconnect(mh->hmq);
-    r = aiot_mqtt_deinit(&mh->hmq);
+    aiot_mqtt_disconnect(h->hmq);
+    r = aiot_mqtt_connect(h->hmq);
+    
+    return r;
+}
+
+
+static int mqtt_ali_disconn(handle_t hconn)
+{
+    int r;
+    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
+    
+    if(!h) {
+        return -1;
+    }
+    
+    aiot_mqtt_disconnect(h->hmq);
+    r = aiot_mqtt_deinit(&h->hmq);
     if (r < STATE_SUCCESS) {
         LOGE("aiot_mqtt_deinit failed: -0x%04X\n", -r);
         return -1;
     }
     
-    aiot_dm_deinit(&mh->hdm);
+    aiot_dm_deinit(&h->hdm);
     
 #ifdef USE_NTP
-    aiot_ntp_deinit(&mh->hntp);
+    aiot_ntp_deinit(&h->hntp);
 #endif
     
     stop_thread();
-    
     
     return 0;
 }
@@ -932,8 +920,17 @@ static int mqtt_ali_pub(handle_t hconn, void *para, void *data, int len)
     plat_para_t *plat=&conn->para.para->para.plat;
     mqtt_pub_para_t *pp=(mqtt_pub_para_t*)para;
 
-    if(!h || !para || !data || !len || !mqttFlag.conn) {
+    if(!h || !para || !data || !len || !h->flags.conn) {
         return -1;
+    }
+    
+    if(h->flags.conn==-1) {
+        LOGD("___ mqtt reconn\n");
+        r = mqtt_ali_reconn(hconn);
+        if(r) {
+            LOGE("___ mqtt reconn failed, %d\n", r);
+            return r;
+        }
     }
     
     if(pp->tp==DATA_LT) {
@@ -972,7 +969,7 @@ static int mqtt_ali_req(handle_t hconn)
     
     sprintf(tmp, "/sys/%s/%s/thing/config/get", plat->prdKey, plat->devKey);
     sprintf(payload, request1, allPara.sys.devInfo.devID);
-    //r = aiot_mqtt_pub(h->hmq, tmp, (U8*)payload, strlen(payload), 0);
+    r = aiot_mqtt_pub(h->hmq, tmp, (U8*)payload, strlen(payload), 0);
     
     sprintf(tmp, "/sys/%s/%s/thing/ota/firmware/get", plat->prdKey, plat->devKey);
     sprintf(payload, request2, allPara.sys.devInfo.devID);
@@ -982,11 +979,6 @@ static int mqtt_ali_req(handle_t hconn)
 }
 
 
-static int mqtt_ali_ntp_synced(void)
-{
-    return mqttFlag.ntp;
-}
-
 
 mqtt_fn_t mqtt_ali_fn={
     mqtt_ali_init,
@@ -994,10 +986,10 @@ mqtt_fn_t mqtt_ali_fn={
     
     mqtt_ali_conn,
     mqtt_ali_disconn,
+    mqtt_ali_reconn,
     mqtt_ali_sub,
     mqtt_ali_pub,
     mqtt_ali_req,
-    mqtt_ali_ntp_synced,
 };
 
 

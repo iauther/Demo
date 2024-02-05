@@ -5,6 +5,7 @@
  * + 网络接口：TCP/UDP的socket适配，请勿在此实现TLS传输，TLS实现已封装在SDK内部。
  * + 系统接口：包含内存管理、随机数、系统时间、互斥锁等功能移植。
  */
+#if (MQTT_LIB==1)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -287,4 +288,5 @@ aiot_sysdep_portfile_t g_aiot_sysdep_portfile = {
     .core_sysdep_mutex_unlock = core_sysdep_mutex_unlock,
     .core_sysdep_mutex_deinit = core_sysdep_mutex_deinit,
 };
+#endif
 

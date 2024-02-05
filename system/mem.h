@@ -4,15 +4,15 @@
 #include "types.h"
 
 typedef enum {
-    SRAM_FIRST=0,
-    SDRAM_FIRST,
-}STRATEGY;
+    MEM_SRAM=0,
+    MEM_SDRAM,
+}MEM_WHERE;
 
 
 int mem_init(void);
 int mem_deinit(void);
 
-void* mem_malloc(STRATEGY stg, int len, U8 zero);
+void* mem_malloc(MEM_WHERE where, int len, U8 zero);
 int mem_free(void *ptr);
 int mem_test(void);
 
@@ -27,12 +27,12 @@ int mem_test(void);
 #define xFree(x)           free(x)
 #else
 //i means internal sram malloc/calloc first
-#define iMalloc(x)         mem_malloc(SRAM_FIRST,x,0)
-#define iCalloc(x)         mem_malloc(SRAM_FIRST,x,1)
+#define iMalloc(x)         mem_malloc(MEM_SRAM,x,0)
+#define iCalloc(x)         mem_malloc(MEM_SRAM,x,1)
 
 //e means external sdram malloc/calloc first
-#define eMalloc(x)         mem_malloc(SDRAM_FIRST,x,0)
-#define eCalloc(x)         mem_malloc(SDRAM_FIRST,x,1)
+#define eMalloc(x)         mem_malloc(MEM_SDRAM,x,0)
+#define eCalloc(x)         mem_malloc(MEM_SDRAM,x,1)
 
 #define xFree(x)           mem_free(x)
 #endif

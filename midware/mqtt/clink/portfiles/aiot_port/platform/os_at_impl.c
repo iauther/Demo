@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -20,13 +22,12 @@
  * @brief 申请内存
  */
 static void* __malloc(uint32_t size) {
-    
     return MALLOC(size);
 }
 /**
  * @brief 释放内存
  */
-void __free(void *ptr) {    
+void __free(void *ptr) {
     FREE(ptr);
 }
 /**
@@ -111,3 +112,4 @@ aiot_os_al_t  g_aiot_os_api = {
     .mutex_unlock = __mutex_unlock,
     .mutex_deinit = __mutex_deinit,
 };
+#endif

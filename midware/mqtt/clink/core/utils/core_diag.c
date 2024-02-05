@@ -1,3 +1,4 @@
+#if (MQTT_LIB==1)
 #include "core_diag.h"
 
 static void _core_diag_default_callback(void *diag_handle, uint64_t timestamp, int32_t code, uint8_t *data, uint32_t data_len);
@@ -25,3 +26,5 @@ void core_diag(aiot_sysdep_portfile_t *sysdep, int32_t code, uint8_t *data, uint
 {
     g_diag_cb(g_diag_handle, core_log_get_timestamp(sysdep), code, data, data_len);
 }
+#endif
+

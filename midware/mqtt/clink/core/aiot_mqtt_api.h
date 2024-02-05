@@ -30,6 +30,7 @@
  * 6. 经过以上步骤后, MQTT连接已建立并能保持与物联网平台的连接, 接下来按自己的场景用 @ref aiot_mqtt_sub 和 @ref aiot_mqtt_pub 等API实现业务逻辑即可
  *
  */
+#if (MQTT_LIB==1)
 
 #ifndef _AIOT_MQTT_API_H_
 #define _AIOT_MQTT_API_H_
@@ -1060,6 +1061,8 @@ int32_t aiot_mqtt_unsub_v5(void *handle, char *topic, mqtt_properties_t *unsub_p
 
 #if defined(__cplusplus)
 }
+#endif
+
 #endif
 
 #endif

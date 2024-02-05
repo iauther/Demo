@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_AUTH_H_
 #define _CORE_AUTH_H_
 
@@ -22,6 +24,8 @@ int32_t core_auth_http_body(aiot_sysdep_portfile_t *sysdep, char **dest, char *p
 
 #if defined(__cplusplus)
 }
+#endif
+
 #endif
 
 #endif

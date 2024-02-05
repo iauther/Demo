@@ -5,6 +5,8 @@
  * @copyright Copyright (C) 2015-2020 Alibaba Group Holding Limited
  *
  */
+ #if (MQTT_LIB==1)
+ 
 #include <stdio.h>
 #include "aiot_sysdep_api.h"
 #include "aiot_state_api.h"
@@ -733,4 +735,5 @@ mqtt_properties_t *aiot_mqtt_props_copy(mqtt_properties_t *props)
 
     return copy;
 }
+#endif
 

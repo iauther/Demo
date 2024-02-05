@@ -1,3 +1,4 @@
+#if (MQTT_LIB==1)
 
 #ifndef GLOBAL_SIGN_R1
 #define GLOBAL_SIGN_R1                     \
@@ -93,6 +94,8 @@ const char *ali_ca_cert = \
     GLOBAL_SIGN_R6 \
     ALIYUN_IOT_S1 \
 ;
+
+#endif
 
 
 

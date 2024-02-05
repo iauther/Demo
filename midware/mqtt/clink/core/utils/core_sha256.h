@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_SHA256_H_
 #define _CORE_SHA256_H_
 
@@ -81,3 +83,4 @@ void core_hmac_sha256(const uint8_t *msg, uint32_t msg_len, const uint8_t *key, 
 
 #endif
 
+#endif

@@ -42,8 +42,11 @@ static void buf_init(buf_t *b, int len)
         xFree(b->buf);
     }
     
-    b->blen = len;
+    b->blen = len+sizeof(pkt_hdr_t)+32;
     b->buf  = (U8*)eMalloc(b->blen);
+    if(!b->buf) {
+        b->blen = 0;
+    }
     b->dlen = 0;
 }
 

@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #include "core_sha256.h"
 
 #define MINI_SHA256_SMALLER
@@ -306,4 +308,6 @@ void core_hmac_sha256(const uint8_t *msg, uint32_t msg_len, const uint8_t *key, 
     core_sha256_update(&context, output, SHA256_DIGEST_SIZE);     /* then results of 1st hash */
     core_sha256_finish(&context, output);                       /* finish up 2nd pass */
 }
+#endif
+
 

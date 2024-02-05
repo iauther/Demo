@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #include <stdio.h>
 #include <string.h>
 #include "hal_at_impl.h"
@@ -12,8 +14,9 @@
 #include "log.h"
 #include "cfg.h"
 
-
-#define TEMP_BUF_LEN  100
+#define BAUDRATE       (115200*4)
+#define USE_ECXX
+#define TEMP_BUF_LEN    100
 
 
 #ifdef BOARD_V134
@@ -24,16 +27,18 @@
 #define POWER_PIN   GPIO_PIN_1
 #endif
 
-
-
 extern aiot_os_al_t g_aiot_os_api;
 extern aiot_net_al_t g_aiot_net_at_api;
 
 /*AT module*/
+#ifdef USE_ECXX
 extern at_device_t ecxxx_at_cmd;
 extern at_device_t ecxxx_at_cmd_ssl;
 at_device_t *device = &ecxxx_at_cmd;
-//at_device_t *device = &ecxxx_at_cmd_ssl;
+#else
+extern at_device_t air724_at_cmd;
+at_device_t *device = &air724_at_cmd;
+#endif
 
 /*linkkit process tast id*/
 osThreadId_t link_process_id;
@@ -135,7 +140,7 @@ static int is_powered(void)
     char tmp[20];
     int  r,powered=0;
     
-    r = send_cmd("AT+QPOWD=?\r\n", "OK", 50);
+    r = send_cmd("AT\r\n", "OK", 50);
     if(r==0) {
         powered = 1;
     }
@@ -143,7 +148,7 @@ static int is_powered(void)
     
     return powered;
 }
-static int at_power(int on)
+static int set_power(int on)
 {
     int pwred;
     
@@ -166,9 +171,8 @@ static int at_power(int on)
         dal_gpio_set_hl(atHandle.hpwr, 0);
         dal_delay_ms(700);
         dal_gpio_set_hl(atHandle.hpwr, 1);
-        
-        dal_delay_ms(2000);
     }
+    dal_delay_ms(2000);
     
     return 0;
 }
@@ -178,10 +182,9 @@ static int at_power(int on)
 static int32_t at_uart_send(const uint8_t *data, uint16_t len, uint32_t timeout)
 {
     int r;
-    char *p=(char*)data;
-    p[len] = 0;
     
-    //printf("[%d] >>>> %s", len, (char*)data);
+    //printf(">>>>>%d\n", len);
+    //printf("[%d]>> %s", len,(char*)data);
     //printf("at_uart_send: %d\n", len);
     lock_on(atHandle.lck);
     r = dal_uart_write(atHandle.hurt, (U8*)data, len);
@@ -190,31 +193,28 @@ static int32_t at_uart_send(const uint8_t *data, uint16_t len, uint32_t timeout)
     
     return (r==0)?len:0;
 }
-static void at_set_baudrate(void)
-{
-    int  r,br=115200*4;     //过大，则发较长数据会导致超时无回应，过小则耗时太长
-    char tmp[60];
-    
-    sprintf(tmp, "AT+IPR=%d\r\n", br);
-    r = send_cmd(tmp, "OK",  300);
-    if(r==0) {
-        dal_uart_set_baudrate(atHandle.hurt, br);
-    }
-}
-
-
 static int at_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
 {
-    char *p=(char*)data;
-    p[len] = 0;
-    
-    //printf("$$:%s\n", data);
+    //printf("$$:%s\n", (char*)data);
     //printf("at_uart_recv: %d\n", len);
     
     fill_temp_buf(data, len);
     aiot_at_hal_recv_handle(data, len);
     
     return 0;
+}
+
+
+static void set_baudrate(int br)
+{
+    int  r;
+    char tmp[60];
+    
+    sprintf(tmp, "AT+IPR=%d\r\n", br);        //过大，则发较长数据会导致超时无回应，过小则耗时太长
+    r = send_cmd(tmp, "OK",  300);
+    if(r==0) {
+        dal_uart_set_baudrate(atHandle.hurt, br);
+    }
 }
 
 int hal_at_init(void)
@@ -287,6 +287,8 @@ int hal_at_boot(void)
 {
     int r;
     
+    set_baudrate(BAUDRATE);
+
     /*初始化模组及获取到IP网络*/
     r = aiot_at_bootstrap();
     if (r<0) {
@@ -294,7 +296,7 @@ int hal_at_boot(void)
         return -1;
     }
     
-    at_set_baudrate();
+    
     atHandle.inited = 1;
     
     return 0;
@@ -312,7 +314,7 @@ int hal_at_ntp(void)
     
     LOGD("___ at_hal_ntp\n");
     
-    r = at_power(1);
+    r = set_power(1);
     if(r==0) {
         dal_delay_ms(12000);
     }
@@ -346,23 +348,23 @@ int hal_at_ntp(void)
     return 0;
 }
 
-
-
 int hal_at_power(int on)
 {
-    return at_power(on);
+    return set_power(on);
 }
 
 
 int hal_at_reset(void)
 {
-    at_power(0);
-    dal_delay_ms(100);
-    at_power(1);
+    set_power(0);
+    
+    set_baudrate(115200);
+    set_power(1);
+    set_baudrate(BAUDRATE);
     
     return 0;
 }
-
+#endif
 
 
 

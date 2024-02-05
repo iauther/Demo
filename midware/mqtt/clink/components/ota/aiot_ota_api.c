@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #include "aiot_ota_api.h"
 #include "core_mqtt.h"
@@ -1371,5 +1372,5 @@ static int32_t _ota_parse_list_array(char *str, int32_t str_len, ota_list_json *
     }
     return num;
 }
-
+#endif
 

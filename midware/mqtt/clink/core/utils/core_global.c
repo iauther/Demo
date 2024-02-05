@@ -1,3 +1,4 @@
+#if (MQTT_LIB==1)
 #include "core_global.h"
 
 typedef struct {
@@ -80,4 +81,5 @@ int32_t core_global_deinit(aiot_sysdep_portfile_t *sysdep)
 
     return STATE_SUCCESS;
 }
+#endif
 

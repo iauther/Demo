@@ -106,7 +106,6 @@ static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int le
 ////////////////////////////////////////////////////////
 #define POINTS(us,sfreq)    ((U64)us*sfreq/1000000)
 
-static int max_data_len=0;
 static void buf_init(void)
 {
     int i;
@@ -197,10 +196,6 @@ static void buf_init(void)
         len3 = (cnt1+cnt2+cnt3)*4+ev_len+32;
         
         maxlen = MAX3(len1,len2,len3);
-        if(maxlen>max_data_len) {
-            max_data_len = maxlen;
-        }
-        
         tb->var[i].prc.blen = maxlen;
         tb->var[i].prc.buf  = eCalloc(tb->var[i].prc.blen); 
         tb->var[i].prc.dlen = 0;
@@ -276,9 +271,9 @@ static void start_tasks(void)
 {
     #define TASK_STACK_SIZE   2048
     
-    start_task(TASK_DATA_CAP,   osPriorityNormal, TASK_STACK_SIZE,  task_data_cap_fn,   5, NULL, 1);
+    start_task(TASK_DATA_CAP,   osPriorityISR,    TASK_STACK_SIZE,  task_data_cap_fn,   5, NULL, 1);
     start_task(TASK_POLLING,    osPriorityNormal, TASK_STACK_SIZE,  task_polling_fn,    5, NULL, 1);
-    start_task(TASK_SEND,       osPriorityNormal, TASK_STACK_SIZE*2,  task_send_fn,        5, NULL, 1);
+    start_task(TASK_SEND,       osPriorityNormal, TASK_STACK_SIZE,  task_send_fn,       5, NULL, 1);
     
     start_task(TASK_DATA_PROC,  osPriorityNormal, TASK_STACK_SIZE,  task_data_proc_fn,  10, NULL, 1);
 }
@@ -301,7 +296,7 @@ int api_comm_connect(U8 port)
 
     comm_p.port = port;
     comm_p.rlen = 0;
-    comm_p.tlen = max_data_len;
+    comm_p.tlen = 0;
     comm_p.para = NULL;
     if(!tasksHandle.hcomm) {
         if(port==PORT_NET) {

@@ -1,3 +1,4 @@
+#if (MQTT_LIB==1)
 #include "core_auth.h"
 
 int32_t core_auth_tls_psk(aiot_sysdep_portfile_t *sysdep, char **psk_id, char psk[65], char *product_key, char *device_name, char *device_secret, char *module_name)
@@ -112,4 +113,5 @@ int32_t core_auth_http_body(aiot_sysdep_portfile_t *sysdep, char **dest, char *p
 
     return res;
 }
+#endif
 

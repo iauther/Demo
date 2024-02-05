@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #include "core_string.h"
 
 int32_t core_str2uint(char *input, uint8_t input_len, uint32_t *output)
@@ -354,3 +356,7 @@ int32_t core_strcat(aiot_sysdep_portfile_t *sysdep, char **dest, char *src1, cha
     return STATE_SUCCESS;
 }
 #endif
+
+#endif
+
+

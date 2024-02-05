@@ -6,6 +6,7 @@
  * @copyright Copyright (C) 2015-2018 Alibaba Group Holding Limited
  *
  */
+#if (MQTT_LIB==1)
 
 #ifndef _POXIS_PORT_H_
 #define _POXIS_PORT_H_
@@ -90,4 +91,6 @@ void aiot_install_net_api(aiot_net_al_t *net);
 #if defined(__cplusplus)
 }
 #endif
+#endif
+
 #endif

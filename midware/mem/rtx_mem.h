@@ -25,6 +25,11 @@ void *rtx_mem_alloc (void *mem, uint32_t size);
 /// \param[in]  block           memory block to be returned to the memory pool.
 /// \return 1 - success, 0 - failure.
 int rtx_mem_free (void *mem, void *block);
+
+
+uint32_t rtx_mem_used(void *mem);
+uint32_t rtx_mem_unused(void *mem);
+
     
 #endif
     

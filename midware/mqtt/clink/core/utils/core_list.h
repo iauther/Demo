@@ -1,3 +1,5 @@
+#if (MQTT_LIB==1)
+
 #ifndef _CORE_LIST_H_
 #define _CORE_LIST_H_
 
@@ -182,6 +184,9 @@ static inline int core_list_empty(const struct core_list_head *head)
 #if defined(__cplusplus)
 }
 #endif
+
+#endif
+
 
 #endif
 
