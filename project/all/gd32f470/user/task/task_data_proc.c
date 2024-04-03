@@ -110,12 +110,10 @@ static inline int threshold_copy(threshold_buf_t *b, F32 *v, int cnt, int mode)
     return 0;
 }
 
-int g_fcnt=0;
-float *g_f32=NULL;
 static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 mdtFull)
 {
     int i,j,tcnt=0,ev_calc_cnt,evlen=0;
-    int r,prelen,postlen,bodylen,tlen;
+    int r,postcnt=0,tlen;
     buf_t *buf=&taskBuffer.var[para->ch].prc;
     ch_data_t *pch=(ch_data_t*)buf->buf;
     
@@ -155,11 +153,8 @@ static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 mdtFull)
     pch->evlen = evlen;
     tlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
     
-    g_fcnt = tcnt;
-    g_f32 = pch->data;
-    
     r = api_send_append(pch, tlen);
-    LOGD("___ trigged!, add to send list, cnt: %d, tlen: %d, rslt: %d\n", tcnt, tlen, r);
+    LOGD("___trigged, ch: %d, points: %d, pktlen: %d, full: %d, add to send list %s\n", pch->ch, tcnt, tlen, mdtFull, (r==0)?"ok":"fail");
     if(r==0) {
         thr->trigged = 1;
         thr->pre.dcnt = 0;
@@ -385,7 +380,7 @@ static int trig_proc(raw_data_t *raw, ch_para_t *para)
                 }
                 
                 //当数据长度超过MDT设置时，则需将数据截断
-                if(thr->idx-thr->cur.mdt>=thr->set.mdt) {
+                if(thr->cur.mdt>0 && (thr->idx-thr->cur.mdt)>=thr->set.mdt) {
                     if(thr->cur.hlt==-1) {
                         thr->cur.hlt = thr->idx;
                     }

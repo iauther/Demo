@@ -69,6 +69,9 @@ int json_from(char *js, int js_len, usr_para_t *usr)
         return -1;
     }
     
+    //add usr->takeff
+    cJSON_AddNumberToObject(root, "takeff",  usr->takeff);
+    
     //add usr->net
     l1 = cJSON_CreateObject();
     if(l1) {
@@ -143,9 +146,9 @@ int json_from(char *js, int js_len, usr_para_t *usr)
         cJSON_AddNumberToObject(l1, "port", usr->smp.port);
         cJSON_AddNumberToObject(l1, "pwrmode", usr->smp.pwrmode);
 
-        h = usr->smp.worktime / 3600;
-        m = usr->smp.worktime / 60;
-        s = usr->smp.worktime % 60;
+        h = usr->smp.invTime / 3600;
+        m = usr->smp.invTime / 60;
+        s = usr->smp.invTime % 60;
 
         ht[0] = mt[0] = st[0] = 0;
         snprintf(tmp, sizeof(tmp), "%dh%dm%ds", h, m, s);
@@ -154,7 +157,7 @@ int json_from(char *js, int js_len, usr_para_t *usr)
         if (s > 0) sprintf(st, "%ds", s);
         sprintf(tmp, "%s%s%s", ht, mt, st);
 
-        cJSON_AddStringToObject(l1, "worktime", tmp);
+        cJSON_AddStringToObject(l1, "invTime", tmp);
 
         a1 = cJSON_CreateArray();
         if (a1) {
@@ -249,6 +252,12 @@ int json_to(char *js, usr_para_t *usr)
     if(!root) {
         LOGE("json file is wrong, %s\n", cJSON_GetErrorPtr());
         return -1;
+    }
+    
+    l1 = cJSON_GetObjectItem(root, "takeff");
+    if (l1) {
+        RANGE_CHECK(l1->valueint, 0, 1, "takeff is wrong, range: 0,1\n")
+        usr->takeff = l1->valueint;
     }
     
     l1 = cJSON_GetObjectItem(root, "netPara");
@@ -412,14 +421,14 @@ int json_to(char *js, usr_para_t *usr)
             usr->smp.pwrmode = l2->valueint;
         }
         
-        l2 = cJSON_GetObjectItem(l1, "worktime");
+        l2 = cJSON_GetObjectItem(l1, "invTime");
         if(l2) {
             
             int h,m,s,n;
             h = m = s = 0;
             n = get_hms(l2->valuestring, &h, &m, &s);
             if(n>0) {
-                usr->smp.worktime = h*3600+m*60+s;
+                usr->smp.invTime = h*3600+m*60+s;
             }
         }
         
@@ -497,7 +506,7 @@ int json_to(char *js, usr_para_t *usr)
                 
                 l3 = cJSON_GetObjectItem(a1, "trigEvType");
                 if(l3) {
-                    RANGE_CHECK(l3->valueint, 0, 6, "ch[%d].ampThreshold is wrong, range: 0~6(mv)\n", ch)
+                    RANGE_CHECK(l3->valueint, 1, 1, "ch[%d].trigEvType is wrong, range: 1(amp)\n", ch)
                     pch->trigEvType = l3->valueint;
                 }
 
@@ -607,6 +616,7 @@ int json_to(char *js, usr_para_t *usr)
             }
         }
     }
+    
     
     cJSON_Delete(root);
     

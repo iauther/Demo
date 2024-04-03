@@ -45,8 +45,8 @@ extern "C" {
  */
 #define AIOT_AT_CMD_LEN_MAXIMUM             (128)       /* AT命令最大长度 */
 #define AIOT_AT_RSP_LEN_MAXIMUM             (128)       /* AT应答最大长度 */
-#define AIOT_AT_TX_TIMEOUT_DEFAULT          (2000)      /* UART默认发送超时时间 */
-#define AIOT_AT_RX_TIMEOUT_DEFAULT          (4000)      /* UART默认接受等待超时时间 */
+#define AIOT_AT_TX_TIMEOUT_DEFAULT          (10000)      /* UART默认发送超时时间 */
+#define AIOT_AT_RX_TIMEOUT_DEFAULT          (10000)      /* UART默认接受等待超时时间 */
 #define AIOT_AT_DATA_RB_SIZE_DEFAULT        (4096)       /* 内部网络数据接收缓冲区大小,用户可根据接收数据流量的大小调整 */
 #define AIOT_AT_RSP_RB_SIZE_DEFAULT         (4096)       /* 内部应答报文接受缓冲区大小,用户可根据接收数据流量的大小调整 */
 #define AIOT_AT_CMD_RETRY_TIME              (3)         /* AT命令发送重试最大次数 */

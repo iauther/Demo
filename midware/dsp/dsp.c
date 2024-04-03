@@ -2,8 +2,10 @@
 #include "dsp.h"
 #include "log.h"
 #include "protocol.h"
-#include "arm_math.h"
+#ifndef _WIN32
+//#include "arm_math.h"
 #include "arm_const_structs.h"
+#endif
 
 static int ev_ave_calc(F32 *data, int cnt, F32 *ev)
 {
@@ -149,6 +151,7 @@ static void fl_fft_calc(F32 *data, int cnt, U32 sfreq)
     F32 max,freq ;// 用于存放计算结果的频率变量
     int xcnt=4096;//cnt;
     int fftlen=xcnt*2*sizeof(F32);
+#ifndef _WIN32
     F32 *pout=malloc(fftlen);
     arm_status r;
     
@@ -173,6 +176,8 @@ static void fl_fft_calc(F32 *data, int cnt, U32 sfreq)
 #endif
     
     free(pout);
+#endif
+
 }
 int dsp_fl_calc(U8 tp, F32 *data, int cnt, U32 sfreq)
 {

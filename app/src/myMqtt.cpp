@@ -160,7 +160,7 @@ static int msg_arrived(void* conn, char* topicName, int topicLen, MQTTClient_mes
     unlock(hconn);
 
     if (hc && hc->para.callback) {
-        hc->para.callback(conn, NULL, 0, m->payload, m->payloadlen);
+        hc->para.callback(conn, NULL, 0, m->payload, m->payloadlen, 0);
     }
 
     MQTTClient_free(topicName);
@@ -297,7 +297,6 @@ void* myMqtt::conn(conn_para_t* para, sign_data_t *sign, void *userdata)
     opts.cleansession = 1;
     opts.username = sign->username;
     opts.password = sign->password;
-    opts.MQTTVersion = opts.MQTTVersion;
 
     opts.will = &wopts;
     opts.will->message = "will message";
@@ -314,8 +313,8 @@ void* myMqtt::conn(conn_para_t* para, sign_data_t *sign, void *userdata)
 #endif
 
     char tmp[100];
-    sprintf(tmp, "/%s/+/user/get", para->para->para.plat.prdKey);
-    MQTTClient_subscribe(hconn->mc, tmp, 1);
+    sprintf(tmp, "/%s/%s/user/get", para->para->para.plat.prdKey, para->para->para.plat.devKey);
+    r = MQTTClient_subscribe(hconn->mc, tmp, 1);
 
     lock_new(hconn);
     
@@ -443,6 +442,7 @@ int myMqtt::sub(void* conn, void* para)
 #else
     r = MQTTClient_subscribe(hconn->mc, topic, 1);
 #endif
+    LOGD("___ mqtt_sub: %s, %d\n", topic, r);
    
     return r;
 }

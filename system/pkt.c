@@ -89,6 +89,10 @@ static int get_chkcode_len(int chkID)
     }
 }
 
+int pkt_chk_len(int chkID)
+{
+    return get_chkcode_len(chkID);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 int pkt_check_hdr(void *data, int dlen, int buflen, int chkID)

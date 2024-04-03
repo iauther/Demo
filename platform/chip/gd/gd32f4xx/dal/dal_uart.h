@@ -26,6 +26,7 @@ typedef struct {
     U8                  msb;
     U8                  useDMA;
     U32                 baudrate;
+    handle_t            handle;
     
     buf_t               rx;
     rx_cb_t             callback;

@@ -141,7 +141,7 @@ int start_task_simp(osThreadFunc_t fn, int stksize, void *arg, osThreadId_t *tid
 {
     osThreadId_t id;
     const osThreadAttr_t attr={
-        .attr_bits  = 0U,
+        .attr_bits  = osThreadJoinable,
         .cb_mem     = NULL, //?
         .cb_size    = 0,
         .stack_mem  = NULL,

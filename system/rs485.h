@@ -11,7 +11,7 @@ typedef struct {
 
 int rs485_init(rs485_cfg_t *cfg);
 int rs485_deinit(void);
-int rs485_write(U8 *data, int len);
+int rs485_write(void *data, int len);
 
 #endif
 

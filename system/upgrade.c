@@ -184,7 +184,7 @@ static int fw_info_valid(fw_info_t *info)
     return 1;
 }
 
-//src, 0: nor, 1:sflash
+
 static int fw_check(fw_hdr_t *hdr)
 {
     U8 i,tmp[16];
@@ -197,14 +197,13 @@ static int fw_check(fw_hdr_t *hdr)
     }
     
     md5_init(&ctx);
-    md5_update(&ctx, hdr->data, hdr->fw.length);
-    
-    memcpy(&m1, hdr->data+hdr->fw.length, sizeof(m1));
-
+    md5_update(&ctx, (U8*)hdr, sizeof(fw_hdr_t)+hdr->fw.length);
     md5_final(&ctx, tmp);
+    
     for (i=0; i<16; i++) {
         byte2char(&m2.digit[i*2], tmp[i]);
     }
+    memcpy(&m1, hdr->data+hdr->fw.length, sizeof(m1));
     
     print_md5("ori-md5: ", &m1);
     print_md5("cal-md5: ", &m2);
@@ -296,10 +295,7 @@ static int fw_is_valid(int fw, fw_hdr_t *fh)
     return (r==0)?1:0;
 }
 
-/*
-    fwAddr=0, 从upg升级信息区读固件信息
-    fwAddr>0, 视该地址为片内flash地址，从该地址读取固件信息
-*/
+
 static int get_fw_info(int fw, fw_hdr_t *hdr)
 {
     fw_handle_t *h=get_handle(fw);
@@ -512,7 +508,7 @@ int upgrade_deinit(void)
 }
 
 
-int upgrade_check(U32 *fwAddr, U8 bBoot)
+int upgrade_proc(U32 *fwAddr, U8 bBoot)
 {
     int r=0;
     upg_all_t  all;
@@ -651,7 +647,7 @@ int upgrade_write(U8 *data, int len, int index)
         upg_tlen = 0;
     }
     
-    r = sflash_write(addr+upg_tlen, data, len, 1, 1);
+    r = sflash_write(addr+upg_tlen, data, len, 0, 1);
     if(r) {
         upg_tlen = 0;
         LOGE("___upgrade_write 0x%x %d failed!\n", addr+upg_tlen, len);
@@ -718,7 +714,7 @@ int upgrade_fw_info_valid(fw_info_t *info)
 
 int upgrade_read_fw(buf_t *buf)
 {
-    int r,fwlen;
+    int r,hlen,dlen;
     upg_all_t all;
     
     if(!buf || !buf->buf || !buf->blen) {
@@ -731,14 +727,16 @@ int upgrade_read_fw(buf_t *buf)
         return -1;
     }
     
-    fwlen = all.hdr.fw.length+sizeof(md5_t);
-    if(buf->blen<fwlen) {
+    dlen = all.hdr.fw.length+sizeof(md5_t);
+    if(buf->blen<dlen+sizeof(fw_hdr_t)) {
         return -1;
     }
+    memcpy(buf->buf, &all.hdr, sizeof(fw_hdr_t));
     
-    r = dal_nor_read(all.upg.fwAddr, buf->buf, fwlen);
+    LOGD("___ read fw from nor addr: 0x%x\n", all.upg.fwAddr);
+    r = dal_nor_read(all.upg.fwAddr, buf->buf+sizeof(fw_hdr_t), dlen);
     if(r==0) {
-        buf->dlen = fwlen;
+        buf->dlen = dlen+sizeof(fw_hdr_t);
     }
     
     return r;
@@ -747,24 +745,23 @@ int upgrade_read_fw(buf_t *buf)
 
 void upgrade_test(void)
 {
-    U32 i,tlen=0;
-    #define TCNT        50000
-    #define TLEN        (TCNT*4)
-    U32 addr;
-    U32 *pbuf=(U32*)malloc(TLEN);
+#if 0
+    int r=-1,flen;
+    U8 *fbuf;
+    char *fpath="/sd/yy.upg";
     
-    if(!pbuf) {
-        return;
+    flen = fs_length(fpath);
+    if(flen>0) {
+        fbuf = eMalloc(flen);
+        if(fbuf) {
+            fs_load(fpath, fbuf, flen);
+            
+            r = upgrade_write_all(fbuf, flen);
+            
+            xFree(fbuf);
+        }
     }
-    
-    upgrade_init();
-    for(i=0; i<TCNT; i++) {
-        pbuf[i] = i;
-    }
-    
-    upgrade_write_all((U8*)pbuf, TLEN);
-    
-    free(pbuf);
+#endif 
 }
 
 

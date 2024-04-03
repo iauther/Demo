@@ -54,5 +54,6 @@ int net_reconn(handle_t hconn);
 
 int net_read(handle_t hconn, void *para, void *data, int len);
 int net_write(handle_t hconn, void *para, void *data, int len);
+int net_req(handle_t hconn, int req);
 
 #endif

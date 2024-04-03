@@ -17,6 +17,7 @@ enum {
     ERROR_PKT_CHECKSUM,
     ERROR_PKT_ID,
     ERROR_PKT_TYPE_UNSUPPORT,
+    ERROR_PKT_PARA,
     
     //data
     ERROR_DAT_MODE=0x30,

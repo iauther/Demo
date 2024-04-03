@@ -131,9 +131,7 @@ void dal_jump(U32 addr)
 }
 
 
-void EXTI0_IRQHandler()
-{
-}
+
 #if 0
 void WWDGT_IRQHandler(){}
 void LVD_IRQHandler(){}

@@ -2,9 +2,15 @@
 #include "fs.h"
 #include "cfg.h"
 #include "log.h"
+#include "mem.h"
 #include "diskio.h"
 
 #ifdef USE_FATFS
+
+#define MALLOC eMalloc
+//#define MALLOC iMalloc
+#define FREE   xFree
+
 
 typedef struct {
     FS_DEV      dev;
@@ -61,14 +67,16 @@ static int fatfs_mount(FS_DEV dev, char *path)
         return 0;
     }
     
-    info = (fatfs_info_t*)calloc(1, sizeof(fatfs_info_t));;
+    info = (fatfs_info_t*)MALLOC(sizeof(fatfs_info_t));;
     if(!info) {
         return -1;
     }
+    memset(info, 0, sizeof(fatfs_info_t));
     
     r = f_mount(&info->fs, disk[dev], 1);
     if(r!=FR_OK) {
-        free(info);
+        LOGE("___ f_mount %s failed, %d\n", path, r);
+        FREE(info);
         return -1;
     }
     
@@ -88,35 +96,29 @@ static int fatfs_umount(FS_DEV dev)
     }
     
     f_unmount(fatInfo[dev]->disk);
-    free(fatInfo[dev]);
+    FREE(fatInfo[dev]);
     fatInfo[dev] = NULL;
     
     return 0;
 }
 
-
 static int fatfs_format(FS_DEV dev, char *path)
 {
     int r;
-    MKFS_PARM para;
     char *disk[DEV_MAX]={"0:","1:","2:","3:"};
-    U8 *pbuf=malloc(FF_MAX_SS);
-
-    if(!pbuf) {
+    MKFS_PARM opt={FM_ANY, 0, 0, 0, 0};
+    U8 *work=MALLOC(FF_MAX_SS);
+    
+    if(!work) {
+        LOGE("___ fatfs_format malloc %d failed\n", FF_MAX_SS);
         return -1;
     }
     
-    para.fmt = FM_ANY;
-    para.n_fat = 0;
-    para.n_root = 0;
-    para.au_size = 1024;
-    r = f_mkfs(disk[dev], &para, pbuf, FF_MAX_SS);
-    free(pbuf);
+    r = f_mkfs(disk[dev], &opt, work, FF_MAX_SS);
+    FREE(work);
     
     return r;
 }
-
-
 
 static handle_t fatfs_open(char *path, FS_MODE mode)
 {
@@ -125,16 +127,22 @@ static handle_t fatfs_open(char *path, FS_MODE mode)
     BYTE flag;
     char *str=NULL;
     fatfs_info_t *info=NULL;
-    fatfs_handle_t *h=(fatfs_handle_t*)malloc(sizeof(fatfs_handle_t));
+    fatfs_handle_t *h=NULL;
     
-    if(!h || !path) {
+    if(!path) {
+        return NULL;
+    }
+    
+    h = (fatfs_handle_t*)MALLOC(sizeof(fatfs_handle_t));
+    if(!h) {
+        LOGE("__ malloc %d failed\n", sizeof(fatfs_handle_t));
         return NULL;
     }
     
     info = get_info(path);
     if(!info) {
         LOGE("___ %s not mount!\n", path);
-        free(h); return NULL;
+        FREE(h); return NULL;
     }
     
     flag = FA_READ|FA_WRITE;
@@ -149,7 +157,7 @@ static handle_t fatfs_open(char *path, FS_MODE mode)
     r = f_open(&h->fp, tmp, flag);
     if(r!=FR_OK) {
         LOGE("f_open %s failed, %d\n", tmp, r);
-        free(h);
+        FREE(h);
         return NULL;
     }
             
@@ -170,7 +178,7 @@ static int fatfs_close(handle_t h)
     if(r) {
         LOGE("___ f_close failed, %d\n", r);
     }
-    free(hf);
+    FREE(hf);
     
     return r;
 }
@@ -289,7 +297,7 @@ static int fatfs_length(char *path)
     }
     
     snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
-    LOGD("____ f_stat %s\n", tmp);
+    //LOGD("____ f_stat %s\n", tmp);
     
     r = f_stat(tmp, &fno);
     if(r) {
@@ -399,7 +407,7 @@ static handle_t fatfs_opendir(char *path)
     int i,r;
     char tmp[100];
     fatfs_info_t *info=NULL;
-    handle_t h=malloc(sizeof(DIR));
+    handle_t h=MALLOC(sizeof(DIR));
     
     if(!h) {
         LOGE("fatfs_opendir malloc failed\n");
@@ -409,14 +417,14 @@ static handle_t fatfs_opendir(char *path)
     info = get_info(path);
     if(!info) {
         LOGE("___ get_info %s failed\n", path);
-        free(h); return NULL;
+        FREE(h); return NULL;
     }
     
     snprintf(tmp, sizeof(tmp), "%s%s", info->disk, path+strlen(info->mpath));
     r = f_opendir((DIR*)h, tmp);
     if(r) {
         //LOGE("___f_opendir %s failed, %d\n", tmp, r);
-        free(h); return NULL;
+        FREE(h); return NULL;
     }
     
     return h;
@@ -433,7 +441,7 @@ static int fatfs_closedir(handle_t h)
     
     r = f_closedir(((DIR*)h));
     if(r==0) {
-        free(h);
+        FREE(h);
     }
     
     return r;
@@ -487,6 +495,7 @@ static int fatfs_get_space(char *path, fs_space_t *sp)
 {
     int r;
     FATFS *fs;
+    U32 sector_size;
     DWORD f_clust,t_clust;
     fatfs_info_t *info=NULL;
     
@@ -502,16 +511,14 @@ static int fatfs_get_space(char *path, fs_space_t *sp)
     
     r = f_getfree(info->disk, &f_clust, &fs);
     if(r!=FR_OK) {
-        LOGE("__ f_getfree failed\n\n");
+        LOGE("__ f_getfree %s failed, %d\n", path, r);
         return -1;
     }
     
-    U32 t_sectors,sector_size;
-    disk_ioctl(fs->pdrv, GET_SECTOR_COUNT, &t_sectors);
     disk_ioctl(fs->pdrv, GET_SECTOR_SIZE, &sector_size);
     
-    sp->total = (fs->n_fatent-2)*fs->csize*KB;
-    sp->free  = f_clust*fs->csize*KB;
+    sp->total = (U64)(fs->n_fatent-2)*fs->csize*sector_size;
+    sp->free  = (U64)f_clust*fs->csize*sector_size;
     
     return 0;
 }
@@ -536,7 +543,7 @@ static int fatfs_test(void)
     LBA_t plist[] = {50, 50, 0};
     UINT fn;
     #define WORKLEN  4096
-    char *pbuf=(char*)malloc(WORKLEN);
+    char *pbuf=(char*)MALLOC(WORKLEN);
     MKFS_PARM fmtPara={FM_EXFAT, 0, 0, 0, 0};
     
     if(pbuf) {
@@ -582,7 +589,7 @@ static int fatfs_test(void)
         
         f_unmount(path);
         
-        free(pbuf);
+        FREE(pbuf);
     }
     
     return 0;

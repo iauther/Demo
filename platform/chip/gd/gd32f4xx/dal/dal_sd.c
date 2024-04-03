@@ -1550,18 +1550,18 @@ sd_transfer_state_enum sd_transfer_state_get(void)
     \param[out] none
     \retval     capacity of the card(KB)
 */
-uint32_t sd_card_capacity_get(void)
+uint64_t sd_card_capacity_get(void)
 {
     uint8_t tempbyte = 0, devicesize_mult = 0, readblklen = 0;
-    uint32_t capacity = 0, devicesize = 0;
+    uint64_t capacity = 0, devicesize = 0;
     if((SDIO_STD_CAPACITY_SD_CARD_V1_1 == cardtype) || (SDIO_STD_CAPACITY_SD_CARD_V2_0 == cardtype)) {
         /* calculate the c_size(device size) */
         tempbyte = (uint8_t)((sd_csd[1] & SD_MASK_8_15BITS) >> 8);
-        devicesize |= (uint32_t)((uint32_t)(tempbyte & 0x03) << 10);
+        devicesize |= (uint64_t)((uint64_t)(tempbyte & 0x03) << 10);
         tempbyte = (uint8_t)(sd_csd[1] & SD_MASK_0_7BITS);
         devicesize |= (uint32_t)((uint32_t)tempbyte << 2);
         tempbyte = (uint8_t)((sd_csd[2] & SD_MASK_24_31BITS) >> 24);
-        devicesize |= (uint32_t)((uint32_t)(tempbyte & 0xC0) >> 6);
+        devicesize |= (uint64_t)((uint64_t)(tempbyte & 0xC0) >> 6);
 
         /* calculate the c_size_mult(device size multiplier) */
         tempbyte = (uint8_t)((sd_csd[2] & SD_MASK_16_23BITS) >> 16);
@@ -1578,18 +1578,18 @@ uint32_t sd_card_capacity_get(void)
         capacity *= (1 << readblklen);
 
         /* change the unit of capacity to KByte */
-        capacity /= 1024;
+        //capacity /= 1024;
     } else if(SDIO_HIGH_CAPACITY_SD_CARD == cardtype) {
         /* calculate the c_size */
         tempbyte = (uint8_t)(sd_csd[1] & SD_MASK_0_7BITS);
-        devicesize = (uint32_t)((uint32_t)(tempbyte & 0x3F) << 16);
+        devicesize = (uint64_t)((uint64_t)(tempbyte & 0x3F) << 16);
         tempbyte = (uint8_t)((sd_csd[2] & SD_MASK_24_31BITS) >> 24);
-        devicesize |= (uint32_t)((uint32_t)tempbyte << 8);
+        devicesize |= (uint64_t)((uint64_t)tempbyte << 8);
         tempbyte = (uint8_t)((sd_csd[2] & SD_MASK_16_23BITS) >> 16);
-        devicesize |= (uint32_t)tempbyte;
+        devicesize |= (uint64_t)tempbyte;
 
         /* capacity = (c_size+1)*512KByte */
-        capacity = (devicesize + 1) * 512;
+        capacity = (devicesize + 1) * 512 * 1024;
     }
     return capacity;
 }
@@ -1712,15 +1712,15 @@ sd_error_enum sd_card_information_get(sd_card_info_struct *pcardinfo)
 
     if((SDIO_STD_CAPACITY_SD_CARD_V1_1 == cardtype) || (SDIO_STD_CAPACITY_SD_CARD_V2_0 == cardtype)) {
         /* card is SDSC card, CSD version 1.0 */
-        pcardinfo->card_csd.c_size = (uint32_t)((uint32_t)(tempbyte & 0x03) << 10);
+        pcardinfo->card_csd.c_size = (uint64_t)((uint64_t)(tempbyte & 0x03) << 10);
 
         /* CSD byte 7 */
         tempbyte = (uint8_t)(sd_csd[1] & SD_MASK_0_7BITS);
-        pcardinfo->card_csd.c_size |= (uint32_t)((uint32_t)tempbyte << 2);
+        pcardinfo->card_csd.c_size |= (uint64_t)((uint64_t)tempbyte << 2);
 
         /* CSD byte 8 */
         tempbyte = (uint8_t)((sd_csd[2] & SD_MASK_24_31BITS) >> 24);
-        pcardinfo->card_csd.c_size |= (uint32_t)((uint32_t)(tempbyte & 0xC0) >> 6);
+        pcardinfo->card_csd.c_size |= (uint64_t)((uint64_t)(tempbyte & 0xC0) >> 6);
         pcardinfo->card_csd.vdd_r_curr_min = (tempbyte & 0x38) >> 3;
         pcardinfo->card_csd.vdd_r_curr_max = tempbyte & 0x07;
 
@@ -1743,15 +1743,15 @@ sd_error_enum sd_card_information_get(sd_card_info_struct *pcardinfo)
         /* card is SDHC card, CSD version 2.0 */
         /* CSD byte 7 */
         tempbyte = (uint8_t)(sd_csd[1] & SD_MASK_0_7BITS);
-        pcardinfo->card_csd.c_size = (uint32_t)((uint32_t)(tempbyte & 0x3F) << 16);
+        pcardinfo->card_csd.c_size = (uint64_t)((uint64_t)(tempbyte & 0x3F) << 16);
 
         /* CSD byte 8 */
         tempbyte = (uint8_t)((sd_csd[2] & SD_MASK_24_31BITS) >> 24);
-        pcardinfo->card_csd.c_size |= (uint32_t)((uint32_t)tempbyte << 8);
+        pcardinfo->card_csd.c_size |= (uint64_t)((uint64_t)tempbyte << 8);
 
         /* CSD byte 9 */
         tempbyte = (uint8_t)((sd_csd[2] & SD_MASK_16_23BITS) >> 16);
-        pcardinfo->card_csd.c_size |= (uint32_t)tempbyte;
+        pcardinfo->card_csd.c_size |= (uint64_t)tempbyte;
 
         /* calculate the card block size and capacity */
         pcardinfo->card_blocksize = 512;
@@ -2454,6 +2454,10 @@ int dal_sd_init(void)
         st = sd_card_select_deselect(sd_cardInfo.card_rca);
     }
     
+    if(st!=SD_OK) {
+        return -1;
+    }
+    
     st = sd_cardstatus_get(&cardstate);
     if(cardstate & 0x02000000){
         LOGD("sd card is locked!\n");
@@ -2515,7 +2519,7 @@ int dal_sd_write(U8 *buf, U32 sector, U32 count)
 }
 
 
-int dal_sd_get_info(dal_sdcard_info_t *info)
+int dal_sd_info(dal_sd_info_t *info)
 {
     if(!info) {
         return -1;
@@ -2523,7 +2527,7 @@ int dal_sd_get_info(dal_sdcard_info_t *info)
     
     info->blksize = sd_cardInfo.card_blocksize;
     info->secsize = sd_cardInfo.card_blocksize;
-    info->capacity = sd_card_capacity_get()*1024;
+    info->capacity = sd_cardInfo.card_capacity;
     
     return 0;
 }

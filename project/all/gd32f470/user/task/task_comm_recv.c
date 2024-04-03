@@ -1,7 +1,6 @@
 #include "net.h"
 #include "log.h"
 #include "dal.h"
-#include "rs485.h"
 #include "pkt.h"
 #include "dac.h"
 #include "fs.h"
@@ -14,7 +13,6 @@
 #include "dal_delay.h"
 #include "dal_uart.h"
 #include "paras.h"
-#include "cmd.h"
 #include "list.h"
 #include "hal_at_impl.h"
 
@@ -33,20 +31,26 @@ typedef struct {
 static recv_buf_t recvBuf;
 tasks_handle_t tasksHandle={0};
 
+static int comm_init(void);
+
+
 
 static void recv_init()
 {
     recvBuf.log.blen = 2000;
     recvBuf.log.buf = eMalloc(recvBuf.log.blen);
     recvBuf.log.dlen = 0;
+    recvBuf.log.busying = 0;
     
     recvBuf.net.blen = 2000;
     recvBuf.net.buf = eMalloc(recvBuf.log.blen);
     recvBuf.net.dlen = 0;
+    recvBuf.net.busying = 0;
     
     recvBuf.rs485.blen = 2000;
     recvBuf.rs485.buf = eMalloc(recvBuf.log.blen);
     recvBuf.rs485.dlen = 0;
+    recvBuf.rs485.busying = 0;
 }
 
 
@@ -55,52 +59,34 @@ static void comm_tmr_callback(void *arg)
     task_trig(TASK_COMM_RECV, EVT_TIMER);
 }
 
-
-static int rs485_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
+static int buf_data_proc(buf_t *pb, void *data, int len, int flag, U8 evt)
 {
-    buf_t *pb=&recvBuf.rs485;
+    int r=0;
     
-    if(pb->buf && pb->dlen==0 && data && (len>0 && len<pb->blen-1)) {
-        memcpy(pb->buf, data, len);
-        pb->dlen = len;
+    if(!pb->busying && pb->buf && pb->dlen+len<pb->blen-1) {
+        memcpy(pb->buf+pb->dlen, data, len);
+        pb->dlen = +len;
         pb->buf[pb->dlen] = 0;
-        
-        task_trig(TASK_COMM_RECV, EVT_RS485);
     }
     
-    return 0;
-}
-static int net_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
-{
-    buf_t *pb=&recvBuf.net;
-    
-    if(pb->buf && pb->dlen==0 && data && (len>0 && len<pb->blen)) {
-        memcpy(pb->buf, data, len);
-        pb->dlen = len;
-        pb->buf[pb->dlen] = 0;
-        
-        task_trig(TASK_COMM_RECV, EVT_COMM);
-    }
-    
-    return 0;
-}
-
-
-static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
-{
-    int  r=0;
-    buf_t *pb=&recvBuf.log;
-    
-    //LOGD("&&: %s", data);
-    if(pb->buf && pb->dlen==0 && data && (len>0 && len<pb->blen-1)) {
-        memcpy(pb->buf, data, len);
-        pb->dlen = len;
-        pb->buf[pb->dlen] = 0;
-        
-        task_trig(TASK_COMM_RECV, EVT_LOG);
+    if(EVT_NET || flag>0) {
+        r = task_trig(TASK_COMM_RECV, evt);
     }
     
     return r;
+}
+
+static int rs485_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len, int flag)
+{
+    return buf_data_proc(&recvBuf.rs485, data, len, flag, EVT_485);
+}
+static int net_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len, int flag)
+{
+    return buf_data_proc(&recvBuf.net, data, len, flag, EVT_NET);
+}
+static int log_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len, int flag)
+{
+    return buf_data_proc(&recvBuf.log, data, len, flag, EVT_LOG);
 }
 
 ////////////////////////////////////////////////////////
@@ -221,32 +207,36 @@ static int at_init(void)
 }
 
 
+#include "ecxxx.h"
 static int hw_init(void)
 {
     int r=0;
     dac_param_t dp;
-    rs485_cfg_t rc;
 
     mem_init();
     log_init(log_recv_callback);
-    
-    
-    upgrade_check(NULL, 0);
+    upgrade_proc(NULL, 0);
     
     fs_init();
     json_init();
     paras_load();
     
     rtc2_init();
-    at_init();
-    
-    rc.port = RS485_PORT;
-    rc.baudrate = 115200;
-    rc.callback = rs485_recv_callback;
-    rs485_init(&rc);
     
     buf_init();
     recv_init();
+    
+    at_init();
+    
+#if 0
+    extern void cota_main(void *arg);
+    hal_at_init();
+    hal_at_power(1);
+    hal_at_boot();
+    start_task_simp(cota_main, 4096, NULL, NULL);
+    while(1) osDelay(1000);
+#endif
+    comm_init();
 
     return r;
 }
@@ -272,20 +262,45 @@ static void start_tasks(void)
     #define TASK_STACK_SIZE   2048
     
     start_task(TASK_DATA_CAP,   osPriorityISR,    TASK_STACK_SIZE,  task_data_cap_fn,   5, NULL, 1);
-    start_task(TASK_POLLING,    osPriorityNormal, TASK_STACK_SIZE,  task_polling_fn,    5, NULL, 1);
     start_task(TASK_SEND,       osPriorityNormal, TASK_STACK_SIZE,  task_send_fn,       5, NULL, 1);
-    
     start_task(TASK_DATA_PROC,  osPriorityNormal, TASK_STACK_SIZE,  task_data_proc_fn,  10, NULL, 1);
+    
+    api_polling_start();
 }
 
 static void start_cap(void)
 {
-#ifdef AUTO_CAP
+#ifdef CAP_AUTO
     if(paras_get_mode()!=MODE_CALI) {
         api_cap_start_all();
     }
 #endif
 }
+
+
+static int comm_init(void)
+{
+    rs485_cfg_t rc;
+    comm_para_t comm_p;
+    
+    comm_p.rlen = 0;
+    comm_p.tlen = 0;
+    comm_p.para = NULL;
+    
+    comm_p.port = PORT_LOG;
+    tasksHandle.hlog = comm_open(&comm_p);
+    
+    rc.port = RS485_PORT;
+    rc.baudrate = 115200;
+    rc.callback = rs485_recv_callback;
+    
+    comm_p.port = PORT_LOG;
+    comm_p.para = &rc;
+    tasksHandle.h485 = comm_open(&comm_p);
+    
+    return 0;
+}
+
 
 
 int api_comm_connect(U8 port)
@@ -298,19 +313,19 @@ int api_comm_connect(U8 port)
     comm_p.rlen = 0;
     comm_p.tlen = 0;
     comm_p.para = NULL;
-    if(!tasksHandle.hcomm) {
+    if(!tasksHandle.hnet) {
         if(port==PORT_NET) {
             conn_p.para = &allPara.usr.net;
             conn_p.callback = net_recv_callback;
             conn_p.proto = PROTO_MQTT;
-            comm_p.para = &conn_p;
+            comm_p.para  = &conn_p;
             
             hal_at_power(1);            //4g模组上电
         }
         
-        tasksHandle.hcomm = comm_open(&comm_p);
-        if(tasksHandle.hcomm) {
-            LOGD("___ comm_open ok!\n");
+        tasksHandle.hnet = comm_open(&comm_p);
+        if(tasksHandle.hnet) {
+            LOGD("___ comm_open net ok!\n");
             r = 1;
         }
     }
@@ -320,9 +335,12 @@ int api_comm_connect(U8 port)
 
 int api_comm_disconnect(void)
 {
-    if(tasksHandle.hcomm) {
-        comm_close(tasksHandle.hcomm);
-        tasksHandle.hcomm = NULL;
+    if(tasksHandle.hnet) {
+        
+        api_polling_conn_wait();
+        
+        comm_close(tasksHandle.hnet);
+        tasksHandle.hnet = NULL;
         
         hal_at_power(0);            //关4g模组
     }
@@ -332,7 +350,7 @@ int api_comm_disconnect(void)
 
 int api_comm_is_connected(void)
 {
-    if(tasksHandle.hcomm) {
+    if(tasksHandle.hnet) {
         return 1;
     }
     
@@ -345,137 +363,23 @@ int api_comm_send_para(void)
     int r;
     mqtt_pub_para_t pub_para={DATA_SETT};
     
-    if(!tasksHandle.hcomm) {
-        return -1;
-    }
-    
-    r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_PARA, 1, &allPara, sizeof(allPara));
-    
-    return r;
+    return comm_send_data(tasksHandle.hnet, &pub_para, TYPE_PARA, 1, &allPara, sizeof(allPara));
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-static void user_cmd_proc(cmd_t *cmd)
+int api_comm_send_data(U8 type, U8 nAck, void *data, int len)
 {
     int r;
+    handle_t h=tasksHandle.hnet;
     
-    switch(cmd->ID) {
-        case CMD_USER:
-        {
-            //cmd->str
-            
-        }
-        break;
-        
-        case CMD_DFLT:
-        {
-            paras_factory();
-            dal_reboot();
-        }
-        break;
-        
-        case CMD_BOOT:
-        {
-            dal_reboot();
-        }
-        break;
-        
-        case CMD_CAP:
-        {
-            U8 flag=0;
-            sscanf(cmd->str, "%hhu", &flag);
-            
-            paras_set_mode(MODE_NORM);
-            if(flag>0) {
-                api_cap_start_all();
-            }
-            else {
-                api_cap_stop_all();
-            }
-        }
-        break;
-        
-        case CMD_CALI:
-        {
-            /*
-                u8	                                %d
-                s8	                                %d
-                u16	                                %d or %hu
-                s16	                                %d or %hd
-                u32	                                %u
-                s32	                                %d
-                u64	                                %llu
-                s64	                                %lld
-                int	                                %d
-                unsigned int	                    %u
-                short int	                        %d or %hd
-                long	                            %ld
-                unsigned long	                    %lu
-                long long	                        %lld
-                unsigned long long	                %llu
-                char	                            %c
-                char*	                            %s
-                bool            	                %d
-                unsigned int/int        	        %0x
-                unsigned long/long                  %0lx
-                long long/unsigned long long        %0llx
-                unsigned int/int                    %0o
-                unsigned long/long          	    %0lo
-                long long/unsigned long long        %0llo
-                float	                            %f
-                double	                            %f or %lf
-                科学技术类型(必须转化为double类型)	%e
-                限制输出字段宽度	                    %x.yf (x:整数长度,y:小数点长度)
-            */
-            cali_sig_t sig;
-            r = sscanf(cmd->str, "%hhu,%u,%f,%hhu,%f,%hhu,%hhu", &sig.ch, &sig.freq, &sig.bias, &sig.lv, &sig.volt, &sig.max, &sig.seq);
-            if(r!=7) {
-                LOGE("___ cali para is wrong!\n");
-                return;
-            }
-            
-            task_post(TASK_POLLING, NULL, EVT_CALI, 0, &sig, sizeof(sig));
-        }
-        break;
-        
-        case CMD_DAC:
-        {
-            dac_param_t param;
-            ch_para_t *para = paras_get_ch_para(CH_0);
-            
-            param.enable = 0;
-            param.fdiv = 1;
-            
-            sscanf(cmd->str, "%d,%d", &param.enable, &param.fdiv);
-            LOGD("___ config dac, en: %d, fdiv: %d\n", param.enable, param.fdiv);
-            
-            int points = (para->smpFreq/1000)*SAMPLE_INT_INTERVAL;
-            param.freq = para->smpFreq;
-            param.buf.blen = points*sizeof(U16);
-            param.buf.buf  = eMalloc(param.buf.blen);
-            param.buf.dlen = 0;
-            dac_set(&param);
-        }
-        break;
-        
-        case CMD_PWR:
-        {
-            int r;
-            U32 countdown=1;
-            
-            sscanf(cmd->str, "%d", &countdown);
-            
-            LOGD("___ powerdown now, restart %d seconds later!\n", countdown);
-            r = rtc2_set_countdown(countdown);
-            LOGD("___ rtc2_set_countdown result: %d\n", r);
-        }
-        break;
+    if(type==TYPE_CALI) {
+        h = tasksHandle.hlog;
     }
     
+    return r = comm_send_data(h, NULL, type, nAck, data, len);
 }
 
 
+//////////////////////////////////////////////////////////////////////////////////////////////
 
 void task_comm_recv_fn(void *arg)
 {
@@ -493,34 +397,39 @@ void task_comm_recv_fn(void *arg)
         r = task_recv(TASK_COMM_RECV, &e, sizeof(e));
         if(r==0) {
             switch(e.evt) {
-                case EVT_COMM:
+                case EVT_NET:
                 {
                     buf_t *pb=&recvBuf.net;
                     
-                    err = comm_recv_proc(tasksHandle.hcomm, NULL, pb->buf, pb->dlen);
+                    pb->busying = 1;
+                    err = comm_recv_proc(tasksHandle.hnet, NULL, pb->buf, pb->dlen);
                     pb->dlen = 0;
+                    pb->busying = 0;
                 }
                 break;
                 
-                case EVT_RS485:
+                case EVT_485:
                 {
                     buf_t *pb=&recvBuf.rs485;
                     
-                    err = comm_recv_proc(tasksHandle.hcomm, NULL, pb->buf, pb->dlen);
+                    pb->busying = 1;
+                    err = comm_recv_proc(tasksHandle.h485, NULL, pb->buf, pb->dlen);
                     pb->dlen = 0;
+                    pb->busying = 0;
                 }
                 break;
                 
                 case EVT_LOG:
                 {
-                    cmd_t cmd;
                     buf_t *pb=&recvBuf.log;
                     
-                    r = cmd_get((char*)recvBuf.log.buf, &cmd);
-                    if(r==0) {
-                        user_cmd_proc(&cmd);
+                    pb->busying = 1;
+                    r = comm_cmd_proc((char*)pb->buf, pb->dlen);
+                    if(r) {
+                        comm_recv_proc(tasksHandle.hlog, NULL, pb->buf, pb->dlen);
                     }
                     pb->dlen = 0;
+                    pb->busying = 0;
                 }
                 break;
             }

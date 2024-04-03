@@ -119,7 +119,7 @@ int log_init(rx_cb_t callback)
     
     log_os_init();
     
-    LOGD("log_init\n");
+    //LOGD("log_init\n");
     
     return 0;
 }
@@ -168,6 +168,18 @@ handle_t log_get_handle(void)
 }
 
 
+int log_write(void *data, int len)
+{
+    int r;
+    
+    lock_on(logHandle.lck);
+    r = dal_uart_write(logHandle.hlog, (U8*)data, len);
+    lock_off(logHandle.lck);
+    
+    return r;
+}
+
+
 int log_save(void)
 {
     int r=0;
@@ -178,8 +190,6 @@ int log_save(void)
     handle_t list=logHandle.list;
     char *tok1="\n\n+++++++ log start +++++++\n";
     char *tok2="+++++++ log end   +++++++\n\n";
-    
-    lock_on(logHandle.lck);
 
 #ifdef OS_KERNEL
     if(list_size(list)==0) {
@@ -200,7 +210,6 @@ int log_save(void)
     }
     
     if(!hfile) {
-        LOGE("___ %s open failed\n", tmp);
         r = -1;
         goto quit;
     }
@@ -221,7 +230,6 @@ int log_save(void)
 #endif
 
 quit:
-    lock_off(logHandle.lck);
     return r;
 }
 

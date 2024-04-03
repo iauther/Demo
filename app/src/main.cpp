@@ -25,11 +25,17 @@
 #endif
 
 
-#ifdef USE_SERIAL
-U8 chkID = CHK_SUM;
-#else
-U8 chkID = CHK_NONE;
-#endif
+typedef struct {
+	int     pr;
+	int     pw;
+	int     dlen;
+	int     size;
+	U8* buf;
+	int     mode;
+
+	handle_t lock;
+}rbuf_handle_t;
+
 
 typedef struct {
 	BYTE rx[BUF_LEN];
@@ -40,12 +46,13 @@ typedef struct {
 
 	BYTE rb[BUF_LEN];
 	handle_t hrb;
-}buf_data_t;
+
+	BYTE dbg[BUF_LEN];
+}io_buf_t;
 
 typedef struct {
-	handle_t    hcomm;
-
-	buf_data_t  buf;
+	int         port;
+	io_buf_t    buf;
 }io_handle_t;
 
 typedef struct {
@@ -59,9 +66,8 @@ typedef struct {
 	myWindow	 myWin;
 #endif
 
-	myFile      mFile;
-	
-	io_handle_t hio;
+	myFile       mFile;
+	io_handle_t  hio[PORT_MAX];
 }my_handle_t;
 
 
@@ -82,92 +88,173 @@ static void post_event(DWORD thdID, UINT Msg, WPARAM wParam, LPARAM lParam)
 	PostThreadMessage(thdID, Msg, wParam, lParam);
 }
 
+typedef struct {
+	int     pr;
+	int     pw;
+	int     dlen;
+	int     size;
+	U8* buf;
+	int     mode;
 
+	handle_t lock;
+}rbuf_handle2_t;
 #if 1
-static int io_read(void *buf, int buflen)
+static int io_read(int port, void *buf, int buflen)
 {
-	return myHandle.myWin.port_read(buf, buflen);
+	return myHandle.myWin.port_read(port, buf, buflen);
 }
-static int io_write(U8 type, U8 nack, void* data, int datalen)
+static int io_write(int port, U8 type, U8 nack, void* data, int datalen)
 {
-	return myHandle.myWin.port_write(type, nack, data, datalen);
+	return myHandle.myWin.port_write(port, type, nack, data, datalen);
 }
-static int io_data_proc(void* data, int datalen)
+static int io_data_proc(int port, void* data, int datalen)
 {
-	return myHandle.myWin.data_proc(data, datalen, chkID);
+	int chkID = (port == PORT_NET) ? CHK_NONE : CHK_SUM;
+	return myHandle.myWin.data_proc(port, data, datalen, chkID);
 }
-int rbuf_clr(void)
-{
-	rbuf_clear(myHandle.hio.buf.hrb);
-	return 0;
-}
+
 
 
 static int quit_flag = 0;
-static DWORD dataRecvThread(LPVOID lpParam)
+static int io_data_init(io_handle_t* hio)
 {
-	int rlen, find, wlen;
-	BYTE* rxBuf = myHandle.hio.buf.rx;
+	rbuf_cfg_t rc;
 
-	memset(rxBuf, 0, BUF_LEN);
-	while (!quit_flag) {
-		rlen = io_read((char*)rxBuf, BUF_LEN);
-		if (rlen <= 0) {
-			continue;
-		}
+	rc.mode = RBUF_FULL_FIFO;
+	rc.size = BUF_LEN;
+	rc.buf = hio->buf.rb;
 
-		wlen = rbuf_write(myHandle.hio.buf.hrb, rxBuf, rlen);
+	memset(hio->buf.rx, 0, BUF_LEN);
+	hio->buf.hrb = rbuf_init(&rc);
+
+	return 0;
+}
+static int io_data_free(io_handle_t* hio)
+{
+	rbuf_free(hio->buf.hrb);
+	return 0;
+}
+static int io_data_recv(io_handle_t* hio)
+{
+	int rlen, wlen;
+
+	rlen = io_read(hio->port, (char*)hio->buf.rx, BUF_LEN);
+	if (rlen <= 0) {
+		return -1;
+	}
+
+	wlen = rbuf_write(hio->buf.hrb, hio->buf.rx, rlen);
+
+	return wlen;
+}
+
+#define DEV_LOG_SHOW
+static inline int is_print(int c)
+{
+	if (c=='\n') {
+		return 2;
+	}
+	else if (c == '\r' || (c >= 32 && c <= 126)) {
+		return 1;
 	}
 
 	return 0;
 }
+static int is_all_print(BYTE* p, int len)
+{
+	int i=0,flag=0;
 
-static DWORD dataProcThread(LPVOID lpParam)
+	while(i<len) {
+		flag = is_print(p[i]);
+		if (flag==0 || flag==2) {
+			break;
+		}
+		i++;
+	}
+
+	return (flag==2)?(i+1):0;
+}
+static void io_data_print(BYTE *p, int len)
+{
+#ifdef DEV_LOG_SHOW
+	if (!p || !len) {
+		return;
+	}
+
+	char* tmp = new char[len + 1];
+	if (tmp) {
+		memcpy(tmp, p, len);
+		tmp[len] = 0;
+		LOGD("[dev]: %s", tmp);
+		delete[] tmp;
+	}
+#endif
+}
+static int io_data_proc(io_handle_t* hio)
 {
 	int i, rlen, plen;
-	int err, find;
+	int err, find=0;
 	pkt_hdr_t* hdr;
-	rbuf_cfg_t rc;
-	io_handle_t* hio = &myHandle.hio;
+	int chkID = (hio->port==PORT_NET) ? CHK_NONE : CHK_SUM;
 
-	BYTE* rbBuf  = hio->buf.rb;
-	BYTE* tmpBuf = hio->buf.tmp;
-	BYTE* pktBuf = hio->buf.pkt;
+	rlen = rbuf_read(hio->buf.hrb, hio->buf.tmp, BUF_LEN, 0);
+	if (rlen >= PKT_HDR_LENGTH) {
+		find = plen = 0;
+		for (i = 0; i < rlen; i++) {
+			hdr = (pkt_hdr_t*)(hio->buf.tmp + i);
+			if (hdr->magic == PKT_MAGIC) {
+				int plen = hdr->dataLen + PKT_HDR_LENGTH + pkt_chk_len(chkID);
+				if (rlen - i >= plen) {
+					err = pkt_check_hdr(hdr, plen, rlen - i, chkID);
+					if (err) {
+						LOGE("pkt hdr error: 0x%02x\n", err);
+						continue;
+					}
 
-	rc.mode = RBUF_FULL_FIFO;
-	rc.size = BUF_LEN;
-	rc.buf = rbBuf;
-	hio->buf.hrb = rbuf_init(&rc);
-	while (!quit_flag) {
-		rlen = rbuf_read(hio->buf.hrb, tmpBuf, BUF_LEN, 0);
-		if (rlen >= PKT_HDR_LENGTH) {
-			find = plen = 0;
-			for (i = 0; i < rlen; i++) {
-				hdr = (pkt_hdr_t*)(tmpBuf + i);
-				if (hdr->magic == PKT_MAGIC) {
-					int plen = hdr->dataLen + PKT_HDR_LENGTH;
-					if (rlen - i >= plen) {
-						err = pkt_check_hdr(hdr, plen, rlen - i, chkID);
-						if (err) {
-							LOGE("pkt hdr error: 0x%02x\n", err);
-							//return err;
-							continue;
-						}
-
-						if (plen <= BUF_LEN) {
-							memcpy(pktBuf, hdr, (plen));
-							rbuf_read_shift(hio->buf.hrb, plen);
-							find = 1;
-							break;
-						}
+					if (plen <= BUF_LEN) {
+						memcpy(hio->buf.pkt, hdr, plen);
+						rbuf_read_shift(hio->buf.hrb, plen+i);
+						find = 1; break;
 					}
 				}
 			}
+		}
 
-			if (find) {
-				io_data_proc(pktBuf, plen);
+		if (find) {
+			io_data_proc(hio->port, hio->buf.pkt, plen);
+		}
+		else {
+			int xlen = is_all_print(hio->buf.tmp, rlen);
+			if (xlen>0) {
+				io_data_print(hio->buf.tmp, xlen);
+				rbuf_read_shift(hio->buf.hrb, xlen);
 			}
-			//print(_T("___\n"));
+		}
+	}
+
+	return find;
+}
+static DWORD dataRecvThread(LPVOID lpParam)
+{
+	int i;
+	io_handle_t* hio = myHandle.hio;
+
+	while (!quit_flag) {
+		for (i = 0; i < PORT_MAX; i++) {
+			io_data_recv(&hio[i]);
+		}
+	}
+
+	return 0;
+}
+static DWORD dataProcThread(LPVOID lpParam)
+{
+	int i;
+	io_handle_t* hio = myHandle.hio;
+	
+	while (!quit_flag) {
+		for (i = 0; i < PORT_MAX; i++) {
+			io_data_proc(&hio[i]);
 		}
 	}
 
@@ -206,8 +293,23 @@ void my_quit(void)
 	quit_flag = 1;
 	my_post(MY_MSG, 0x800);
 }
-
-
+void my_init(void)
+{
+	int i;
+	io_handle_t* hio = myHandle.hio;
+	for (i = 0; i < PORT_MAX; i++) {
+		hio[i].port = i;
+		io_data_init(&hio[i]);
+	}
+}
+void my_free(void)
+{
+	int i;
+	io_handle_t* hio = myHandle.hio;
+	for (i = 0; i < PORT_MAX; i++) {
+		io_data_free(&hio[i]);
+	}
+}
 
 #endif
 
@@ -236,6 +338,8 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lp
 #define THREAD_NUM  3
 	HANDLE hThread[THREAD_NUM];
 
+	my_init();
+
 	HRESULT hRes = ::OleInitialize(NULL);
 	ATLASSERT(SUCCEEDED(hRes));
 
@@ -258,7 +362,6 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lp
 
 	int nRet = Run(lpstrCmdLine, nCmdShow);
 
-	my_quit();
 	appModule.RemoveMessageLoop();
 	
 	my_quit();
@@ -269,6 +372,8 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lp
 
 	appModule.Term();
 	::OleUninitialize();
+
+	my_free();
 
 	return nRet;
 }

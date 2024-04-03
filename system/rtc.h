@@ -2,7 +2,6 @@
 #define __RTC_Hx__
 
 #include "types.h"
-#include "dal_rtc.h"
 
 
 int rtc2_init(void);

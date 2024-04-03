@@ -80,7 +80,7 @@ static void mk_p_dir(fx_handle_t *h, char *path)
             if(strlen(tmp)) {
                 hdir = h->drv->opendir(tmp);
                 if(!hdir) {
-                    LOGD("___ mkdir %s\n", tmp);
+                    //LOGD("___ mkdir %s\n", tmp);
                     h->drv->mkdir(tmp);
                 }
                 else {
@@ -146,16 +146,16 @@ static int fx_mount(fx_handle_t *h, char *path)
     
     r = h->drv->mount(h->dev, path);
     if(r<0) {
-        LOGD("fs mount %s failed %d, format now...\n", path, r);
+        LOGD("mount %s failed, format now...\n", path);
         r = h->drv->format(h->dev, path);
-        if(r<0) {
-            LOGE("fs format failed\n");
+        if(r) {
+            LOGE("format %s failed, %d\n", path, r);
             return -1;
         }
         
         r = h->drv->mount(h->dev, path);
         if(r<0) {
-            LOGE("fs mount %s failed %d, exit!\n", path, r);
+            LOGE("mount %s failed %d, exit!\n", path, r);
             return -1;
         }
     }
@@ -191,7 +191,7 @@ static handle_t fx_open(fx_handle_t *h, char *path, FS_MODE mode)
     
     if(!fh->fp) {
         LOGE("%s open failed.\n", path);
-        free(h);
+        free(fh);
         return NULL;
     }
     fh->h = h;
@@ -319,11 +319,11 @@ static int fx_scan(fx_handle_t *h, char *path, handle_t l, int *nfiles)
                 
                 sprintf(tmp, "%s/%s", path, info->fname);
                 if(info->isdir) {
-                    LOGD("___dir, %s\n", tmp);
+                    //LOGD("___dir, %s\n", tmp);
                     fx_scan(h, tmp, l, nfiles);
                 }
                 else {
-                    LOGD("___file, %s/%s, %d\n", path, info->fname, info->size);
+                    //LOGD("___file, %s/%s, %d\n", path, info->fname, info->size);
                     list_append(l, 1, tmp, len);
                     if(nfiles) (*nfiles)++;
                 }
@@ -407,7 +407,7 @@ static int fx_print(fx_handle_t *h, char *path, int str_print)
     return 0;
 }
 /////////////////////////////////////////////////////////////////////
-static int do_mnount(FS_DEV dev, FS_TYPE tp, char *mount_dir)
+static int do_mount(FS_DEV dev, FS_TYPE tp, char *mount_dir)
 {
     int r;
     fx_handle_t *h;
@@ -468,8 +468,8 @@ int fs_init(void)
         }
     }
     
-    r = do_mnount(DEV_SDMMC,  SDMMC_FS_TYPE,  SDMMC_MNT_PT);
-    r = do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
+    r = do_mount(DEV_SDMMC,  SDMMC_FS_TYPE,  SDMMC_MNT_PT);
+    r = do_mount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
     
     return r;
 }
@@ -711,7 +711,7 @@ int fs_get_space(char *path, fs_space_t *sp)
     
     if(!h) {
         LOGE("___ fs_get_space %s\n", path?" not mounted!":"path is NULL!");
-        return NULL;
+        return -1;
     }
     
     return fx_get_space(h, path, sp);
@@ -731,7 +731,7 @@ int fs_test(void)
     
     
     //fs_init();
-    r = do_mnount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
+    r = do_mount(DEV_SFLASH, SFLASH_FS_TYPE, SFLASH_MNT_PT);
     
     r = rtc2_get_time(&dt);
 

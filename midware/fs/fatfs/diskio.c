@@ -23,13 +23,16 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive nmuber to identify the drive */
 )
 {
-	DSTATUS stat=STA_NOINIT;
-	int result=0;
+    int r=0;
+	DSTATUS stat=STA_NODISK;
 
 	switch (pdrv) {
         case DEV_SDMMC:
         {
-            return RES_OK;
+            r = dal_sd_status();
+            if(r==0) {
+                stat = RES_OK;
+            }  
         }
         break;
 
@@ -71,7 +74,7 @@ DSTATUS disk_initialize (
 		{
             result=dal_sd_init();
             if(result==0) {
-                return RES_OK;
+                stat = RES_OK;
             }
         }
         break;
@@ -84,7 +87,7 @@ DSTATUS disk_initialize (
         
         case DEV_SFLASH :
         {
-            return RES_OK;
+            stat = RES_OK;
         }
         break;
         
@@ -94,7 +97,7 @@ DSTATUS disk_initialize (
         break;
 	}
     
-	return STA_NOINIT;
+	return stat;
 }
 
 
@@ -129,7 +132,7 @@ DRESULT disk_read (
         
         case DEV_SFLASH :
         {
-            U32 sec=sector+SFLASH_SECTOR_FS_OFFSET;  
+            U32 sec=sector+SFLASH_FS_SECTOR_OFFSET;  
             sflash_read(sec*SFLASH_SECTOR_SIZE, buff, count*SFLASH_SECTOR_SIZE);
         }
         break;
@@ -179,7 +182,7 @@ DRESULT disk_write (
         case DEV_SFLASH :
         {
             UINT i;
-            U32 sec=sector+SFLASH_SECTOR_FS_OFFSET;
+            U32 sec=sector+SFLASH_FS_SECTOR_OFFSET;
 
             for(i=0; i<count; i++) {
                 sflash_erase_sector(sec+i);
@@ -216,9 +219,9 @@ DRESULT disk_ioctl (
 	switch (pdrv) {
         case DEV_SDMMC :
 		{
-            dal_sdcard_info_t info;
+            dal_sd_info_t info;
             
-            dal_sd_get_info(&info);
+            dal_sd_info(&info);
             switch (cmd) {
                 case CTRL_SYNC :
                 break;
@@ -237,7 +240,8 @@ DRESULT disk_ioctl (
                 
                 case GET_BLOCK_SIZE :
                 {
-                    *(WORD*)buff = info.blksize;
+                    //*(WORD*)buff = info.blksize/info.secsize;
+                    *(WORD*)buff = 1;
                 }
                 break;
 
@@ -260,7 +264,7 @@ DRESULT disk_ioctl (
 
                 case GET_SECTOR_COUNT :
                 {
-                    *(DWORD*)buff = SFLASH_SECTOR_CNT-SFLASH_SECTOR_FS_OFFSET;
+                    *(DWORD*)buff = SFLASH_SECTOR_CNT-SFLASH_FS_SECTOR_OFFSET;
                 }
                 break;
 
@@ -272,7 +276,7 @@ DRESULT disk_ioctl (
                 
                 case GET_BLOCK_SIZE :
                 {
-                    *(WORD*)buff = SFLASH_BLOCK_SIZE;
+                    *(WORD*)buff = SFLASH_BLOCK_SIZE/SFLASH_SECTOR_SIZE;
                 }
                 break;
 

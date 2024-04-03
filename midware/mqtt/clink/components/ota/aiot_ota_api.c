@@ -716,7 +716,17 @@ void _ota_mqtt_process(void *handle, const aiot_mqtt_recv_t *const packet, void 
     } else {
         /* 对于COTA来说, 版本有关的关键字是configId */
         if (STATE_SUCCESS != _ota_parse_json(sysdep, data, data_len, "configId", &(task_desc.version))) {
-            goto exit;
+            aiot_ota_recv_t msg = {
+                .type = AIOT_OTARECV_COTA,
+                .task_desc = &task_desc,
+            };
+            
+            //gh add it to reduce runtime for save power 2024.0319
+            if (ota_handle->recv_handler) {
+                ota_handle->recv_handler(ota_handle, &msg, ota_handle->userdata);
+            }
+            
+            goto exit;        
         }
     }
 

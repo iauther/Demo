@@ -171,7 +171,8 @@ static int cali_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
             
             //LOGD("______ rms: %f\n", rms);
             if(cali->sig.seq<cali->sig.max) {
-                LOGD("--- cali seq %d finished, input %d cali para please\n", cali->sig.seq, cali->sig.seq+1);
+                LOGD("___ cali seq %d finished, input seq %d cali para please\n", cali->sig.seq, cali->sig.seq+1);
+                api_comm_send_data(TYPE_CALI, 0, NULL, 0);
             }
             else {
                 int xcnt;
@@ -195,13 +196,23 @@ static int cali_calc(U8 ch, F32 *f, U16 *u, U32 cnt)
                     cali->rms[i].out = average_f32(rms2[i], CALI_CNT);
                     x = cali->rms[i].out/cali->rms[i].in;
                     a += x;
-                    LOGD("___ %d, rms.in: %f, rms.out: %f, coef.a: %f\n", i, cali->rms[i].in, cali->rms[i].out, x);
+                    LOGD("___ %d, rms.in: %.10f, rms.out: %.10f, coef.a: %.10f\n", i, cali->rms[i].in, cali->rms[i].out, x);
                 }
                 
                 pch->coef.a = a/cali->sig.max;
                 pch->coef.b = 0;
 #endif
-                LOGD("____cali: coef.a: %f, coef.b: %f\n", pch->coef.a, pch->coef.b);
+                LOGD("____cali: coef.a: %.10f, coef.b: %10f\n", pch->coef.a, pch->coef.b);
+                
+                {
+                    cali_coef_t cc;
+                    
+                    cc.ch = ch;
+                    cc.coef = pch->coef;
+                    api_comm_send_data(TYPE_CALI, 0, &cc, sizeof(cc));
+                    paras_set_mode(MODE_NORM);
+                }
+                
                 r = 1;
             }
         }
@@ -220,7 +231,7 @@ static void ads_data_callback(U16 *data, U32 cnt)
 }
 static void vib_data_callback(U16 *data, U32 cnt)
 {
-    node_t node={0, data,cnt*2,cnt*2};
+    node_t node={0, data,cnt*2, cnt*2};
     task_post(TASK_DATA_CAP, NULL, EVT_ADC, 0, &node, sizeof(node));
 }
 
@@ -232,7 +243,7 @@ static void ads_cali_proc(U8 ch, raw_data_t *raw, U16 *data, int cnt)
         
     r = cali_calc(ch, raw->data, data, cnt);
     if(r==1) {
-        task_trig(TASK_SEND, EVT_SAVE);
+        paras_save();
         api_cap_stop(ch);
     }
 }

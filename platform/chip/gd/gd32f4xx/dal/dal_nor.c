@@ -55,7 +55,7 @@ static int nor_check(U32 addr, void *data, U32 len)
     for(i=0; i<cnt; i++) {
         nor_read(addr+tlen, tmp, ulen);
         if(memcmp(p+tlen, tmp, ulen)) {
-            LOGE("___ nor_check failed 1, addr: 0x%x, len: %d\n", addr+tlen, ulen);
+            LOGE("___ nor_check failed 1, %d, addr: 0x%x, tlen: %d, len: %d\n", i, addr, tlen, ulen);
             r = -1;
             break;
         }
@@ -64,8 +64,8 @@ static int nor_check(U32 addr, void *data, U32 len)
     if(r==0 && rem) {
         nor_read(addr+tlen, tmp, rem);
         if(memcmp(p+tlen, tmp, rem)) {
-            LOGE("___ nor_check failed 2, addr: 0x%x, len: %d\n", addr+tlen, rem);
-            r = -1; 
+            LOGE("___ nor_check failed 2, addr: 0x%x, tlen: %d, len: %d\n", addr, tlen, ulen);
+            r = -1;
         }
     }
     free(tmp);

@@ -653,7 +653,7 @@ int list_sort(handle_t l, U8 order)
     int r=-1;
     list_t *hl=(list_t*)l;
     
-    if (!hl || order>=SORT_MAX) {
+    if (!hl || order>=LIST_SORT_MAX) {
         return -1;
     }
     
@@ -676,7 +676,7 @@ int list_sort(handle_t l, U8 order)
             while(p2) {
                 len = MIN(p1->data.dlen, p2->data.dlen);
                 cmp = memcmp(p1->data.buf, p2->data.buf, len);
-                if(((cmp>0) && (order==SORT_ASCEND)) || ((cmp<0) && (order==SORT_DESCEND))) {
+                if(((cmp>0) && (order==LIST_SORT_ASCEND)) || ((cmp<0) && (order==LIST_SORT_DESCEND))) {
                     node_swap(p1, p2);
                 }
                 

@@ -30,15 +30,12 @@ typedef union {
     U32     crc32;
 }chkcode_t;
 
-
-
 typedef int (*pkt_callback_t)(ch_data_t *data);
 
-
+int pkt_chk_len(int chkID);
 int pkt_check_hdr(void* data, int dlen, int buflen, int chkID);
 int pkt_pack_data(U8 type, U8 nAck, void* data, int dlen, U8 *buf, int blen, int chkID);
 int pkt_pack_ack(U8 type, U8 err, U8* buf, int blen, int chkID);
-
 
 #ifdef __cplusplus
     }

@@ -917,6 +917,7 @@ int sd30xx_clr_irq(void)
         LOGE("___ sd30xx_clr_irq failed 333\n");
         goto quit;
     }
+    bak[0] |= tmp[0]&0x01;
     
     bak[0] |= 0x84; bak[1] |= 0x80;
     if(memcmp(tmp,bak,3)) {

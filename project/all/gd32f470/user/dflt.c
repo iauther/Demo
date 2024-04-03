@@ -60,17 +60,21 @@ const char *filesPath[FILE_MAX]={
 };
 
 const all_para_t DFLT_PARA={
-    
     .sys = {
-        .fwInfo={
-            .magic=FW_MAGIC,
-            .version=FW_VERSION,
-            .bldtime=__DATE__,
+        .fwInfo = {
+            .magic   = FW_MAGIC,
+            .version = FW_VERSION,
+            .bldtime = __DATE__,
         },
         
+        .cfile = {
+            .cid = {0},
+        }
     },
     
     .usr = {
+        
+        .takeff = 0,
         
         .net = {
             .mode = 1,                  //默认连接平台
@@ -108,7 +112,7 @@ const all_para_t DFLT_PARA={
             
             .mode       = MODE_NORM,
     #ifdef DEV_MODE_DEBUG
-            .worktime    = 60*1,
+            .invTime    = 60*1,
             
             .ch = {
                     {
@@ -123,7 +127,7 @@ const all_para_t DFLT_PARA={
                         .smpInterval  = 1000000,
                         .smpTimes     = 200,
                         
-                        .trigEvType     = 1,
+                        .trigEvType     = EV_AMP,
                         .trigThreshold  = 60.0f,
                         .trigTime={
                             .preTime    = 200,
@@ -159,7 +163,7 @@ const all_para_t DFLT_PARA={
                         .smpInterval  = 1000000,
                         .smpTimes     = 1,
                         
-                        .trigEvType = 1,
+                        .trigEvType = EV_AMP,
                         .trigThreshold  = 50.0f,
                         .trigTime={
                             .preTime    = 600,
@@ -185,22 +189,22 @@ const all_para_t DFLT_PARA={
                     },
             },
     #elif defined DEV_MODE_TEST
-            .worktime   = 60*10,
+            .invTime   = 60*2,
             
             .ch = {
                     {
                         .ch         = CH_0,
                         .enable     = 1,
                         
-                        //.smpMode      = SMP_MODE_PERIOD,
-                        .smpMode    = SMP_MODE_TRIG,
+                        .smpMode      = SMP_MODE_PERIOD,
+                        //.smpMode    = SMP_MODE_TRIG,
                         .smpFreq    = 1000000,
                         
                         .smpPoints    = 10000,
                         .smpInterval  = 1000000,
                         .smpTimes     = 1,
                         
-                        .trigEvType = 1,
+                        .trigEvType = EV_AMP,
                         .trigThreshold  = 50.0f,
                         .trigTime={
                             .preTime    = 600,
@@ -216,8 +220,8 @@ const all_para_t DFLT_PARA={
                         .evCalcPoints = 5000,
                         
                         .upway      = 0,
-                        .upwav      = 0,
-                        .savwav     = 1,
+                        .upwav      = 1,
+                        .savwav     = 0,
                         
                         .coef={
                             .a = COEF_A,
@@ -236,7 +240,7 @@ const all_para_t DFLT_PARA={
                         .smpInterval  = 1000000,
                         .smpTimes     = 1,
                         
-                        .trigEvType = 1,
+                        .trigEvType = EV_AMP,
                         .trigThreshold  = 50.0f,
                         .trigTime={
                             .preTime    = 600,
@@ -262,7 +266,7 @@ const all_para_t DFLT_PARA={
                     },
             },
     #else
-            .worktime   = 60*60*4,
+            .invTime   = 60*60*4,
             
             .ch = {
                     {
@@ -276,7 +280,7 @@ const all_para_t DFLT_PARA={
                         .smpInterval  = 1000000,
                         .smpTimes     = 1,
                         
-                        .trigEvType = 1,
+                        .trigEvType = EV_AMP,
                         .trigThreshold  = 50.0f,
                         .trigTime={
                             .preTime    = 600,
@@ -312,7 +316,7 @@ const all_para_t DFLT_PARA={
                         .smpInterval  = 1000000,
                         .smpTimes     = 1,
                         
-                        .trigEvType = 1,
+                        .trigEvType = EV_AMP,
                         .trigThreshold  = 50.0f,
                         .trigTime={
                             .preTime    = 600,
@@ -344,10 +348,16 @@ const all_para_t DFLT_PARA={
         .dac = {
             .enable = 0,
             .fdiv   = 1,
-        }
+        },
     },
     
     .var = {
+        
+        .wtime = {
+            .rtmax = RUNTIME_MAX,
+            .rtmin = RUNTIME_MIN,
+        },
+        
         .cali={
             {.cnt=0},
             {.cnt=0},

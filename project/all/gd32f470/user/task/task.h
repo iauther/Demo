@@ -20,7 +20,6 @@ enum {
     TASK_COMM_SEND,
     TASK_DATA_CAP,
     TASK_DATA_PROC,
-    TASK_POLLING,
     TASK_SEND,
     
     TASK_MAX
@@ -110,7 +109,9 @@ typedef struct {
 }task_buf_t;
 
 typedef struct {
-    handle_t        hcomm;
+    handle_t        hnet;
+    handle_t        hlog;
+    handle_t        h485;
     
     handle_t        hMem;
     
@@ -154,6 +155,9 @@ int api_comm_send_data(U8 type, U8 nAck, void *data, int len);
 int api_send_append(void *data, int len);
 int api_send_save_file(void);
 int api_send_is_finished(void);
+
+void api_polling_conn_wait(void);
+void api_polling_start(void);
 
 int api_data_proc_send(U8 ch, void *data, int len);
 

@@ -3,7 +3,7 @@
 
 #include "types.h"
 #include "net.h"
-
+#include "rs485.h"
 
 typedef struct {
     U8          port;
@@ -25,12 +25,14 @@ int comm_data_proc(handle_t h, void *para, void* data, int len);
 int comm_send_paras(handle_t h, void *para, U8 flag);
 int comm_send_data(handle_t h, void *para, U8 type, U8 nAck, void* data, int len);
 int comm_recv_proc(handle_t h, void *para, void* data, int len);
+int comm_cmd_proc(void* data, int len);
 int comm_get_buf(handle_t h, U8** data, int* len);
 int comm_get_paras_flag(handle_t h, void* addr);
 int comm_ack_poll(handle_t h, void* addr);
 
 int comm_pure_send(handle_t h, void *para, void* data, int len);
 int comm_recv_data(handle_t h, void *para, void* data, int len);
+int comm_req(handle_t h, int req);
 
 #ifdef __cplusplus
 }

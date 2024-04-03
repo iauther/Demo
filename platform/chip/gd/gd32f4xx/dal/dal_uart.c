@@ -102,6 +102,19 @@ static void uart_dma_init(dal_uart_handle_t *h)
     dma_channel_enable(dma->dma, dma->chn);
 #endif
 }
+static inline void uart_data_callback(dal_uart_handle_t *h, int idle)
+{
+    int i;
+    
+    if(h->cfg.rx.buf && h->cfg.rx.dlen>0 && (idle || h->cfg.rx.dlen>=100)) {
+        for(i=CB_MAX; i>=0; i--) {
+            if(h->callback[i]) {
+                h->callback[i](h->cfg.handle, NULL, 0, h->cfg.rx.buf, h->cfg.rx.dlen, idle);
+            }
+        }
+        h->cfg.rx.dlen = 0;
+    }
+}
 
 static void uart_dma_send(dal_uart_handle_t *h, U8 *data, int len)
 {
@@ -141,13 +154,7 @@ static void uart_dma_rx_proc(dal_uart_handle_t *h)
             
             dma_memory_address_config(dma->dma, dma->chn, DMA_MEMORY_0, (U32)h->cfg.rx.buf);
             dma_transfer_number_config(dma->dma, dma->chn, h->cfg.rx.blen);
-            if(recv_len) {
-                for(i=CB_MAX; i>=0; i--) {
-                    if(h->callback[i]) {
-                        h->callback[i](NULL,NULL,0,h->cfg.rx.buf, recv_len);
-                    }
-                }
-            }
+            uart_data_callback(h, 1);
             
             dma_flag_clear(dma->dma, dma->chn, DMA_FLAG_FTF);
             dma_channel_enable(dma->dma, dma->chn);		///* 开启DMA传输 
@@ -165,27 +172,17 @@ static void uart_it_rx_proc(dal_uart_handle_t *h)
         (RESET != usart_flag_get(info->urt, USART_FLAG_RBNE))) {
         usart_interrupt_flag_clear(info->urt, USART_INT_FLAG_RBNE);           //清中断标志
         
-        if(h->cfg.rx.buf && h->cfg.rx.dlen<=h->cfg.rx.blen) {
+        if(h->cfg.rx.buf && h->cfg.rx.dlen<h->cfg.rx.blen) {
             h->cfg.rx.buf[h->cfg.rx.dlen] = usart_data_receive(info->urt);
+            h->cfg.rx.dlen++;   
         }
-        h->cfg.rx.dlen++;
+        uart_data_callback(h, 0);
     }
     else if (RESET != usart_interrupt_flag_get(info->urt, USART_INT_FLAG_IDLE)) {
         usart_interrupt_flag_clear(info->urt, USART_INT_FLAG_IDLE);
         usart_data_receive(info->urt);                                        // 清除接收完成标志位
         
-        if(h->cfg.rx.buf && h->cfg.rx.dlen>0) {
-            if(h->cfg.rx.dlen>h->cfg.rx.blen) {
-                h->cfg.rx.dlen = h->cfg.rx.blen;
-            }
-            
-            for(i=CB_MAX; i>0; i--) {
-                if(h->callback[i]) {
-                    h->callback[i](NULL, NULL,0, h->cfg.rx.buf, h->cfg.rx.dlen);
-                }
-            }
-            h->cfg.rx.dlen = 0;
-        }
+        uart_data_callback(h, 1);
     }
 }
 
@@ -354,7 +351,6 @@ int dal_uart_write(handle_t h, U8 *data, int len)
         uart_dma_send(dh, data, len);
     }
     else {
-    
         for(i=0; i<len; i++) {
             while(usart_flag_get(urt,USART_FLAG_TBE) == RESET);
             usart_data_transmit(urt, data[i]);
@@ -381,7 +377,7 @@ int dal_uart_set_callback(handle_t h, int id, rx_cb_t cb)
 {
     dal_uart_handle_t *dh=(dal_uart_handle_t*)h;
     
-    if(!dh || id>=CB_MAX) {
+    if(!dh || id<0 || id>=CB_MAX) {
         return -1;
     }
     
@@ -396,6 +392,7 @@ static void uartx_handler(U8 port)
 {
     dal_uart_handle_t *h=uartHandle[port];
     uart_info_t *info=(uart_info_t*)&uartInfo[port];
+    
 #if 1
     if(usart_interrupt_flag_get(info->urt,USART_INT_FLAG_ERR_ORERR)
 	   ||usart_interrupt_flag_get(info->urt,USART_INT_FLAG_ERR_NERR)

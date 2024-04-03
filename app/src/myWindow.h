@@ -21,7 +21,8 @@ enum {
 	ID_PORT_LIST,
 
 	ID_OPEN,
-	ID_CALI,
+	ID_CALI1,
+	ID_CALI2,
 	ID_DAC,
 	ID_START,
 
@@ -30,6 +31,7 @@ enum {
 
 	ID_UPGRADE,
 	ID_REBOOT,
+	ID_PWROFF_DLY,
 
 	ID_LOG_SET,
 	ID_DATO,
@@ -132,11 +134,11 @@ public:
 	CPaneContainer     wavPane, infPane, cmdPane, dbgPane;
 	CButton btOpen,btStart;
 	CButton btEna,btSav,btClr;
-	CButton btCfgr,btCfgw,btUpg,btBoot;
-	CButton btCali,btDflt,btDac,btFresh;
+	CButton btCfgr,btCfgw,btUpg,btBoot,btPwr;
+	CButton btCali1,btCali2,btDflt,btDac,btFresh;
 
 	int      iport=-1;
-	handle_t hcomm;
+	handle_t hcomm[PORT_MAX] = {NULL};
 	mySerial mSerial;
 
 	int dev_opened=0;
@@ -235,25 +237,26 @@ public:
 		portList.Clear();
 
 		switch (sel) {
-			case PORT_UART:
+			case PORT_LOG:
+			case PORT_485:
 			{
 				int n;
-				sp_info_t* info;
+				sp_info_t* info = NULL;
 
 				n = mSerial.list(&info);
-				if (n > 0) {
+				if (n>0) {
 					for (int i = 0; i < n; i++) {
 						portList.AddString(info[i].portName);
 					}
 				}
-				break;
+			}
+			break;
 
 			case PORT_NET:
 			{
 
 			}
 			break;
-			}
 		}
 	}
 
@@ -292,7 +295,6 @@ public:
 			TCHAR* x = _tcsrchr(txt, '\n');
 			if (x) _tcscpy(x, "\r\n");
 		}
-
 
 		info.SetRedraw(FALSE);
 		int txtLen = info.GetWindowTextLength();
@@ -366,7 +368,11 @@ public:
 		sprintf(tmp, "dev.devID: 0x%08x\n", sys->devInfo.devID);			    info_print(tmp);
 																				    
 		//sprintf(tmp, "fw.length: %d\n", sys->para.fwInfo.length);				    info_print(tmp);
-		usr_para_t* usr = &allPara.usr;											    
+
+		usr_para_t* usr = &allPara.usr;
+
+		sprintf(tmp, "takeff: %d\n", usr->takeff);									info_print(tmp);
+
 		sprintf(tmp, "card.apn: %s\n", usr->card.apn);							    info_print(tmp);
 		sprintf(tmp, "card.type: %d\n", usr->card.type);						    info_print(tmp);
 		sprintf(tmp, "card.auth: %d\n", usr->card.auth);						    info_print(tmp);
@@ -386,7 +392,7 @@ public:
 		sprintf(tmp, "smp.mode: %d\n", usr->smp.mode);								info_print(tmp);
 		sprintf(tmp, "smp.port: %d\n", usr->smp.port);								info_print(tmp);
 		sprintf(tmp, "smp.pwrmode: %d\n", usr->smp.pwrmode);						info_print(tmp);
-		sprintf(tmp, "smp.worktime: %ds\n", usr->smp.worktime);				        info_print(tmp);
+		sprintf(tmp, "smp.invTime: %ds\n", usr->smp.invTime);				        info_print(tmp);
 		
 		U8  mode=usr->smp.mode;
 		
@@ -418,8 +424,8 @@ public:
 			sprintf(tmp, "smp.ch[%d].n_ev: %d\n",		       i, pch->n_ev);              info_print(tmp);
 			sprintf(tmp, "smp.ch[%d].evCalcPoints: %d\n", 	   i, pch->evCalcPoints);      info_print(tmp);
 														       
-			sprintf(tmp, "smp.ch[%d].coef.a: %f\n",		       i, pch->coef.a);            info_print(tmp);
-			sprintf(tmp, "smp.ch[%d].coef.b: %f\n",		       i, pch->coef.b);            info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].coef.a: %.10f\n",		   i, pch->coef.a);            info_print(tmp);
+			sprintf(tmp, "smp.ch[%d].coef.b: %.10f\n",		   i, pch->coef.b);            info_print(tmp);
 		}
 
 		sprintf(tmp, "dac.enable: %d\n",	usr->dac.enable);		 info_print(tmp);
@@ -532,8 +538,13 @@ public:
 		rc.top = rc.bottom + BTN_HGAP;
 		rc.right = rc.left + BTN_WIDTH;
 		rc.bottom = rc.top + BTN_HEIGHT;
-		btCali.Create(hwnd, rc, "cali", WS_CHILD | WS_VISIBLE, NULL, ID_CALI, NULL);
-		btCali.SetFont(gFont);
+		btCali1.Create(hwnd, rc, "cali1", WS_CHILD | WS_VISIBLE, NULL, ID_CALI1, NULL);
+		btCali1.SetFont(gFont);
+
+		rc.left = rc.right + BTN_WGAP;
+		rc.right = rc.left + BTN_WIDTH;
+		btCali2.Create(hwnd, rc, "cali2", WS_CHILD | WS_VISIBLE, NULL, ID_CALI2, NULL);
+		btCali2.SetFont(gFont);
 
 		rc.left = rc.right + BTN_WGAP;
 		rc.right = rc.left + BTN_WIDTH;
@@ -554,6 +565,15 @@ public:
 		rc.right = rc.left + BTN_WIDTH;
 		btBoot.Create(hwnd, rc, "reboot", WS_CHILD | WS_VISIBLE, NULL, ID_REBOOT, NULL);
 		btBoot.SetFont(gFont);
+
+#if 0
+		rc.left = 20;
+		rc.top = rc.bottom + BTN_HGAP;
+		rc.right = rc.left + BTN_WIDTH;
+		rc.bottom = rc.top + BTN_HEIGHT;
+		btPwr.Create(hwnd, rc, "poff dly", WS_CHILD | WS_VISIBLE, NULL, ID_PWROFF_DLY, NULL);
+		btPwr.SetFont(gFont);
+#endif
 
 		//dbg control button
 		rc.left = 20;
@@ -801,7 +821,7 @@ public:
 		return r;
 	}
 
-	int load_port(int *port, char *para)
+	int load_port(char *port)
 	{
 		int   r = 0, flen;
 		char* fbuf, * p;
@@ -814,17 +834,10 @@ public:
 			return -1;
 		}
 
-		r = get_string(fbuf, flen, "PORT:", '[', 0, ',', 0, tmp, sizeof(tmp));
+		r = get_string(fbuf, flen, "PORT:", '[', 0, ']', 0, tmp, sizeof(tmp));
 		if (r==0) {
 			if (port) {
-				*port = atoi(tmp);
-			}
-		}
-
-		r = get_string(fbuf, flen, "PORT:", ',', 0, ']', 0, tmp, sizeof(tmp));
-		if (r == 0) {
-			if (para) {
-				strcpy(para, tmp);
+				strcpy(port, tmp);
 			}
 		}
 
@@ -837,83 +850,81 @@ public:
 	int port_open()
 	{
 		comm_para_t comm_p;
-		char portPara[20];
+		char portX[20];
 		const char* portStr[PORT_MAX] = {"com","net","usb"};
 
-		int r = load_port(&iport, portPara);
+		int r = load_port(portX);
 		if (r) {
 			return -1;
 		}
 
-		comm_p.port = iport;
 		comm_p.rlen = 0;
 		comm_p.tlen = 80000;
 		comm_p.para = NULL;
 
-		if (iport ==PORT_NET) {
+		{
 			conn_para_t conn_p;
 
 			netPara.mode = 1;
 			netPara.para.plat = platPara;
 			load_net_para(&netPara);
 
+			comm_p.port = PORT_NET;
 			conn_p.callback = NULL;
 			conn_p.proto = PROTO_MQTT;
 			conn_p.para = &netPara;
 			
 			comm_p.para = &conn_p;
-			hcomm = comm_open(&comm_p);
-			
-			
+			hcomm[PORT_NET] = comm_open(&comm_p);
+			if (!hcomm[PORT_NET]) {
+				LOGE("___ comm_open net failed!\n");
+			}
+			else {
+				LOGD("___ comm_open net ok!\n");
+			}
 		}
-		else if(iport == PORT_UART) {
-			comm_p.para = portPara;
-			hcomm = comm_open(&comm_p);
+
+		{
+			comm_p.port = PORT_LOG;
+			comm_p.para = portX;
+			hcomm[PORT_LOG] = comm_open(&comm_p);
+			if (!hcomm[PORT_LOG]) {
+				LOGE("___ comm_open %s failed!\n", portX);
+			}
+			else {
+				LOGD("___ comm_open %s ok!\n", portX);
+			}
 		}
-		if (!hcomm) {
-			LOGE("___ comm_open %s failed!\n", portStr[iport]);
-			return -1;
-		}
-		LOGD("___ comm_open %s ok!\n", portStr[iport]);
 
 		return 0;
 	}
 	int port_close(void)
 	{
-		comm_close(hcomm);
-		hcomm = NULL;
+		comm_close(hcomm[PORT_NET]);
+		comm_close(hcomm[PORT_LOG]);
+
+		hcomm[PORT_NET] = NULL;
+		hcomm[PORT_LOG] = NULL;
 
 		return 0;
 	}
 
-	int port_read(void* data, int len)
+	int port_read(int port, void* data, int len)
 	{
-		if (!hcomm) {
-			return -1;
-		}
-
-		return comm_recv_data(hcomm, NULL, data, len);
+		return comm_recv_data(hcomm[port], NULL, data, len);
 	}
 
-	int port_write(U8 type, U8 nack, void* data, int len)
+	int port_write(int port, U8 type, U8 nack, void* data, int len)
 	{
-		if (!hcomm) {
-			return -1;
-		}
-
-		return comm_send_data(hcomm, NULL, type, nack, data, len);
+		return comm_send_data(hcomm[port], NULL, type, nack, data, len);
 	}
 
-	int port_pure_write(U8* data, int len)
+	int port_pure_write(int port, U8* data, int len)
 	{
-		if (!hcomm) {
-			return -1;
-		}
-
-		return comm_pure_send(hcomm, NULL, data, len);
+		return comm_pure_send(hcomm[port], NULL, data, len);
 	}
 
-	int send_ack(U8 type, U8 err, U8 chkID)
+	int send_ack(int port, U8 type, U8 err, U8 chkID)
 	{
 		int len;
 		U8 tmp[100];
@@ -923,7 +934,42 @@ public:
 			return -1;
 		}
 
-		return port_pure_write(tmp, len);
+		return port_pure_write(port, tmp, len);
+	}
+
+	int send_cali(const char* path, int idx)
+	{
+		int r, flen;
+		char tmp[100];
+		cali_sig_t sig;
+		char* fbuf;
+
+		r = load_file(path, &fbuf, &flen);
+		if (r) {
+			LOGE("___ load file %s failed\n", path);
+			return -1;
+		}
+
+		r = get_string(fbuf, flen, "CALI:", '[', idx, ']', idx, tmp, sizeof(tmp));
+		if (r) {
+			//MessageBox();
+			delete[] fbuf;
+			return -1;
+		}
+
+		r = sscanf(tmp, "%hhu,%u,%f,%hhu,%f,%hhu,%hhu]", &sig.ch, &sig.freq, &sig.bias, &sig.lv, &sig.volt, &sig.max, &sig.seq);
+		if (r != 7) {
+			LOGE("___ cali param number: %d is wrong!\n", r);
+			delete[] fbuf;
+			return -1;
+		}
+
+		r = port_write(PORT_LOG, TYPE_CALI, 0, &sig, sizeof(sig));
+		if (r == 0) {
+			LOGD("_____%d, ch: %hhu, lv: %hhu, max: %hhu, seq: %hhu, volt: %.1fmv, freq: %ukhz, bias: %.1fmv\n", idx + 1, sig.ch, sig.lv, sig.max, sig.seq, sig.volt, sig.freq / 1000, sig.bias);
+		}
+
+		delete[] fbuf;
 	}
 
 	int my_proc(my_msg_t *m)
@@ -967,49 +1013,21 @@ public:
 					para_recved = 0;
 
 					info_clear();
-					cali_idx = 0;
-
 					btOpen.SetWindowText("open");
 				}
 			}
 		}
 		break;
 
-		case ID_CALI:
+		case ID_CALI1:
 		{
-			cali_sig_t sig;
-			char tmp[100];
+			send_cali(path, 0);
+		}
+		break;
 
-			r = load_file(path, &fbuf, &flen);
-			if (r) {
-				LOGE("___ load file %s failed\n", path);
-				return -1;
-			}
-
-			r = get_string(fbuf, flen, "CALI:", '[', cali_idx, ']', cali_idx, tmp, sizeof(tmp));
-			if (r) {
-				//MessageBox();
-				delete[] fbuf;
-				return -1;
-			}
-
-			r = sscanf(tmp, "%hhu,%u,%f,%hhu,%f,%hhu,%hhu]", &sig.ch, &sig.freq, &sig.bias, &sig.lv, &sig.volt, &sig.max, &sig.seq);
-			if (r != 7) {
-				LOGE("___ cali param number: %d is wrong!\n", r);
-				delete[] fbuf;
-				return -1;
-			}
-
-			r = port_write(TYPE_CALI, 0, &sig, sizeof(sig));
-			if (r == 0) {
-				LOGD("___ cali %d, ch: %hhu, lv: %hhu, max: %hhu, seq: %hhu, volt: %.1fmv, freq: %ukhz, bias: %.1fmv\n", cali_idx + 1, sig.ch, sig.lv, sig.max, sig.seq, sig.volt, sig.freq/1000, sig.bias);
-				cali_idx++;
-				if (sig.seq == sig.max) {
-					cali_idx = 0;
-				}
-			}
-
-			delete[] fbuf;
+		case ID_CALI2:
+		{
+			send_cali(path, 1);
 		}
 		break;
 
@@ -1031,7 +1049,7 @@ public:
 				return -1;
 			}
 
-			r = port_write(TYPE_CAP, 0, &dac, sizeof(dac));
+			r = port_write(PORT_NET, TYPE_CAP, 0, &dac, sizeof(dac));
 		}
 		break;
 
@@ -1039,7 +1057,7 @@ public:
 		{
 			capture_t cap = { 0, !dev_started };
 
-			r = port_write(TYPE_CAP, 0, &cap, sizeof(cap));
+			r = port_write(PORT_NET, TYPE_CAP, 0, &cap, sizeof(cap));
 			if (r == 0) {
 				dev_started = dev_started ? 0 : 1;
 
@@ -1091,7 +1109,7 @@ public:
 							all_para_t all = allPara;
 
 							all.usr = usr;
-							r = port_write(TYPE_PARA, 1, &all, sizeof(all));
+							r = port_write(PORT_NET, TYPE_PARA, 1, &all, sizeof(all));
 						}
 						delete[] fbuf;
 					}
@@ -1103,7 +1121,7 @@ public:
 
 		case ID_DEFAULT:
 		{
-			r = port_write(TYPE_DFLT, 0, NULL, 0);
+			r = port_write(PORT_NET, TYPE_DFLT, 0, NULL, 0);
 		}
 		break;
 
@@ -1134,13 +1152,20 @@ public:
 
 		case ID_REBOOT:
 		{
-			r = port_write(TYPE_REBOOT, 0, NULL, 0);
+			r = port_write(PORT_NET, TYPE_REBOOT, 0, NULL, 0);
+		}
+		break;
+
+		case ID_PWROFF_DLY:
+		{
+			U32 dly = 60;
+			r = port_write(PORT_NET, TYPE_RTMIN, 0, &dly, sizeof(dly));
 		}
 		break;
 
 		case ID_REFRESH:
 		{
-			r = port_write(TYPE_PARA, 0, NULL, 0);
+			r = port_write(PORT_NET, TYPE_PARA, 0, NULL, 0);
 		}
 		break;
 
@@ -1149,7 +1174,7 @@ public:
 			U8 mode = allPara.usr.smp.mode;
 
 			mode = (mode + 1) % MODE_MAX;
-			r = port_write(TYPE_MODE, 0, &mode, sizeof(mode));
+			r = port_write(PORT_NET, TYPE_MODE, 0, &mode, sizeof(mode));
 			if (r==0) {
 				const char* mode_str[MODE_MAX] = {"norm","cali","test"};
 				LOGD("__ switch mode to %s\n", mode_str[mode]);
@@ -1188,14 +1213,14 @@ public:
 		case ID_DATO:
 		{
 			static int data_to = 0;
-			r = port_write(TYPE_DATO, 0, NULL, 0);
+			r = port_write(PORT_NET, TYPE_DATO, 0, NULL, 0);
 		}
 		break;
 
 		case ID_TIMER:
 		{
 			if (dev_opened && !para_recved) {
-				r = port_write(TYPE_PARA, 0, NULL, 0);
+				r = port_write(PORT_NET, TYPE_PARA, 0, NULL, 0);
 			}
 		}
 		break;
@@ -1205,11 +1230,7 @@ public:
 		return 0;
 	}
 
-
-	
-	
-
-	int data_proc(void* data, int len, U8 chk)
+	int data_proc(int port, void* data, int len, U8 chk)
 	{
 		int r;
 		int err = 0;
@@ -1275,7 +1296,13 @@ public:
 
 			case TYPE_CALI:
 			{
-				cali_sig_t* sig = (cali_sig_t*)hdr->data;
+				if (hdr->dataLen>0) {
+					cali_coef_t* cc = (cali_coef_t*)hdr->data;
+					LOGD("___ch %d cali finished, coef.a: %.10f, coef.b: %.10f\n", cc->ch, cc->coef.a, cc->coef.b);
+				}
+				else {
+					LOGD("___input the next signal please\n");
+				}
 
 				err = 0;
 			}
@@ -1305,7 +1332,7 @@ public:
 			}
 
 			if (hdr->askAck || err) {
-				send_ack(hdr->type, err, chk);
+				send_ack(port, hdr->type, err, chk);
 			}
 		}
 
@@ -1441,8 +1468,7 @@ public:
 		gbl_init();
 		split_init();
 		pane_init();
-
-		LOGD("___ all init ok!\n");
+		LOGD("___ all is ready!\n");
 		
 		return 0;
 	}
@@ -1456,7 +1482,8 @@ public:
 
 	LRESULT OnClose(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled)
 	{
-		extern void my_quit(void);
+		//mSerial.close();
+		port_close();
 
 		DestroyWindow();
 		PostQuitMessage(0);

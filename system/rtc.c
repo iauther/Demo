@@ -2,6 +2,7 @@
 #include "lock.h"
 #include "paras.h"
 #include "sd30xx.h"
+#include "dal_rtc.h"
 #include "dal_gpio.h"
 #include "dal_delay.h"
 #include "paras.h"
@@ -92,7 +93,7 @@ static void power_en(U8 on)
         gpio_bit_set(GPIOA,GPIO_PIN_1);
         
 #ifdef BOARD_V136
-        gpio_bit_set(GPIOA,GPIO_PIN_0);     //v136版本增加了一个硬件timer, 关机时需要拉高一下连接timer的引脚
+        gpio_bit_set(GPIOA,GPIO_PIN_0);      //v136版本增加了一个硬件timer, 关机时需要拉高一下连接timer的引脚
         dal_delay_ms(100);
         gpio_bit_reset(GPIOA,GPIO_PIN_0);
 #endif
@@ -216,7 +217,7 @@ static int usr_proc(void)
     int i,r=0;
     rtc_usr_t *usr=&rtcHandle.usr;
     smp_para_t *smp=paras_get_smp();
-    U32 cntMax=(smp->worktime/7200)+1;
+    U32 cntMax=(smp->invTime/7200)+1;
     
     if(!rtcHandle.period) {
         return -1;
@@ -529,7 +530,7 @@ int rtc2_init(void)
         LOGE("___ rtc2_init, rtc_int_get failed\n");
         return -1;
     }
-    print_time("rtc2_init,", &dt);
+    //print_time("rtc2_init,", &dt);
     
     rtcHandle.lck = lock_init();
     rtcHandle.inited = 1;

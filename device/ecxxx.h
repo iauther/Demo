@@ -18,6 +18,7 @@ typedef enum {
 
 typedef enum {
     TCP_CONN_ID_0=0,
+    TCP_CONN_ID_1,
     TCP_CONN_ID_2,
     TCP_CONN_ID_3,
     TCP_CONN_ID_4,
@@ -27,7 +28,6 @@ typedef enum {
     TCP_CONN_ID_8,
     TCP_CONN_ID_9,
     TCP_CONN_ID_10,
-    TCP_CONN_ID_11,
 }TCP_CONN_ID;
 
 
@@ -87,7 +87,7 @@ enum {
 
 
 typedef int (*ecxxx_err_cb_t)(int proto, int err);
-typedef int (*ecxxx_data_cb_t)(int proto, void *data, int len);
+typedef int (*ecxxx_data_cb_t)(int proto, int evt, void *data, int len);
 
 
 typedef struct {
@@ -113,8 +113,8 @@ int ecxxx_restart(handle_t h);
 
 int ecxxx_ntp(handle_t h, char *server, U16 port);
 
-int ecxxx_conn(handle_t h, void *para);
-int ecxxx_disconn(handle_t h);
+int ecxxx_conn(handle_t h, void *para, int timemout);
+int ecxxx_disconn(handle_t h, int timemout);
 int ecxxx_write(handle_t h, void *data, int len, int timeout);
 int ecxxx_clear(handle_t h);
 int ecxxx_poll(handle_t h);

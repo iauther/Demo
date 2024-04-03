@@ -61,9 +61,8 @@ enum {
     MODE_DMA,
 };
 
-
-typedef void*  handle_t;
-typedef int (*rx_cb_t)(handle_t h, void* addr, U32 evt, void* data, int len);
+typedef void* handle_t;
+typedef int (*rx_cb_t)(handle_t h, void* addr, U32 evt, void* data, int len, int flag);
 
 #ifndef MAX
 #define MAX(a,b)    (((a)>(b))?(a):(b))
@@ -112,6 +111,7 @@ typedef struct {
     U8              *buf;
     U32             blen;
     U32             dlen;
+    U32             busying;
 }buf_t;
     
 typedef struct {

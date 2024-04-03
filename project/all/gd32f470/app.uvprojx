@@ -275,7 +275,7 @@
               </OCR_RVCT3>
               <OCR_RVCT4>
                 <Type>1</Type>
-                <StartAddress>0x8000000</StartAddress>
+                <StartAddress>0x8010000</StartAddress>
                 <Size>0xf0000</Size>
               </OCR_RVCT4>
               <OCR_RVCT5>
@@ -463,6 +463,11 @@
               <FileType>1</FileType>
               <FilePath>.\user\task\task_polling.c</FilePath>
             </File>
+            <File>
+              <FileName>cota_basic_demo.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\user\task\cota_basic_demo.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -492,6 +497,11 @@
               <FileName>pt1000.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\device\pt1000.c</FilePath>
+            </File>
+            <File>
+              <FileName>ecxxx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\device\ecxxx.c</FilePath>
             </File>
           </Files>
         </Group>

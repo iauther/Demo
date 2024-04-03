@@ -8,10 +8,9 @@
 enum {
     EVT_ADS=0,
     EVT_ADC,
-    EVT_RS485,
-    EVT_ECXXX,
+    EVT_485,
     EVT_LOG,
-    EVT_COMM,
+    EVT_NET,
     EVT_DATA,
     EVT_FINISH,
     

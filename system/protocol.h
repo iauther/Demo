@@ -22,10 +22,11 @@ enum {
 };
 
 enum {
-    PORT_UART=0,
+    PORT_LOG=0,
+    PORT_485,
     PORT_NET,
     PORT_USB,
-
+    
     PORT_MAX
 };
 
@@ -68,6 +69,8 @@ enum {
     
     TYPE_HBEAT,       //heartbeat
     TYPE_DATO,
+    TYPE_RTMIN,       //runtime min
+    
     
     TYPE_MAX
 };
@@ -175,7 +178,6 @@ typedef struct {
     U32  fdiv;              //freq divider
 }dac_para_t;
 
-
 enum {
     PWRON_RTC=0,
     PWRON_TIMER,
@@ -184,16 +186,14 @@ enum {
     PWRON_MAX
 };
 
-
 enum {
     PWR_NO_PWRDN=0,
     PWR_PERIOD_PWRDN,
 };
 
-
 typedef struct {
-    F32     a;
-    F32     b;
+    F32             a;
+    F32             b;
 }coef_t;
 
 enum {
@@ -222,14 +222,15 @@ typedef struct {
                                         */
     
     U32             MDT;                /*trigger MAX DURATION TIME       unit: us
-                                          MDT为最大持续时间, 当信号比较密集时，超过此长度的数据将会倍强行截断
+                                          MDT为最大持续时间, 当信号比较密集时，超过此长度的数据将被强行截断
                                         */
 }trig_time_t;
+
 typedef struct {
     U8              ch;
     U8              enable;
     U32             smpFreq;            //hz
-    U8              smpMode;            //SMP_PERIOD_MODE: period sample  SMP_TRIG_MODE: threshold trigger sample   SMP_CONT_MODE: continuous sample
+    U8              smpMode;            //SMP_MODE_PERIOD: period sample  SMP_MODE_TRIG: threshold trigger sample   SMP_MODE_CONT: continuous sample
     
     //period sample param
     U32             smpPoints;
@@ -255,20 +256,25 @@ typedef struct {
 
 typedef struct {
     U8              mode;               //work mode
-    U8              port;               //refer to PORT_UART define
+    U8              port;               //refer to PORT_LOG define
     
     U8              pwrmode;           //PWR_NO_PWRDN:no powerdown    PWR_PERIOD_PWRDN: period powerdown
-    U32             worktime;          //unit: second
+    U32             invTime;           //interval time, unit: second
     ch_para_t       ch[CH_MAX];
 }smp_para_t;
 
 typedef struct {
-    net_para_t  net;
-    dac_para_t  dac;
-    dbg_para_t  dbg;
-    mbus_para_t mbus;
-    card_para_t card;
-    smp_para_t  smp;
+    U8              cid[48];          //config id
+}cfg_file_t;
+
+typedef struct {
+    U8              takeff;         //take effect, 0: next startup  1: right now
+    net_para_t      net;
+    dac_para_t      dac;
+    dbg_para_t      dbg;
+    mbus_para_t     mbus;
+    card_para_t     card;
+    smp_para_t      smp;
 }usr_para_t;
 
 typedef struct {
@@ -322,9 +328,14 @@ typedef struct {
 }sett_t;
 
 typedef struct {
-    U8          proto;
-    net_para_t  *para;
-    rx_cb_t     callback;
+    U32             rtmax;        //runtime max unit: second
+    U32             rtmin;        //runtime min unit: second
+}worktime_t;
+
+typedef struct {
+    U8              proto;
+    net_para_t      *para;
+    rx_cb_t         callback;
 }conn_para_t;
 
 typedef struct {
@@ -395,10 +406,9 @@ typedef struct {
 }fw_hdr_t;
 
 typedef struct {
-    upg_data_t     upg;
-    fw_hdr_t       hdr;
+    upg_data_t      upg;
+    fw_hdr_t        hdr;
 }upg_all_t;
-
 
 typedef struct {
     U8              digit[32];
@@ -413,6 +423,7 @@ typedef struct {
     fw_info_t       fwInfo;
     dev_info_t      devInfo;
     sett_t          sett;
+    cfg_file_t      cfile;           //config file
 }sys_para_t;
 
 typedef struct {
@@ -425,6 +436,12 @@ typedef struct {
     F32             bias;       //mv
 }cali_sig_t;
 
+typedef struct {
+    U8              ch;
+    coef_t          coef;
+}cali_coef_t;
+
+
 #define CALI_MAX    5
 typedef struct {
     F32             in;
@@ -436,7 +453,8 @@ typedef struct {
     cali_sig_t      sig;
 }cali_t;
 typedef struct {
-    U8              psrc;       //poweron trig source, 0: manual poweron  1: rtc poweron  2: timer poweron
+    U8              psrc;           //poweron trig source, 0: manual poweron  1: rtc poweron  2: timer poweron
+    worktime_t      wtime;
     dac_para_t      dac;
     cali_t          cali[CH_MAX];
     state_t         state;

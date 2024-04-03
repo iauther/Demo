@@ -33,6 +33,7 @@ int log_print(LOG_LEVEL lv, char *fmt, ...);
 int log_save(void);
 int log_set_handle(handle_t h);
 handle_t log_get_handle(void);
+int log_write(void *data, int len);
 
 
 #define LOGx(lv, fmt, ...)  log_print(lv, fmt, ##__VA_ARGS__)

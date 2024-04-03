@@ -85,7 +85,7 @@ static int mqtt_self_set_userdata(void *handle, void *userdata)
 }
 
 
-static int mqtt_self_req(handle_t hconn)
+static int mqtt_self_req(handle_t hconn, int req)
 {
     int r;
     

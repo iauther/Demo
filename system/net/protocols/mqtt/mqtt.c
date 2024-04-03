@@ -100,13 +100,13 @@ int mqtt_sub(handle_t hconn, void *para)
 }
 
 
-int mqtt_req_cfg(handle_t hconn)
+int mqtt_req(handle_t hconn, int req)
 {
     if(!p_mqtt_fn) {
         return NULL;
     }
     
-    return p_mqtt_fn->req_cfg(hconn);
+    return p_mqtt_fn->request(hconn, req);
 }
 
 

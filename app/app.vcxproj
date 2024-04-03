@@ -180,7 +180,9 @@
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\misc.cpp" />
-    <ClCompile Include="src\myAmqp.cpp" />
+    <ClCompile Include="src\myAmqp.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="src\myFile.cpp" />
     <ClCompile Include="src\myLog.cpp" />
     <ClCompile Include="src\myMqtt.cpp" />

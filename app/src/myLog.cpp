@@ -29,7 +29,7 @@ private:
     int   inited;
 
     int char2wchar(wchar_t* wchar, int wlen, char* cchar);
-    int is_tailof(TCHAR* src, TCHAR* str);
+    TCHAR* replace(TCHAR* str, const TCHAR* src, const TCHAR* dst);
 };
 
 
@@ -52,7 +52,7 @@ myLog::myLog()
 }
 myLog::~myLog()
 {
-
+    
 }
 
 void myLog::init(HWND hwnd, CRect rc, CFont font)
@@ -92,6 +92,7 @@ void myLog::print(LOG_LEVEL lv, TCHAR *txt)
     va_list list;
     TCHAR fmt[200];
     SCROLLINFO ScroInfo;
+    TCHAR* ptxt;
 
     if (!inited || !en_flag || !lev[lv].enable) {
         return;
@@ -99,17 +100,16 @@ void myLog::print(LOG_LEVEL lv, TCHAR *txt)
 
 #if 0
     //char2wchar(fmt, sizeof(fmt), (char*)format);
-
     va_start(list, format);
-    //
+    
     sprintf(buffer, format, list);
     va_end(list);
 #endif
 
     //支持\r\n和\n换行
-    if (is_tailof(txt, (char*)"\n")) {
-        TCHAR* x = _tcsrchr(txt, '\n');
-        if (x) _tcscpy(x, "\r\n");
+    ptxt = replace(txt, _T("\n"), _T("\r\n"));
+    if (!ptxt) {
+        return;
     }
 
     //char2wchar(tmpBuf, sizeof(tmpBuf), tmp);
@@ -120,10 +120,10 @@ void myLog::print(LOG_LEVEL lv, TCHAR *txt)
     int txtLen = dbg.GetWindowTextLength();
     dbg.SetSel(txtLen, txtLen);      //移动光标到最后
     dbg.SetFocus();                             //移动光标到最后
-    dbg.ReplaceSel(txt);                     //在光标的位置加入最新的输出日志行
+    dbg.ReplaceSel(ptxt);                     //在光标的位置加入最新的输出日志行
     dbg.LineScroll(dbg.GetLineCount());
     dbg.SetRedraw(TRUE);
-
+    //free(ptxt);
 }
 
 void myLog::set_level(LOG_LEVEL lv, level_t* ld)
@@ -167,21 +167,42 @@ int myLog::char2wchar(wchar_t* wchar, int wlen, char* cchar)
     return 0;
 }
 
-int myLog::is_tailof(TCHAR* src, TCHAR* str)
+TCHAR* myLog::replace(TCHAR* str, const TCHAR* src, const TCHAR* dst)
 {
-    int len1 = _tcslen(src);
-    int len2 = _tcslen(str);
-    int cmp = _tcscmp(src + len1 - len2, str);
+    int i,j=0;
+    size_t len = _tcslen(str);
+    size_t len1 = _tcslen(src);
+    size_t len2 = _tcslen(dst);
+    TCHAR* p = new TCHAR[len * 2];
 
-    return (cmp == 0) ? 1 : 0;
+    if (p) {
+        for (i = 0; i < len;) {
+            //找到src且没找到dst
+            if (memcmp(str + i, src, len1)==0 && memcmp(str + i, dst, len2)) {
+                memcpy(p + j, dst, len2);
+                i += len1; j += len2;
+            }
+            else {
+                p[j] = str[i];
+                i++; j++;
+            }
+        }
+        p[j] = 0;
+    }
+    
+    return p;
 }
+
+
 
 
 //////////////////////////////////////////////////
 static myLog mLog;
+static HANDLE hMutex = NULL;
 void log_init(HWND hwnd, CRect rc, CFont font)
 {
     mLog.init(hwnd, rc, font);
+    HANDLE hMutex = CreateMutex(nullptr, FALSE, NULL);
 }
 
 HWND log_get_hwnd(void)
@@ -191,7 +212,9 @@ HWND log_get_hwnd(void)
 
 void log_clear(void)
 {
+    WaitForSingleObject(hMutex, INFINITE);
     mLog.clear();
+    ReleaseMutex(hMutex);
 }
 
 void log_enable(int flag)
@@ -209,21 +232,29 @@ void log_set_level(LOG_LEVEL lv, level_t* ld)
     mLog.set_level(lv, ld);
 }
 
+static TCHAR log_buff[10000];
 void log_print(LOG_LEVEL lv, const char* format, ...)
 {
     va_list args;
-    TCHAR buff[1000];
+
+    WaitForSingleObject(hMutex, INFINITE);
 
     va_start(args, format);
-    _vstprintf_s(buff, sizeof(buff), format, args);
+    _vstprintf_s(log_buff, sizeof(log_buff), format, args);
     va_end(args);
     
-    mLog.print(lv, buff);
+    mLog.print(lv, log_buff);
+    ReleaseMutex(hMutex);
 }
 
 int log_save(const char* path)
 {
-    return mLog.save(path);
+    int r;
+    WaitForSingleObject(hMutex, INFINITE);
+    r = mLog.save(path);
+    ReleaseMutex(hMutex);
+
+    return r;
 }
 
 

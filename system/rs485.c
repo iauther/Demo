@@ -16,15 +16,14 @@ typedef struct {
 static rs485_handle_t* rs485Handle=NULL;
 
 
-static int rs485_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
+static int rs485_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len, int flag)
 {
     rs485_handle_t *rh=rs485Handle;
-    
     
     if(rh) {
         rh->rxLen = len;
         if(rh->cfg.callback) {
-            rh->cfg.callback(h, addr, evt, data, len);
+            rh->cfg.callback(h, addr, evt, data, len, flag);
         }
     }
     
@@ -53,6 +52,8 @@ int rs485_init(rs485_cfg_t *cfg)
     uc.port = cfg->port;
     uc.msb  = 0;
     uc.callback = rs485_recv_callback;
+    uc.handle = h;
+    
     uc.rx.blen = 2000;
     uc.rx.buf = iMalloc(uc.rx.blen);
     uc.rx.dlen = 0;
@@ -90,7 +91,7 @@ int rs485_deinit(void)
 }
 
 
-int rs485_write(U8 *data, int len)
+int rs485_write(void *data, int len)
 {
     rs485_handle_t *h=rs485Handle;
     if(!h) {
@@ -98,7 +99,7 @@ int rs485_write(U8 *data, int len)
     }
     
     dal_gpio_set_hl(h->hde, 1);
-    dal_uart_write(h->hurt, data, len);
+    dal_uart_write(h->hurt, (U8*)data, len);
     dal_gpio_set_hl(h->hde, 0);
     
     return 0;

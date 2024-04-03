@@ -15,6 +15,7 @@
 #include "cfg.h"
 
 #define BAUDRATE       (115200*4)
+
 #define USE_ECXX
 #define TEMP_BUF_LEN    100
 
@@ -73,7 +74,6 @@ static at_handle_t atHandle={
     .inited = 0,
 };
 static int32_t at_uart_send(const uint8_t *data, uint16_t len, uint32_t timeout);
-static int at_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len);
 
 
 
@@ -127,6 +127,7 @@ static int send_cmd(char *cmd, char *resp, U32 ms)
         
         dal_delay_ms(1);
     }
+    set_temp_buf(0);
     
     if(r==-2) {
         LOGD("___ %s timeout, cost time %d\n", cmd, ms);
@@ -144,7 +145,6 @@ static int is_powered(void)
     if(r==0) {
         powered = 1;
     }
-    set_temp_buf(0);
     
     return powered;
 }
@@ -166,37 +166,48 @@ static int set_power(int on)
         dal_gpio_set_hl(atHandle.hpwr, 0);
         dal_delay_ms(600);
         dal_gpio_set_hl(atHandle.hpwr, 1);
+        
+        dal_delay_ms(2000);
     }
     else {
         dal_gpio_set_hl(atHandle.hpwr, 0);
         dal_delay_ms(700);
         dal_gpio_set_hl(atHandle.hpwr, 1);
+        dal_delay_ms(2000);
     }
-    dal_delay_ms(2000);
     
     return 0;
 }
 
 ////////////////////////////////////////////////////////
+//#define AT_DEBUG
 
 static int32_t at_uart_send(const uint8_t *data, uint16_t len, uint32_t timeout)
 {
     int r;
+
+#ifdef AT_DEBUG
+    char *p=(char*)data;
+    p[len] = 0;
+    //printf("##_%d:%s\n", len,p);
+    printf("##_%d\n", len);
+#endif
     
-    //printf(">>>>>%d\n", len);
-    //printf("[%d]>> %s", len,(char*)data);
-    //printf("at_uart_send: %d\n", len);
     lock_on(atHandle.lck);
     r = dal_uart_write(atHandle.hurt, (U8*)data, len);
     lock_off(atHandle.lck);
-    //dal_delay_us(50);
     
     return (r==0)?len:0;
 }
-static int at_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len)
+
+static int at_recv_callback(handle_t h, void *addr, U32 evt, void *data, int len, int flag)
 {
-    //printf("$$:%s\n", (char*)data);
-    //printf("at_uart_recv: %d\n", len);
+#ifdef AT_DEBUG
+    char *p=(char*)data;
+    p[len] = 0;
+    //printf("$$_%d:%s\n", len,p);
+    printf("$$_%d\n", len);
+#endif
     
     fill_temp_buf(data, len);
     aiot_at_hal_recv_handle(data, len);
@@ -209,6 +220,7 @@ static void set_baudrate(int br)
 {
     int  r;
     char tmp[60];
+return;
     
     sprintf(tmp, "AT+IPR=%d\r\n", br);        //过大，则发较长数据会导致超时无回应，过小则耗时太长
     r = send_cmd(tmp, "OK",  300);
@@ -232,8 +244,10 @@ int hal_at_init(void)
         uc.port = UART_1;
         uc.msb  = 0;
         uc.callback = at_recv_callback;
-        uc.rx.blen =  16*KB;
-        uc.rx.buf = eMalloc(uc.rx.blen);
+        uc.handle = NULL;
+        uc.rx.blen = 4*KB;
+        uc.rx.buf  = eMalloc(uc.rx.blen);
+        
         uc.rx.dlen = 0;
         
         atHandle.hurt = dal_uart_init(&uc);
@@ -343,7 +357,6 @@ int hal_at_ntp(void)
             rtc2_set_time(&dt2);
         }
     }
-    set_temp_buf(0);
     
     return 0;
 }

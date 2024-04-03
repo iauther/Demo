@@ -49,9 +49,6 @@
     <ClInclude Include="src\myLog.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\mySerial.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\mySock.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -67,15 +64,15 @@
     <ClInclude Include="src\CMyFrame.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\mySerial.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\myLog.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\mySerial.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\mySock.cpp">
@@ -91,6 +88,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\myAmqp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mySerial.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

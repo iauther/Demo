@@ -16,7 +16,7 @@ enum {
 
 int upgrade_init(void);
 int upgrade_deinit(void);
-int upgrade_check(U32 *fwAddr, U8 bBoot);
+int upgrade_proc(U32 *fwAddr, U8 bBoot);
 
 int upgrade_erase(int total_len);
 int upgrade_info_erase(void);

@@ -33,14 +33,14 @@
 #define WDG_TIME                    4000        //看门狗喂狗时间设置为4 seconds
 
 
-#if 1                               
+#if 1
     
     #define USE_FS
     #ifdef USE_FS
     //#define USE_YAFFS
     #define USE_FATFS
     //#define USE_UBIFS
-        
+    
     #define SDMMC_MNT_PT             "/sd"
     #define SDMMC_FS_TYPE            FS_FATFS
     
@@ -67,30 +67,28 @@
     
     #define SPI_MODE                 0  
     
-    
     //#define PROD_V2                 //字符串方式，支持批量上传
     #define PROD_V3                 //自定义格式，支持二进制上传
     
-    #define USE_LAB_1
+    //#define USE_LAB_1
     //#define USE_LAB_2
     //#define USE_LAB_3
-    //#define USE_LAB_4
+    #define USE_LAB_4
     
     
     //#define DEV_MODE_NORM
-    //#define DEV_MODE_TEST
-    #define DEV_MODE_DEBUG
+    #define DEV_MODE_TEST
+    //#define DEV_MODE_DEBUG
     
     
     //#define USE_PT1000
-    #define AUTO_CAP
-        
-    #ifdef USE_LAB_2
-        #define COUNTDOWN_POWER     //2号设备PA1脚坏了，需用RTC来开关电
-    #endif
+    #define CAP_AUTO
+    #define CAP_DATA_SAVE
+    #define SD_RESERVED_SIZE        (5*MB)
     
     //关机配置
     #define COUNTDOWN_MIN           5
+    #define RUNTIME_MIN             20
     #define RUNTIME_MAX             30
     
     #ifndef DEV_MODE_DEBUG

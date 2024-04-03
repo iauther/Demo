@@ -23,7 +23,7 @@
 
 #define POLL_TIME       1000
 
-#define UPG_FILE        SFLASH_MNT_PT"/app.upg"
+#define UPG_FILE        SDMMC_MNT_PT"/upgrade.upg"
 #define TMP_LEN         (0x100*8)
 
 
@@ -48,36 +48,41 @@ static int cap_is_finished(void)
     return 1;
 }
 
-
-static int upg_file_is_exist(void)
+static int upg_exist(void)
 {
     int r,flen;
     handle_t fl;
     fw_hdr_t h1,h2;
-    int upg_file_exist=0;
+    int exist=0;
     
     r = dal_sd_status();
-    if(r==0) {  //sd exist
-        
-        fl = fs_open(UPG_FILE, FS_MODE_RW);
-        if(fl) {
-            flen = fs_size(fl);
-            if(flen>0) {
-                
-                fs_read(fl, &h1, sizeof(h1));
-                upgrade_get_fw_info(FW_CUR, &h2);
-        
-                if(memcmp(&h1, &h2, sizeof(fw_info_t))) {
-                    upg_file_exist = 1;
-                }   
-            }
-            
-            fs_close(fl);
-        }
+    if(r) {  //sd exist
+        return -1;
     }
     
-    return upg_file_exist;
+    r = fs_exist(UPG_FILE);
+    if(r) {
+        flen = fs_length(UPG_FILE);
+        if(flen>0) {
+            upgrade_get_fw_info(FW_CUR, &h1);
+            fs_load(UPG_FILE, &h2, sizeof(h2));
+            
+            if(memcmp(&h1.fw, &h2.fw, sizeof(fw_info_t))) {
+                LOGD("___ old.magic: 0x%08x, new.magic: 0x%08x\n",  h1.fw.magic, h2.fw.magic);
+                LOGD("___ old.version: %s, new.version: %s\n",      h1.fw.version, h2.fw.version);
+                LOGD("___ old.bldtime: %s, new.bldtime: %s\n",      h1.fw.bldtime, h2.fw.bldtime);
+                LOGD("___ old.length: %d, new.length: %d\n",        h1.fw.length, h2.fw.length);
+                
+                exist = 1;
+            }
+        }
+        
+        fs_close(fl);
+    }
+    
+    return exist;
 }
+
 
 enum {
     CONN_STOP=0,
@@ -91,17 +96,18 @@ typedef struct {
     int rst_cnt;
 }conn_t;
 static conn_t connHandle;
+static osThreadId_t conn_thread_id;
 static void task_conn_fn(void *arg)
 {
     int flag;
-    #define CONN_MAX  5
-    #define REST_MAX  5
+    #define CONN_MAX  3
+    #define REST_MAX  3
     
     memset(&connHandle, 0, sizeof(connHandle));
     while(1) {
         
-        //if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
-        if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM) {
+        if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM && cap_is_finished()) {
+        //if(connHandle.conn!=CONN_SUCCESS && paras_get_mode()==MODE_NORM) {
             connHandle.conn = CONN_BUSYING;
             
             LOGD("___ api_comm_connect\n");
@@ -124,6 +130,7 @@ static void task_conn_fn(void *arg)
             if(connHandle.conn_cnt>0 && (connHandle.conn_cnt%CONN_MAX==0)) {
                 hal_at_reset();
                 connHandle.rst_cnt++;
+                LOGD("___ at module reset, %d\n",connHandle.rst_cnt);
                 LOGD("___ ad module reset: %d\n", connHandle.rst_cnt);
                 
                 if(connHandle.rst_cnt>0 && (connHandle.rst_cnt%REST_MAX==0)) {
@@ -138,29 +145,23 @@ static void task_conn_fn(void *arg)
 }
 
 
-static void upgrade_polling(U8 loop)
+static void sd_upgrade_check(void)
 {
     int r,index=0;
     int is_exist=0;
     U8 *pbuf=NULL;
     handle_t fl,fs;
-    static int upg_chk_flag=0;
     int rlen,flen,upg_ok_flag=0;
     
-    if(!upg_chk_flag) {
-        is_exist = upg_file_is_exist();
-        if(!is_exist) {
-            return;
-        }
-        
-        if(!loop) {
-            upg_chk_flag = 1;
-        }
+    is_exist = upg_exist();
+    if(!is_exist) {
+        LOGE("___ no upgrade.upg file exist\n");
+        return;
     }
         
     pbuf = (U8*)malloc(TMP_LEN);
     if(!pbuf) {
-        LOGE("____ upgrade_proc malloc failed\n");
+        LOGE("____ sd_upgrade_check malloc failed\n");
         return;
     }
         
@@ -181,7 +182,6 @@ static void upgrade_polling(U8 loop)
     
     while(1) {
         rlen = fs_read(fl, pbuf, TMP_LEN);
-        //LOGD("_____%d, 0x%02x, 0x%02x, \n", rlen, tmp[0], tmp[1]);
         if(rlen>0) {
             if(rlen<TMP_LEN) {
                 r = upgrade_write(pbuf, rlen, -1);
@@ -209,7 +209,7 @@ static void upgrade_polling(U8 loop)
     fs_close(fl);
     
     if(upg_ok_flag) {
-        LOGD("____ reboot now ...\n\n\n");
+        LOGD("____ reboot now ...\n");
         dal_reboot();
     }
     
@@ -235,6 +235,7 @@ static void pwroff_polling(void)
     int r,finish=0,countdown;
     gbl_var_t  *var=&allPara.var;
     smp_para_t *smp=paras_get_smp();
+    worktime_t wtime=paras_get_worktime();
         
     if(smp->mode==MODE_CALI || smp->pwrmode!=PWR_PERIOD_PWRDN) {
         //LOGW("___ in cali mode, power off disabled!\n");
@@ -243,30 +244,32 @@ static void pwroff_polling(void)
     
     finish = api_send_is_finished();
     if(!finish) {
-        LOGW("___ capture is not finished, pwroff disable!\n");
+        //LOGW("___ capture is not finished, pwroff disable!\n");
         return;
     }
     
     //以上都完成时才可以关机
     runtime = rtc2_get_runtime();
-    LOGD("____ psrc: %d, finish: %d, runtime: %lu, worktime: %d\n", var->psrc, finish, runtime, smp->worktime);
+    LOGD("____ psrc: %d, finish: %d, runtime: %lu, invtime: %d\n", var->psrc, finish, runtime, smp->invTime);
     
     if(var->psrc==PWRON_RTC) {      //rtc poweron
         
-        //finish=2: 采集完成    finish=1: 采集未完成
-        if((finish==2) || ((finish==1) && (runtime>=RUNTIME_MAX))) {
-            //api_comm_disconnect();      //断开连接, 该操作耗时较长
-            api_send_save_file();
-            
-            countdown = smp->worktime- runtime;
-            if(countdown>=COUNTDOWN_MIN) {
-                countdown -= 2;     //减2为修正值
+        //finish=2: 发送完毕    finish=1: 发送未完成
+        if((wtime.rtmin==0) || (runtime>wtime.rtmin))  {
+            if(((finish==2) || ((finish==1) && (runtime>=wtime.rtmax)))) {
+                api_comm_disconnect();      //断开连接, 该操作耗时较长
+                api_send_save_file();
+                
+                countdown = smp->invTime- runtime;
+                if(countdown>=COUNTDOWN_MIN) {
+                    countdown -= 2;     //减2为修正值
+                }
+                else {
+                    countdown = smp->invTime-2;
+                }
+                
+                r = rtc2_set_countdown(countdown);
             }
-            else {
-                countdown = smp->worktime-2;
-            }
-            
-            r = rtc2_set_countdown(countdown);
         }
     }
     else if(var->psrc==PWRON_MANUAL) {                  //manual poweron
@@ -275,46 +278,6 @@ static void pwroff_polling(void)
     else if(var->psrc==PWRON_TIMER) {
         //?
     }
-}
-
-
-void rtc_test(void)
-{
-    int i,r,cnt=0;
-    U32 runtime,countdown;
-
-#if 1
-    #undef RUNTIME_MAX
-    #undef COUNTDOWN_MIN
-    
-    #define RUNTIME_MAX     3
-    #define COUNTDOWN_MIN   3
-#endif
-    
-    while(1) {
-        runtime = rtc2_get_runtime();
-        
-        LOGD("___ runtime: %d\n", runtime);
-        if((runtime>=RUNTIME_MAX)) {
-            
-            countdown = COUNTDOWN_MIN;
-            LOGD("____ countdown: %d\n", countdown);
-            
-            r = rtc2_set_countdown(countdown);
-            if(r==0) {
-                LOGD("____ die to power off\n");
-                while(1);
-            }
-        }
-        
-        osDelay(1000);
-    }
-}
-
-void pwroff_polling_test(void)
-{
-    rtc_test();
-    //rtc2_test();
 }
 
 
@@ -336,23 +299,24 @@ static void stat_polling(void)
 {
     int r;
     U32 ts;
-    F32 temp;
+    F32 temp,invtime;
     stat_data_t stat;
     stat_info_t si;
     dal_adc_data_t da;
-    static U32 send_ts=0;
+    static U32 send_tm=0;
     mqtt_pub_para_t pub_para={DATA_LT};
-    
-    ts = dal_get_timestamp();
-    if(ts-send_ts<3600*24) {
+
+#if 1    
+    invtime = dal_get_tick()-send_tm;
+    if(send_tm>0 && invtime<(3600*24)) {
         return;
     }
+#endif
     
     r = aiot_at_stat(&si);                  //信号强度和质量
     if(r) {
         return;
     }
-    
     dal_adc_read(&da);
     
     stat.rssi = si.rssi;
@@ -366,11 +330,11 @@ static void stat_polling(void)
     LOGD("___ temp: %.1f, vbat: %.1f, rssi: %d, ber: %d, rsrp: %d, snr: %d\n", stat.temp, stat.vbat, stat.rssi, stat.ber, stat.rsrp, stat.snr);
     
     if(api_comm_is_connected()) {
-        r = comm_send_data(tasksHandle.hcomm, &pub_para, TYPE_STAT, 0, &stat, sizeof(stat));
+        r = comm_send_data(tasksHandle.hnet, &pub_para, TYPE_STAT, 0, &stat, sizeof(stat));
         if(r==0) {
-            send_ts = dal_get_timestamp();
+            send_tm = dal_get_tick();
         }
-        LOGD("___ stat send %s\n", r?"failed":"ok");
+        LOGD("___ stat send %s, tm: %d\n", r?"failed":"ok", invtime);
     }
 }
 
@@ -387,65 +351,41 @@ static void task_wdg_fn(void *arg)
     }
 #endif
 }
-static void polling_tmr_callback(void *arg)
+static void task_stat_fn(void *arg)
 {
-    task_trig(TASK_POLLING, EVT_TIMER);
+    while(1) {
+        stat_polling();
+        osDelay(1000);
+    }
+}
+static void task_pwroff_fn(void *arg)
+{
+    while(1) {
+        pwroff_polling();
+        osDelay(1000);
+    }
 }
 
-void task_polling_fn(void *arg)
+
+void api_polling_conn_wait(void)
 {
-    int i,r;
-    U8  err;
-    evt_t e;
-    handle_t htmr;
-    task_handle_t *h=(task_handle_t*)arg;
+     while(connHandle.conn==CONN_BUSYING) osDelay(2);
+}
+void api_polling_conn_quit(void)
+{
+     while(connHandle.conn==CONN_BUSYING) osDelay(2);
+}
+
+
+void api_polling_start(void)
+{
+    sd_upgrade_check();
     
-    LOGD("_____ task_polling running\n");
     start_task_simp(task_conn_fn, 4*KB, NULL, NULL);
     
-    start_task_simp(task_wdg_fn, 256, NULL, NULL);
-    htmr = task_timer_init(polling_tmr_callback, NULL, POLL_TIME, -1);
-    if(htmr) {
-        task_timer_start(htmr);
-    }
-    
-    while(1) {
-        r = task_recv(TASK_POLLING, &e, sizeof(e));
-        if(r==0) {
-            switch(e.evt) {
-                
-                case EVT_TIMER:
-                {
-                    //stat_polling();
-                    //pwroff_polling();
-                }
-                break;
-                
-                case EVT_CALI:
-                {
-                    cali_sig_t *sig=(cali_sig_t*)e.data;
-                    
-                    LOGD("___ cali para, ch: %hhu, lv: %hhu, max: %hhu, seq: %hhu, volt: %.1fmv, freq: %ukhz, bias: %.1fmv\n", 
-                                         sig->ch, sig->lv, sig->max, sig->seq, sig->volt, sig->freq, sig->bias);
-                    r = paras_set_cali_sig(sig->ch, sig);
-                    if(r==0) {
-                        api_cap_stop(sig->ch);
-                        paras_set_mode(MODE_CALI);
-                        
-                        //断4g并关断
-                        while(connHandle.conn==CONN_BUSYING) osDelay(2);
-                        api_comm_disconnect();
-                        
-                        api_cap_start(sig->ch);
-                    }
-                    
-                }
-                break;
-            }
-        }
-        
-        //task_yield();
-    }
+    start_task_simp(task_wdg_fn,    256, NULL, NULL);
+    start_task_simp(task_stat_fn,   2*KB, NULL, NULL);
+    start_task_simp(task_pwroff_fn, 2*KB, NULL, NULL);
 }
 #endif
 

@@ -3,7 +3,6 @@
 
 #include <windows.h>
 
-#include "CSerial.h"
 #include "SerialPort.h"
 #include "SerialPortInfo.h"
 
@@ -18,8 +17,8 @@ public:
     ~mySerial();
 
 
-    int open(int id);
-    int open(char* port);
+    int open(int id, int baudrate);
+    int open(char* port, int baudrate);
     int close(void);
     int is_opened(void);
     

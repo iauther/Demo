@@ -15,6 +15,10 @@
 
   <project>
     <PathAndName>.\all\gd32f470\boot.uvprojx</PathAndName>
+  </project>
+
+  <project>
+    <PathAndName>.\all\gd32f470\fwrite.uvprojx</PathAndName>
     <NodeIsExpanded>1</NodeIsExpanded>
   </project>
 

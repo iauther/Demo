@@ -15,10 +15,10 @@ enum {
 };
 
 enum {
-    SORT_ASCEND=0,
-    SORT_DESCEND,
+    LIST_SORT_ASCEND=0,
+    LIST_SORT_DESCEND,
     
-    SORT_MAX
+    LIST_SORT_MAX
 };
 
 typedef enum {

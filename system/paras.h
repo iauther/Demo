@@ -1,5 +1,5 @@
-#ifndef __PARA_Hx__
-#define __PARA_Hx__
+#ifndef __PARAS_Hx__
+#define __PARAS_Hx__
 
 #include "protocol.h"
 
@@ -24,12 +24,19 @@ int paras_set_cali_sig(U8 ch, cali_sig_t *sig);
 ch_para_t* paras_get_ch_para(U8 ch);
 int paras_get_smp_points(U8 ch);
 U8 paras_get_port(void);
+char *paras_get_devname(void);
 
 int paras_set_mode(U8 mode);
 U8 paras_get_mode(void);
 
+cfg_file_t *paras_get_cfile(void);
+void paras_set_rtmin(U32 rtmin);
+
+worktime_t paras_get_worktime(void);
+void paras_set_worktime(worktime_t wtime);
+
 int paras_save(void);
-int paras_save_json(void *data, int len);
+int paras_save_json(void *json, int len);
 int paras_factory(void);
 int paras_check(all_para_t *all);
 

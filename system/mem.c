@@ -152,7 +152,8 @@ int mem_free(void *ptr)
 U32 mem_used(MEM_WHERE where)
 {
     U32 used=0;
-    
+
+#ifndef _WIN32
     if(where==MEM_SRAM) {
         extern U32 __heap_base,__heap_limit,Heap_Size;
         //return (U32)(base_sp - __malloc_heap_start);
@@ -165,14 +166,16 @@ U32 mem_used(MEM_WHERE where)
         used = rtx_mem_used(xParam.start);
 #endif
     }
-    
+#endif
+
     return used;
 }
 
 U32 mem_unused(MEM_WHERE where)
 {
     U32 unused=0;
-    
+
+#ifndef _WIN32
     if(where==MEM_SRAM) {
         extern U32 __heap_base,__heap_limit,Heap_Size;
         //return (int)(base_sp - __malloc_heap_start);
@@ -185,16 +188,61 @@ U32 mem_unused(MEM_WHERE where)
         unused = rtx_mem_unused(xParam.start);
 #endif
     }
-    
+#endif
+
     return unused;
 }
 
 
-
+#ifndef _WIN32
+#include "dal_delay.h"
+static void mem_ttt(char *p, void *s, void *d, int len, int cnt)
+{
+    U32 i,t1,t2,t3,x,y;
+    
+    t1 = dal_get_tick_ms();
+    for(i=0; i<cnt; i++) {
+        memset(s, 0x88, len);
+    }
+    t2 = dal_get_tick_ms();
+    
+    for(i=0; i<cnt; i++) {
+        memcpy(s, d, len);
+    }
+    t3 = dal_get_tick_ms();
+    
+    x = (t2-t1);
+    y = (t3-t2);
+    
+    LOGD("%s w: %dms\n", p, x);
+    LOGD("%s r: %dms\n", p, y);
+}
+#endif
 
 int mem_test(void)
 {
+#if 0
+    int cnt=1000;
+    int len=100*KB;
+    char *p1,*p2;
     
+    p1=iMalloc(len);
+    p2=iMalloc(len);
+    mem_ttt("sram->sram", p1, p2, len, cnt);
+    xFree(p1);xFree(p2);
+    
+    p1=eMalloc(len);
+    p2=eMalloc(len);
+    mem_ttt("sdram->sdram", p1, p2, len, cnt);
+    xFree(p1);xFree(p2);
+    
+    p1=iMalloc(len);
+    p2=eMalloc(len);
+    mem_ttt("sram->sdram", p1, p2, len, cnt);
+    mem_ttt("sdram->sram", p1, p2, len, cnt);
+    xFree(p1);xFree(p2);
+#endif
+
     return 0;
 }
 

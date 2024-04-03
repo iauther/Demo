@@ -23,7 +23,9 @@
 
 
 #define DOWN_USE_HTTP
-#define ONCE_PKT_LEN   (4*1024)
+#define DOWN_USE_MQTT
+
+#define ONCE_PKT_LEN   (20*1024)
 
 #define USE_NTP
 
@@ -42,6 +44,9 @@ typedef struct {
 typedef struct {
     buf_t buf;
     int   type;
+    cfg_file_t cfile;
+    
+    handle_t h;     //mqtt_handle_t
 }ota_data_t;
 
 
@@ -59,6 +64,10 @@ typedef struct {
     
     flags_t     flags;
     U32         ntime;
+    
+    U32         reqflag;
+    U8          mode;
+    int         ota_proto;
 }mqtt_handle_t;
 
 #ifdef OS_KERNEL
@@ -72,8 +81,9 @@ static void mqtt_proc_thread(void *args);
 static void mqtt_recv_thread(void *args);
 static int mqtt_dm_init(mqtt_handle_t *h);
 static int mqtt_ntp_init(mqtt_handle_t *h);
-static int mqtt_ali_sub(handle_t hconn, void *para);
-static int mqtt_ali_req(handle_t hconn);
+static int mqtt_subx(handle_t hconn, void *para);
+static int mqtt_req(handle_t hconn, int req);
+static int mqtt_reconn(handle_t hconn);
 
 static int32_t ali_state_logcb(int32_t code, char *message)
 {
@@ -328,10 +338,10 @@ static void set_jp_data(jp_data_t *jd, buf_t *buf)
     jd->size = buf->dlen;
     jd->pos  = 0;
 }
-static void upgrade_proc(ota_data_t *ota)
+static int upg_proc(ota_data_t *ota)
 {
-    int r;
-    buf_t sbuf,tbuf;
+    int r=0;
+    buf_t sbuf,tbuf,xbuf;
     int total_upg=0;
     fw_hdr_t *hdr=(fw_hdr_t*)ota->buf.buf;
     
@@ -339,7 +349,8 @@ static void upgrade_proc(ota_data_t *ota)
     
     LOGD("___ total_upg: %d\n", total_upg);
     if(total_upg) {    //完整升级
-        r = upgrade_write_all(ota->buf.buf, ota->buf.dlen);
+        xbuf.buf = ota->buf.buf;
+        xbuf.dlen = ota->buf.dlen;
     }
     else {                                      //差分升级
         jp_data_t src,dst,patch;
@@ -349,51 +360,74 @@ static void upgrade_proc(ota_data_t *ota)
         r = upgrade_read_fw(&sbuf);
         if(r) {
             set_buf(&sbuf, 0); set_buf(&tbuf, 0); 
-            return;
+            return -1;
         }
         
         set_jp_data(&src, &sbuf);               //设置src缓存
         set_jp_data(&patch, &ota->buf);         //设置dst缓存
         
         LOGD("___ src.dlen: %d, patch.dlen: %d\n", src.size, patch.size);
-        
         dst.buf = tbuf.buf; dst.size = tbuf.blen; dst.pos = 0;
         r = jpatch(&src, &patch, &dst);
         if(r==0) {
             LOGD("_____ jpatch data len: %d\n", dst.pos);
-            //fs_save("/sd/upg/xxx.upg", dst.buf, dst.pos);
-            r = upgrade_write_all(dst.buf, dst.pos);
-            if(r==0) {
-                r = upgrade_read(dst.buf, dst.pos);
-                if(r>0) {
-                    fs_save("/sd/upg/yyy.upg", dst.buf, r);
-                }
-            }
+            xbuf.buf = dst.buf;
+            xbuf.dlen = dst.pos;
         }
     }
     
     if(r==0) {
-        LOGD("___ upgrade save file ok, reboot now\n");
-        dal_reboot();
+        r = upgrade_write_all(xbuf.buf, xbuf.dlen);
+        if(r) {
+            LOGE("___ upgrade_write_all failed\n");
+            //fs_save("/sd/new.upg", xbuf.buf, xbuf.dlen);
+            //fs_save("/sd/old.upg", sbuf.buf, sbuf.dlen);
+        }
     }
+    
+    if(total_upg==0) {
+        set_buf(&sbuf, 0); set_buf(&tbuf, 0); 
+    }
+    
+    
+    return r;
 }
 static void download_recv_handler(void *handle, ota_data_t *ota, int percent, void *data, int len)
 {
     int r;
+    mqtt_handle_t *h=(mqtt_handle_t*)ota->h;
     
     ota_data_cache(ota, data, len);
     
     if (percent == 100) {
         if(ota->type==AIOT_OTARECV_COTA) {
+            cfg_file_t *cf = paras_get_cfile();
+            smp_para_t* smp = paras_get_smp();
+            
+            *cf = ota->cfile;
             r = paras_save_json(ota->buf.buf, ota->buf.dlen);
-            if(r==0) {
+            if(r>=0) {
+                h->reqflag |= MQTT_REQ_CFG;
                 LOGD("___ cfg file save ok!\n");
+                
+                if(r>0 || smp->pwrmode==PWR_NO_PWRDN) {
+                    dal_reboot();
+                }
             }
+            
+            //paras_set_rtmin(0);
         }
         else if(ota->type==AIOT_OTARECV_FOTA) {
-            
             LOGD("_________ FOTA FINISHED, data recv len: %d\n", ota->buf.dlen);
-            upgrade_proc(ota);
+            
+            r = upg_proc(ota);
+            if(r==0) {
+                h->reqflag |= MQTT_REQ_FW;
+                LOGD("___ upgrade write ok, reboot now\n");
+                
+                dal_reboot();
+            }
+            paras_set_rtmin(0);
         }
         
         set_ota_data(ota, 0, 0);
@@ -429,6 +463,16 @@ static void http_download_recv_handler(void *handle, const aiot_download_recv_t 
     download_recv_handler(handle, ota, packet->data.percent, packet->data.buffer, packet->data.len);
 }
 
+static int mqtt_download_request(mqtt_handle_t *h, int len)
+{
+    int r;
+    U32 end=h->downlen+len;
+    
+    aiot_mqtt_download_setopt(h->hdl, AIOT_MDOPT_RANGE_START, (void *)&h->downlen);
+    aiot_mqtt_download_setopt(h->hdl, AIOT_MDOPT_RANGE_END, (void *)&end);
+    
+    return 0;
+}
 static void mqtt_download_recv_handler(void *handle, const aiot_mqtt_download_recv_t *packet, void *userdata)
 {
     U32 data_buffer_len = 0;
@@ -449,76 +493,20 @@ static void mqtt_download_recv_handler(void *handle, const aiot_mqtt_download_re
 }
 
 
-
-static void download_thread(void *arg)
-{
-    int r=0;
-    U32 timeout_ms = 100;
-    mqtt_handle_t *h=(mqtt_handle_t*)arg;
-    
-    aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_RECV_TIMEOUT_MS, (void *)&timeout_ms);
-    while (1) {
-        
-#ifdef DOWN_USE_HTTP
-        http_download_request(h, ONCE_PKT_LEN);
-        r = aiot_download_recv(h->hdl);
-        if(r>0) {
-            if(h->downlen+r>h->totalen) {
-                r = h->totalen-h->downlen;
-            }
-            else {
-                h->downlen += r;
-            }
-        }
-
-        /* 全部下载完时, aiot_download_recv() 的返回值会等于 STATE_DOWNLOAD_FINISHED, 否则是当次获取的字节数 */
-        if (r==STATE_DOWNLOAD_FINISHED) {
-            LOGD("download completed\n");
-            break;
-        }
-#else
-        r = aiot_mqtt_download_process(h->hdl);
-        if(STATE_MQTT_DOWNLOAD_SUCCESS==r) {
-            LOGD("mqtt download ota success \n");
-            break;
-        } else if(STATE_MQTT_DOWNLOAD_FAILED_RECVERROR == r
-                  || STATE_MQTT_DOWNLOAD_FAILED_TIMEOUT == r
-                  || STATE_MQTT_DOWNLOAD_FAILED_MISMATCH == r) {
-            LOGE("mqtt download ota failed, -0x%x\n", -r);
-            break;
-        }
-#endif
-        
-    }
-    timeout_ms = 5000;
-    aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_RECV_TIMEOUT_MS, (void *)&timeout_ms);
-
-    /* 下载所有固件内容完成, 销毁下载会话, 线程自行退出 */
-#ifdef DOWN_USE_HTTP
-    aiot_download_deinit(&h->hdl);
-#else
-    aiot_mqtt_download_deinit(&h->hdl);
-#endif
-    
-    h->hdl = NULL;
-    
-    LOGD("download thread exit\r\n");
-    osThreadExit();
-}
-
-
 static void ota_recv_handler(void *ota_handle, aiot_ota_recv_t *ota_msg, void *userdata)
 {
     int r;
+    handle_t hdl=NULL;
     mqtt_handle_t *h=(mqtt_handle_t*)userdata;
     conn_handle_t *conn=(conn_handle_t*)h->userdata;
     int ota_size[2]={1*MB,64*KB};
-    static ota_data_t ota_data[2]={{{NULL,0,0},-1},{{NULL,0,0},-1}},*ota;
+    static ota_data_t ota_data[2]={{{NULL,0,0},-1,NULL},{{NULL,0,0},-1,NULL}},*ota;
     
     if (NULL == ota_msg->task_desc) {
         return;
     }
     
+    h->ota_proto = -1;
     h->totalen = ota_msg->task_desc->size_total;
     h->downlen = 0;
     LOGD("___ ota_recv, type: %s\n", (ota_msg->type==AIOT_OTARECV_FOTA)?"fota":"cota");
@@ -526,79 +514,76 @@ static void ota_recv_handler(void *ota_handle, aiot_ota_recv_t *ota_msg, void *u
         case AIOT_OTARECV_FOTA:     //firmware data
         case AIOT_OTARECV_COTA:     //config data
         {
+            ota = &ota_data[ota_msg->type];
+            set_ota_data(ota, ota_msg->type, ota_size[ota_msg->type]);
+            ota->h = h;
+            
             if(ota_msg->type==AIOT_OTARECV_FOTA) {
+                
                 if(strcmp(ota_msg->task_desc->version, FW_VERSION)==0) {
                     return;
                 }
                 
+                paras_set_rtmin(300);
                 LOGD("___ firmware upgrade, version: %s\n", ota_msg->task_desc->version);
             }
-            
-#ifdef DOWN_USE_HTTP
-            uint16_t port = 443;
-            uint32_t max_buf_len = ONCE_PKT_LEN;
-            aiot_sysdep_network_cred_t cred;
-            
-            memset(&cred, 0, sizeof(aiot_sysdep_network_cred_t));
-            cred.option = AIOT_SYSDEP_NETWORK_CRED_SVRCERT_CA;
-            cred.max_tls_fragment = 16384;
-            cred.x509_server_cert = ali_ca_cert;                 /* 用来验证MQTT服务端的RSA根证书 */
-            cred.x509_server_cert_len = strlen(ali_ca_cert);     /* 用来验证MQTT服务端的RSA根证书长度 */
-            
-            h->hdl = aiot_download_init();
-            if(h->hdl) {
-                aiot_download_setopt(h->hdl, AIOT_DLOPT_NETWORK_CRED, (void *)(&cred));
-                aiot_download_setopt(h->hdl, AIOT_DLOPT_NETWORK_PORT, (void *)(&port));
+            else {
+                cfg_file_t *cf = paras_get_cfile();
                 
-                r = aiot_download_setopt(h->hdl, AIOT_DLOPT_TASK_DESC, (void *)(ota_msg->task_desc));
-                if(r!=STATE_SUCCESS) LOGE("_____ aiot_download_setopt 1 failed\n");
-                
-                r = aiot_download_setopt(h->hdl, AIOT_DLOPT_RECV_HANDLER, (void *)(http_download_recv_handler));
-                if(r!=STATE_SUCCESS) LOGE("_____ aiot_download_setopt 2 failed\n");
-                
-                r = aiot_download_setopt(h->hdl, AIOT_DLOPT_BODY_BUFFER_MAX_LEN, (void *)(&max_buf_len));
-                if(r!=STATE_SUCCESS) LOGE("_____ aiot_download_setopt 3 failed\n");
-                
-                if(r==STATE_SUCCESS) {
-                    ota = &ota_data[ota_msg->type];
-                    set_ota_data(ota, ota_msg->type, ota_size[ota_msg->type]);
+                if((ota_msg->task_desc->version==NULL || strlen(ota_msg->task_desc->version)==0) || strcmp((char*)cf->cid, ota_msg->task_desc->version)==0) {
+                    LOGD("___ config file no need to update\n");
+                    paras_set_rtmin(0);
+                    return;
                 }
                 
-                r = aiot_download_setopt(h->hdl, AIOT_DLOPT_USERDATA, (void *)(ota));
-                if(r!=STATE_SUCCESS) LOGE("_____ aiot_download_setopt 4 failed\n");
-            
-                if(r==STATE_SUCCESS) {
-                    LOGD("___ aiot_download_init ok!\n");
-                    start_task_simp(download_thread, KB*4, h, NULL);
-                }
+                paras_set_rtmin(60);
+                strcpy((char*)ota->cfile.cid, ota_msg->task_desc->version);
             }
-#else
-            h->hdl = aiot_mqtt_download_init();
-            if(h->hdl) {
-                U32 request_size = 512;
-                r = aiot_mqtt_download_setopt(h->hdl, AIOT_MDOPT_TASK_DESC, ota_msg->task_desc);
-                if(r!=STATE_SUCCESS) LOGE("_____ aiot_mqtt_download_setopt 1 failed\n");
-                
-                r = aiot_mqtt_download_setopt(h->hdl, AIOT_MDOPT_DATA_REQUEST_SIZE, &request_size);
-                if(r!=STATE_SUCCESS) LOGE("_____ aiot_mqtt_download_setopt 2 failed\n");
-                
-                r = aiot_mqtt_download_setopt(h->hdl, AIOT_MDOPT_RECV_HANDLE, (void *)(mqtt_download_recv_handler));
-                if(r!=STATE_SUCCESS) LOGE("_____ aiot_mqtt_download_setopt 3 failed\n");
-                
-                if(r==STATE_SUCCESS) {
-                    ota = &ota_data[ota_msg->type];
-                    set_ota_data(ota, ota_msg->type, ota_size[ota_msg->type]);
+            
+            if(ota_msg->task_desc->protocol_type == AIOT_OTA_PROTOCOL_HTTPS) {
+                hdl = aiot_download_init();
+                if(!hdl) {
+                    return;
                 }
                 
-                r = aiot_mqtt_download_setopt(h->hdl, AIOT_MDOPT_USERDATA, (void *)(ota));
-                if(r!=STATE_SUCCESS) LOGE("_____ aiot_mqtt_download_setopt 4 failed\n");
+                uint16_t port = 443;
+                uint32_t max_buf_len = ONCE_PKT_LEN;
+                aiot_sysdep_network_cred_t cred;
                 
-                if(r==STATE_SUCCESS) {
-                    LOGD("___ aiot_mqtt_download_init ok!\n");
-                    start_task_simp(download_thread, KB*4, h, NULL);
-                }
+                memset(&cred, 0, sizeof(aiot_sysdep_network_cred_t));
+                cred.option = AIOT_SYSDEP_NETWORK_CRED_SVRCERT_CA;
+                cred.max_tls_fragment = 16384;
+                cred.x509_server_cert = ali_ca_cert;                 /* 用来验证MQTT服务端的RSA根证书 */
+                cred.x509_server_cert_len = strlen(ali_ca_cert);     /* 用来验证MQTT服务端的RSA根证书长度 */
+                
+                aiot_download_setopt(hdl, AIOT_DLOPT_NETWORK_CRED, (void *)(&cred));
+                aiot_download_setopt(hdl, AIOT_DLOPT_NETWORK_PORT, (void *)(&port));
+                aiot_download_setopt(hdl, AIOT_DLOPT_TASK_DESC, (void *)(ota_msg->task_desc));
+                aiot_download_setopt(hdl, AIOT_DLOPT_RECV_HANDLER, (void *)(http_download_recv_handler));
+                aiot_download_setopt(hdl, AIOT_DLOPT_BODY_BUFFER_MAX_LEN, (void *)(&max_buf_len));
+                
+                aiot_download_setopt(hdl, AIOT_DLOPT_USERDATA, (void *)(ota));
+                h->ota_proto = AIOT_OTA_PROTOCOL_HTTPS;
             }
-#endif
+            else if(ota_msg->task_desc->protocol_type == AIOT_OTA_PROTOCOL_MQTT) {
+                hdl = aiot_mqtt_download_init();
+                if(!hdl) {
+                    return;
+                }
+                
+                U32 request_size = ONCE_PKT_LEN;
+                aiot_mqtt_download_setopt(hdl, AIOT_MDOPT_TASK_DESC, ota_msg->task_desc);
+                aiot_mqtt_download_setopt(hdl, AIOT_MDOPT_DATA_REQUEST_SIZE, &request_size);
+                aiot_mqtt_download_setopt(hdl, AIOT_MDOPT_RECV_HANDLE, (void *)(mqtt_download_recv_handler));
+
+                aiot_mqtt_download_setopt(hdl, AIOT_MDOPT_USERDATA, (void *)(ota));
+                h->ota_proto = AIOT_OTA_PROTOCOL_MQTT;
+            }
+            else {
+                return;
+            }
+            
+            h->hdl = hdl;
         }
         break;
     }
@@ -659,15 +644,71 @@ static void mqtt_ota_init(mqtt_handle_t *h)
     aiot_ota_setopt(h->hota, AIOT_OTAOPT_RECV_HANDLER, ota_recv_handler);
 }
 
+static void mqtt_ota_download(mqtt_handle_t *h)
+{
+    int r=0,quit=0;
+    
+    if(!h->hdl) {
+        return;
+    }
+    
+    if(h->ota_proto == AIOT_OTA_PROTOCOL_HTTPS) {
+        http_download_request(h, ONCE_PKT_LEN);
+        r = aiot_download_recv(h->hdl);
+        if(r>0) {
+            if(h->downlen+r>h->totalen) {
+                r = h->totalen-h->downlen;
+            }
+            else {
+                h->downlen += r;
+            }
+        }
+        else {
+            //LOGD("___ aiot_download_recv -0x%03x\n", -r);
+        }
+
+        U32 timeout_ms = 100;
+        aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_RECV_TIMEOUT_MS, (void *)&timeout_ms);
+        if (r==STATE_DOWNLOAD_FINISHED) {
+            LOGD("download completed\n");
+            aiot_download_deinit(&h->hdl);
+            h->hdl = NULL;
+            
+            timeout_ms = 5000;
+            aiot_mqtt_setopt(h->hmq, AIOT_MQTTOPT_RECV_TIMEOUT_MS, (void *)&timeout_ms);
+        }
+    }
+    else if(h->ota_proto == AIOT_OTA_PROTOCOL_MQTT) {
+        r = aiot_mqtt_download_process(h->hdl);
+        
+        if(STATE_MQTT_DOWNLOAD_SUCCESS==r) {
+            LOGD("mqtt download success \n");
+            quit = 1;
+        } else if(STATE_MQTT_DOWNLOAD_FAILED_RECVERROR == r
+                  || STATE_MQTT_DOWNLOAD_FAILED_TIMEOUT == r
+                  || STATE_MQTT_DOWNLOAD_FAILED_MISMATCH == r) {
+            LOGE("mqtt download failed, -0x%x\n", -r);
+            quit = 1;
+        }
+        
+        if(quit) {
+            aiot_mqtt_download_deinit(&h->hdl);
+            h->hdl = NULL;
+        }
+    }
+}
+
+
+
 static void start_thread(void *p)
 {
     if(!proc_thread_running && !proc_thread_running) {
-        LOGD("___ mqtt start proc and recv thread\n");
+        LOGD("___ mqtt start threads\n");
         proc_thread_running = 1;
         recv_thread_running = 1;
         
-        start_task_simp(mqtt_proc_thread, 2*KB, p, &proc_thread_id);
-        start_task_simp(mqtt_recv_thread, 2*KB, p, &recv_thread_id);
+        start_task_simp(mqtt_proc_thread, 4*KB, p, &proc_thread_id);
+        start_task_simp(mqtt_recv_thread, 4*KB, p, &recv_thread_id);
     }
 }
 static void stop_thread(void)
@@ -675,7 +716,7 @@ static void stop_thread(void)
     proc_thread_running = 0;
     recv_thread_running = 0;
     
-    LOGD("___ mqtt stop proc and recv thread\n");
+    LOGD("___ mqtt stop threads\n");
     osDelay(1);
     
     osThreadJoin(proc_thread_id);
@@ -697,13 +738,12 @@ static void mqtt_proc_thread(void *arg)
             break;
         }
         
-        if(h->flags.ntp) {
-            period = 3600;
-        }
-        else {
-            period = 2;
+        if(h->flags.conn==-1) {
+            mqtt_reconn(h);
         }
         
+        
+        period = (h->flags.ntp?3600:2);
         interval = rtc2_get_timestamp_s()-h->ntime;
         if(interval>=period) {
             r = aiot_ntp_send_request(h->hntp);
@@ -714,11 +754,14 @@ static void mqtt_proc_thread(void *arg)
         
         osDelay(1);
     }
+    
+    osThreadExit();
 }
 
 /* 执行aiot_mqtt_recv的线程, 包含网络自动重连和从服务器收取MQTT消息 */
 static void mqtt_recv_thread(void *arg)
 {
+    int r;
     int32_t res = STATE_SUCCESS;
     mqtt_handle_t *h=(mqtt_handle_t*)arg;
 
@@ -730,14 +773,75 @@ static void mqtt_recv_thread(void *arg)
             }
             
             if(res==STATE_SYS_DEPEND_NWK_CLOSED) {
-                
-            }
-            
-            osDelay(1);
+                osDelay(1);
+            } 
         }
+        
+        mqtt_ota_download(h);
     }
+    
+    osThreadExit();
 }
 
+
+
+static int mqtt_reconn(handle_t hconn)
+{
+    int r;
+    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
+    
+    if(!h) {
+        return -1;
+    }
+    
+    aiot_mqtt_disconnect(h->hmq);
+    r = aiot_mqtt_connect(h->hmq);
+    
+    return r;
+}
+
+static int mqtt_req(handle_t hconn, int req)
+{
+    int r=0;
+    char tmp[100];
+    char payload[100];
+    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
+    conn_handle_t *conn=(conn_handle_t*)h->userdata;
+    plat_para_t *plat=&conn->para.para->para.plat;
+    
+    if(req&MQTT_REQ_CFG) {
+        char *request1 = "{\"id\":%d,\"params\":{\"configScope\":\"product\",\"getType\":\"file\"},\"method\":\"thing.config.get\"}";
+        sprintf(tmp, "/sys/%s/%s/thing/config/get", plat->prdKey, plat->devKey);
+        sprintf(payload, request1, allPara.sys.devInfo.devID);
+        r = aiot_mqtt_pub(h->hmq, tmp, (U8*)payload, strlen(payload), 0);
+    }
+    
+    if(req==MQTT_REQ_FW) {
+        char *request2 = "{\"id\":%d,\"version\":\"1.0\",\"params\":{\"module\":\"MCU\"},\"method\":\"thing.ota.firmware.get\"}";
+        sprintf(tmp, "/sys/%s/%s/thing/ota/firmware/get", plat->prdKey, plat->devKey);
+        sprintf(payload, request2, allPara.sys.devInfo.devID);
+        r = aiot_mqtt_pub(h->hmq, tmp, (U8*)payload, strlen(payload), 0);
+    }
+    
+    return r;
+}
+static int mqtt_subx(handle_t hconn, void *para)
+{
+    int r;
+    char tmp[100];
+    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
+    conn_handle_t *conn=(conn_handle_t*)h->userdata;
+    plat_para_t *plat=&conn->para.para->para.plat;
+    
+    if(!h) {
+        return -1;
+    }
+
+    sprintf(tmp, "/%s/%s/user/get", plat->prdKey, plat->devKey);
+    r = aiot_mqtt_sub(h->hmq, tmp, NULL, 1, h->userdata);
+    
+    return (r<0)?-1:0;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -747,6 +851,7 @@ static int mqtt_ali_init(void)
     int32_t res = STATE_SUCCESS;
      
     extern aiot_sysdep_portfile_t g_aiot_sysdep_portfile;
+    
     aiot_sysdep_set_portfile(&g_aiot_sysdep_portfile);
     aiot_state_set_logcb(ali_state_logcb);
     
@@ -772,7 +877,7 @@ static void mqtt_recv_handler(void *handle, const aiot_mqtt_recv_t *packet, void
 
         case AIOT_MQTTRECV_PUB: {
             if(conn && conn->para.callback) {
-                conn->para.callback(conn, NULL, 0, packet->data.pub.payload, packet->data.pub.payload_len);
+                conn->para.callback(conn, NULL, 0, packet->data.pub.payload, packet->data.pub.payload_len, 0);
             }
         }
         break;
@@ -790,6 +895,7 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
     aiot_sysdep_network_cred_t cred;            /* 安全凭据结构体, 如果要用TLS, 这个结构体中配置CA证书等参数 */
     plat_para_t *plat=&para->para->para.plat;
     mqtt_handle_t *h=NULL;
+    smp_para_t *smp=paras_get_smp();
     
     h = calloc(1, sizeof(mqtt_handle_t));
     if(!h) {
@@ -837,9 +943,11 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
         }
         aiot_ota_report_version(h->hota, FW_VERSION);
         
-        dal_delay_ms(100);
-        mqtt_ali_sub(h, NULL);
-        mqtt_ali_req(h);
+        mqtt_subx(h, NULL);
+        
+        if(smp->pwrmode==PWR_PERIOD_PWRDN) {
+            mqtt_req(h, MQTT_REQ_CFG|MQTT_REQ_FW);
+        }
         
         start_thread(h);
     }
@@ -849,17 +957,7 @@ static handle_t mqtt_ali_conn(conn_para_t *para, void *userdata)
 
 static int mqtt_ali_reconn(handle_t hconn)
 {
-    int r;
-    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
-    
-    if(!h) {
-        return -1;
-    }
-    
-    aiot_mqtt_disconnect(h->hmq);
-    r = aiot_mqtt_connect(h->hmq);
-    
-    return r;
+    return mqtt_reconn(hconn);
 }
 
 
@@ -871,6 +969,8 @@ static int mqtt_ali_disconn(handle_t hconn)
     if(!h) {
         return -1;
     }
+    
+    stop_thread();
     
     aiot_mqtt_disconnect(h->hmq);
     r = aiot_mqtt_deinit(&h->hmq);
@@ -885,7 +985,7 @@ static int mqtt_ali_disconn(handle_t hconn)
     aiot_ntp_deinit(&h->hntp);
 #endif
     
-    stop_thread();
+    
     
     return 0;
 }
@@ -893,20 +993,7 @@ static int mqtt_ali_disconn(handle_t hconn)
 
 static int mqtt_ali_sub(handle_t hconn, void *para)
 {
-    int r;
-    char tmp[100];
-    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
-    conn_handle_t *conn=(conn_handle_t*)h->userdata;
-    plat_para_t *plat=&conn->para.para->para.plat;
-    
-    if(!h) {
-        return -1;
-    }
-
-    sprintf(tmp, "/%s/%s/user/get", plat->prdKey, plat->devKey);
-    r = aiot_mqtt_sub(h->hmq, tmp, NULL, 1, h->userdata);
-    
-    return (r<0)?-1:0;
+    return mqtt_subx(hconn, para);
 }
 
 
@@ -920,17 +1007,8 @@ static int mqtt_ali_pub(handle_t hconn, void *para, void *data, int len)
     plat_para_t *plat=&conn->para.para->para.plat;
     mqtt_pub_para_t *pp=(mqtt_pub_para_t*)para;
 
-    if(!h || !para || !data || !len || !h->flags.conn) {
+    if(!h || !para || !data || !len || h->flags.conn<=0) {
         return -1;
-    }
-    
-    if(h->flags.conn==-1) {
-        LOGD("___ mqtt reconn\n");
-        r = mqtt_ali_reconn(hconn);
-        if(r) {
-            LOGE("___ mqtt reconn failed, %d\n", r);
-            return r;
-        }
     }
     
     if(pp->tp==DATA_LT) {
@@ -956,26 +1034,9 @@ static int mqtt_ali_pub(handle_t hconn, void *para, void *data, int len)
 }
 
 
-static int mqtt_ali_req(handle_t hconn)
+static int mqtt_ali_req(handle_t hconn, int req)
 {
-    int r=0;
-    char tmp[100];
-    char payload[100];
-    char *request1 = "{\"id\":%d,\"params\":{\"configScope\":\"product\",\"getType\":\"file\"},\"method\":\"thing.config.get\"}";
-    char *request2 = "{\"id\":%d,\"version\":\"1.0\",\"params\":{\"module\":\"MCU\"},\"method\":\"thing.ota.firmware.get\"}";
-    mqtt_handle_t *h=(mqtt_handle_t*)hconn;
-    conn_handle_t *conn=(conn_handle_t*)h->userdata;
-    plat_para_t *plat=&conn->para.para->para.plat;
-    
-    sprintf(tmp, "/sys/%s/%s/thing/config/get", plat->prdKey, plat->devKey);
-    sprintf(payload, request1, allPara.sys.devInfo.devID);
-    r = aiot_mqtt_pub(h->hmq, tmp, (U8*)payload, strlen(payload), 0);
-    
-    sprintf(tmp, "/sys/%s/%s/thing/ota/firmware/get", plat->prdKey, plat->devKey);
-    sprintf(payload, request2, allPara.sys.devInfo.devID);
-    r = aiot_mqtt_pub(h->hmq, tmp, (U8*)payload, strlen(payload), 0);
-    
-    return r;
+    return mqtt_req(hconn, req);
 }
 
 
