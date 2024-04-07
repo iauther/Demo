@@ -46,7 +46,7 @@
     #elif defined USE_LAB_4
     #define DEV_KEY         "lab_4"
     #define DEV_SECRET      "2b1bc1aa666fc0763d4eaac87cb9214b"
-    #define COEF_A          1.0f
+    #define COEF_A          201.4283447266
     #define COEF_B          0.0f
     #endif
 #endif
@@ -108,7 +108,7 @@ const all_para_t DFLT_PARA={
         
         .smp = {
             .port       = PORT_NET,
-            .pwrmode    = PWR_PERIOD_PWRDN,
+            .pwrmode    = PWR_NO_PWRDN,
             
             .mode       = MODE_NORM,
     #ifdef DEV_MODE_DEBUG
@@ -119,8 +119,8 @@ const all_para_t DFLT_PARA={
                         .ch         = CH_0,
                         .enable     = 1,
                         
-                        .smpMode      = SMP_MODE_PERIOD,
-                        //.smpMode    = SMP_MODE_TRIG,
+                        //.smpMode      = SMP_MODE_PERIOD,
+                        .smpMode    = SMP_MODE_TRIG,
                         .smpFreq    = 1000000,
                         
                         .smpPoints    = 10000,
@@ -130,12 +130,12 @@ const all_para_t DFLT_PARA={
                         .trigEvType     = EV_AMP,
                         .trigThreshold  = 60.0f,
                         .trigTime={
-                            .preTime    = 200,
-                            .postTime   = 200,
+                            .preTime    = 600,
+                            .postTime   = 600,
                             .PDT        = 300,
                             .HDT        = 600,
-                            .HLT        = 500000,
-                            .MDT        = 4000,
+                            .HLT        = 5000000,
+                            .MDT        = 10000,
                         },
                         
                         .n_ev         = 4,
@@ -144,7 +144,6 @@ const all_para_t DFLT_PARA={
                         
                         .upway      = 0,
                         .upwav      = 1,
-                        .savwav     = 1,
                         
                         .coef={
                             .a = COEF_A,
@@ -180,7 +179,6 @@ const all_para_t DFLT_PARA={
                         
                         .upway      = 0,
                         .upwav      = 0,
-                        .savwav     = 1,
                         
                         .coef={
                             .a = COEF_A,
@@ -211,7 +209,7 @@ const all_para_t DFLT_PARA={
                             .postTime   = 600,
                             .PDT        = 300,
                             .HDT        = 600,
-                            .HLT        = 5000,
+                            .HLT        = 5000000,
                             .MDT        = 10000,
                         },
                         
@@ -221,7 +219,6 @@ const all_para_t DFLT_PARA={
                         
                         .upway      = 0,
                         .upwav      = 1,
-                        .savwav     = 0,
                         
                         .coef={
                             .a = COEF_A,
@@ -257,7 +254,6 @@ const all_para_t DFLT_PARA={
                         
                         .upway      = 0,
                         .upwav      = 0,
-                        .savwav     = 1,
                         
                         .coef={
                             .a = COEF_A,
@@ -333,7 +329,6 @@ const all_para_t DFLT_PARA={
                         
                         .upway      = 0,
                         .upwav      = 0,
-                        .savwav     = 1,
                         
                         .coef={
                             .a = COEF_A,

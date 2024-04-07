@@ -113,10 +113,6 @@ static int data_save(ch_data_t *pch, int len)
         return -1;
     }
     
-    if(!para->savwav) {
-        pch->wavlen = 0;
-    }
-    
     wlen = sizeof(ch_data_t);
     r = fs_write(fh, pch, wlen, 0);
     if(r!=wlen) {
@@ -124,14 +120,20 @@ static int data_save(ch_data_t *pch, int len)
         return -1;
     }
     
-    if(para->savwav && pch->wavlen>0) {
-        wlen = pch->wavlen;
-        r = fs_write(fh, pch->data, wlen, 0);
-        if(r!=wlen) {
-            fs_close(fh); sendHandle.busying = 0;
-            return -1;
+    if(para->upwav) {
+        if(pch->wavlen>0) {
+            wlen = pch->wavlen;
+            r = fs_write(fh, pch->data, wlen, 0);
+            if(r!=wlen) {
+                fs_close(fh); sendHandle.busying = 0;
+                return -1;
+            }
         }
     }
+    else {
+        pch->wavlen = 0;
+    }
+    
     ts_to_tm(pch->time, &dt);
     rtc2_print_time("___file ts:", &dt);
     
@@ -162,6 +164,10 @@ static int data_upload(node_t *node)
     U32 bfile=node->tp;
     char *path=node->buf;
     mqtt_pub_para_t pub_para={DATA_LT};
+    
+    if(!api_comm_is_connected()) {
+        return -1;
+    }
     
     if(bfile) {       //node is file path
         int flen;
@@ -224,7 +230,7 @@ static int data_upload(node_t *node)
             }
         }
         else {
-            LOGE("___comm_send_data failed, %d\n", r);
+            LOGE("___comm_send_data(%s) failed, %d\n", bfile?"file":"buffer", r);
             r = -1;         //发送文件失败
         }
     }
@@ -238,12 +244,6 @@ static int data_upload_proc(void)
     int r=0;
     handle_t xlist;
     smp_para_t *smp=paras_get_smp();
-    
-    if(smp->pwrmode==PWR_PERIOD_PWRDN) {
-        if(!api_comm_is_connected()) {
-            return -1;
-        }
-    }
     
     if(sendHandle.lnode==NULL) {
         //上传数据时，先把文件数据传完再传实时数据

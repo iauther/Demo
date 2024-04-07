@@ -303,13 +303,18 @@ static void stat_polling(void)
     stat_data_t stat;
     stat_info_t si;
     dal_adc_data_t da;
-    static U32 send_tm=0;
+    static U32 sendtime=0;
+    smp_para_t *smp=paras_get_smp();
     mqtt_pub_para_t pub_para={DATA_LT};
 
 #if 1    
-    invtime = dal_get_tick()-send_tm;
-    if(send_tm>0 && invtime<(3600*24)) {
-        return;
+    invtime = dal_get_tick()-sendtime;
+    if(sendtime>0) {
+        //send stat once one day or one period
+        if(((smp->pwrmode==PWR_NO_PWRDN) && invtime<(3600*24*1000)) ||
+           ((smp->pwrmode==PWR_PERIOD_PWRDN) && invtime<(smp->invTime*1000))) {  
+            return;
+        }
     }
 #endif
     
@@ -332,9 +337,9 @@ static void stat_polling(void)
     if(api_comm_is_connected()) {
         r = comm_send_data(tasksHandle.hnet, &pub_para, TYPE_STAT, 0, &stat, sizeof(stat));
         if(r==0) {
-            send_tm = dal_get_tick();
+            sendtime = dal_get_tick();
         }
-        LOGD("___ stat send %s, tm: %d\n", r?"failed":"ok", invtime);
+        LOGD("___ stat send %s, sendtime: %d, invtime: %d\n", r?"failed":"ok", sendtime, invtime);
     }
 }
 

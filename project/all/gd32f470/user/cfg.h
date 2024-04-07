@@ -77,8 +77,8 @@
     
     
     //#define DEV_MODE_NORM
-    #define DEV_MODE_TEST
-    //#define DEV_MODE_DEBUG
+    //#define DEV_MODE_TEST
+    #define DEV_MODE_DEBUG
     
     
     //#define USE_PT1000

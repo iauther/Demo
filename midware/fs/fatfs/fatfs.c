@@ -301,7 +301,7 @@ static int fatfs_length(char *path)
     
     r = f_stat(tmp, &fno);
     if(r) {
-        LOGE("____ f_stat failed, %d\n", r);
+        LOGE("____ f_stat %s failed, %d\n", path, r);
         return -1;
     }
     

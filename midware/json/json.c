@@ -199,7 +199,6 @@ int json_from(char *js, int js_len, usr_para_t *usr)
 
                     cJSON_AddNumberToObject(l2, "upway", pch->upway);
                     cJSON_AddNumberToObject(l2, "upwav", pch->upwav);
-                    cJSON_AddNumberToObject(l2, "savwav", pch->savwav);
                     cJSON_AddNumberToObject(l2, "evCalcPoints", pch->evCalcPoints);
 
                     l3 = cJSON_CreateObject();
@@ -574,12 +573,6 @@ int json_to(char *js, usr_para_t *usr)
                 if(l3) {
                     RANGE_CHECK(l3->valueint, 0, 1, "ch[%d].upwav is wrong, value: 0,1\n", ch)
                     pch->upwav = l3->valueint;
-                }
-
-                l3 = cJSON_GetObjectItem(a1, "savwav");
-                if (l3) {
-                    RANGE_CHECK(l3->valueint, 0, 1, "ch[%d].savwav is wrong, value: 0,1\n", ch)
-                        pch->savwav = l3->valueint;
                 }
                 
                 l3 = cJSON_GetObjectItem(a1, "ev");

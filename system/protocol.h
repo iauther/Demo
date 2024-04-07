@@ -249,7 +249,6 @@ typedef struct {
     
     U8              upway;              //0: upload realtime   1: delay upload together
     U8              upwav;
-    U8              savwav;
 
     coef_t          coef;
 }ch_para_t;

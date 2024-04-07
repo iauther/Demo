@@ -110,7 +110,7 @@ static inline int threshold_copy(threshold_buf_t *b, F32 *v, int cnt, int mode)
     return 0;
 }
 
-static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 mdtFull)
+static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 mdtfull)
 {
     int i,j,tcnt=0,ev_calc_cnt,evlen=0;
     int r,postcnt=0,tlen;
@@ -123,9 +123,14 @@ static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 mdtFull)
     fmemcpy(pch->data+tcnt, thr->bdy.data, thr->bdy.dcnt);
     tcnt += thr->bdy.dcnt;
     
-    if(!mdtFull) {
+    if(!mdtfull) {
         fmemcpy(pch->data+tcnt, thr->post.data, thr->post.dcnt);
         tcnt += thr->post.dcnt;
+        postcnt = thr->post.dcnt;
+    }
+    
+    if(tcnt==0) {
+        return -1;
     }
     
     pch->ch = para->ch;
@@ -153,8 +158,10 @@ static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 mdtFull)
     pch->evlen = evlen;
     tlen = sizeof(ch_data_t)+pch->wavlen+pch->evlen;
     
+    LOGD("___trigger, mdtfull:%d, ch:%d, trigged:%d, idx:%d, pre:%d, bdy:%d, post:%d, pdt:%d, hdt:%d, hlt:%d, mdt:%d, tcnt: %d, tlen: %d\n", 
+          mdtfull, pch->ch, thr->trigged, thr->idx, thr->pre.dcnt, thr->bdy.dcnt, postcnt, thr->cur.pdt, thr->cur.hdt, thr->cur.hlt, thr->cur.mdt, tcnt, tlen);
+    
     r = api_send_append(pch, tlen);
-    LOGD("___trigged, ch: %d, points: %d, pktlen: %d, full: %d, add to send list %s\n", pch->ch, tcnt, tlen, mdtFull, (r==0)?"ok":"fail");
     if(r==0) {
         thr->trigged = 1;
         thr->pre.dcnt = 0;
@@ -162,6 +169,9 @@ static inline int threshold_send(threshold_t *thr, ch_para_t *para, U8 mdtFull)
         thr->post.dcnt = 0;
         
         memset(pch, 0, sizeof(ch_data_t));
+    }
+    else {
+        LOGE("___ threshold_send, append failed\n");
     }
     
     return r;
@@ -343,7 +353,6 @@ static int trig_proc(raw_data_t *raw, ch_para_t *para)
         }
         
         if(thr->cur.pdt>=0) {
-            
             if(thr->idx-thr->cur.pdt>=thr->set.pdt) {
                 if(thr->cur.hdt==-1) {
                     thr->cur.hdt = thr->idx;
@@ -361,7 +370,7 @@ static int trig_proc(raw_data_t *raw, ch_para_t *para)
                             }
                         }
                         
-                        if(!thr->trigged) {
+                        if(thr->trigged==0) {
                             if(threshold_is_full(&thr->post)) {
                                 threshold_send(thr, para, 0);
                             }
@@ -380,13 +389,13 @@ static int trig_proc(raw_data_t *raw, ch_para_t *para)
                 }
                 
                 //当数据长度超过MDT设置时，则需将数据截断
-                if(thr->cur.mdt>0 && (thr->idx-thr->cur.mdt)>=thr->set.mdt) {
+                if(thr->cur.mdt>=0 && (thr->idx-thr->cur.mdt)>=thr->set.mdt) {
                     if(thr->cur.hlt==-1) {
                         thr->cur.hlt = thr->idx;
                     }
                     else {
                         //当数据长度超过HLT设置时，则需将数据丢弃
-                        if(thr->idx-thr->cur.hlt>=thr->set.hlt) {
+                        if(thr->idx - thr->cur.hlt >= thr->set.hlt) {
                             threshold_reset(thr);   //复位变量, 重新开始新一轮
                         }
                     }
