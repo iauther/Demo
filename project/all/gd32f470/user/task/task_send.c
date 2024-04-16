@@ -85,9 +85,10 @@ static int data_save(ch_data_t *pch, int len)
     ch_para_t *para=paras_get_ch_para(pch->ch);
     
     sendHandle.busying = 1;
-    if(space_is_full()){
+    r = space_is_full();
+    if(r){
         sendHandle.busying = 0;
-        LOGD("___ space is full!\n");
+        LOGD("___ space %s\n", (r<0)?"get failed":"is full");
         return -1;
     }
     

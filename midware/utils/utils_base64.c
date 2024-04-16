@@ -139,3 +139,27 @@ int utils_base64decode(const uint8_t *data, uint32_t inputLength, uint32_t outpu
     return 0;
 }
 
+
+int utils_base64encode_len(int plainLen)
+{
+    int n = plainLen;
+    return (n + 2 - ((n + 2) % 3)) / 3 * 4;
+}
+
+
+int utils_base64decode_len(char *input, int inputLen)
+{
+    int i = 0;
+    int numEq = 0;
+    
+    for (i = inputLen - 1; input[i] == '='; i--) {
+        numEq++;
+    }
+
+    return ((6 * inputLen) / 8) - numEq;
+}
+
+
+
+
+

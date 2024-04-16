@@ -18,6 +18,8 @@ int utils_base64encode(const uint8_t *data, uint32_t inputLength, uint32_t outpu
                               uint8_t *encodedData, uint32_t *outputLength);
 int utils_base64decode(const uint8_t *data, uint32_t inputLength, uint32_t outputLenMax,
                               uint8_t *decodedData, uint32_t *outputLength);
+int utils_base64encode_len(int plainLen);
+int utils_base64decode_len(char *input, int inputLen);
 
 #ifdef __cplusplus
 }
