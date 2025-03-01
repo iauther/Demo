@@ -7,12 +7,10 @@
 #include "types.h"
 
 typedef enum {
-    LV_INFO=0,
-    LV_DEBUG,
-    LV_WARN,
-    LV_ERROR,
-
-    LV_MAX
+    LV_INFO=(1<<0),
+    LV_DEBUG=(1<<1,
+    LV_WARN=(1<<2,
+    LV_ERROR=(1<<3,
 }LOG_LEVEL;
 
 
